@@ -61,7 +61,9 @@ $fullname = $savepath . $name;
 $pos = strrpos($fullname, ".");
 if ($pos === false) { // note: three equal signs
     // not found...
-	return;
+        $fullname=$fullname.'.jpg';
+        $pos = strrpos($fullname, ".");
+
 }
 $fullnamet = substr_replace($fullname, "_" . Rand(), $pos, 0);
 downloadFile($image_url,$fullnamet);
