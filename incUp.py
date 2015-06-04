@@ -1,9 +1,15 @@
 import os,sys,json,urllib2,math,shutil
-import struct,time
+import struct,time,multiprocessing
 import MySQLdb
 import subprocess as sub
 import hashlib
-
+def download_shell(args):
+	url = args[0]
+	filepath = args[1]
+	if os.path.isfile(filepath):
+		return 1
+	else:
+		return download_image(url,filepath)
 def download_image(url,filepath):
 	retry = 0
 	failed = 0
@@ -33,14 +39,26 @@ def download_image(url,filepath):
 		return 0
 	else:
 		savefailed = 0
+		saveretry = 0
 		try:
 			f=open(filepath,'wb')
 			f.write(imgfile.read())
 			f.close()
 		except Exception as e:
-			print url+' save file failed!'
-			savefailed = 1
+			print url+' save file retry!'
+			saveretry = 1
 			pass
+		if saveretry:
+			time.sleep(2)
+			try:
+				imgfile = urllib2.urlopen(url,timeout=10)
+				f=open(filepath,'wb')
+				f.write(imgfile.read())
+				f.close()
+			except Exception as e:
+				print url+' save file failed!'
+				savefailed = 1
+				pass
 		if savefailed:
 			return 0
 		else:
@@ -148,16 +166,19 @@ if __name__ == '__main__':
 	flog.write('Time for getting urls: '+ str(step_times[-1]-step_times[-2])+ ' seconds\n')
 
 	# download images
-
-	downloaded = []
+	pool = multiprocessing.Pool(10)
+	download_arg=[];
 	for img_item in re:
 		url = img_item[1]
 		name = url.split('/')[-1]
 		filepath = os.path.join(update_image_cache,name)
-		if os.path.isfile(filepath):
-			downloaded.append(img_item+(filepath,))
-		elif download_image(url,filepath):
-			downloaded.append(img_item+(filepath,))
+		download_arg.append([url,filepath])
+
+	download_indicator=pool.map(download_shell, download_arg)
+	downloaded = []
+	for i in range(0,len(re)):
+		if download_indicator[i]:
+			downloaded.append(re[i]+(download_arg[i][1],))
 
 	num_downloaded = len(downloaded)
 	print 'downloaded %d images' % num_downloaded
