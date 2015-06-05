@@ -6,10 +6,15 @@ import hashlib
 def download_shell(args):
 	url = args[0]
 	filepath = args[1]
+	#tm_start = time.time()
 	if os.path.isfile(filepath):
+		#print time.time()-tm_start
 		return 1
 	else:
-		return download_image(url,filepath)
+		#tm_start = time.time()
+		down_success = download_image(url,filepath)
+		#print 'down time '+ str(time.time()-tm_start)
+		return down_success
 def download_image(url,filepath):
 	retry = 0
 	failed = 0
@@ -168,10 +173,12 @@ if __name__ == '__main__':
 	# download images
 	pool = multiprocessing.Pool(10)
 	download_arg=[];
+	if not os.path.isdir(os.path.join(update_image_cache,str(startid))):
+		os.mkdir(os.path.join(update_image_cache,str(startid)))
 	for img_item in re:
 		url = img_item[1]
 		name = url.split('/')[-1]
-		filepath = os.path.join(update_image_cache,name)
+		filepath = os.path.join(update_image_cache,str(startid),name)
 		download_arg.append([url,filepath])
 
 	download_indicator=pool.map(download_shell, download_arg)
