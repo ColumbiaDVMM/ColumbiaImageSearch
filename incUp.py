@@ -72,7 +72,7 @@ def download_image(url,filepath):
 if __name__ == '__main__':
 	step_times = []
 	step_times.append(time.time())
-	timestr= time.strftime("%b-%d-%Y-%H-%M-%S", time.gmtime(step_times[0]))
+	timestr= time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(step_times[0]))
 
 	from argparse import ArgumentParser
 
