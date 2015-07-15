@@ -157,7 +157,7 @@ if __name__ == '__main__':
 		db.close()
 		# expand metadata
 		if not global_var['demo']:
-			db=MySQLdb.connect(host='54.191.207.159',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
+			db=MySQLdb.connect(host='memex-db.istresearch.com',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
 			c=db.cursor()
 			sql='select i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where i.id in (%s) order by field (i.id,%s);' 
 			for i in range(0,ins_num):	
