@@ -76,7 +76,7 @@ if __name__ == '__main__':
 	ins_num = 0
 	always_recompute = 1;
 		
-	if not os.path.exists(outputname) or always_recompute:
+	if not os.path.exists(outputname):
 		simname = featurename + '_fc7-sim_'+ratio+'.txt'
 		#precomp_feats=[]
 		# To maintain proper alignment of output
