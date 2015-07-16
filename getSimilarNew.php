@@ -107,7 +107,7 @@ else {
 }
 
 shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num. " ".$ratio. " ".$dup);
-$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr.".json", -4, 4);
+$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr."_".date('Y-m-d_H').".json", -4, 4);
 
 
 $fout = fopen ($outname, "rb");
