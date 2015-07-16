@@ -12,10 +12,12 @@ import struct
 import hashlib
 
 
-def exist_img_precompfeat(sha1):
+def exist_img_precompfeat(query_sha1):
 	db=MySQLdb.connect(host='localhost',user='memex',passwd="darpamemex",db="imageinfo")
 	c=db.cursor()
-	c.execute('"select id from uniqueIds where sha1="+sha1+";"') #Should we use id or htid here?
+	query="select id from uniqueIds where sha1=\""+query_sha1+"\";"
+	print query
+	c.execute(query) #Should we use id or htid here?
 	remax = c.fetchall()
 	print remax
 	if len(remax):
@@ -65,11 +67,13 @@ if __name__ == '__main__':
 	testname = img_filename[:-4] + '-test.txt'
 	protoname = img_filename[:-4] + '-test.prototxt'
 	featurename = img_filename[:-4] + '-features'
-	precomp_featurename = img_filename[:-4] + 'precomp-features'
+	precomp_featurename = img_filename[:-4] + '-precomp-features'
 	featurefilename = featurename+'_fc7.dat'
-	fresh_featurefilename = featurename+'fresh__fc7.dat'
-	precomp_featurefilename = featurename+'precomp_fc7.dat'
+	fresh_featurefilename = featurename+'-fresh_fc7'
+	precomp_featurefilename = featurename+'-precomp_fc7.dat'
 	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'.json'
+
+	ins_num = 0
 		
 	if not os.path.exists(outputname):
 		simname = featurename + '_fc7-sim_'+ratio+'.txt'
@@ -80,7 +84,6 @@ if __name__ == '__main__':
 		f = open(testname,'w')
 		f_pre = open(precomp_featurename,'wb')
 		if img_filename[-4:]=='.txt':
-			ins_num = 0
 			for line in open(img_filename):
 				imgname = line.replace('\n','')
 				if len(imgname)>2:
@@ -129,7 +132,7 @@ if __name__ == '__main__':
 			f = open(protoname,'w');
 			f.write(proto)
 			f.close()
-			command = prefix+'extract_nfeatures caffe_sentibank_train_iter_250000 '+protoname+ ' fc7,prob '+fresh_featurefilename.replace('\\','/')+'_fc7,'+fresh_featurefilename.replace('\\','/')+'_prob '+str(iteration)+' '+device;
+			command = prefix+'extract_nfeatures caffe_sentibank_train_iter_250000 '+protoname+ ' fc7,prob '+fresh_featurefilename.replace('\\','/')+','+fresh_featurefilename.replace('\\','/')+'_prob '+str(iteration)+' '+device;
 			print command
 			os.system(command)
 			print 'sentibank time: ', time.time() - t0
@@ -138,7 +141,8 @@ if __name__ == '__main__':
 
 			os.remove(protoname)
 		# get precomputed features
-		nb_precomp=len(precomp_feats)
+		nb_precomp=len(precomp_img_filenames)
+		out_fresh_featurefilename=fresh_featurefilename.replace('\\','/')+".dat"
 		if nb_precomp>0:
 			command = prefix+'get_precomp_feats '+precomp_featurename+' '+precomp_featurefilename;
 			print command
@@ -148,7 +152,7 @@ if __name__ == '__main__':
 				#read featurefilename and featurefilename_precomp
 				#use list of files to know where to read feature from to build final features file
 				f_pre=open(precomp_featurefilename,'rb')
-				f_fresh=open(fresh_featurefilename,'rb')
+				f_fresh=open(out_fresh_featurefilename,'rb')
 				f_final=open(featurefilename,'wb')
 				# How to read and write properly features vectors?
 				# Use numpy? numpy.fromfile, numpy.ndarray.tofile
@@ -167,7 +171,7 @@ if __name__ == '__main__':
 				print command
 				os.system(command)
 		else: # only fresh features here
-			command = 'mv '+fresh_featurefilename+' '+featurefilename;
+			command = 'mv '+out_fresh_featurefilename+' '+featurefilename;
 			print command
 			os.system(command)
 
