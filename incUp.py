@@ -72,7 +72,7 @@ def download_image(url,filepath):
 if __name__ == '__main__':
 	step_times = []
 	step_times.append(time.time())
-	timestr= time.strftime("%b-%d-%Y-%H-%M-%S", time.gmtime(step_times[0]))
+	timestr= time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(step_times[0]))
 
 	from argparse import ArgumentParser
 
@@ -118,7 +118,8 @@ if __name__ == '__main__':
 	if not os.path.exists(update_image_cache):
 		os.mkdir(update_image_cache)
 	# get image URLs, ids, etc.
-	db=MySQLdb.connect(host='54.191.207.159',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
+	#db=MySQLdb.connect(host='54.191.207.159',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
+	db=MySQLdb.connect(host='memex-db.istresearch.com',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
 	c=db.cursor()
 	# sql='select id,location,importtime  from images where importtime >= DATE_FORMAT(''%s'', ''%s'') and location is not null order by importtime asc'
 	# query_time = ['2015-04-13 15:00:00','%Y-%m-%d %H:%i:%s']
@@ -134,6 +135,9 @@ if __name__ == '__main__':
 
 	re = c.fetchall()
 	db.close()
+	if len(re)<limit:
+		print "Not enough images"
+		return
 	if len(re)>0:
 		lastId=int(re[-1][0])
 	else:

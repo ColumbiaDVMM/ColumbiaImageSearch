@@ -30,6 +30,7 @@ $query_num = $_GET['num'];
 $vis = $_GET['visualize'];
 $fast = $_GET['fast'];
 $nodup = $_GET['nodup'];
+$neardup = $_GET['neardup'];
 $dup = 1;
 $dupstr = '_dup';
 if ($nodup>0){
@@ -68,10 +69,14 @@ if ($pos === false) { // note: three equal signs
 $fullnamet = substr_replace($fullname, "_" . Rand(), $pos, 0);
 downloadFile($image_url,$fullnamet);
 
-$output = shell_exec("md5sum " . $fullnamet );
+//$output = shell_exec("md5sum " . $fullnamet );
+$output = shell_exec("sha1sum " . $fullnamet );
 
-list($md5, $tmp) = split(" ", $output);
-$fullname = substr_replace($fullname, "_" . $md5, $pos, 0);
+//list($md5, $tmp) = split(" ", $output);
+list($sha1, $tmp) = split(" ", $output);
+//$fullname = substr_replace($fullname, "_" . $md5, $pos, 0);
+$fullname = substr_replace($fullname, "_" . $sha1, $pos, 0);
+
 if (file_exists($fullname)) {
     //echo "The file $filename exists";
 	unlink($fullnamet);
@@ -80,8 +85,8 @@ if (file_exists($fullname)) {
 	rename($fullnamet, $fullname);
 
 }
-$fgval = fopen ("global_var.json", "rb");
-$gread=fread($fgval,filesize("global_var.json"));
+$fgval = fopen ("global_var_new.json", "rb");
+$gread=fread($fgval,filesize("global_var_new.json"));
 $global_var = json_decode($gread);
 if ($fast){
 	$ratio = $global_var->{'fast_ratio'};
@@ -90,7 +95,7 @@ else {
 	$ratio = $global_var->{'ratio'};
 }
 
-shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilar.py " . $fullname . " " . $query_num. " ".$ratio. " ".$dup);
+shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num. " ".$ratio. " ".$dup);
 $outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr.".json", -4, 4);
 
 
