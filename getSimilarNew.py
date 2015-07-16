@@ -8,8 +8,8 @@ from array import *
 from collections import OrderedDict 
 import math
 import ntpath
-import struct
 import hashlib
+import datetime
 
 
 def exist_img_precompfeat(query_sha1):
@@ -71,7 +71,8 @@ if __name__ == '__main__':
 	featurefilename = featurename+'_fc7.dat'
 	fresh_featurefilename = featurename+'-fresh_fc7'
 	precomp_featurefilename = featurename+'-precomp_fc7.dat'
-	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'.json'
+	now=datetime.datetime.now()
+	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'_'+now.strftime('%Y-%m-%d_%H')+'.json'
 
 	ins_num = 0
 	always_recompute = 1;
