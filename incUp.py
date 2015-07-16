@@ -136,8 +136,8 @@ if __name__ == '__main__':
 	re = c.fetchall()
 	db.close()
 	if len(re)<limit:
-		print "Not enough images"
-		return
+		print "Not enough images. Exiting"
+		sys.exit("Error: Not enough images.")
 	if len(re)>0:
 		lastId=int(re[-1][0])
 	else:

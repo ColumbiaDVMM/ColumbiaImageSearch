@@ -96,7 +96,7 @@ if __name__ == '__main__':
 			for line in open(img_filename):
 				imgname = line.replace('\n','')
 				if len(imgname)>2:
-					f_img = open(imgname, 'rb')
+					f_img = open(imgname, 'rb') # TODO: check if image is o web address and download it
 					sha1=hashlib.sha1(f_img.read()).hexdigest().upper()
 					f_img.close()
 					feat_id=exist_img_precompfeat(sha1)
@@ -229,7 +229,8 @@ if __name__ == '__main__':
 				break
 		f.close()
 		
-		print "len sim",len(sim)
+		print "sim_score",sim_score		
+
 		# get only near_duplicate
 		if near_dup:
 			print "Keeping only near duplicate"
@@ -239,7 +240,6 @@ if __name__ == '__main__':
 					if s > near_dup_th:
 						print "Should remove every retrieve sample after",str(s_c)
 					s_c+=1 
-
 		# get_duplicate
 		if get_dup:
 			new_sim = []
@@ -259,8 +259,10 @@ if __name__ == '__main__':
 				#print len(tmpresult)
 				p = 0
 				for k in tmpresult:
+					print "k",k
 					if sim[i][p][4]!=k[1]:
 						p = p+1
+					print "sim[i][p]",sim[i][p]
 					if not global_var['demo']:
 						new_sim[i].append((sim[i][p][0],sim[i][p][1],sim[i][p][2],sim[i][p][3],k[0],sim[i][p][5]))
 					else:
