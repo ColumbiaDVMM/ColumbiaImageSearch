@@ -57,10 +57,17 @@ if __name__ == '__main__':
 		if get_dup==0:
 			dupstr=''
 	device = 'CPU'
-	if len(sys.argv)>5 and sys.argv[5]=='GPU':
+	near_dup = 0
+	if len(sys.argv)>5:
+		near_dup = int(sys.argv[5])
+	near_dup_th = 0.15
+	if len(sys.argv)>6:
+		near_dup_th = float(sys.argv[56])
+	if len(sys.argv)>7 and sys.argv[7]=='GPU':
 		device = 'GPU'
-		if len(sys.argv)>6 and sys.argv[6].find('DEVICE_ID=')>-1:
-			device = device + ' ' + sys.argv[6]		
+		if len(sys.argv)>8 and sys.argv[8].find('DEVICE_ID=')>-1:
+			device = device + ' ' + sys.argv[8]
+	
 	feature_num = 4096
 	classes = json.load(open('classes_memex.json'))
 	class_num = len(classes)
@@ -201,6 +208,7 @@ if __name__ == '__main__':
 		c=db.cursor()
 		sql='SELECT NULL,location,NULL,NULL,htid,sha1 FROM uniqueIds WHERE id in (%s) ORDER BY FIELD(id, %s)' 
 
+		# get similar images
 		count = 0
 		for line in f:
 			#sim_index.append([])
@@ -222,6 +230,16 @@ if __name__ == '__main__':
 		f.close()
 		
 		print "len sim",len(sim)
+		# get only near_duplicate
+		if near_dup:
+			print "Keeping only near duplicate"
+			for q in range(0,query_num):
+				s_c=0
+				for s in sim_score[q]:
+					if s > near_dup_th:
+						print "Should remove every retrieve sample after",str(s_c)
+					s_c+=1 
+
 		# get_duplicate
 		if get_dup:
 			new_sim = []
