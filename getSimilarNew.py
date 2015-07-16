@@ -8,7 +8,9 @@ from array import *
 from collections import OrderedDict 
 import math
 import ntpath
+import struct
 import hashlib
+
 
 def exist_img_precompfeat(sha1):
 	db=MySQLdb.connect(host='localhost',user='memex',passwd="darpamemex",db="imageinfo")
@@ -101,7 +103,7 @@ if __name__ == '__main__':
 			feat_id=exist_img_precompfeat(sha1)
 			if feat_id != 0:
 				#precomp_feats.append(feat_id)
-				f_pre.write(feat_id+' 0\n')
+				f_pre.write(struct.pack('i',feat_id))
 				precomp_img_filenames.append(img_filename)
 			else:
 				f.write(img_filename+' 0\n')
@@ -148,12 +150,14 @@ if __name__ == '__main__':
 				f_pre=open(precomp_featurefilename,'rb')
 				f_fresh=open(fresh_featurefilename,'rb')
 				f_final=open(featurefilename,'wb')
+				# How to read and write properly features vectors?
 				for img in all_img_filenames:
 					if img in precomp_img_filenames: # read from pre
-						one_feat = f_pre.readline()
+						one_feat = f_pre.read(feature_num*4)
 					else:
-						one_feat = f_fresh.readline()
-					f_final.write(one_feat+' 0\n')
+						one_feat = f_fresh.read(feature_num*4)
+					print len(one_feat)
+					f_final.write(one_feat)
 				f_pre.close()
 				f_fresh.close()
 				f_final.close()
