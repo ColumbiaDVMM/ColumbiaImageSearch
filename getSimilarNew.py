@@ -120,6 +120,8 @@ if __name__ == '__main__':
 			prefix = ''
 		else:
 			prefix = './'
+		nb_query=len(all_img_filenames)
+
 #		if not os.path.exists(featurefilename) and ins_num>0:
 		if ins_num>0 and (always_recompute or not os.path.exists(featurefilename)):
 			batch_size = min(64,ins_num)
@@ -155,6 +157,7 @@ if __name__ == '__main__':
 				f_pre=open(precomp_featurefilename,'rb')
 				f_fresh=open(out_fresh_featurefilename,'rb')
 				f_final=open(featurefilename,'wb')
+				print featurefilename,"should contain",str(nb_query),"features."
 				# How to read and write properly features vectors?
 				# Use numpy? numpy.fromfile, numpy.ndarray.tofile
 				for img in all_img_filenames:
@@ -188,6 +191,7 @@ if __name__ == '__main__':
 		#print prob,feature
 		#os.system('cd ..')
 		#os.chdir(currentDir)
+		print simname
 		f = open(simname);
 		sim =[]
 		sim_score=[]
@@ -215,7 +219,7 @@ if __name__ == '__main__':
 				break
 		f.close()
 		
-		
+		print "len sim",len(sim)
 		# get_duplicate
 		if get_dup:
 			new_sim = []
@@ -224,7 +228,7 @@ if __name__ == '__main__':
 				sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
 			else:
 				sql='SELECT htid,uid,url,location,ads_url,ads_id FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
-			for i in range(0,ins_num):	
+			for i in range(0,nb_query):	
 				new_sim.append([])
 				new_sim_score.append([])
 				query_num = [simj[4] for simj in sim[i]]
@@ -252,7 +256,7 @@ if __name__ == '__main__':
 			db=MySQLdb.connect(host='memex-db.istresearch.com',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
 			c=db.cursor()
 			sql='select i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where i.id in (%s) order by field (i.id,%s);' 
-			for i in range(0,ins_num):	
+			for i in range(0,nb_query):	
 				query_num = [simj[4] for simj in sim[i]]
 				in_p=', '.join(map(lambda x: '%s', query_num))
 				sqlq = sql % (in_p,in_p)
@@ -262,7 +266,7 @@ if __name__ == '__main__':
 			db.close()
 		
 		output = []
-		for i in range(0,ins_num):	
+		for i in range(0,nb_query):	
 			output.append(dict())
 			output[i]['similar_images']= OrderedDict([['number',len(sim[i])],['image_urls',[]],['cached_image_urls',[]],['page_urls',[]],['ht_ads_id',[]],['ht_images_id',[]],['sha1',[]],['distance',[]]])
 			for simj in sim[i]:
