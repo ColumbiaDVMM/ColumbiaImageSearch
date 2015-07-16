@@ -151,10 +151,11 @@ $fout = fopen ($outname, "rb");
 		$orilist = $obj->{'images'}[0]->{'similar_images'}->{'page_urls'};
 		$uidlist = $obj->{'images'}[0]->{'similar_images'}->{'ht_images_id'};
 		$sha1list = $obj->{'images'}[0]->{'similar_images'}->{'sha1'};
+		$distlist = $obj->{'images'}[0]->{'similar_images'}->{'distance'};
 
 		for ($i=0; $i<sizeof($imglist); $i++) {
 			$dupurl = 'getDuplicate.php?htid='.$uidlist[$i].'&visualize=1';
-			echo '<a href="'.$dupurl.'"><img src="'.$imglist[$i].'" style="margin:3;border:0;height:120px;" title="'.$orilist[$i].'"></a>';
+			echo '<a href="'.$dupurl.'"><img src="'.$imglist[$i].'" style="margin:3;border:0;height:120px;" origin="'.$orilist[$i].'" title="'.$distlist[$i].'"></a>';
 		}
 	}
 	
