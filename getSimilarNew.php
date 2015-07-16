@@ -1,4 +1,5 @@
 <?php
+error_reporting(E_ALL | E_STRICT);
 
 function downloadFile ($url, $path) {
 
@@ -25,12 +26,22 @@ function downloadFile ($url, $path) {
  }
 $mainpath = '/home/ubuntu/memex/';
 $savepath = $mainpath . 'img/';
+if (PHP_SAPI === 'cli') {
+$image_url = $argv[1];
+$query_num = $argv[2];
+$vis = $argv[3];
+$fast = $argv[4];
+$nodup = $argv[5];
+$neardup = $argv[6];
+}
+else {
 $image_url = $_GET["url"];
 $query_num = $_GET['num'];
 $vis = $_GET['visualize'];
 $fast = $_GET['fast'];
 $nodup = $_GET['nodup'];
 $neardup = $_GET['neardup'];
+}
 $dup = 1;
 $dupstr = '_dup';
 if ($nodup>0){
