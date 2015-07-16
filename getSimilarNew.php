@@ -24,6 +24,25 @@ function downloadFile ($url, $path) {
     fclose($newf);
   }
  }
+
+function time_elapsed($secs){
+    $bit = array(
+        'y' => $secs / 31556926 % 12,
+        'w' => $secs / 604800 % 52,
+        'd' => $secs / 86400 % 7,
+        'h' => $secs / 3600 % 24,
+        'm' => $secs / 60 % 60,
+        's' => $secs % 60
+        );
+        
+    foreach($bit as $k => $v)
+        if($v > 0)$ret[] = $v . $k;
+        
+    return join(' ', $ret);
+    }
+
+
+
 $mainpath = '/home/ubuntu/memex/';
 $savepath = $mainpath . 'img/';
 if (PHP_SAPI === 'cli') {
@@ -106,9 +125,11 @@ else {
 	$ratio = $global_var->{'ratio'};
 }
 
+    
+$start_time = time();
 shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num. " ".$ratio. " ".$dup);
 $outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr."_".date('Y-m-d_H').".json", -4, 4);
-
+echo '<div id="debug" value'.time_elapsed(time()-$start_time).'></div>';
 
 $fout = fopen ($outname, "rb");
  if ($fout) {
