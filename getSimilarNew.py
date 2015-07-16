@@ -180,7 +180,7 @@ if __name__ == '__main__':
 			os.system(command)
 
 		os.remove(testname)
-		if not os.path.exists(simname):
+		if not os.path.exists(simname) or always_recompute:
 			command = prefix+'hashing '+featurefilename + ' 256 '+ratio;
 			print command
 			os.system(command)
@@ -215,7 +215,7 @@ if __name__ == '__main__':
 			sim.append(c.fetchall())
 			sim_score.append(nums[onum:onum+n])
 			count = count + 1
-			if count == ins_num:
+			if count == nb_query:
 				break
 		f.close()
 		
