@@ -74,8 +74,9 @@ if __name__ == '__main__':
 	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'.json'
 
 	ins_num = 0
+	always_recompute = 1;
 		
-	if not os.path.exists(outputname):
+	if not os.path.exists(outputname) or always_recompute:
 		simname = featurename + '_fc7-sim_'+ratio+'.txt'
 		#precomp_feats=[]
 		# To maintain proper alignment of output
@@ -91,9 +92,10 @@ if __name__ == '__main__':
 					sha1=hashlib.sha1(f_img.read()).hexdigest().upper()
 					f_img.close()
 					feat_id=exist_img_precompfeat(sha1)
+					print feat_id
 					if feat_id != 0:
 						#precomp_feats.append(feat_id)
-						f_pre.write(int(feat_id))
+						f_pre.write(struct.pack('i',feat_id))
 						precomp_img_filenames.append(imgname)
 					else:
 						ins_num = ins_num + 1
@@ -118,9 +120,8 @@ if __name__ == '__main__':
 			prefix = ''
 		else:
 			prefix = './'
-		if not os.path.exists(featurefilename) and ins_num>0:
-
-
+#		if not os.path.exists(featurefilename) and ins_num>0:
+		if ins_num>0 and (always_recompute or not os.path.exists(featurefilename)):
 			batch_size = min(64,ins_num)
 			iteration = int(math.ceil(ins_num/float(batch_size)))
 			print 'image_number:', ins_num, 'batch_size:', batch_size, 'iteration:', iteration
