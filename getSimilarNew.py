@@ -151,6 +151,7 @@ if __name__ == '__main__':
 				f_fresh=open(fresh_featurefilename,'rb')
 				f_final=open(featurefilename,'wb')
 				# How to read and write properly features vectors?
+				# Use numpy? numpy.fromfile, numpy.ndarray.tofile
 				for img in all_img_filenames:
 					if img in precomp_img_filenames: # read from pre
 						one_feat = f_pre.read(feature_num*4)
