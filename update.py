@@ -1,6 +1,6 @@
 import os, time
 lasttime = 0
-interval = 21600
+interval = 3600
 while 1:
 	ctime = time.time()
 	time_lapse = ctime-lasttime
