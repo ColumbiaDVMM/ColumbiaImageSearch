@@ -166,6 +166,7 @@ if __name__ == '__main__':
 					else:
 						one_feat = f_fresh.read(feature_num*4)
 					print len(one_feat)
+					print one_feat
 					f_final.write(one_feat)
 				f_pre.close()
 				f_fresh.close()
