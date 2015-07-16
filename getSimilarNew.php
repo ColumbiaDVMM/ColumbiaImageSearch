@@ -36,9 +36,16 @@ function time_elapsed($secs){
         );
         
     foreach($bit as $k => $v)
-        if($v > 0)$ret[] = $v . $k;
+        if($v > 0) $ret[] = $v . $k;
         
-    return join(' ', $ret);
+    if(count($ret) > 0) {
+    	$out = join(' ', $ret);
+    }
+    else {
+    	$out = 'Less than 1 second.';
+    }
+
+    return $out;
     }
 
 
@@ -129,7 +136,7 @@ else {
 $start_time = time();
 shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num. " ".$ratio. " ".$dup);
 $outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr."_".date('Y-m-d_H').".json", -4, 4);
-echo '<div id="debug" value'.time_elapsed(time()-$start_time).'></div>';
+echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'"></div>';
 
 $fout = fopen ($outname, "rb");
  if ($fout) {
