@@ -95,7 +95,7 @@ if __name__ == '__main__':
 	precomp_featurefilename = featurename+'-precomp_fc7.dat'
 	now=datetime.datetime.now()
 	#outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'_'+now.strftime('%Y-%m-%d_%H')+'.json'
-	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+neardupstr'.json'
+	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+neardupstr+'.json'
 	#print outputname
 
 	ins_num = 0
