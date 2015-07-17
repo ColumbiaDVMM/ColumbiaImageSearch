@@ -105,6 +105,11 @@ if ($nodup>0){
 	$dupstr = '';
 }
 
+$neardupstr = '';
+if ($neardup>0){
+  $neardupstr = '_neardup'.$neardup_th;
+}
+
 if ($query_num<1){
 	$query_num = 30;
 }
@@ -164,7 +169,7 @@ else {
 
 $start_time = time();
 //$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr."_".date('Y-m-d_H').".json", -4, 4); // Date is for one hour caching.
-$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr.".json", -4, 4); // Date is for one hour caching.
+$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr.$neardupstr.".json", -4, 4); // Date is for one hour caching.
 if ($nocache==1) {
   unlink($outname);
 }

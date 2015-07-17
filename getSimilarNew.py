@@ -75,6 +75,9 @@ if __name__ == '__main__':
 	device = 'CPU'
 	if len(sys.argv)>6:
 		near_dup_th = float(sys.argv[6])
+	neardupstr=''
+	if near_dup:
+		neardupstr='_neardup'+str(near_dup_th)
 	if len(sys.argv)>7 and sys.argv[7]=='GPU':
 		device = 'GPU'
 		if len(sys.argv)>8 and sys.argv[8].find('DEVICE_ID=')>-1:
@@ -92,7 +95,7 @@ if __name__ == '__main__':
 	precomp_featurefilename = featurename+'-precomp_fc7.dat'
 	now=datetime.datetime.now()
 	#outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'_'+now.strftime('%Y-%m-%d_%H')+'.json'
-	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'.json'
+	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+neardupstr'.json'
 	#print outputname
 
 	ins_num = 0
