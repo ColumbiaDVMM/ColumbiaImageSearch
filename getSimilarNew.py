@@ -56,6 +56,7 @@ if __name__ == '__main__':
 	img_filename = sys.argv[1]
 	sim_limit = 100
 	global_var = json.load(open('global_var.json'))
+	print len(sys.argv)
 	if len(sys.argv)>2:
 		sim_limit = int(sys.argv[2])
 	ratio = '0.0001'
@@ -73,7 +74,7 @@ if __name__ == '__main__':
 	near_dup_th = 0.15
 	device = 'CPU'
 	if len(sys.argv)>6:
-		near_dup_th = float(sys.argv[56])
+		near_dup_th = float(sys.argv[6])
 	if len(sys.argv)>7 and sys.argv[7]=='GPU':
 		device = 'GPU'
 		if len(sys.argv)>8 and sys.argv[8].find('DEVICE_ID=')>-1:
@@ -91,6 +92,7 @@ if __name__ == '__main__':
 	precomp_featurefilename = featurename+'-precomp_fc7.dat'
 	now=datetime.datetime.now()
 	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'_'+now.strftime('%Y-%m-%d_%H')+'.json'
+	print outputname
 
 	ins_num = 0
 	always_recompute = 1;
@@ -224,8 +226,8 @@ if __name__ == '__main__':
 		for line in f:
 			#sim_index.append([])
 			nums=line.replace(' \n','').split(' ')
-			#filter near duplicate here?
-			nums=filter_near_dup(nums,float(near_dup_th))
+			if near_dup: #filter near duplicate here
+				nums=filter_near_dup(nums,float(near_dup_th))
 			print nums
 			onum = len(nums)/2
 			n = min(sim_limit,onum)
