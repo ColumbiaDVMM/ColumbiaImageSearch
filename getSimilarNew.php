@@ -72,6 +72,32 @@ $neardup = $_GET['neardup'];
 $neardup_th = $_GET['neardup_th'];
 $nocache = $_GET['nocache'];
 }
+
+if (empty($image_url)) {
+  echo "<h1>Please provide an image url!</h1>";
+}
+if (empty($query_num)) {
+  $query_num=30;
+}
+if (empty($vis)) {
+  $vis = 0;
+}
+if (empty($fast)) {
+  $fast = 1;
+} 
+if (empty($nodup)) {
+  $nodup = 0;
+}
+if (empty($neardup)) {
+  $neardup = 0;
+}
+if (empty($neardup_th)) {
+  $neardup_th = 0.15;
+}
+if (empty($nocache)) {
+  $nocache = 0;  
+}
+
 $dup = 1;
 $dupstr = '_dup';
 if ($nodup>0){
