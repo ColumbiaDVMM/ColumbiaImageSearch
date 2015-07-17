@@ -143,7 +143,8 @@ if ($nocache) {
   unlink($outname);
 }
 shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num. " ".$ratio. " ".$dup. " ".$neardup." ".$neardup_th);
-echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'"></div>';
+echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'" params="image_url:'.$image_url.';
+query_num:'.$query_num.';vis:'.$vis.';fast:'.$fast.';nodup:'.$nodup.';neardup:'.$neardup.';neardup_th:'.$neardup_th.';nocache:'.$nocache.';"></div>';
 
 $fout = fopen ($outname, "rb");
  if ($fout) {
