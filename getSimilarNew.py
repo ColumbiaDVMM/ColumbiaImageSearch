@@ -90,7 +90,8 @@ if __name__ == '__main__':
 	fresh_featurefilename = featurename+'-fresh_fc7'
 	precomp_featurefilename = featurename+'-precomp_fc7.dat'
 	now=datetime.datetime.now()
-	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'_'+now.strftime('%Y-%m-%d_%H')+'.json'
+	#outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'_'+now.strftime('%Y-%m-%d_%H')+'.json'
+	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'.json'
 
 	ins_num = 0
 	always_recompute = 1;
