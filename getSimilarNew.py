@@ -190,8 +190,8 @@ if __name__ == '__main__':
 						one_feat = f_pre.read(feature_num*4)
 					else:
 						one_feat = f_fresh.read(feature_num*4)
-					print len(one_feat)
-					print one_feat
+					#print len(one_feat)
+					#print one_feat
 					f_final.write(one_feat)
 				f_pre.close()
 				f_fresh.close()
@@ -217,7 +217,7 @@ if __name__ == '__main__':
 		#print prob,feature
 		#os.system('cd ..')
 		#os.chdir(currentDir)
-		print simname
+		#print simname
 		f = open(simname);
 		sim =[]
 		sim_score=[]
@@ -232,10 +232,10 @@ if __name__ == '__main__':
 			nums=line.replace(' \n','').split(' ')
 			if near_dup: #filter near duplicate here
 				nums=filter_near_dup(nums,float(near_dup_th))
-			print nums
+			#print nums
 			onum = len(nums)/2
 			n = min(sim_limit,onum)
-			print n
+			#print n
 			if n==0: # no returned images, e.g. no near duplicate
 				sim.append(())
 				sim_score.append([])
@@ -245,7 +245,7 @@ if __name__ == '__main__':
 				query_num.append(int(nums[i])+1)
 			in_p=', '.join(map(lambda x: '%s', query_num))
 			sqlq = sql % (in_p,in_p)
-			print sqlq
+			#print sqlq
 			c.execute(sqlq, query_num*2)
 			sim.append(c.fetchall())
 			sim_score.append(nums[onum:onum+n])
