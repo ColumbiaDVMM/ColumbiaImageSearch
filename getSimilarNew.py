@@ -319,7 +319,7 @@ if __name__ == '__main__':
 				output[i]['similar_images']['ht_images_id'].append(simj[4])
 				output[i]['similar_images']['sha1'].append(simj[5])
 			output[i]['similar_images']['distance']=sim_score[i]
-		outp = OrderedDict([['number',ins_num],['images',output]])
+		outp = OrderedDict([['number',nb_query],['images',output]])
 		json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)		
  
 	print 'query time: ', time.time() - t0
