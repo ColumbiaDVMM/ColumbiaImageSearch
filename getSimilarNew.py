@@ -10,7 +10,7 @@ import math
 import ntpath
 import hashlib
 import datetime
-
+import pickle
 
 def exist_img_precompfeat(query_sha1):
 	db=MySQLdb.connect(host='localhost',user='memex',passwd="darpamemex",db="imageinfo")
@@ -32,8 +32,19 @@ def get_featid_from_SHA1filename(img_filename):
 	return exist_img_precompfeat(img_basename[:-4])
 
 def path_leaf(path):
-    head, tail = ntpath.split(path)
-    return tail or ntpath.basename(head)
+    	head, tail = ntpath.split(path)
+    	return tail or ntpath.basename(head)
+
+def filter_near_dup(nums,dist_ths):
+	onum=len(nums)/2
+	temp_nums=[]
+	for one_num in range(0,onum):
+		if float(nums[onum+one_num])>dist_ths:
+			return temp_nums
+		temp_nums.insert(one_num,nums[one_num])
+		temp_nums.insert(len(temp_nums),nums[onum+one_num])
+	return temp_nums		
+	
 
 if __name__ == '__main__':
 	t0 = time.time()
@@ -47,7 +58,7 @@ if __name__ == '__main__':
 	global_var = json.load(open('global_var.json'))
 	if len(sys.argv)>2:
 		sim_limit = int(sys.argv[2])
-	ratio = '0.001'
+	ratio = '0.0001'
 	if len(sys.argv)>3:
 		ratio = sys.argv[3]
 	get_dup = 1
@@ -57,7 +68,7 @@ if __name__ == '__main__':
 		if get_dup==0:
 			dupstr=''
 	device = 'CPU'
-	near_dup = 0
+	near_dup = 1
 	if len(sys.argv)>5:
 		near_dup = int(sys.argv[5])
 	near_dup_th = 0.15
@@ -213,14 +224,22 @@ if __name__ == '__main__':
 		for line in f:
 			#sim_index.append([])
 			nums=line.replace(' \n','').split(' ')
-			onum = len(nums)/2			
+			#filter near duplicate here?
+			nums=filter_near_dup(nums,float(near_dup_th))
+			print nums
+			onum = len(nums)/2
 			n = min(sim_limit,onum)
+			print n
+			if n==0: # no returned images, e.g. no near duplicate
+				sim.append(())
+				sim_score.append([])
+				continue
 			query_num = []
 			for i in range(0,n):
 				query_num.append(int(nums[i])+1)
 			in_p=', '.join(map(lambda x: '%s', query_num))
 			sqlq = sql % (in_p,in_p)
-			
+			print sqlq
 			c.execute(sqlq, query_num*2)
 			sim.append(c.fetchall())
 			sim_score.append(nums[onum:onum+n])
@@ -231,15 +250,8 @@ if __name__ == '__main__':
 		
 		print "sim_score",sim_score		
 
-		# get only near_duplicate
-		if near_dup:
-			print "Keeping only near duplicate"
-			for q in range(0,query_num):
-				s_c=0
-				for s in sim_score[q]:
-					if s > near_dup_th:
-						print "Should remove every retrieve sample after",str(s_c)
-					s_c+=1 
+		print sim_score
+		print sim
 		# get_duplicate
 		if get_dup:
 			new_sim = []
@@ -251,6 +263,8 @@ if __name__ == '__main__':
 			for i in range(0,nb_query):	
 				new_sim.append([])
 				new_sim_score.append([])
+				if not sim[i]: # empty
+					continue
 				query_num = [simj[4] for simj in sim[i]]
 				in_p=', '.join(map(lambda x: '%s', query_num))
 				sqlq = sql % (in_p,in_p)
@@ -259,10 +273,8 @@ if __name__ == '__main__':
 				#print len(tmpresult)
 				p = 0
 				for k in tmpresult:
-					print "k",k
 					if sim[i][p][4]!=k[1]:
 						p = p+1
-					print "sim[i][p]",sim[i][p]
 					if not global_var['demo']:
 						new_sim[i].append((sim[i][p][0],sim[i][p][1],sim[i][p][2],sim[i][p][3],k[0],sim[i][p][5]))
 					else:
@@ -279,6 +291,8 @@ if __name__ == '__main__':
 			c=db.cursor()
 			sql='select i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where i.id in (%s) order by field (i.id,%s);' 
 			for i in range(0,nb_query):	
+				if not sim[i]: # empty
+					continue
 				query_num = [simj[4] for simj in sim[i]]
 				in_p=', '.join(map(lambda x: '%s', query_num))
 				sqlq = sql % (in_p,in_p)
