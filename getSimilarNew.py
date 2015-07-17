@@ -254,10 +254,10 @@ if __name__ == '__main__':
 				break
 		f.close()
 		
-		print "sim_score",sim_score		
+		#print "sim_score",sim_score		
 
-		print sim_score
-		print sim
+		#print sim_score
+		#print sim
 		# get_duplicate
 		if get_dup:
 			new_sim = []
