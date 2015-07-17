@@ -51,7 +51,7 @@ if __name__ == '__main__':
 	#currentDir = os.getcwd()
 	#os.chdir('deepsentibank')
 	if len(sys.argv)<2:
-		print  "This program takes one or multiple images as input, and output similar images.\nUsage: python getSimilar.py image_path/image_path_list.txt [similar_image_number] [post_ranking_ratio] [get_duplicate=1] [CPU/GPU] [DEVICE_ID=0]"
+		print  "This program takes one or multiple images as input, and output similar images.\nUsage: python getSimilar.py image_path/image_path_list.txt [similar_image_number] [post_ranking_ratio] [get_duplicate=1] [near_dup=0] [near_dup_th=0.15] [CPU/GPU] [DEVICE_ID=0]"
 		exit()
 	img_filename = sys.argv[1]
 	sim_limit = 100
@@ -67,11 +67,11 @@ if __name__ == '__main__':
 		get_dup = int(sys.argv[4])
 		if get_dup==0:
 			dupstr=''
-	device = 'CPU'
-	near_dup = 1
+	near_dup = 0
 	if len(sys.argv)>5:
 		near_dup = int(sys.argv[5])
 	near_dup_th = 0.15
+	device = 'CPU'
 	if len(sys.argv)>6:
 		near_dup_th = float(sys.argv[56])
 	if len(sys.argv)>7 and sys.argv[7]=='GPU':

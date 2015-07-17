@@ -59,6 +59,7 @@ $vis = $argv[3];
 $fast = $argv[4];
 $nodup = $argv[5];
 $neardup = $argv[6];
+$neardup_th = $argv[7];
 }
 else {
 $image_url = $_GET["url"];
@@ -67,6 +68,7 @@ $vis = $_GET['visualize'];
 $fast = $_GET['fast'];
 $nodup = $_GET['nodup'];
 $neardup = $_GET['neardup'];
+$neardup_th = $_GET['neardup_th'];
 }
 $dup = 1;
 $dupstr = '_dup';
@@ -134,8 +136,8 @@ else {
 
     
 $start_time = time();
-shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num. " ".$ratio. " ".$dup);
-$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr."_".date('Y-m-d_H').".json", -4, 4);
+shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num. " ".$ratio. " ".$dup. " ".$neardup." ".$neardup_th);
+$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr."_".date('Y-m-d_H').".json", -4, 4); // Date is for one hour caching.
 echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'"></div>';
 
 $fout = fopen ($outname, "rb");
