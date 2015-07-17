@@ -83,8 +83,8 @@ if (empty($vis)) {
   $vis = 0;
 }
 if (empty($fast)) {
-  $fast = 1;
-} 
+  $fast = 0;
+}
 if (empty($nodup)) {
   $nodup = 0;
 }
@@ -95,7 +95,7 @@ if (empty($neardup_th)) {
   $neardup_th = 0.15;
 }
 if (empty($nocache)) {
-  $nocache = 0;  
+  $nocache = 0;
 }
 
 $dup = 1;
@@ -162,14 +162,14 @@ else {
 	$ratio = $global_var->{'ratio'};
 }
 
-    
 $start_time = time();
 //$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr."_".date('Y-m-d_H').".json", -4, 4); // Date is for one hour caching.
 $outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr.".json", -4, 4); // Date is for one hour caching.
 if ($nocache==1) {
   unlink($outname);
 }
-shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num. " ".$ratio. " ".$dup. " ".$neardup." ".$neardup_th);
+//echo "cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num . " " . $ratio . " " . $dup . " " . $neardup . " " . $neardup_th;
+shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num . " " . $ratio . " " . $dup . " " . $neardup . " " . $neardup_th);
 
 $fout = fopen ($outname, "rb");
  if ($fout) {
@@ -178,6 +178,7 @@ $fout = fopen ($outname, "rb");
 		echo $json;
 	}
 	else {
+		//echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'" outfile="'.$outname.'" params="image_url:'.$image_url.';query_num:'.$query_num.';vis:'.$vis.';fast:'.$fast.';nodup:'.$nodup.';neardup:'.$neardup.';neardup_th:'.$neardup_th.';nocache:'.$nocache.';ratio:'.$ratio.';"></div>';
 		$obj = json_decode($json);
     //echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'" params="image_url:'.$image_url.';query_num:'.$query_num.';vis:'.$vis.';fast:'.$fast.';nodup:'.$nodup.';neardup:'.$neardup.';neardup_th:'.$neardup_th.';nocache:'.$nocache.';"></div>';
 		echo '<font size="6"><b>Query Image</b></font><br><a href="'.$image_url.'"><img src="'.$image_url.'" style="margin:3;border:0;height:120px;" title="Query Image"></a><br><br><font size="6"><b>Query Results:</b><br>';

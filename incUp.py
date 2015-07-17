@@ -426,7 +426,8 @@ if __name__ == '__main__':
 		if os.path.isfile(hashbits_filepath):
 			os.remove(hashbits_filepath)
 		if os.path.isfile(feature_filepath):
-			os.remove(feature_filepath)	
+			os.remove(feature_filepath)
+		#Todo: run alter table uniqueIds AUTO_INCREMENT = 1; alter table fullIds AUTO_INCREMENT = 1; in local mysql to reset the incrimental id
 		print 'Total time: ', str(time.time()-step_times[0]), 'seconds'	
 	        flog.write('Total time: '+ str(time.time()-step_times[0])+' seconds\n')
 		flog.close()
@@ -439,5 +440,11 @@ if __name__ == '__main__':
 		print 'Total time: ', str(time.time()-step_times[0]), 'seconds'	
 	        flog.write(update_suffix+'Update is success!'+'\n'+'Total time: '+ str(time.time()-step_times[0])+' seconds\n')
 		flog.close()
+		# post processing
+		# delete img cache
+		os.system('find img -name "*sim_*.txt" -exec rm -rf {} \;')
+		os.system('find img -name "*sim_*.json" -exec rm -rf {} \;')
+		# merge features and hash files
+		
 		exit(0)
 
