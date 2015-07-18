@@ -59,8 +59,9 @@ $vis = $argv[3];
 $fast = $argv[4];
 $nodup = $argv[5];
 $neardup = $argv[6];
-$neardup_th = $argv[7];
-$nocache = $argv[8];
+$neardup_type = $argv[7];
+$neardup_th = $argv[8];
+$nocache = $argv[9];
 }
 else {
 $image_url = $_GET["url"];
@@ -70,6 +71,7 @@ $fast = $_GET['fast'];
 $nodup = $_GET['nodup'];
 $neardup = $_GET['neardup'];
 $neardup_th = $_GET['neardup_th'];
+$neardup_type = $_GET['neardup_type'];
 $nocache = $_GET['nocache'];
 }
 
@@ -91,9 +93,10 @@ if (empty($nodup)) {
 if (empty($neardup)) {
   $neardup = 0;
 }
-if (empty($neardup_th)) {
-  $neardup_th = 0.15;
+if (empty($neardup_type)) {
+  $neardup_type = 'standard';
 }
+
 if (empty($nocache)) {
   $nocache = 0;
 }
@@ -103,11 +106,6 @@ $dupstr = '_dup';
 if ($nodup>0){
 	$dup =0;
 	$dupstr = '';
-}
-
-$neardupstr = '';
-if ($neardup>0){
-  $neardupstr = '_neardup'.$neardup_th;
 }
 
 if ($query_num<1){
@@ -126,6 +124,33 @@ if ($fast<1){
 }
 else{
 	$fast = 1;
+}
+$fgval = fopen ("global_var_new.json", "rb");
+$gread=fread($fgval,filesize("global_var_new.json"));
+$global_var = json_decode($gread);
+if ($fast){
+  $ratio = $global_var->{'fast_ratio'};
+}
+else {
+  $ratio = $global_var->{'ratio'};
+}
+
+$neardupstr = '';
+if ($neardup>0){
+  if (empty($neardup_th)) { // If specified manually, do not override
+  switch ($neardup_type) {
+    case "strict":
+        $neardup_th = $global_var->{'neardup_th_strict'};
+        break;
+    case "loose":
+        $neardup_th = $global_var->{'neardup_th_loose'};
+        break;
+    default:
+        $neardup_th = $global_var->{'neardup_th_standard'};
+        break;
+  }
+  }
+  $neardupstr = '_neardup'.$neardup_th;
 }
 //echo $query_num . ' ' . $vis; 
 
@@ -157,15 +182,7 @@ if (file_exists($fullname)) {
 	rename($fullnamet, $fullname);
 
 }
-$fgval = fopen ("global_var_new.json", "rb");
-$gread=fread($fgval,filesize("global_var_new.json"));
-$global_var = json_decode($gread);
-if ($fast){
-	$ratio = $global_var->{'fast_ratio'};
-}
-else {
-	$ratio = $global_var->{'ratio'};
-}
+
 
 $start_time = time();
 //$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr."_".date('Y-m-d_H').".json", -4, 4); // Date is for one hour caching.

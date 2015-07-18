@@ -444,7 +444,9 @@ if __name__ == '__main__':
 		# delete img cache
 		os.system('find img -name "*sim_*.txt" -exec rm -rf {} \;')
 		os.system('find img -name "*sim_*.json" -exec rm -rf {} \;')
-		# merge features and hash files
+		#todo: merge features and hash files
 		
+		#vmtouch folder
+		os.system('./cache.sh')
 		exit(0)
 
