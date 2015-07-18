@@ -137,6 +137,7 @@ else {
 
 $neardupstr = '';
 if ($neardup>0){
+  if (empty($neardup_th)) { // If specified manually, do not override
   switch ($neardup_type) {
     case "strict":
         $neardup_th = $global_var->{'neardup_th_strict'};
@@ -147,6 +148,7 @@ if ($neardup>0){
     default:
         $neardup_th = $global_var->{'neardup_th_standard'};
         break;
+  }
   }
   $neardupstr = '_neardup'.$neardup_th;
 }
