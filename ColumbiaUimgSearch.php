@@ -209,7 +209,7 @@ $fout = fopen ($outname, "rb");
     echo '<script type="text/javascript">(function(e,t){var a=function(){var e={value:.05,reveal:true,revealonclick:false};var t=arguments[1]||{};var a=this,n=a.parentNode;if(typeof t!=="object"){t={value:parseInt(arguments[1])}}t=function(){var n={};for(var i in e){if(a.hasAttribute("data-"+i)){n[i]=a.getAttribute("data-"+i);continue}if(i in t){n[i]=t[i];continue}n[i]=e[i]}return n}();var i=a.style.display,r=a.width,l=a.height,o=false;var d=document.createElement("canvas");d.width=r;d.height=l;var f=d.getContext("2d");f.mozImageSmoothingEnabled=false;f.webkitImageSmoothingEnabled=false;f.imageSmoothingEnabled=false;var u=r*t.value,s=l*t.value;f.drawImage(a,0,0,u,s);f.drawImage(d,0,0,u,s,0,0,d.width,d.height);a.style.display="none";n.insertBefore(d,a);if(t.revealonclick!==false&&t.revealonclick!=="false"){d.addEventListener("click",function(e){o=!o;if(o){f.drawImage(a,0,0,r,l)}else{f.drawImage(a,0,0,u,s);f.drawImage(d,0,0,u,s,0,0,d.width,d.height)}})}if(t.reveal!==false&&t.reveal!=="false"){d.addEventListener("mouseenter",function(e){if(o)return;f.drawImage(a,0,0,r,l)});d.addEventListener("mouseleave",function(e){if(o)return;f.drawImage(a,0,0,u,s);f.drawImage(d,0,0,u,s,0,0,d.width,d.height)})}};e.HTMLImageElement.prototype.pixelate=a;if(typeof t==="function"){t.fn.extend({pixelate:function(){return this.each(function(){a.apply(this,arguments)})}});t(e).on("load",function(){t("img[data-pixelate]").pixelate()})}else{document.addEventListener("DOMContentLoaded",function(e){var t=document.querySelectorAll("img[data-pixelate]");for(var a=0;a<t.length;a++){t[a].addEventListener("load",function(){this.pixelate()})}})}})(window,typeof jQuery==="undefined"?null:jQuery);</script>';
 
     //echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'" params="image_url:'.$image_url.';query_num:'.$query_num.';vis:'.$vis.';fast:'.$fast.';nodup:'.$nodup.';neardup:'.$neardup.';neardup_th:'.$neardup_th.';nocache:'.$nocache.';"></div>';
-		echo '<font size="6"><b>Query Image</b></font><br><a href="'.$image_url.'"><img src="'.$image_url.'" style="margin:3;border:1;height:120px;" title="Query Image" data-pixelate data-value="0.3"></a><br><br><font size="6"><b>Query Results:</b><br>';
+		echo '<font size="6"><b>Query Image</b></font><br><a href="'.$image_url.'"><img src="'.$image_url.'" style="margin:3;border:1;height:120px;" title="Query Image" data-pixelate data-value="0.4"></a><br><br><font size="6"><b>Query Results:</b><br>';
 		$imglist = $obj->{'images'}[0]->{'similar_images'}->{'cached_image_urls'};
 		$orilist = $obj->{'images'}[0]->{'similar_images'}->{'page_urls'};
 		$uidlist = $obj->{'images'}[0]->{'similar_images'}->{'ht_images_id'};
@@ -218,7 +218,7 @@ $fout = fopen ($outname, "rb");
 
 		for ($i=0; $i<sizeof($imglist); $i++) {
 			$dupurl = 'getDuplicate.php?htid='.$uidlist[$i].'&visualize=1';
-			echo '<a href="'.$dupurl.'"><img src="'.$imglist[$i].'" style="margin:3;border:1;height:120px;" origin="'.$orilist[$i].'" title="'.$distlist[$i].'" data-pixelate data-value="0.3"></a>';
+			echo '<a href="'.$dupurl.'"><img src="'.$imglist[$i].'" style="margin:3;border:1;height:120px;" origin="'.$orilist[$i].'" title="'.$distlist[$i].'" data-pixelate data-value="0.4"></a>';
 		}
 	}
 	
