@@ -203,7 +203,7 @@ $fout = fopen ($outname, "rb");
 		//echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'" outfile="'.$outname.'" params="image_url:'.$image_url.';query_num:'.$query_num.';vis:'.$vis.';fast:'.$fast.';nodup:'.$nodup.';neardup:'.$neardup.';neardup_th:'.$neardup_th.';nocache:'.$nocache.';ratio:'.$ratio.';"></div>';
 		$obj = json_decode($json);
     //echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'" params="image_url:'.$image_url.';query_num:'.$query_num.';vis:'.$vis.';fast:'.$fast.';nodup:'.$nodup.';neardup:'.$neardup.';neardup_th:'.$neardup_th.';nocache:'.$nocache.';"></div>';
-		echo '<script src="pixelate.min.js"></script>';
+		echo '<script src="pixelate.min.js"></script><script src="jquery-2.0.3.min.js"></script>';
 
     echo '<font size="6"><b>Query Image</b></font><br><a href="'.$image_url.'"><img src="'.$image_url.'" style="margin:3;border:0;height:120px;" title="Query Image" data-pixelate></a><br><br><font size="6"><b>Query Results:</b><br>';
 		$imglist = $obj->{'images'}[0]->{'similar_images'}->{'cached_image_urls'};
