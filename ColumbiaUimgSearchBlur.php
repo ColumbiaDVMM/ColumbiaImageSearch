@@ -216,7 +216,7 @@ $fout = fopen ($outname, "rb");
 
 		for ($i=0; $i<sizeof($imglist); $i++) {
 			$dupurl = 'getDuplicate.php?htid='.$uidlist[$i].'&visualize=1';
-			echo '<a href="'.$dupurl.'"><img src="'.$imglist[$i].'" style="margin:3;border:0;height:120px;" origin="'.$orilist[$i].'" title="'.$distlist[$i].'"></a>';
+			echo '<a href="'.$dupurl.'"><img src="'.$imglist[$i].'" style="margin:3;border:0;height:120px;" origin="'.$orilist[$i].'" title="'.$distlist[$i].'" data-pixelate></a>';
 		}
 	}
 	
