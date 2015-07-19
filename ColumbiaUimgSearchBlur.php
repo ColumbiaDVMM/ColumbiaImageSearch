@@ -95,7 +95,10 @@ if (empty($neardup)) {
 }
 if (empty($neardup_type)) {
   $neardup_type = 'standard';
+} else {
+  $neardup = 1;
 }
+
 
 if (empty($nocache)) {
   $nocache = 0;
