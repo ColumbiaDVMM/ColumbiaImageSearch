@@ -214,7 +214,7 @@ $fout = fopen ($outname, "rb");
       $img_style="margin:3;border:0;height:120px;";
     }
     else {
-      $img_style="margin:3;border:0;height:120px;-webkit-filter: blur(8px);";
+      $img_style="margin:3;border:0;height:120px;-webkit-filter: blur(6px);";
     }
 
     echo '<font size="6"><b>Query Image</b></font><br><a href="'.$image_url.'"><img src="'.$image_url.'" style="'.$img_style.'" title="Query Image"></a><br><br><font size="6"><b>Query Results:</b><br>';
