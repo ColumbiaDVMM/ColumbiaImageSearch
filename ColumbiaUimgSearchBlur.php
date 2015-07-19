@@ -93,6 +93,7 @@ if (empty($nodup)) {
 if (empty($neardup)) {
   $neardup = 0;
 }
+
 if (empty($neardup_type)) {
   $neardup_type = 'standard';
 } else {
