@@ -78,7 +78,7 @@ $nocache = $_GET['nocache'];
 }
 
 if (empty($image_url)) {
-  echo "<h1>Please provide an image url!</h1>";
+  echo "<h1>Please provide an image url!</h1>How to use this API:<br/><ul><li>Minimal requirement: an image URL: https://isi.memexproxy.com/ColumbiaUimgSearch.php?url=https://hostingservice.com/image.jpg</li></ul><br/><ul>Other parameters:<li>visualize: 1, 0 [JSON or visualization: default: 0]</li><li>nodup: 1, 0 [remove or display exact duplicate, default: 0]</li><li>num: maximum number of returned images [default: 30]</li><li>neardup: 1, 0 [activate near duplicate search, default: 0]</li><li>neardup_type: strict, loose, balanced [default: balanced]</li></ul>";
 }
 if (empty($query_num)) {
   $query_num=30;
@@ -96,7 +96,7 @@ if (empty($neardup)) {
   $neardup = 0;
 }
 if (empty($neardup_type)) {
-  $neardup_type = 'standard';
+  $neardup_type = 'balanced';
 } else {
   $neardup = 1;
 }
@@ -153,7 +153,7 @@ if ($neardup>0){
         $neardup_th = $global_var->{'neardup_th_loose'};
         break;
     default:
-        $neardup_th = $global_var->{'neardup_th_standard'};
+        $neardup_th = $global_var->{'neardup_th_balanced'};
         break;
   }
   }
