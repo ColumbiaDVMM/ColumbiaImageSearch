@@ -3,6 +3,18 @@ import struct,time,multiprocessing
 import MySQLdb
 import subprocess as sub
 import hashlib
+
+import json
+global_var = json.load(open('global_var_all.json'))
+isthost=global_var['ist_db_host']
+istuser=global_var['ist_db_user']
+istpwd=global_var['ist_db_pwd']
+istdb=global_var['ist_db_dbname']
+localhost=global_var['local_db_host']
+localuser=global_var['local_db_user']
+localpwd=global_var['local_db_pwd']
+localdb=global_var['local_db_dbname']
+
 def download_shell(args):
 	url = args[0]
 	filepath = args[1]
@@ -97,7 +109,7 @@ if __name__ == '__main__':
 	endid = args.endid
 
 	if startid == 0:
-		db=MySQLdb.connect(host='localhost',user='memex',passwd="darpamemex",db="imageinfo")
+		db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 		c=db.cursor()
 		c.execute('select htid from fullIds ORDER BY htid DESC limit 1;')
 		remax = c.fetchall()
@@ -118,8 +130,7 @@ if __name__ == '__main__':
 	if not os.path.exists(update_image_cache):
 		os.mkdir(update_image_cache)
 	# get image URLs, ids, etc.
-	#db=MySQLdb.connect(host='54.191.207.159',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
-	db=MySQLdb.connect(host='memex-db.istresearch.com',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
+	db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
 	c=db.cursor()
 	# sql='select id,location,importtime  from images where importtime >= DATE_FORMAT(''%s'', ''%s'') and location is not null order by importtime asc'
 	# query_time = ['2015-04-13 15:00:00','%Y-%m-%d %H:%i:%s']
@@ -156,7 +167,7 @@ if __name__ == '__main__':
 	flog.write('retrived %d image URLs' % num_url+'\n')
 	# remove existing ones
 	retrived_ids = [int(img_item[0]) for img_item in re]
-	db=MySQLdb.connect(host='localhost',user='memex',passwd="darpamemex",db="imageinfo")
+	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
 	sql='SELECT htid FROM fullIds WHERE htid in (%s);' 
 	in_p=', '.join(map(lambda x: '%s', retrived_ids))
@@ -251,7 +262,7 @@ if __name__ == '__main__':
 	unique_idx=[sha1_list.index(sha1) for sha1 in unique_sha1]
 	full_idx=[unique_sha1.index(sha1) for sha1 in sha1_list]
 
-	db=MySQLdb.connect(host='localhost',user='memex',passwd="darpamemex",db="imageinfo")
+	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
 	c.execute('select id from uniqueIds ORDER BY id DESC limit 1;')
 	remax = c.fetchall()
@@ -380,7 +391,7 @@ if __name__ == '__main__':
 		print 'Time for updating the features and hash bits: ', str(step_times[-1]-step_times[-2]), 'seconds'	
 	        flog.write( 'Time for updating the features and hash bits: '+ str(step_times[-1]-step_times[-2])+ ' seconds\n')
 	#update MySQL
-	db=MySQLdb.connect(host='localhost',user='memex',passwd="darpamemex",db="imageinfo")
+	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
 	if num_new_unique:
 		insert_statement = "INSERT IGNORE INTO uniqueIds (htid, location, sha1) VALUES {}".format(','.join(map(str,new_uniques)))

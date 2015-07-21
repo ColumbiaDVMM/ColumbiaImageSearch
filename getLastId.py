@@ -1,7 +1,12 @@
 import struct,time
 import MySQLdb
-#db=MySQLdb.connect(host='54.191.207.159',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
-db=MySQLdb.connect(host='memex-db.istresearch.com',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
+import json
+global_var = json.load(open('global_var_all.json'))
+isthost=global_var['ist_db_host']
+istuser=global_var['ist_db_user']
+istpwd=global_var['ist_db_pwd']
+istdb=global_var['ist_db_dbname']
+db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
 c=db.cursor()
 sql='select id,location from images where location is not null order by id desc limit 1'
 query_id = []

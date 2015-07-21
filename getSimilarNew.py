@@ -12,8 +12,19 @@ import hashlib
 import datetime
 import pickle
 
+import json
+global_var = json.load(open('global_var_all.json'))
+isthost=global_var['ist_db_host']
+istuser=global_var['ist_db_user']
+istpwd=global_var['ist_db_pwd']
+istdb=global_var['ist_db_dbname']
+localhost=global_var['local_db_host']
+localuser=global_var['local_db_user']
+localpwd=global_var['local_db_pwd']
+localdb=global_var['local_db_dbname']
+
 def exist_img_precompfeat(query_sha1):
-	db=MySQLdb.connect(host='localhost',user='memex',passwd="darpamemex",db="imageinfo")
+	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
 	query="select id from uniqueIds where sha1=\""+query_sha1+"\";"
 	print query
@@ -55,7 +66,7 @@ if __name__ == '__main__':
 		exit()
 	img_filename = sys.argv[1]
 	sim_limit = 100
-	global_var = json.load(open('global_var.json'))
+	global_var = json.load(open('global_var_all.json'))
 	print len(sys.argv)
 	if len(sys.argv)>2:
 		sim_limit = int(sys.argv[2])
@@ -84,8 +95,6 @@ if __name__ == '__main__':
 			device = device + ' ' + sys.argv[8]
 	
 	feature_num = 4096
-	classes = json.load(open('classes_memex.json'))
-	class_num = len(classes)
 	testname = img_filename[:-4] + '-test.txt'
 	protoname = img_filename[:-4] + '-test.prototxt'
 	featurename = img_filename[:-4] + '-features'
@@ -221,7 +230,7 @@ if __name__ == '__main__':
 		f = open(simname);
 		sim =[]
 		sim_score=[]
-		db=MySQLdb.connect(host='localhost',user='memex',passwd="darpamemex",db="imageinfo")
+		db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 		c=db.cursor()
 		sql='SELECT NULL,location,NULL,NULL,htid,sha1 FROM uniqueIds WHERE id in (%s) ORDER BY FIELD(id, %s)' 
 
@@ -293,7 +302,7 @@ if __name__ == '__main__':
 		db.close()
 		# expand metadata
 		if not global_var['demo']:
-			db=MySQLdb.connect(host='memex-db.istresearch.com',user='dig',passwd="VKZhUGMDN6wGtGQd",db="memex_ht")
+			db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
 			c=db.cursor()
 			sql='select i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where i.id in (%s) order by field (i.id,%s);' 
 			for i in range(0,nb_query):	
