@@ -24,11 +24,13 @@ for subfolder in subfolder_list:
   #Saving found images
   if len(images_list)>0:
   	nb_imgs=len(images_list)
-  	print "Found #"+str(nb_imgs),"images in subfolder ",subfolder+"."
+  	print "Found #"+str(nb_imgs),"images in subfolder",subfolder+"."
   	print "Start saving",
   	curr_out_dir=outbasepath+subfolder
   	try:
   		os.mkdir(curr_out_dir)
+  	except:
+  		pass
   	num_img=0
   	for one_image in images_list:
   		img_html = urllib2.urlopen(basepath+subfolder+one_image)
