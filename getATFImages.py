@@ -1,5 +1,6 @@
-import urllib2
 import os
+os.environ['http_proxy']=''
+import urllib2
 
 basepath="http://imagecat.dyndns.org/atf/images"
 outbasepath="/srv/skaraman/images_ATF"
@@ -25,19 +26,17 @@ for subfolder in subfolder_list:
   if len(images_list)>0:
   	nb_imgs=len(images_list)
   	print "Found #"+str(nb_imgs),"images in subfolder",subfolder+"."
-  	print "Start saving",
   	curr_out_dir=outbasepath+subfolder
   	try:
   		os.mkdir(curr_out_dir)
   	except:
   		pass
-  	num_img=0
   	for one_image in images_list:
-  		img_html = urllib2.urlopen(basepath+subfolder+one_image)
+		try:
+  			img_html = urllib2.urlopen(basepath+subfolder+one_image)
+		except:
+			print "Cannot open image",one_image
 		img_data = img_html.read()
-		f_img=open(curr_out_dir,"wb")
+		f_img=open(curr_out_dir+one_image,"wb")
 		f_img.write(img_data)
-		close(f_img)
-		if num_img==nb_imgs/10:
-			print ".",
-		num_img+=1
+		f_img.close()
