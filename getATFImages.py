@@ -13,20 +13,22 @@ for subfolder in subfolder_list:
   all_lines=fileslist_html.readlines()
   fileslist_html.close()
   for oneline in all_lines:
-	print oneline
+	#print oneline
 	for part in oneline.split("\""):
 		for ext in accepted_img_types:
 			if part.rfind(ext)!=-1 and part.rfind(ext)==len(part)-4 and part.find("/icons/")==-1:
 				# We got an image
+				#print part
 				images_list.append(part)
   
   #Saving found images
   if len(images_list)>0:
   	nb_imgs=len(images_list)
-  	print "Found #"+str(),"images in subfolder ",subfolder+"."
+  	print "Found #"+str(nb_imgs),"images in subfolder ",subfolder+"."
   	print "Start saving",
   	curr_out_dir=outbasepath+subfolder
-  	os.mkdir(curr_out_dir)
+  	try:
+  		os.mkdir(curr_out_dir)
   	num_img=0
   	for one_image in images_list:
   		img_html = urllib2.urlopen(basepath+subfolder+one_image)
