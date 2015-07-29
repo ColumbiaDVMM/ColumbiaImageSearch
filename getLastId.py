@@ -14,14 +14,26 @@ start_time = time.time()
 c.execute(sql, query_id)
 print "query database: %s seconds ---" % (time.time() - start_time)
 re = c.fetchall()
-print re
+print "Biggest HTID in IST DB:",re
 db.close()
-
-
-
-
-
-
-
-
-
+localhost=global_var['local_db_host']
+localuser=global_var['local_db_user']
+localpwd=global_var['local_db_pwd']
+localdb=global_var['local_db_dbname']
+db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
+c=db.cursor()
+sql='select id,htid from uniqueIds order by htid desc limit 1'
+query_id = []
+start_time = time.time()
+c.execute(sql, query_id)
+print "query database: %s seconds ---" % (time.time() - start_time)
+re = c.fetchall()
+print "Biggest HTID in LOCAL DB:",re
+sql='select id,htid from uniqueIds order by id desc limit 1'
+query_id = []
+start_time = time.time()
+c.execute(sql, query_id)
+print "query database: %s seconds ---" % (time.time() - start_time)
+re = c.fetchall()
+print "Biggest unique ID in LOCAL DB:",re
+db.close()

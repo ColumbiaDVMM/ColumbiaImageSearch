@@ -210,25 +210,27 @@ $fout = fopen ($outname, "rb");
 	else {
 		//echo '<div id="debug" value="'.time_elapsed(time()-$start_time).'" outfile="'.$outname.'" params="image_url:'.$image_url.';query_num:'.$query_num.';vis:'.$vis.';fast:'.$fast.';nodup:'.$nodup.';neardup:'.$neardup.';neardup_th:'.$neardup_th.';nocache:'.$nocache.';ratio:'.$ratio.';"></div>';
 		$obj = json_decode($json);
+		echo '<link rel="stylesheet" type="text/css" href="style.css" />';
+   		if ($noblur) {
+      			$img_style="img_vis";
+      			$dup_style="dup_vis";
+    		}
+    		else {
+      			$img_style="img_blur";
+      			$dup_style="dup_blur";
+   		 }
 
-    if ($noblur) {
-      $img_style="margin:3;border:0;height:120px;";
-    }
-    else {
-      $img_style="margin:3;border:0;height:120px;-webkit-filter: blur(6px);";
-    }
+    		echo '<font size="6"><b>Query Image</b></font><br><a href="'.$image_url.'"><img src="'.$image_url.'" class="'.$img_style.'" title="Query Image"></a><br><br><font size="6"><b>Query Results:</b><br>';
+		$imglist = $obj->{'images'}[0]->{'similar_images'}->{'cached_image_urls'};
+		$orilist = $obj->{'images'}[0]->{'similar_images'}->{'page_urls'};
+		$uidlist = $obj->{'images'}[0]->{'similar_images'}->{'ht_images_id'};
+		$sha1list = $obj->{'images'}[0]->{'similar_images'}->{'sha1'};
+		$distlist = $obj->{'images'}[0]->{'similar_images'}->{'distance'};
 
-    echo '<font size="6"><b>Query Image</b></font><br><a href="'.$image_url.'"><img src="'.$image_url.'" style="'.$img_style.'" title="Query Image"></a><br><br><font size="6"><b>Query Results:</b><br>';
-    $imglist = $obj->{'images'}[0]->{'similar_images'}->{'cached_image_urls'};
-    $orilist = $obj->{'images'}[0]->{'similar_images'}->{'page_urls'};
-    $uidlist = $obj->{'images'}[0]->{'similar_images'}->{'ht_images_id'};
-    $sha1list = $obj->{'images'}[0]->{'similar_images'}->{'sha1'};
-    $distlist = $obj->{'images'}[0]->{'similar_images'}->{'distance'};
-
-    for ($i=0; $i<sizeof($imglist); $i++) {
-      $dupurl = 'getDuplicate.php?htid='.$uidlist[$i].'&visualize=1';
-      echo '<a href="'.$dupurl.'"><img src="'.$imglist[$i].'" style="'.$img_style.'" origin="'.$orilist[$i].'" title="'.$distlist[$i].'" style="-webkit-filter: blur(5px);"></a>';
-    }
+		for ($i=0; $i<sizeof($imglist); $i++) {
+      			$dupurl = 'getDuplicate.php?htid='.$uidlist[$i].'&visualize=1&style='.$dup_style.'';
+      			echo '<a href="'.$dupurl.'"><img src="'.$imglist[$i].'" class="'.$img_style.'" origin="'.$orilist[$i].'" title="'.$distlist[$i].'"></a>';
+   		 }
 	}
 	
 }
