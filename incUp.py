@@ -147,7 +147,8 @@ if __name__ == '__main__':
 	re = c.fetchall()
 	db.close()
 	if len(re)<limit:
-		print "Not enough images. Exiting"
+		print "Not enough images ("+str(len(re))+")"
+		print "Exiting"
 		sys.exit("Error: Not enough images.")
 	if len(re)>0:
 		lastId=int(re[-1][0])
@@ -447,6 +448,11 @@ if __name__ == '__main__':
 		master_update_filepath =  'update_list.txt'
 		with open(master_update_filepath, "a") as f:
 			f.write(update_suffix+'\n')
+                master_update_filepath =  'update_list_dev.txt'
+                with open(master_update_filepath, "a") as f:
+                        f.write(update_suffix+'\n')
+		# Update compressed
+		os.system('./compress_feats')
 		print update_suffix, 'Update is success!'
 		print 'Total time: ', str(time.time()-step_times[0]), 'seconds'	
 	        flog.write(update_suffix+'Update is success!'+'\n'+'Total time: '+ str(time.time()-step_times[0])+' seconds\n')
