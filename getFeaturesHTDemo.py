@@ -24,6 +24,15 @@ localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
 
+def get_htid_fromIST(roxy_imgname):
+        db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
+        c=db.cursor()
+        query="select id from images where location=\""+roxy_imgname+"\";"
+        #print query
+        c.execute(query) #Should we use id or htid here?
+        remax = c.fetchall()
+        return remax[0][0]
+
 def exist_img_precompfeat(query_sha1):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
@@ -99,21 +108,25 @@ if __name__ == '__main__':
 		if img_filename[-4:]=='.txt':
 			for line in open(img_filename):
 				imgname = line.replace('\n','')
+				roxy_imgname="https://s3.amazonaws.com/roxyimages/"+imgname[imgname.rfind('/')+1:]
 				if len(imgname)>2:
 					f_img = open(imgname, 'rb') # TODO: check if image or web address, download if web
 					sha1=hashlib.sha1(f_img.read()).hexdigest().upper()
 					f_img.close()
 					feat_id, ht_id = exist_img_precompfeat(sha1)
-					print "Found feature: ",feat_id, ht_id,"for image:",imgname
 					if feat_id != 0:
+						print "Found feature locally: ",feat_id, ht_id,"for image:",imgname
 						#precomp_feats.append(feat_id)
 						f_pre.write(struct.pack('i',feat_id))
 						precomp_img_filenames.append(imgname)
 						#f_ids.write(imgname+' '+str(feat_id)+'\n') # this our unique id not htid...
 						print imgname,str(ht_id)
-						f_ids.write(imgname+' '+str(ht_id)+'\n') 
+						f_ids.write(imgname+' '+roxy_imgname+' '+str(ht_id)+'\n')
 					else: # should compute features for this img
+						print "Could not find feature locally for image:",imgname
 						ins_num = ins_num + 1
+						ht_id = get_htid_fromIST(roxy_imgname)
+						f_ids.write(imgname+' '+roxy_imgname+' '+str(ht_id)+'\n')
 						f.write(imgname+' 0\n')
 					all_img_filenames.append(imgname)
 		else: 
