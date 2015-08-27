@@ -13,7 +13,7 @@ import datetime
 import pickle
 
 import json
-ist_down=True
+ist_down=False
 
 global_var = json.load(open('global_var_all.json'))
 isthost=global_var['ist_db_host']
