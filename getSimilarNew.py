@@ -72,7 +72,7 @@ if __name__ == '__main__':
 	print len(sys.argv)
 	if len(sys.argv)>2:
 		sim_limit = int(sys.argv[2])
-	ratio = '0.0001'
+	ratio = global_var['ratio']
 	if len(sys.argv)>3:
 		ratio = sys.argv[3]
 	get_dup = 1
