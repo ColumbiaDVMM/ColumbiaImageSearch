@@ -25,12 +25,17 @@ localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
 
 def get_htid_fromIST(roxy_imgname):
-        db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
-        c=db.cursor()
+	try:
+	        db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
+        except:
+		htid=get_htid_fromIST(roxy_imgname)
+		return htid
+	c=db.cursor()
         query="select id from images where location=\""+roxy_imgname+"\";"
         #print query
         c.execute(query) #Should we use id or htid here?
         remax = c.fetchall()
+	db.close()
         return remax[0][0]
 
 def exist_img_precompfeat(query_sha1):
@@ -99,6 +104,7 @@ if __name__ == '__main__':
 	always_recompute = 0;
 
 	unique_sha1=[]
+	unique_htid=[]
 		
 	if not os.path.exists(featurename):
 		# To maintain proper alignment of output
@@ -112,32 +118,34 @@ if __name__ == '__main__':
 				imgname = line.replace('\n','')
 				roxy_imgname="https://s3.amazonaws.com/roxyimages/"+imgname[imgname.rfind('/')+1:]
 				if len(imgname)>2:
+					dup = False
 					f_img = open(imgname, 'rb') # TODO: check if image or web address, download if web
 					sha1=hashlib.sha1(f_img.read()).hexdigest().upper()
 					f_img.close()
-					feat_id, ht_id = exist_img_precompfeat(sha1)
-					if feat_id != 0 and sha1 not in unique_sha1:
-						print "Found feature locally: ",feat_id, ht_id,"for image:",imgname
-						#precomp_feats.append(feat_id)
-						f_pre.write(struct.pack('i',feat_id))
-						precomp_img_filenames.append(imgname)
-						#f_ids.write(imgname+' '+str(feat_id)+'\n') # this our unique id not htid...
-						print imgname,str(ht_id)
+					istht_id = get_htid_fromIST(roxy_imgname)
+					if sha1 not in unique_sha1: # first time we see that image
 						unique_sha1.append(sha1)
-						all_img_filenames.append(imgname)
-						f_ids.write(imgname+' '+roxy_imgname+' '+str(ht_id)+' '+str(ht_id)+'\n')
-					else: 
-						dupht_id = get_htid_fromIST(roxy_imgname)
-						if sha1 in unique_sha1: # Duplicate
-							f_ids.write(imgname+' '+roxy_imgname+' '+str(dupht_id)+' '+str(ht_id)+'\n')
-						else:
-							# should compute features for this img
+                                                unique_htid.append(istht_id)
+                                                all_img_filenames.append(imgname)
+                                                f_ids.write(imgname+' '+roxy_imgname+' '+str(istht_id)+' '+str(istht_id)+' '+str(sha1)+'\n')
+					else: # duplicate
+						dup = True
+						upos=unique_sha1.index(sha1)
+						uht_id=unique_htid[upos]
+						print "Duplicate:",str(uht_id),imgname
+						f_ids.write(imgname+' '+roxy_imgname+' '+str(istht_id)+' '+str(uht_id)+' '+str(sha1)+'\n')
+					if not dup:
+						# get features
+						feat_id, ht_id = exist_img_precompfeat(sha1)
+						if feat_id != 0:
+							print "Found feature locally:",feat_id, ht_id,"for image:",imgname
+							f_pre.write(struct.pack('i',feat_id))
+							precomp_img_filenames.append(imgname)
+						else: 
 							print "Could not find feature locally for image:",imgname
 							ins_num = ins_num + 1
-							f_ids.write(imgname+' '+roxy_imgname+' '+str(dupht_id)+' '+str(dupht_id)+'\n')
 							f.write(imgname+' 0\n')
-							unique_sha1.append(sha1)
-							all_img_filenames.append(imgname)
+
 		else: 
 			print img_filename,"should have a .txt extension."
 	                f.close()
