@@ -41,7 +41,7 @@ def getUpdateInfos():
 	else: # First update
 		update_id=1
 		last_id=0
-	print update_id,last_id
+	print "update_id:",update_id,"last_id:",last_id
 	db.close()
 	return update_id,last_id
 
@@ -55,17 +55,17 @@ def getBiggestDBId(): # Should be the biggest id currently in the DB for potenti
 	re = c.fetchall()
 	biggest_dbid = re[0][0]
 	db.close()
-	print "Biggest ID in LOCAL DB:",biggest_dbid
+	#print "Biggest ID in LOCAL DB:",biggest_dbid
 	return biggest_dbid # Biggest HT ID or unique ID?
 
 def getImagesInfos(last_id,pairwise_batch_size):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
 	query="select * from uniqueIds where id>\""+str(last_id)+"\" order by id ASC LIMIT "+str(pairwise_batch_size)+";"
-	print query
+	#print query
 	c.execute(query) #Should we use id or htid here?
 	remax = c.fetchall()
-	print remax
+	#print remax
 	db.close()
 	return remax
 
@@ -163,7 +163,7 @@ if __name__ == '__main__':
 	sim_score=[]
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
-	sql='SELECT NULL,location,NULL,NULL,htid,sha1 FROM uniqueIds WHERE id in (%s) ORDER BY FIELD(id, %s)' 
+	sql='SELECT htid,id FROM uniqueIds WHERE id in (%s) ORDER BY FIELD(id, %s)' 
 
 	# get similar images
 	count = 0
@@ -197,16 +197,13 @@ if __name__ == '__main__':
 	if get_dup:
 		new_sim = []
 		new_sim_score = []
-		if not global_var['demo']:
-			sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
-		else:
-			sql='SELECT htid,uid,url,location,ads_url,ads_id FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
+		sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
 		for i in range(0,pairwise_batch_size):	
 			new_sim.append([])
 			new_sim_score.append([])
 			if not sim[i]: # empty
 				continue
-			query_num = [simj[4] for simj in sim[i]]
+			query_num = [simj[0] for simj in sim[i]]
 			in_p=', '.join(map(lambda x: '%s', query_num))
 			sqlq = sql % (in_p,in_p)
 			c.execute(sqlq, query_num*2)
@@ -214,13 +211,10 @@ if __name__ == '__main__':
 			#print len(tmpresult)
 			p = 0
 			for k in tmpresult:
-				if sim[i][p][4]!=k[1]:
+				if sim[i][p][1]!=k[1]:
 					p = p+1
-				if not global_var['demo']:
-					new_sim[i].append((sim[i][p][0],sim[i][p][1],sim[i][p][2],sim[i][p][3],k[0],sim[i][p][5]))
-				else:
-					new_sim[i].append((k[2],k[3],k[4],k[5],k[0],sim[i][p][5]))
-				new_sim_score[i].append(sim_score[i][p])
+				new_sim[i].append(k[0])
+				new_sim_score[i].append(max(0,sim_score[i][p])
 				
 		sim = new_sim
 		sim_score = new_sim_score
@@ -236,7 +230,8 @@ if __name__ == '__main__':
 	# tab = connection.table('aaron_memex_ht-images')
 	# # This may hang...
 	# # tab.put('1',{'meta:columbia_near_dups' : ''})
-	# # tab.put('1',{'meta:columbia_near_dups_simscore' : ''})
+	# # tab.put('1',{'meta:columbia_near_dups_dist' : ''})
+	# # tab.put('1',{'meta:columbia_near_dups_biggest_dbid' : ''})
 	
 	# output = []
 	# for i in range(0,pairwise_batch_size):	
