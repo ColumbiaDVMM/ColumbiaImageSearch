@@ -13,6 +13,8 @@ import datetime
 import pickle
 
 import json
+ist_down=False
+
 global_var = json.load(open('global_var_all.json'))
 isthost=global_var['ist_db_host']
 istuser=global_var['ist_db_user']
@@ -70,7 +72,7 @@ if __name__ == '__main__':
 	print len(sys.argv)
 	if len(sys.argv)>2:
 		sim_limit = int(sys.argv[2])
-	ratio = '0.0001'
+	ratio = global_var['ratio']
 	if len(sys.argv)>3:
 		ratio = sys.argv[3]
 	get_dup = 1
@@ -301,7 +303,7 @@ if __name__ == '__main__':
 				
 		db.close()
 		# expand metadata
-		if not global_var['demo']:
+		if not global_var['demo'] and not ist_down:
 			db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
 			c=db.cursor()
 			sql='select i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where i.id in (%s) order by field (i.id,%s);' 

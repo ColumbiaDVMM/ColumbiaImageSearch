@@ -132,8 +132,8 @@ if ($fast<1){
 else{
 	$fast = 1;
 }
-$fgval = fopen ("global_var_new.json", "rb");
-$gread=fread($fgval,filesize("global_var_new.json"));
+$fgval = fopen ("global_var_all.json", "rb");
+$gread=fread($fgval,filesize("global_var_all.json"));
 $global_var = json_decode($gread);
 if ($fast){
   $ratio = $global_var->{'fast_ratio'};
