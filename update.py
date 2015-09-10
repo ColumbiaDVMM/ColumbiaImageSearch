@@ -8,5 +8,5 @@ while 1:
 		print 'sleep for',interval-time_lapse, 'seconds...'
 		time.sleep(interval-time_lapse)
 	lasttime=time.time()
-	os.system('python incUp.py -l 200000')
+	os.system('python incUp.py -l 200000 &>> logUpdate.txt')
 

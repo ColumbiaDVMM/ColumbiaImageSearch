@@ -61,7 +61,7 @@ def getBiggestDBId(): # Should be the biggest id currently in the DB for potenti
 def getImagesInfos(last_id,pairwise_batch_size):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
-	query="select * from uniqueIds where id>\""+last_id+"\" order by id ASC LIMIT \""+pairwise_batch_size+"\";"
+	query="select * from uniqueIds where id>\""+str(last_id)+"\" order by id ASC LIMIT "+str(pairwise_batch_size)+";"
 	print query
 	c.execute(query) #Should we use id or htid here?
 	remax = c.fetchall()
@@ -130,6 +130,7 @@ if __name__ == '__main__':
 
 	ins_num = 0
 	always_recompute = 0;
+	prefix = './' # should be empty for windows
 		
 	# Get one batch of pairwise_batch_size images
 	images_infos = getImagesInfos(last_id,pairwise_batch_size)
@@ -138,7 +139,7 @@ if __name__ == '__main__':
 		quit()
 
 	# Get these features
-	f_pre = open(precomp_featurename,'wb')
+	f_pre = open(featurename,'wb')
 	print images_infos
 	ht_ids=[]
 	for one_img in images_infos:
