@@ -1,0 +1,29 @@
+img.img_vis { 
+	margin: 3;
+	border: 0;
+	height: 120px; 
+}
+
+img.img_blur {
+	margin: 3;
+	border: 0;
+	height: 120px;
+	-webkit-filter: blur(6px);
+}
+
+img.dup_vis { 
+	margin: 3;
+	border: 0; 
+}
+
+img.dup_blur { 
+	margin: 3;
+	border: 0;
+	-webkit-filter: blur(12px);
+}
+
+img.dup_blur:hover {
+	margin: 3;
+	border: 0;
+	-webkit-filter: blur(0px);
+}
