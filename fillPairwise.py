@@ -195,6 +195,7 @@ if __name__ == '__main__':
 	f.close()
 		
 	if get_dup:
+		print "Getting duplicates"
 		new_sim = []
 		new_sim_score = []
 		sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
@@ -211,11 +212,10 @@ if __name__ == '__main__':
 			#print len(tmpresult)
 			p = 0
 			for k in tmpresult:
-				if sim[i][p][1]!=k[1]:
+				if sim[i][p][0]!=k[1]:
 					p = p+1
 				new_sim[i].append(k[0])
-				new_sim_score[i].append(max(0,sim_score[i][p])
-				
+				new_sim_score[i].append(str(max(0,float(sim_score[i][p]))))		
 		sim = new_sim
 		sim_score = new_sim_score
 			
