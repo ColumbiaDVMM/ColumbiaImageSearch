@@ -287,9 +287,9 @@ if __name__ == '__main__':
 	db.close()
 
 
-	print sim
-	print sim_score
-	print ht_ids
+	print len(sim),sim
+	print len(sim_score),sim_score
+	print len(ht_ids),ht_ids
 	# Fill HBase
 	# https://happybase.readthedocs.org/en/latest/user.html#performing-batch-mutations
 	tab = connection.table('aaron_memex_ht-images')
@@ -301,7 +301,7 @@ if __name__ == '__main__':
 		b.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups_dist' : ''+sim_dist+''})
 		b.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups_biggest_dbid' : ''+str(biggest_dbid)+''})
 	b.send()
-	
+
 	# # This may hang...
 	# # tab.put('1',{'meta:columbia_near_dups' : ''})
 	# # tab.put('1',{'meta:columbia_near_dups_dist' : ''})
