@@ -59,7 +59,7 @@ def cleanError(update_id,last_id,worker,proc_id):
         db.close()
 
 
-def getUpdateInfos(worker):
+def checkWorkerStatus(worker):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
 	query="select * from pairwise_infos where worker=\""+str(worker)+"\" order by update_id DESC LIMIT 1;"
@@ -68,35 +68,38 @@ def getUpdateInfos(worker):
 	remax = c.fetchall()
 	print remax
 	if len(remax)>0:
-		update_id=remax[0][0]+1
+		update_id=remax[0][0]
 		last_id=remax[0][1]
 		proc_id=remax[0][3]
 		ended=remax[0][5]
-		print "Ended",ended
+		#print "Ended",ended
 		if not ended:
-			print "Error: previous update "+str(update_id-1)+" of worker "+str(worker)+" not completed"
+			print "Error: previous update "+str(update_id)+" of worker "+str(worker)+" not completed (last_id:"+str(last_id)+",proc_id:"+str(proc_id)+")"
 			#check if proc_id running
 			try:
 				os.getpgid(proc_id)
 				print "Still running. Leaving."
 			except OSError: # not running. delete line
 				print "Process is dead. Cleaning...",
-				cleanError(update_id-1,last_id,worker,proc_id)
+				cleanError(update_id,last_id,worker,proc_id)
 				print "Leaving."				
 			quit()
-	else: # First update for this worker?
-		query="select * from pairwise_infos order by update_id DESC LIMIT 1;"
-        	print query
-        	c.execute(query)
-        	remax = c.fetchall()
-		if len(remax)>0:
-			update_id=remax[0][0]+1
-                	last_id=remax[0][1]
-                	proc_id=remax[0][3]
-                	ended=remax[0][4]
-		else: #First update ever
-			update_id=1
-			last_id=0
+	return True
+
+def getUpdateInfos():
+	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
+	c=db.cursor()
+	query="select * from pairwise_infos order by update_id DESC LIMIT 1;"
+	print query
+	c.execute(query) 
+	remax = c.fetchall()
+	print remax
+	if len(remax)>0:
+		update_id=remax[0][0]+1
+		last_id=remax[0][1]
+	else: 
+		update_id=1
+		last_id=0
 	print "update_id:",update_id,"last_id:",last_id
 	return update_id,last_id
 
@@ -145,16 +148,18 @@ if __name__ == '__main__':
 		exit()
 
 	# Startup update
+	worker_id=1
+	if len(sys.argv)>2:
+		worker_id = int(sys.argv[2])
+	# If this worker is already running we would have quit
+	if checkWorkerStatus(worker_id): 
+		print "Starting worker ",str(worker_id)
 	pairwise_batch_size = 10
-        if len(sys.argv)>1:
-                pairwise_batch_size = int(sys.argv[1])
-        worker_id=1
-        if len(sys.argv)>2:
-                worker_id = int(sys.argv[2])
-        [update_id,last_id]=getUpdateInfos(worker_id)
-        biggest_dbid=getBiggestDBId()
+	if len(sys.argv)>1:
+		pairwise_batch_size = int(sys.argv[1])
+	[update_id,last_id]=getUpdateInfos()
+	biggest_dbid=getBiggestDBId()
 	writeStart(update_id,last_id+pairwise_batch_size,biggest_dbid,worker_id)
-	print "Starting..."
 
 	pairwise_filename = "pairwise"+str(update_id)
 	logname = pairwise_filename[:-4]+'.log'
@@ -290,10 +295,13 @@ if __name__ == '__main__':
 	tab = connection.table('aaron_memex_ht-images')
 	b = tab.batch()
 	for i in range(0,pairwise_batch_size):
-		tab.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups' : ''})
-        	tab.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups_dist' : ''})
-        	tab.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups_biggest_dbid' : ''+str(biggest_dbid)+''})
-
+		sim_str = ','.join(map(str, sim[i]))
+		sim_dist = ','.join(map(str, sim_score[i]))
+		b.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups' : ''+sim_str+''})
+		b.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups_dist' : ''+sim_dist+''})
+		b.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups_biggest_dbid' : ''+str(biggest_dbid)+''})
+	b.send()
+	
 	# # This may hang...
 	# # tab.put('1',{'meta:columbia_near_dups' : ''})
 	# # tab.put('1',{'meta:columbia_near_dups_dist' : ''})
