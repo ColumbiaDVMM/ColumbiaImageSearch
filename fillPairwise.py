@@ -3,8 +3,6 @@ import struct,time
 import MySQLdb
 # http://happybase.readthedocs.org/en/latest/user.html
 import happybase
-connection = happybase.Connection('10.1.94.57')
-connection.tables()
 
 from array import *
 #sys.path.append('libsvm-3.18/python')
@@ -305,6 +303,9 @@ if __name__ == '__main__':
 	print >>flog,len(ht_ids),ht_ids
 	# Fill HBase
 	# https://happybase.readthedocs.org/en/latest/user.html#performing-batch-mutations
+	# This may hang?...
+	connection = happybase.Connection('10.1.94.57')
+	connection.tables()
 	tab = connection.table('aaron_memex_ht-images')
 	b = tab.batch()
 	for i in range(0,pairwise_batch_size):
@@ -319,7 +320,8 @@ if __name__ == '__main__':
         	        b.put(''+str(dup)+'',{'meta:columbia_near_dups_biggest_dbid' : ''+str(biggest_dbid)+''})
 
 	b.send()
- 
+	connection.close()
+	
 	#Cleaning	
 	os.remove(simname)
 	os.remove(featurename)
