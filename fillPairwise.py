@@ -57,14 +57,15 @@ def cleanError(update_id,last_id,worker,proc_id):
         db.close()
 
 
-def checkWorkerStatus(worker):
+def checkWorkerStatus(worker,batchsize):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
-	query="select * from pairwise_infos where worker=\""+str(worker)+"\" order by update_id DESC LIMIT 1;"
+	query="select * from pairwise_infos where worker=\""+str(worker)+"\" AND ended=FALSE order by update_id DESC LIMIT 1;"
 	#print query
 	c.execute(query) 
 	remax = c.fetchall()
 	#print remax
+	[update_idok,last_idok]=getUpdateInfos()
 	if len(remax)>0:
 		update_id=remax[0][0]
 		last_id=remax[0][1]
@@ -75,14 +76,18 @@ def checkWorkerStatus(worker):
 			print "Error: previous update "+str(update_id)+" of worker "+str(worker)+" not completed (last_id:"+str(last_id)+",proc_id:"+str(proc_id)+")"
 			#check if proc_id running
 			try:
+				if proc_id==0: # manually reset
+					raise OSError
 				os.getpgid(proc_id)
 				print "Still running. Leaving."
+				quit()
 			except OSError: # not running. delete line
 				print "Process is dead. Cleaning...",
 				cleanError(update_id,last_id,worker,proc_id)
-				print "Leaving."				
-			quit()
-	return True
+				print "Restarting this batch..."
+				update_idok=update_id
+				last_idok=last_id-batchsize # Won't work if failed process was using another batchsize				
+	return update_idok,last_idok
 
 def getUpdateInfos():
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
@@ -148,12 +153,11 @@ if __name__ == '__main__':
 	if len(sys.argv)>1:
 		worker_id = int(sys.argv[1])
 	# If this worker is already running we would have quit
-	if checkWorkerStatus(worker_id): 
-		print "Starting worker",str(worker_id)
 	pairwise_batch_size = 4
 	if len(sys.argv)>2:
 		pairwise_batch_size = int(sys.argv[2])
-	[update_id,last_id]=getUpdateInfos()
+	[update_id,last_id] = checkWorkerStatus(worker_id,pairwise_batch_size)
+	print "Starting worker",str(worker_id)
 	biggest_dbid=getBiggestDBId()
 	writeStart(update_id,last_id+pairwise_batch_size,biggest_dbid,worker_id)
 
