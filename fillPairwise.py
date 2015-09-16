@@ -154,7 +154,7 @@ if __name__ == '__main__':
 	# If this worker is already running we would have quit
 	if checkWorkerStatus(worker_id): 
 		print "Starting worker ",str(worker_id)
-	pairwise_batch_size = 10
+	pairwise_batch_size = 4
 	if len(sys.argv)>1:
 		pairwise_batch_size = int(sys.argv[1])
 	[update_id,last_id]=getUpdateInfos()
@@ -263,16 +263,27 @@ if __name__ == '__main__':
 		print "Getting duplicates"
 		new_sim = []
 		new_sim_score = []
+		dup_list = []
 		sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
 		for i in range(0,pairwise_batch_size):	
 			new_sim.append([])
 			new_sim_score.append([])
+			dup_list.append([])
+			# We have to fill HBase rows for duplicates too.
+                        in_p=', '.join(map(lambda x: '%s', [ht_ids[i]]))
+                        sqlq = sql % (in_p,in_p)
+                        c.execute(sqlq, [ht_ids[i],ht_ids[i]]) 
+                        tmpresult = c.fetchall()
+			for k in tmpresult:
+				print "Candidate dup:",k,ht_ids[i]
+				if k[0]!=ht_ids[i]:
+					dup_list[i].append(k[0])
 			if not sim[i]: # empty
 				continue
 			query_num = [simj[0] for simj in sim[i]]
 			in_p=', '.join(map(lambda x: '%s', query_num))
 			sqlq = sql % (in_p,in_p)
-			c.execute(sqlq, query_num*2)
+			c.execute(sqlq, query_num*2) # query_num*2 duplicates the list.
 			tmpresult = c.fetchall()
 			#print len(tmpresult)
 			p = 0
@@ -288,6 +299,7 @@ if __name__ == '__main__':
 
 
 	print len(sim),sim
+	print len(dup_list),dup_list
 	print len(sim_score),sim_score
 	print len(ht_ids),ht_ids
 	# Fill HBase
@@ -300,27 +312,12 @@ if __name__ == '__main__':
 		b.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups' : ''+sim_str+''})
 		b.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups_dist' : ''+sim_dist+''})
 		b.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups_biggest_dbid' : ''+str(biggest_dbid)+''})
-	b.send()
+		for dup in dup_list[i]:
+			b.put(''+str(dup)+'',{'meta:columbia_near_dups' : ''+sim_str+''})
+	                b.put(''+str(dup)+'',{'meta:columbia_near_dups_dist' : ''+sim_dist+''})
+        	        b.put(''+str(dup)+'',{'meta:columbia_near_dups_biggest_dbid' : ''+str(biggest_dbid)+''})
 
-	# # This may hang...
-	# # tab.put('1',{'meta:columbia_near_dups' : ''})
-	# # tab.put('1',{'meta:columbia_near_dups_dist' : ''})
-	# # tab.put('1',{'meta:columbia_near_dups_biggest_dbid' : ''})
-	
-	# output = []
-	# for i in range(0,pairwise_batch_size):	
-	# 	output.append(dict())
-	# 	output[i]['similar_images']= OrderedDict([['number',len(sim[i])],['image_urls',[]],['cached_image_urls',[]],['page_urls',[]],['ht_ads_id',[]],['ht_images_id',[]],['sha1',[]],['distance',[]]])
-	# 	for simj in sim[i]:
-	# 		output[i]['similar_images']['image_urls'].append(simj[0])
-	# 		output[i]['similar_images']['cached_image_urls'].append(simj[1])
-	# 		output[i]['similar_images']['page_urls'].append(simj[2])
-	# 		output[i]['similar_images']['ht_ads_id'].append(simj[3])
-	# 		output[i]['similar_images']['ht_images_id'].append(simj[4])
-	# 		output[i]['similar_images']['sha1'].append(simj[5])
-	# 	output[i]['similar_images']['distance']=sim_score[i]
-	# outp = OrderedDict([['number',nb_query],['images',output]])
-	# json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)		
+	b.send()
  
 	#Cleaning	
 	#os.remove(testname)
