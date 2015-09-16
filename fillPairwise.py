@@ -33,7 +33,7 @@ def writeEnded(update_id,last_id,biggest_dbid,worker):
         c=db.cursor()
         pid = os.getpid()
         query="update pairwise_infos set ended=TRUE where update_id="+str(update_id)+" AND last_id="+str(last_id)+" AND worker="+str(worker)+" AND biggest_dbid="+str(biggest_dbid)+" AND proc_id="+str(pid)+";"
-        print query
+        #print query
         c.execute(query)
         db.commit()
         db.close()
@@ -44,7 +44,7 @@ def writeStart(update_id,last_id,biggest_dbid,worker):
         c=db.cursor()
         pid = os.getpid()
         query="insert into pairwise_infos (update_id,last_id,biggest_dbid,worker,proc_id) values ("+str(update_id)+","+str(last_id)+","+str(biggest_dbid)+","+str(worker)+","+str(pid)+");"
-        print query
+        #print query
         c.execute(query)
         db.commit()
         db.close()
@@ -53,7 +53,7 @@ def cleanError(update_id,last_id,worker,proc_id):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
         c=db.cursor()
         query="delete from pairwise_infos where update_id="+str(update_id)+" AND last_id="+str(last_id)+" AND worker="+str(worker)+" AND proc_id="+str(proc_id)+";"
-        print query
+        #print query
         c.execute(query)
         db.commit()
         db.close()
@@ -63,10 +63,10 @@ def checkWorkerStatus(worker):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
 	query="select * from pairwise_infos where worker=\""+str(worker)+"\" order by update_id DESC LIMIT 1;"
-	print query
+	#print query
 	c.execute(query) 
 	remax = c.fetchall()
-	print remax
+	#print remax
 	if len(remax)>0:
 		update_id=remax[0][0]
 		last_id=remax[0][1]
@@ -90,17 +90,17 @@ def getUpdateInfos():
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
 	query="select * from pairwise_infos order by update_id DESC LIMIT 1;"
-	print query
+	#print query
 	c.execute(query) 
 	remax = c.fetchall()
-	print remax
+	#print remax
 	if len(remax)>0:
 		update_id=remax[0][0]+1
 		last_id=remax[0][1]
 	else: 
 		update_id=1
 		last_id=0
-	print "update_id:",update_id,"last_id:",last_id
+	#print "update_id:",update_id,"last_id:",last_id
 	return update_id,last_id
 
 def getBiggestDBId(): # Should be the biggest id currently in the DB for potential later update...
@@ -140,33 +140,31 @@ def filter_near_dup(nums,dist_ths):
 
 if __name__ == '__main__':
 	
-	# Loop forever here?
-
 	t0 = time.time()
 	if len(sys.argv)>5:
-		print  "This program fill the HT HBase with near duplicate links between similar images.\nUsage: python fillPairwise.py [batch_size] [worked_id] [post_ranking_ratio] [get_duplicate=1] [near_dup=1] [near_dup_th=0.15]"
+		print  "This program fill the HT HBase with near duplicate links between similar images.\nUsage: python fillPairwise.py [worker_id] [batch_size] [post_ranking_ratio] [get_duplicate=1] [near_dup=1] [near_dup_th=0.15]"
 		exit()
 
 	# Startup update
 	worker_id=1
-	if len(sys.argv)>2:
-		worker_id = int(sys.argv[2])
+	if len(sys.argv)>1:
+		worker_id = int(sys.argv[1])
 	# If this worker is already running we would have quit
 	if checkWorkerStatus(worker_id): 
-		print "Starting worker ",str(worker_id)
+		print "Starting worker",str(worker_id)
 	pairwise_batch_size = 4
-	if len(sys.argv)>1:
-		pairwise_batch_size = int(sys.argv[1])
+	if len(sys.argv)>2:
+		pairwise_batch_size = int(sys.argv[2])
 	[update_id,last_id]=getUpdateInfos()
 	biggest_dbid=getBiggestDBId()
 	writeStart(update_id,last_id+pairwise_batch_size,biggest_dbid,worker_id)
 
-	pairwise_filename = "pairwise"+str(update_id)
-	logname = pairwise_filename[:-4]+'.log'
+	pairwise_filename = "update/logs/pairwise"+str(update_id)
+	logname = pairwise_filename+'.log'
 	flog=open(logname, 'w')
 	sim_limit = 10000 # Does not really matter, big enough to return all near duplicates.
 	global_var = json.load(open('global_var_all.json'))
-	print >>flog,pairwise_filename,len(sys.argv)
+	print >>flog,pairwise_filename,"Worker:",str(worker_id),"Update_id:",str(update_id)
 	ratio = '0.0001'
 	if len(sys.argv)>3:
 		ratio = sys.argv[3]
@@ -186,8 +184,8 @@ if __name__ == '__main__':
 	
 
 	feature_num = 4096
-	simname = pairwise_filename[:-4] + '-sim.txt'
-	featurename = pairwise_filename[:-4] + '-features'
+	simname = pairwise_filename + '-sim.txt'
+	featurename = pairwise_filename + '-features'
 	featurefilename = featurename+'_fc7.dat'
 	now=datetime.datetime.now()
 
@@ -200,26 +198,30 @@ if __name__ == '__main__':
 	# Get one batch of pairwise_batch_size images
 	images_infos = getImagesInfos(last_id,pairwise_batch_size)
 	if len(images_infos)<pairwise_batch_size:
-		print "Not enough images for this batch: ",str(len(images_infos))
+		print >>flog,"Not enough images for this batch: ",str(len(images_infos))
 		quit()
 
 	# Get these features
 	f_pre = open(featurename,'wb')
-	print images_infos
+	#print images_infos
 	ht_ids=[]
 	for one_img in images_infos:
 		ht_ids.append(one_img[1])
 		feat_id=one_img[3]
 		f_pre.write(struct.pack('i',feat_id))
 	f_pre.close()
-	command = prefix+'get_precomp_feats '+featurename+' '+featurefilename;
-	print command
+	command = prefix+'get_precomp_feats '+featurename+' '+featurefilename+' >> '+logname+' 2>&1';
+	print >>flog,command
+	flog.close()
 	os.system(command)
+	flog=open(logname, 'a')
 
 	# Compare with images in DB
-	command = prefix+'hashing '+featurefilename + ' 256 '+ratio;
-	print command
+	command = prefix+'hashing '+featurefilename + ' 256 '+ratio+' >> '+logname+' 2>&1';
+	print >>flog,command
+	flog.close()
 	os.system(command)
+	flog=open(logname, 'a')
 	os.rename(featurename + '_fc7-sim.txt',simname)
 
 	# Process output
@@ -260,7 +262,7 @@ if __name__ == '__main__':
 	f.close()
 		
 	if get_dup:
-		print "Getting duplicates"
+		print >>flog,"Getting duplicates"
 		new_sim = []
 		new_sim_score = []
 		dup_list = []
@@ -275,7 +277,6 @@ if __name__ == '__main__':
                         c.execute(sqlq, [ht_ids[i],ht_ids[i]]) 
                         tmpresult = c.fetchall()
 			for k in tmpresult:
-				print "Candidate dup:",k,ht_ids[i]
 				if k[0]!=ht_ids[i]:
 					dup_list[i].append(k[0])
 			if not sim[i]: # empty
@@ -298,10 +299,10 @@ if __name__ == '__main__':
 	db.close()
 
 
-	print len(sim),sim
-	print len(dup_list),dup_list
-	print len(sim_score),sim_score
-	print len(ht_ids),ht_ids
+	print >>flog,len(sim),sim
+	print >>flog,len(dup_list),dup_list
+	print >>flog,len(sim_score),sim_score
+	print >>flog,len(ht_ids),ht_ids
 	# Fill HBase
 	# https://happybase.readthedocs.org/en/latest/user.html#performing-batch-mutations
 	tab = connection.table('aaron_memex_ht-images')
@@ -320,9 +321,12 @@ if __name__ == '__main__':
 	b.send()
  
 	#Cleaning	
-	#os.remove(testname)
+	os.remove(simname)
+	os.remove(featurename)
+	os.remove(featurefilename)
 	
 	# Mark update as finished.
 	writeEnded(update_id,last_id+pairwise_batch_size,biggest_dbid,worker_id)
 
-	print 'query time: ', time.time() - t0
+	print >>flog,'Pairwise compute time: ', time.time() - t0
+	flog.close()
