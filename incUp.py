@@ -414,22 +414,23 @@ if __name__ == '__main__':
 		fmax_new = 0
 
 	success = 0
+	# this is critical
 	if umax_new-umax != num_new_unique:
 		print 'Update failed! unique table size mismatch!',umax_new,umax,num_new_unique
 	        flog.write('Update failed! unique table size mismatch!\n')
-		flog.write("umax_new: %d, umax: %d, num_new_unique: %d" % umax_new,umax,num_new_unique)
-	elif fmax_new-fmax != num_readable:
-		print 'Update failed! full table size mismatch!',fmax_new,fmax,num_readable
-                flog.write('Update failed! full table size mismatch!\n')
-                flog.write("fmax_new: %d, fmax: %d, num_readable: %d" % fmax_new,fmax,num_readable)
+		flog.write("umax_new: %d, umax: %d, num_new_unique: %d\n" % (umax_new,umax,num_new_unique))
 	elif os.stat(hashbits_filepath).st_size!=num_new_unique*32:
 		print 'Update failed! hash bits size mismatch!',os.stat(hashbits_filepath).st_size,num_new_unique*32
 	        flog.write('Update failed! hash bits size mismatch!\n')
-                flog.write("hashfile size: %d, num_new_unique: %d" % os.stat(hashbits_filepath).st_size,num_new_unique*32)
+                flog.write("hashfile size: %d, num_new_unique: %d\n" % (os.stat(hashbits_filepath).st_size,num_new_unique*32))
 	elif os.stat(feature_filepath).st_size!=num_new_unique*16384:
 		print 'Update failed! feature size mismatch!',os.stat(feature_filepath).st_size,num_new_unique*16384
 	        flog.write('Update failed! feature size mismatch!\n')
-                flog.write("hashfile size: %d, num_new_unique: %d" % os.stat(feature_filepath).st_size,num_new_unique*16384)
+                flog.write("hashfile size: %d, num_new_unique: %d\n" % (os.stat(feature_filepath).st_size,num_new_unique*16384))
+	elif fmax_new-fmax != num_readable:
+		print 'Update warning! full table size mismatch!',fmax_new,fmax,num_readable
+                flog.write('Update warning! full table size mismatch!\n')
+                flog.write("fmax_new: %d, fmax: %d, num_readable: %d\n" % (fmax_new,fmax,num_readable))
 	else:
 		success = 1
 		db.commit()
