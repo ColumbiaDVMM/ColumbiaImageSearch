@@ -309,7 +309,9 @@ if __name__ == '__main__':
 	# https://happybase.readthedocs.org/en/latest/user.html#performing-batch-mutations
 	# This may hang?...
 	connection = happybase.Connection('10.1.94.57')
-	connection.tables()
+	#connection.tables()
+	# Connection timeout issue...
+	# happybase.hbase.ttypes.IOError: IOError(_message="java.net.SocketTimeoutException: callTimeout=0, callDuration=17367:...
 	tab = connection.table('aaron_memex_ht-images')
 	b = tab.batch()
 	for i in range(0,pairwise_batch_size):
