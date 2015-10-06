@@ -1,5 +1,6 @@
-# DeepSentiBank_memex
-Image similarity search and concept prediction for DARPA Memex
+# Columbia University Content Based Image Similarity Tool
+
+This repository contains the content based image similarity search and concept prediction for the DARPA MEMEX project developped by Columbia University by Tao Chen, Svebor Karaman and Shih-Fu Chang.
 
 Todo:
 
