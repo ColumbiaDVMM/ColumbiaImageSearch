@@ -8,7 +8,7 @@ istpwd=global_var['ist_db_pwd']
 istdb=global_var['ist_db_dbname']
 db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
 c=db.cursor()
-sql='select id,location from images where location is not null order by id desc limit 1'
+sql='select * from images where location is not null order by id desc limit 1'
 query_id = []
 start_time = time.time()
 c.execute(sql, query_id)
