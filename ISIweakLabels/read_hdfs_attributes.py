@@ -24,3 +24,9 @@ for part in xrange(0, 16):
 print len(all_ads)
 for one_attr in set(all_attr):
 	print one_attr+":",set(all_vals[one_attr])
+
+all_attr_data={}
+all_attr_data['all_ads']=all_ads
+all_attr_data['all_attr']=all_attr
+all_attr_data['all_vals']=all_vals
+pickle.dump(all_attr_data,open('all_attr_data.pkl',"wb"))
