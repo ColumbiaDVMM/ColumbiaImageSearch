@@ -21,13 +21,13 @@ all_imgs=[]
 all_vals=dict()
 
 def getImageHtIdsFromAdId(ad_id):
-	db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
-	c=db.cursor()
-	sql='select id from images where ads_id='+str(ad_id)
-	c.execute(sql)
-	re = c.fetchall()
-	db.close()
-	return [one_img[0] for one_img in re]
+  db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
+  c=db.cursor()
+  sql='select id from images where ads_id='+str(ad_id)
+  c.execute(sql)
+  re = c.fetchall()
+  db.close()
+  return [one_img[0] for one_img in re]
 
 
 for part in xrange(0, 16):
