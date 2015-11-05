@@ -16,7 +16,7 @@ if __name__ == '__main__':
   print my_ids_str
   all_rows=tab.rows(my_ids_str)
   for one_row in all_rows:
-	#print one_row
+	print one_row
 	try:
 		print one_row[0],"has "+str(len(one_row[1]['meta:columbia_near_dups'].split(",")))+" near duplicate ids:", one_row[1]['meta:columbia_near_dups']
 		print one_row[0],"Near duplicate distances:",one_row[1]['meta:columbia_near_dups_dist']
