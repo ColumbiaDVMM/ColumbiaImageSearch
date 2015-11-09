@@ -33,8 +33,8 @@ def get_all_precomp_feats(feats_id):
         f_pre.write(struct.pack('i',feat_id))
     f_pre.close()
     # Execute get_precomp_feats
-    command = './get_precomp_feats '+precomp_featurename+' '+precomp_featurefilename
-    print command
+    command = '../get_precomp_feats '+precomp_featurename+' '+precomp_featurefilename
+    #print command
     os.system(command)
     # Read results from precomp_featurefilename
     f_pre=open(precomp_featurefilename,'rb')
@@ -111,7 +111,7 @@ if not osp.isfile('all_attr_data.pkl'):
     all_attr_data['all_vals']=all_vals
     all_attr_data['all_imgs']=all_imgs
     all_attr_data['attr_set']=attr_set
-    all_attr_data['attr_vals']==attr_vals
+    all_attr_data['attr_vals']=attr_vals
     pickle.dump(all_attr_data,open('all_attr_data.pkl',"wb"))
 
 else:
