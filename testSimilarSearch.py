@@ -17,6 +17,7 @@ import numpy as np
 
 ist_down=False
 feature_num=4096
+device='CPU'
 
 global_var = json.load(open('global_var_all.json'))
 isthost=global_var['ist_db_host']
@@ -90,7 +91,11 @@ def compute_feats(images,testname,protoname):
     f = open(protoname,'w');
     f.write(proto)
     f.close()
-    command = prefix+'extract_nfeatures caffe_sentibank_train_iter_250000 '+protoname+ ' fc7,prob '+featurefilename.replace('\\','/')+','+featurefilename.replace('\\','/')+'_prob '+str(iteration)+' '+device;
+    print device
+    if device=='CPU':
+	command = prefix+'extract_nfeatures caffe_sentibank_train_iter_250000 '+protoname+ ' fc7,prob '+featurefilename.replace('\\','/')+','+featurefilename.replace('\\','/')+'_prob '+str(iteration)+' '+device;
+    else:
+	command = prefix+'extract_nfeatures_gpu caffe_sentibank_train_iter_250000 '+protoname+ ' fc7,prob '+featurefilename.replace('\\','/')+','+featurefilename.replace('\\','/')+'_prob '+str(iteration)+' '+device;
     print command
     os.system(command)
     # Read results from precomp_featurefilename
@@ -98,6 +103,8 @@ def compute_feats(images,testname,protoname):
     feats=None
     for feat_id in range(nb_images):
         one_feat = np.fromfile(f_feat,dtype=np.float32,count=feature_num)
+	# precomp feats are normalized, so normalize here
+	one_feat = one_feat/np.linalg.norm(one_feat)
         if feats==None:
             feats=one_feat
         else:
@@ -120,9 +127,9 @@ if __name__ == '__main__':
     feats_htid=[]
     testname = 'temp_test.txt'
     protoname = 'temp_test.prototxt'
-    device = 'CPU' #GPU does not work?
     #for start_id in range(70000000,110000000,1000000):
-    for start_id in range(1000000,20000000,1000000):
+    for start_id in range(2200000,26000000,200000):
+    #for start_id in [1]:
         onefeat,oneurl,one_htid=get_one_feat(start_id)
         feats_id.append(onefeat)
         feats_url.append(oneurl)
@@ -133,8 +140,15 @@ if __name__ == '__main__':
     fill_test(testname,feats_url)
     recomp_feats=compute_feats(feats_url,testname,protoname)
     # Compare
-    for one_img in range(len(feats_id)):
-	#print pre_feats.shape,pre_feats[one_img,:].shape
-	#print recomp_feats.shape,recomp_feats[one_img,:].shape
+    if len(feats_id)==1:
+	print pre_feats
+	print recomp_feats
+        dist=np.linalg.norm(pre_feats-recomp_feats)
+        print feats_id[0],feats_htid[0],feats_url[0],dist
+    else:
+      for one_img in range(len(feats_id)):
+	print pre_feats[one_img,:],pre_feats[one_img,:].shape
+	print recomp_feats[one_img,:],recomp_feats[one_img,:].shape
         dist=np.linalg.norm(pre_feats[one_img,:]-recomp_feats[one_img,:])
         print feats_id[one_img],feats_htid[one_img],feats_url[one_img],dist
+
