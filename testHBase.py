@@ -12,14 +12,16 @@ if __name__ == '__main__':
   else:
 	my_ids_int = [8496680,100000000]
 	my_ids_int = list(np.random.randint(0,107415056,5))
+	my_ids_int = [100034125,100000118,1000,8496680]
   my_ids_str = [str(one_id) for one_id in my_ids_int]
   print my_ids_str
   all_rows=tab.rows(my_ids_str)
   for one_row in all_rows:
-	print one_row
+	#print one_row
 	try:
 		print one_row[0],"has "+str(len(one_row[1]['meta:columbia_near_dups'].split(",")))+" near duplicate ids:", one_row[1]['meta:columbia_near_dups']
-		print one_row[0],"Near duplicate distances:",one_row[1]['meta:columbia_near_dups_dist']
+		print one_row[0],"has "+str(len(one_row[1]['meta:columbia_near_dups_dist'].split(",")))+" near duplicate distances:",one_row[1]['meta:columbia_near_dups_dist']
+		print one_row[0],"biggest_dbid:",one_row[1]['meta:columbia_near_dups_biggest_dbid']
 		print one_row[0],"Image URL:",one_row[1]['meta:location']
 	except:
 		try: 

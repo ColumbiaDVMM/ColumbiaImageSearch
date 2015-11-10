@@ -3,7 +3,6 @@
 function downloadFile ($url, $path) {
 
   $newfname = $path;
-
   $file = fopen ($url, "rb");
 
   if ($file) {
