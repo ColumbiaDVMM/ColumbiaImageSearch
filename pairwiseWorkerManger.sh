@@ -1,6 +1,6 @@
 #!/bin/bash
-nb_workers=24
-sleep_time=30
+nb_workers=28
+sleep_time=10
 batch_size=1000
 
 while true;

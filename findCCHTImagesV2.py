@@ -58,21 +58,6 @@ def clean_htimages(images_ht,max_edges,max_id=None):
 			pos_edge=edges_list.index(one_edge)
 			edges_list.pop(pos_edge)
 			mod=mod+1
-	# Tricky, make sure graph is indirected and that there is no link with non existing nodes...
-	for one_edge in edges_list:
-	  try:
-	    neigh_pos=images_ht['id'].index(one_edge)
-	    # Is there the returning edge?
-	    neigh_edges_list=images_ht['edges'][neigh_pos].rsplit(",")
-	    if one_edge not in neigh_edges_list:
-		neigh_edges_list.append(one_edge)
-		images_ht['edges'][neigh_pos]=",".join(map(str,neigh_edges_list))
-	  except: # link is pointing to non existing node
-	    pos_edge=edges_list.index(one_edge)
-            edges_list.pop(pos_edge)
-            mod=mod+1
-	if mod>0:
-	  images_ht['edges'][pos]=",".join(map(str,edges_list))
   return images_ht
 
 if __name__ == '__main__':
@@ -129,11 +114,11 @@ if __name__ == '__main__':
   #print images_ht['id'],images_ht['edges']#,images_ht['URL']
   # SHOULD CHECK EDGES REALLY DEFINE AN UNDIRECTED GRPAH...
   images_ht=clean_htimages(images_ht,max_edges,max_id)
-  pickle.dump(images_ht,open("ht_images_clean.pkl","wb"),2)
+  pickle.dump(images_ht,open("ht_images_cleanV2.pkl","wb"),2)
   CC=getCC(images_ht)
   #print CC
   #pickle.dump(CC,open("CC_ht_images"+str(max_images)+".pkl","wb"),2)
-  with open('CC_ht_images.csv', 'wb') as csvfile:
+  with open('CC_ht_imagesV2.csv', 'wb') as csvfile:
     CCwriter = csv.writer(csvfile, delimiter=',')
     for oneCC in CC:
       CCwriter.writerow(oneCC)

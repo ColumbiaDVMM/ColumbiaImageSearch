@@ -1,8 +1,8 @@
 #!/bin/bash
-nb_workers=30
-sleep_time=30
+nb_workers=40
+sleep_time=10
 
-for worker in $(seq 1 $nb_workers);
+for worker in $(seq 25 $nb_workers);
 do
 	#echo "Testing worker "$worker
 	#echo "pgrep -l -f ""python fixPairwiseWorker.py "$worker" "

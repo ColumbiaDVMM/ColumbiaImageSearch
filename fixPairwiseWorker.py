@@ -18,13 +18,12 @@ tab = connection.table('aaron_memex_ht-images')
 biggest_correct_htid = 89830995
 biggest_correct_uniqueid = 22541770
 step = 4000000
-max_worker = 30
 if len(sys.argv) > 1:
-    worker_id = sys.argv[1]
+    worker_id = int(sys.argv[1])
 else:
     worker_id = 0
 print "I am worker", str(worker_id)
-time.sleep(10)
+time.sleep(5)
 
 if __name__ == '__main__':
 
@@ -32,6 +31,7 @@ if __name__ == '__main__':
     b = tab.batch()
     start_row = step * worker_id
     end_row = step * (worker_id + 1)
+    print "Getting rows in range",str(start_row)+"-"+str(end_row)
     for one_start in range(start_row,end_row,our_batch_size):
       rows_ids = [str(row) for row in range(one_start,one_start+our_batch_size)]
       batch_nbmod = 0
@@ -48,12 +48,12 @@ if __name__ == '__main__':
             b.put(key, {'meta:columbia_near_dups_biggest_dbid': '' + str(biggest_correct_uniqueid) + ''})
             neighbors_list = data['meta:columbia_near_dups'].rsplit(',')
             dist_list = data['meta:columbia_near_dups_dist'].rsplit(',')
-            print key, "Initially we have these neighbors", neighbors_list
+            #print key, "Initially we have these neighbors", neighbors_list
             del_neighs = []
             for neigh in neighbors_list:
                 #print neigh
                 if int(neigh) > biggest_correct_htid:
-                    print "We should remove neighbor", neigh
+                    #print "We should remove neighbor", neigh
                     # we need to deal with biggest_id and dist fields too
                     del_neigh = neighbors_list.index(neigh)
                     neighbors_list.pop(del_neigh)
@@ -65,8 +65,8 @@ if __name__ == '__main__':
                 print key, "We have deleted these similar images:", del_neighs
                 neighs_str = ','.join(map(str, neighbors_list))
                 dist_str = ','.join(map(str, dist_list))
-                print len(neighbors_list), neighs_str
-                print len(dist_list), dist_str
+                #print len(neighbors_list), neighs_str
+                #print len(dist_list), dist_str
                 b.put(key, {'meta:columbia_near_dups': '' + neighs_str + ''})
                 b.put(key, {'meta:columbia_near_dups_dist': '' + dist_str + ''})
                 batch_nbmod = batch_nbmod + 1
