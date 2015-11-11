@@ -16,22 +16,29 @@ localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
 
 def getExpanded(imagesid,imageslocation,ad_id):
-    print "Extended from imagesid",imagesid
+    print "Expanding from imagesid",imagesid
     connection = happybase.Connection('10.1.94.57')
     tab = connection.table('aaron_memex_ht-images')
     exp_adsid=[]
     exp_imagesid=[]
     visited_expimagesid=[]
-    queue_images=imagesid
+    print imagesid
+    queue_images=[str(oneimg) for oneimg in imagesid]
+    print queue_images
     for oneid in queue_images:
         #onerow=tab.row(str(oneid),columns=('meta:columbia_near_dups','meta:columbia_near_dups_dist','meta:columbia_near_dups_biggest_dbid'))
+	print oneid
         onerow=tab.row(str(oneid),columns=('meta:columbia_near_dups','meta:ads_id'))
         print onerow
         visited_expimagesid.extend([oneid])
+	queue_images.pop(oneid)
+	if 'meta:columbia_near_dups' not in onerow.keys():
+	    print "Can't expand with precomputed cache. Query API here?"
+	    continue
         if oneid not in imagesid and oneid not in exp_imagesid:
             exp_imagesid.append(oneid)
             oneexp_ad_id=onerow['meta:ads_id']
-            exp_adsid.add(oneexp_ad_id)
+            exp_adsid.append(oneexp_ad_id)
         neighbors_list=onerow['meta:columbia_near_dups'].rsplit(',')
         for expimg in neighbors_list:
             if expimg not in imagesid and expimg not in exp_imagesid:
@@ -63,7 +70,8 @@ c=db.cursor()
 sql_withurl='select i.id,i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where i.location in (%s) and ads.id=(%s) order by i.id;'
 sql_nourl='select i.id,i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where ads.id=(%s) order by i.id;'
 all_imagesid=[]
-all_extended_imagesid=[]
+all_expanded_imagesid=[]
+all_expanded_adsid=[]
 all_imagesurl=[]
 all_imageslocation=[]
 all_adsurl=[]
