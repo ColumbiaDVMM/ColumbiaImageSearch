@@ -15,6 +15,8 @@ localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
 
+max_edges=100
+
 def getExpanded(imagesid,imageslocation,ad_id):
     print "Expanding from imagesid",imagesid
     connection = happybase.Connection('10.1.94.57')
@@ -22,27 +24,38 @@ def getExpanded(imagesid,imageslocation,ad_id):
     exp_adsid=[]
     exp_imagesid=[]
     visited_expimagesid=[]
-    print imagesid
+    #print imagesid
     queue_images=[str(oneimg) for oneimg in imagesid]
     print queue_images
-    for oneid in queue_images:
+    while len(queue_images)>0:
         #onerow=tab.row(str(oneid),columns=('meta:columbia_near_dups','meta:columbia_near_dups_dist','meta:columbia_near_dups_biggest_dbid'))
-	print oneid
+	oneid=queue_images.pop()
+	#print oneid
         onerow=tab.row(str(oneid),columns=('meta:columbia_near_dups','meta:ads_id'))
-        print onerow
-        visited_expimagesid.extend([oneid])
-	queue_images.pop(oneid)
+        #print onerow
 	if 'meta:columbia_near_dups' not in onerow.keys():
 	    print "Can't expand with precomputed cache. Query API here?"
 	    continue
-        if oneid not in imagesid and oneid not in exp_imagesid:
-            exp_imagesid.append(oneid)
-            oneexp_ad_id=onerow['meta:ads_id']
-            exp_adsid.append(oneexp_ad_id)
+        if oneid not in imagesid and oneid not in visited_expimagesid:
+	    try:
+               oneexp_ad_id=onerow['meta:ads_id']
+	    except:
+		oneexp_ad_id=''
+	    if oneexp_ad_id!=ad_id:
+            	exp_imagesid.append(oneid)
+            	exp_adsid.append(oneexp_ad_id)
+        visited_expimagesid.extend([oneid])
         neighbors_list=onerow['meta:columbia_near_dups'].rsplit(',')
-        for expimg in neighbors_list:
-            if expimg not in imagesid and expimg not in exp_imagesid:
+	#print neighbors_list
+	if len(neighbors_list)<max_edges:
+          for expimg in neighbors_list:
+            if expimg not in imagesid and expimg not in visited_expimagesid:
                 queue_images.extend([expimg])
+    print "Done expanding, we have:"
+    print len(set(exp_adsid)),"new ads:",set(exp_adsid)
+    print len(exp_imagesid),"new images:",exp_imagesid
+    #if len(exp_imagesid)>0: 
+	#time.sleep(10)
     return exp_adsid,exp_imagesid
 
 # Get data from CSV
@@ -81,16 +94,16 @@ all_adsid=[]
 
 for pos,ad_id in enumerate(ads_id):
     print pos,len(all_adsid)
-    print images_urls[pos]
+    #print images_urls[pos]
     if len(images_urls[pos])==1 and not images_urls[pos][0]: # empty
         sqlq = sql_nourl % (ad_id,)
 	c.execute(sqlq)
     else:
         sqlq = sql_withurl % (', '.join(map(lambda x: '%s', images_urls[pos])),ad_id)
 	c.execute(sqlq,images_urls[pos])
-    print sqlq
+    #print sqlq
     tmpresult = c.fetchall()
-    print tmpresult
+    #print tmpresult
     all_adsid.append(ad_id)
     all_adsurl.append([])
     all_imagesid.append([])
@@ -101,8 +114,8 @@ for pos,ad_id in enumerate(ads_id):
     if len(tmpresult)>0:
       all_adsurl.extend(tmpresult[0][3])      
       for posres,oneres in enumerate(tmpresult):
-        print posres,oneres
-        print "Found image id",oneres[0]
+        #print posres,oneres
+        #print "Found image id",oneres[0]
         all_imagesid[pos].extend([oneres[0]])
         all_imagesurl[pos].extend([oneres[1]])
         all_imageslocation[pos].extend([oneres[2]])
@@ -120,12 +133,15 @@ print len(all_imagesid)
 print len(all_adsid)
 
 alldata_istgt={}
+alldata_istgt['clusters_id']=clusters_id
 alldata_istgt['all_imagesid']=all_imagesid
 alldata_istgt['all_imagesurl']=all_imagesurl
 alldata_istgt['all_imageslocation']=all_imageslocation
 alldata_istgt['all_adsurl']=all_adsurl
 alldata_istgt['all_adsid']=all_adsid
-pickle.dump(alldata_istgt,open("alldata_istgtv2.pkl","wb"))
+alldata_istgt['all_expanded_adsid']=all_expanded_adsid
+alldata_istgt['all_expanded_imagesid']=all_expanded_imagesid
+pickle.dump(alldata_istgt,open("alldata_istgtv4.pkl","wb"))
 
 # Get similar images from HBase
 
