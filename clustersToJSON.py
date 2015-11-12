@@ -18,9 +18,8 @@ nbreps=0
 all_init_adids=set()
 for oneactexp in range(len(actexpads)):
 	print oneactexp
-    if all_data['all_adsid'][actexpads[oneactexp][0]]
 	all_init_adids.add(all_data['all_adsid'][actexpads[oneactexp][0]])
-print len(all_init_adids)
+print len(all_init_adids),len(set(all_init_adids))
 for oneactexp in range(len(actexpads)):
 	init_adid=all_data['all_adsid'][actexpads[oneactexp][0]]
 	print init_adid,"expanded into:",actexpads[oneactexp][1]
@@ -35,7 +34,7 @@ for oneactexp in range(len(actexpads)):
 	canopy_adsid.append(init_adid)
 	#print canopy_adsid
 	payload = "{\"query\": \n    {\n        \"terms\" : \n        {\n            \"offers.identifier\": [\n\""+"\",\"".join(map(str,canopy_adsid))+"\"\n            ]\n        }\n    }\n}\n"
-	response = es.search(index="dig-ht-trial11",doc_type="adultservice",body=payload)
+	response = es.search(index="dig-ht-trial11",doc_type="adultservice",body=payload,)
 	#print response
 	tmp_json = "resp_"+str(init_adid)+".json"
 	#print tmp_json
