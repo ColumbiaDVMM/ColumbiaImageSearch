@@ -22,12 +22,25 @@ sql_nourl='select i.id,i.url,i.location,ads.url,ads.id from images i left join a
 sql_imgid_adid='select i.id,i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where ads.id=(%s) and i.id=(%s);'
 
 def getAdImageUrls(adid,imgid):
+    if not adid or not imgid:
+	print "Empty adid:",adid
+	return None,None
     db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
     c=db.cursor()
     sqlq = sql_imgid_adid % (adid,imgid)
     c.execute(sqlq)
     tmpresult = c.fetchall()
-    return tmpresult[0][3],tmpresult[0][1]
+    try:
+    	adurl = tmpresult[0][3]
+    except:
+	print "Error to get adurl of adid/imgid:",adid,imgid
+	adurl = None
+    try:
+    	imgurl = tmpresult[0][2]
+    except:
+	print "Error to get imgurl of adid/imgid:",adid,imgid
+	imgurl = None
+    return adurl,imgurl
 
 def getExpandedAllInfos(imagesid,imageslocation,ad_id):
     print "Expanding from imagesid",imagesid
@@ -48,10 +61,10 @@ def getExpandedAllInfos(imagesid,imageslocation,ad_id):
         onerow=tab.row(str(oneid),columns=('meta:columbia_near_dups','meta:ads_id'))
         #print onerow
         if 'meta:columbia_near_dups' not in onerow.keys():
-            print "Can't expand with precomputed cache. Query API here?"
-	        continue
+            #print "Can't expand with precomputed cache. Query API here?"
+	    continue
         if oneid not in imagesid and oneid not in visited_expimagesid:
-	        try:
+	    try:
                oneexp_ad_id=onerow['meta:ads_id']
 	    except:
 		oneexp_ad_id=''
@@ -70,7 +83,9 @@ def getExpandedAllInfos(imagesid,imageslocation,ad_id):
                 queue_images.extend([expimg])
     print "Done expanding, we have:"
     print len(set(exp_adsid)),"new ads:",set(exp_adsid)
+    print len(set(exp_adsurl)),"new ads url:",set(exp_adsurl)
     print len(exp_imagesid),"new images:",exp_imagesid
+    print len(exp_imagesurl),"new images url:",exp_imagesurl
     #if len(exp_imagesid)>0:
 	#time.sleep(10)
     return exp_adsid,exp_imagesid,exp_adsurl,exp_imagesurl
@@ -93,9 +108,9 @@ def getExpanded(imagesid,imageslocation,ad_id):
         #print onerow
         if 'meta:columbia_near_dups' not in onerow.keys():
             print "Can't expand with precomputed cache. Query API here?"
-	        continue
+	    continue
         if oneid not in imagesid and oneid not in visited_expimagesid:
-	        try:
+	    try:
                oneexp_ad_id=onerow['meta:ads_id']
 	    except:
 		oneexp_ad_id=''
@@ -180,7 +195,7 @@ for pos,ad_id in enumerate(ads_id):
         all_imagesurl[pos].extend([oneres[1]])
         all_imageslocation[pos].extend([oneres[2]])
       # Get similar images
-      exp_adsid,exp_imagesid,exp_adsurl,exp_imagesurl=getExpanded(all_imagesid[pos],all_imageslocation[pos],ad_id)
+      exp_adsid,exp_imagesid,exp_adsurl,exp_imagesurl=getExpandedAllInfos(all_imagesid[pos],all_imageslocation[pos],ad_id)
       all_expanded_imagesid[pos].extend(exp_imagesid)
       all_expanded_adsid[pos].extend(exp_adsid)
       all_expanded_imagesurl[pos].extend(exp_imagesurl)
