@@ -29,15 +29,15 @@ def getExpanded(imagesid,imageslocation,ad_id):
     print queue_images
     while len(queue_images)>0:
         #onerow=tab.row(str(oneid),columns=('meta:columbia_near_dups','meta:columbia_near_dups_dist','meta:columbia_near_dups_biggest_dbid'))
-	oneid=queue_images.pop()
-	#print oneid
+        oneid=queue_images.pop()
+        #print oneid
         onerow=tab.row(str(oneid),columns=('meta:columbia_near_dups','meta:ads_id'))
         #print onerow
-	if 'meta:columbia_near_dups' not in onerow.keys():
-	    print "Can't expand with precomputed cache. Query API here?"
-	    continue
+        if 'meta:columbia_near_dups' not in onerow.keys():
+            print "Can't expand with precomputed cache. Query API here?"
+	        continue
         if oneid not in imagesid and oneid not in visited_expimagesid:
-	    try:
+	        try:
                oneexp_ad_id=onerow['meta:ads_id']
 	    except:
 		oneexp_ad_id=''
@@ -73,7 +73,7 @@ for row in csvreader:
     images_urls.append(row[6].split(";"))
     #print row[6].split(";")
     #time.sleep(10)
-print len(ads_id)
+print len(ads_id),len(set(ads_id))
 #print len(ads_id),ads_id
 #print len(images_urls),images_urls
 
