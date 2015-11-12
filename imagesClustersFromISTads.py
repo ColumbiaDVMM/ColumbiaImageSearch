@@ -187,11 +187,11 @@ for pos,ad_id in enumerate(ads_id):
     all_imageslocation.append([])
     all_imagesurl.append(images_urls[pos])
     if len(tmpresult)>0:
-      all_adsurl.extend(tmpresult[0][3])      
+      all_adsurl.extend([str(tmpresult[0][3])])
       for posres,oneres in enumerate(tmpresult):
         #print posres,oneres
         #print "Found image id",oneres[0]
-        all_imagesid[pos].extend([oneres[0]])
+        all_imagesid[pos].extend([str(oneres[0])])
         all_imagesurl[pos].extend([oneres[1]])
         all_imageslocation[pos].extend([oneres[2]])
       # Get similar images
