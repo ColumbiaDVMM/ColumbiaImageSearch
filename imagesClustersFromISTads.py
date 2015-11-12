@@ -140,7 +140,9 @@ db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
 c=db.cursor()
 all_imagesid=[]
 all_expanded_imagesid=[]
+all_expanded_imagesurl=[]
 all_expanded_adsid=[]
+all_expanded_adsurl=[]
 all_imagesurl=[]
 all_imageslocation=[]
 all_adsurl=[]
@@ -165,6 +167,8 @@ for pos,ad_id in enumerate(ads_id):
     all_imagesid.append([])
     all_expanded_imagesid.append([])
     all_expanded_adsid.append([])
+    all_expanded_imagesurl.append([])
+    all_expanded_adsurl.append([])
     all_imageslocation.append([])
     all_imagesurl.append(images_urls[pos])
     if len(tmpresult)>0:
@@ -176,9 +180,11 @@ for pos,ad_id in enumerate(ads_id):
         all_imagesurl[pos].extend([oneres[1]])
         all_imageslocation[pos].extend([oneres[2]])
       # Get similar images
-      ext_adsid,ext_imagesid=getExpanded(all_imagesid[pos],all_imageslocation[pos],ad_id)
-      all_expanded_imagesid[pos].extend(ext_imagesid)
-      all_expanded_adsid[pos].extend(ext_adsid)
+      exp_adsid,exp_imagesid,exp_adsurl,exp_imagesurl=getExpanded(all_imagesid[pos],all_imageslocation[pos],ad_id)
+      all_expanded_imagesid[pos].extend(exp_imagesid)
+      all_expanded_adsid[pos].extend(exp_adsid)
+      all_expanded_imagesurl[pos].extend(exp_imagesurl)
+      all_expanded_adsurl[pos].extend(exp_adsurl)
     else:
 	print "Couldn't find images for this ad?",str(ad_id)
     #if len(images_urls[pos])>1 or images_urls[pos][0]: 
@@ -197,6 +203,8 @@ alldata_istgt['all_adsurl']=all_adsurl
 alldata_istgt['all_adsid']=all_adsid
 alldata_istgt['all_expanded_adsid']=all_expanded_adsid
 alldata_istgt['all_expanded_imagesid']=all_expanded_imagesid
+alldata_istgt['all_expanded_adsurl']=all_expanded_adsurl
+alldata_istgt['all_expanded_imagesurl']=all_expanded_imagesurl
 pickle.dump(alldata_istgt,open("alldata_istgtv5.pkl","wb"))
 
 # Get similar images from HBase
