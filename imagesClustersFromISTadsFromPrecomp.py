@@ -132,7 +132,7 @@ def getExpanded(imagesid,imageslocation,ad_id):
     return exp_adsid,exp_imagesid
 
 
-alldata_istgt=pickle.load(open("alldata_istgtv5.pkl","rb"))
+alldata_istgt=pickle.load(open("alldata_istgtv4.pkl","rb"))
 
 all_adsid=alldata_istgt['all_adsid']
 all_expanded_adsid=alldata_istgt['all_expanded_adsid']

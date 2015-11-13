@@ -41,7 +41,7 @@ def getFixAdUrl(adid,imagesurl):
     tmpresult = c.fetchall()
     #print tmpresult
     if len(tmpresult)>0:
-      adurl=str(tmpresult[0][3])
+        adurl=str(tmpresult[0][3])
     else:
         print "Couldn't find images for this ad?",str(adid)
         adurl=''
@@ -53,7 +53,7 @@ for oneactexp in range(len(actexpads)):
 	adid=all_data['all_adsid'][actexpads[oneactexp][0]]
 	#adurl=all_data['all_adsurl'][actexpads[oneactexp][0]]
 	imagesurl=all_data['all_imagesurl'][actexpads[oneactexp][0]]
-    adurl=getFixAdUrl(adid,imagesurl)
+        adurl=getFixAdUrl(adid,imagesurl)
 	imagesid=all_data['all_imagesid'][actexpads[oneactexp][0]]
 	for pos,oneimg in enumerate(imagesid):
 		if adid and adurl and imagesid[pos] and imagesurl[pos]: # do not write corrupted rows
