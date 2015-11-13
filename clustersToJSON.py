@@ -34,12 +34,15 @@ for oneactexp in range(len(actexpads)):
 	canopy_adsid.append(init_adid)
 	#print canopy_adsid
 	payload = "{\"query\": \n    {\n        \"terms\" : \n        {\n            \"offers.identifier\": [\n\""+"\",\"".join(map(str,canopy_adsid))+"\"\n            ]\n        }\n    }\n}\n"
-	response = es.search(index="dig-ht-trial11",doc_type="adultservice",body=payload,)
-	#print response
+	response = es.search(index="dig-ht-trial11",doc_type="adultservice",body=payload,size=10*len(canopy_adsid))
+	try:
+		print len(canopy_adsid),len(response['hits']['hits'])
+	except:
+		pass
 	tmp_json = "resp_"+str(init_adid)+".json"
 	#print tmp_json
 	with codecs.open(tmp_json, 'w', 'utf8') as f:
-	    f.write(json.dumps(response, sort_keys = True, ensure_ascii=False))
+		f.write(json.dumps(response, sort_keys = True, ensure_ascii=False))
 	os.system("cat "+tmp_json+" | jq '.hits.hits'| jq  -c '.[] | ._source' > canopy_"+str(init_adid)+".json") #does not work
 	nbreps=nbreps+1
 print nbreps

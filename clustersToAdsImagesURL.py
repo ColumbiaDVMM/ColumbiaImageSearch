@@ -49,22 +49,21 @@ def getFixAdUrl(adid,imagesurl):
     return adurl
 
 for oneactexp in range(len(actexpads)):
-	print oneactexp
-	adid=all_data['all_adsid'][actexpads[oneactexp][0]]
-	#adurl=all_data['all_adsurl'][actexpads[oneactexp][0]]
-	imagesurl=all_data['all_imagesurl'][actexpads[oneactexp][0]]
+    print oneactexp
+    adid=all_data['all_adsid'][actexpads[oneactexp][0]]
+    #adurl=all_data['all_adsurl'][actexpads[oneactexp][0]]
+    imagesurl=all_data['all_imagesurl'][actexpads[oneactexp][0]]
     adurl=getFixAdUrl(adid,imagesurl)
-	imagesid=all_data['all_imagesid'][actexpads[oneactexp][0]]
-	for pos,oneimg in enumerate(imagesid):
-		if adid and adurl and imagesid[pos] and imagesurl[pos]: # do not write corrupted rows
-			alladswriter.writerow([adid,adurl,str(imagesid[pos]),imagesurl[pos]])
-	expanded_imagesid=all_data['all_expanded_imagesid'][actexpads[oneactexp][0]]
-	expanded_adsid=all_data['all_expanded_adsid'][actexpads[oneactexp][0]]
-	expanded_imagesurl=all_data['all_expanded_imagesurl'][actexpads[oneactexp][0]]
-	expanded_adsurl=all_data['all_expanded_adsurl'][actexpads[oneactexp][0]]
-	for pos,oneimg in enumerate(expanded_imagesid):
-		if expanded_adsid[pos] and expanded_adsurl[pos] and expanded_imagesid[pos] and expanded_imagesurl[pos]: # do not write corrupted rows
-			alladswriter.writerow([expanded_adsid[pos],expanded_adsurl[pos],expanded_imagesid[pos],expanded_imagesurl[pos]])
+    imagesid=all_data['all_imagesid'][actexpads[oneactexp][0]]
+    for pos,oneimg in enumerate(imagesid):
+        if adid and adurl and imagesid[pos] and imagesurl[pos]: # do not write corrupted rows
+            alladswriter.writerow([adid,adurl,str(imagesid[pos]),imagesurl[pos]])
+    expanded_imagesid=all_data['all_expanded_imagesid'][actexpads[oneactexp][0]]
+    expanded_adsid=all_data['all_expanded_adsid'][actexpads[oneactexp][0]]
+    expanded_imagesurl=all_data['all_expanded_imagesurl'][actexpads[oneactexp][0]]
+    expanded_adsurl=all_data['all_expanded_adsurl'][actexpads[oneactexp][0]]
+    for pos,oneimg in enumerate(expanded_imagesid):
+        if expanded_adsid[pos] and expanded_adsurl[pos] and expanded_imagesid[pos] and expanded_imagesurl[pos]: # do not write corrupted rows
+            alladswriter.writerow([expanded_adsid[pos],expanded_adsurl[pos],expanded_imagesid[pos],expanded_imagesurl[pos]])
 
 csvfile.close()
-	

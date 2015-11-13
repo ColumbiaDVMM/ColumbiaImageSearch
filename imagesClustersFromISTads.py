@@ -23,23 +23,23 @@ sql_imgid_adid='select i.id,i.url,i.location,ads.url,ads.id from images i left j
 
 def getAdImageUrls(adid,imgid):
     if not adid or not imgid:
-	print "Empty adid:",adid
-	return None,None
+    print "Empty adid:",adid
+    return None,None
     db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
     c=db.cursor()
     sqlq = sql_imgid_adid % (adid,imgid)
     c.execute(sqlq)
     tmpresult = c.fetchall()
     try:
-    	adurl = tmpresult[0][3]
+        adurl = tmpresult[0][3]
     except:
-	print "Error to get adurl of adid/imgid:",adid,imgid
-	adurl = None
+    print "Error to get adurl of adid/imgid:",adid,imgid
+    adurl = None
     try:
-    	imgurl = tmpresult[0][2]
+        imgurl = tmpresult[0][2]
     except:
-	print "Error to get imgurl of adid/imgid:",adid,imgid
-	imgurl = None
+    print "Error to get imgurl of adid/imgid:",adid,imgid
+    imgurl = None
     return adurl,imgurl
 
 def getExpandedAllInfos(imagesid,imageslocation,ad_id):
@@ -62,22 +62,22 @@ def getExpandedAllInfos(imagesid,imageslocation,ad_id):
         #print onerow
         if 'meta:columbia_near_dups' not in onerow.keys():
             #print "Can't expand with precomputed cache. Query API here?"
-	    continue
+        continue
         if oneid not in imagesid and oneid not in visited_expimagesid:
-	    try:
+        try:
                oneexp_ad_id=onerow['meta:ads_id']
-	    except:
-		oneexp_ad_id=''
-	    if oneexp_ad_id!=ad_id:
-            	exp_imagesid.append(oneid)
-            	exp_adsid.append(oneexp_ad_id)
+        except:
+        oneexp_ad_id=''
+        if oneexp_ad_id!=ad_id:
+                exp_imagesid.append(oneid)
+                exp_adsid.append(oneexp_ad_id)
                 adurl,imgurl=getAdImageUrls(oneexp_ad_id,oneid)
                 exp_adsurl.append(adurl)
                 exp_imagesurl.append(imgurl)
         visited_expimagesid.extend([oneid])
         neighbors_list=onerow['meta:columbia_near_dups'].rsplit(',')
-	#print neighbors_list
-	if len(neighbors_list)<max_edges:
+    #print neighbors_list
+    if len(neighbors_list)<max_edges:
           for expimg in neighbors_list:
             if expimg not in imagesid and expimg not in visited_expimagesid:
                 queue_images.extend([expimg])
@@ -87,7 +87,7 @@ def getExpandedAllInfos(imagesid,imageslocation,ad_id):
     print len(exp_imagesid),"new images:",exp_imagesid
     print len(exp_imagesurl),"new images url:",exp_imagesurl
     #if len(exp_imagesid)>0:
-	#time.sleep(10)
+    #time.sleep(10)
     return exp_adsid,exp_imagesid,exp_adsurl,exp_imagesurl
 
 def getExpanded(imagesid,imageslocation,ad_id):
@@ -108,19 +108,19 @@ def getExpanded(imagesid,imageslocation,ad_id):
         #print onerow
         if 'meta:columbia_near_dups' not in onerow.keys():
             print "Can't expand with precomputed cache. Query API here?"
-	    continue
+            continue
         if oneid not in imagesid and oneid not in visited_expimagesid:
-	    try:
+            try:
                oneexp_ad_id=onerow['meta:ads_id']
-	    except:
-		oneexp_ad_id=''
-	    if oneexp_ad_id!=ad_id:
-            	exp_imagesid.append(oneid)
-            	exp_adsid.append(oneexp_ad_id)
+            except:
+               oneexp_ad_id=''
+            if oneexp_ad_id!=ad_id:
+                exp_imagesid.append(oneid)
+                exp_adsid.append(oneexp_ad_id)
         visited_expimagesid.extend([oneid])
         neighbors_list=onerow['meta:columbia_near_dups'].rsplit(',')
-	#print neighbors_list
-	if len(neighbors_list)<max_edges:
+    #print neighbors_list
+    if len(neighbors_list)<max_edges:
           for expimg in neighbors_list:
             if expimg not in imagesid and expimg not in visited_expimagesid:
                 queue_images.extend([expimg])
@@ -128,7 +128,7 @@ def getExpanded(imagesid,imageslocation,ad_id):
     print len(set(exp_adsid)),"new ads:",set(exp_adsid)
     print len(exp_imagesid),"new images:",exp_imagesid
     #if len(exp_imagesid)>0: 
-	#time.sleep(10)
+    #time.sleep(10)
     return exp_adsid,exp_imagesid
 
 # Get data from CSV
@@ -170,10 +170,10 @@ for pos,ad_id in enumerate(ads_id):
     #print images_urls[pos]
     if len(images_urls[pos])==1 and not images_urls[pos][0]: # empty
         sqlq = sql_nourl % (ad_id,)
-	c.execute(sqlq)
+        c.execute(sqlq)
     else:
         sqlq = sql_withurl % (', '.join(map(lambda x: '%s', images_urls[pos])),ad_id)
-	c.execute(sqlq,images_urls[pos])
+        c.execute(sqlq,images_urls[pos])
     #print sqlq
     tmpresult = c.fetchall()
     #print tmpresult
@@ -201,9 +201,9 @@ for pos,ad_id in enumerate(ads_id):
       all_expanded_imagesurl[pos].extend(exp_imagesurl)
       all_expanded_adsurl[pos].extend(exp_adsurl)
     else:
-	print "Couldn't find images for this ad?",str(ad_id)
+    print "Couldn't find images for this ad?",str(ad_id)
     #if len(images_urls[pos])>1 or images_urls[pos][0]: 
-	#time.sleep(10)	
+    #time.sleep(10)
 db.close()
 
 print len(all_imagesid)
