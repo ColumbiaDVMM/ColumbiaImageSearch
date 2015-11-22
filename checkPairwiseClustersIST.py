@@ -47,7 +47,7 @@ def getImagesInfos(images_htid):
     db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
     c=db.cursor()
     query = sql_from_htids % (', '.join(map(lambda x: '%s', images_htid)),)
-    #print query
+    print query
     c.execute(query,images_htid)
     remax = c.fetchall()
     #print remax
@@ -55,10 +55,10 @@ def getImagesInfos(images_htid):
     return remax
 
 def getImagesHtIds(ad_id):
-    db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
+    db=MySQLdb.connect(host=isthost,user=istuser,passwd=istpwd,db=istdb)
     c=db.cursor()
     query=sql_from_adid % (ad_id,)
-    #print query
+    print query
     c.execute(query) #Should we use id or htid here?
     remax = c.fetchall()
     #print remax
@@ -139,12 +139,14 @@ if __name__ == '__main__':
     # Check for each ad if images index in HBase, if not add to be processed
     for ad_id in ads_id:
         images_htid=getImagesHtIds(ad_id)
-        # Filter out images already in HBase
-        filter_images_htid=filterFromHBase(images_htid)
-        # Get these non processed images, images infos
-        tmp_images_infos = getImagesInfos(filter_images_htid)
-        if tmp_images_infos:
-            all_images_infos.extend(tmp_images_infos)
+	if images_htid:
+          # Filter out images already in HBase
+          filter_images_htid=filterFromHBase(images_htid)
+          # Get these non processed images, images infos
+	  if filter_images_htid:
+            tmp_images_infos = getImagesInfos(filter_images_htid)
+            if tmp_images_infos:
+              all_images_infos.extend(tmp_images_infos)
     print >>flog,all_images_infos
     # Get these features
     f_pre = open(featurename,'wb')
@@ -264,8 +266,8 @@ if __name__ == '__main__':
         b.put(''+str(ht_ids[i])+'',{'meta:columbia_near_dups_biggest_dbid' : ''+str(biggest_dbid)+''})
         for dup in dup_list[i]:
             b.put(''+str(dup)+'',{'meta:columbia_near_dups' : ''+sim_str+''})
-                    b.put(''+str(dup)+'',{'meta:columbia_near_dups_dist' : ''+sim_dist+''})
-                    b.put(''+str(dup)+'',{'meta:columbia_near_dups_biggest_dbid' : ''+str(biggest_dbid)+''})
+            b.put(''+str(dup)+'',{'meta:columbia_near_dups_dist' : ''+sim_dist+''})
+            b.put(''+str(dup)+'',{'meta:columbia_near_dups_biggest_dbid' : ''+str(biggest_dbid)+''})
 
     b.send()
     connection.close()

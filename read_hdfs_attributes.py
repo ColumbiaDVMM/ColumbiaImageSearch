@@ -1,4 +1,4 @@
-import os
+import os,sys
 import os.path as osp
 import json
 import pickle
@@ -9,7 +9,7 @@ import struct
 from sklearn import svm
 import numpy as np
 
-global_var = json.load(open('../global_var_all.json'))
+global_var = json.load(open('./global_var_all.json'))
 isthost=global_var['ist_db_host']
 istuser=global_var['ist_db_user']
 istpwd=global_var['ist_db_pwd']
@@ -19,7 +19,8 @@ localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
 
-base_hdfs_path="./trial113"
+attr_dir="./ISIweakLabels/"
+base_hdfs_path=attr_dir+"trial113"
 feature_num = 4096
 #base_hdfs_path="hdfs://memex:/user/worker/crf/trial113"
 
@@ -33,15 +34,18 @@ def get_all_precomp_feats(feats_id):
         f_pre.write(struct.pack('i',feat_id))
     f_pre.close()
     # Execute get_precomp_feats
-    command = '../get_precomp_feats '+precomp_featurename+' '+precomp_featurefilename
+    command = './get_precomp_feats '+precomp_featurename+' '+precomp_featurefilename
     #print command
     os.system(command)
     # Read results from precomp_featurefilename
     f_pre=open(precomp_featurefilename,'rb')
+    tmp_format=tuple(["f"]*feature_num)
+    feat_format=''.join(tmp_format)
+    read_struct=struct.Struct(feat_format)
     feats=None
-    for feat_id in feats_id:
-        one_feat = f_pre.read(feature_num*4)
-        if not feats:
+    for pos,feat_id in enumerate(feats_id):
+        one_feat = np.asarray(read_struct.unpack(f_pre.read(feature_num*4)),dtype=np.float32)
+        if pos==0:
             feats=one_feat
         else:
             #concatenante with np
@@ -54,17 +58,20 @@ def get_all_precomp_feats(feats_id):
 def get_precompfeatid_fromhtid(image_htid):
     db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
     c=db.cursor()
-    query="select id from uniqueIds where htid=\""+image_htid+"\";"
-    print query
-    c.execute(query)
+    init_query="select id from uniqueIds where htid in (%s);"
+    in_p=', '.join(map(lambda x: '%s', image_htid))
+    query = init_query % (in_p,)
+    #print query
+    #print image_htid
+    #print query % tuple(image_htid)
+    c.execute(query,tuple(image_htid))
     remax = c.fetchall()
-    print remax
-    if len(remax):
-        feat_id = int(remax[0][0])
-    else:
-        feat_id = 0
+    #print remax
+    feats_id=[]
+    for i in range(len(remax)):
+        feats_id.append(int(remax[i][0]))
     db.close()
-    return feat_id
+    return feats_id
 
 # Get all images from an ad
 def getImageHtIdsFromAdId(ad_id):
@@ -80,7 +87,10 @@ def getImageHtIdsFromAdId(ad_id):
 if __name__ == "__main__":
 
   # First get all ads, attributes and images ids.
-  if not osp.isfile('all_attr_data.pkl'):
+  pickle_file = attr_dir+"all_attr_data.pkl"
+  print("Looking for file {}".format(pickle_file))
+  if not osp.isfile(pickle_file):
+     print("File {} not found, recomputing.".format(pickle_file))
 
      all_ads=[]
      all_imgs=[]
@@ -114,43 +124,62 @@ if __name__ == "__main__":
      all_attr_data['all_imgs']=all_imgs
      all_attr_data['attr_set']=attr_set
      all_attr_data['attr_vals']=attr_vals
-     pickle.dump(all_attr_data,open('all_attr_data.pkl',"wb"))
+     pickle.dump(all_attr_data,open(pickle_file,"wb"))
 
   else:
-
-     all_attr_data=pickle.load(open('all_attr_data.pkl',"rb"))
+     print("File {} found, loading.".format(pickle_file))
+     all_attr_data=pickle.load(open(pickle_file,"rb"))
 
   # Now we should have all attributes and corresponding images ids.
   # Start training SVMs
-  for one_attr in all_attr_data['attr_set']:
+  for attr in all_attr_data['attr_set']:
+    one_attr = attr.rstrip()
     print("Processing attribute {}".format(one_attr))
     pos={}
     train={}
     test={}
-    labels_train=[]
-    labels_test=[]
+    labels=[]
     label_id=0
-    # Get all samples annotated with this attribute
-    for one_val in all_attr_data['attr_vals'][one_attr]:
-        print("Getting positive samples of {}".format(one_val))
+    # Get all samples annotated with this attribute, samples here are ads.
+    for val in all_attr_data['attr_vals'][one_attr]:
+	one_val = val.rstrip()
+        print("Getting positive samples of {}.".format(one_val))
         pos[one_val] = [i for i, x in enumerate(all_attr_data['all_vals']) if x[0]==one_attr and x[1]==one_val]
+	#print pos[one_val]
         # Random sample 2/3 of each value as training samples and the last 1/3 at test.
         train[one_val] = [pos[one_val][i] for i in sorted(random.sample(xrange(len(pos[one_val])), int(len(pos[one_val])*2./3)))]
         test[one_val] = list(set(pos[one_val])-set(train[one_val]))
-        labels_train.extend([label_id]*len(train[one_val]))
-        labels_test.extend([label_id]*len(test[one_val]))
+	print("We have {} training samples.".format(len(train[one_val])))
+        #labels_train.extend([label_id]*len(train[one_val]))
+        #labels_test.extend([label_id]*len(test[one_val]))
+	labels.append(label_id)
         label_id=label_id+1
     train_feats_id=[]
-    for one_val in all_attr_data['attr_vals'][one_attr]:
-        for sample in train[one_val]:
-            train_feats_id.append(get_precompfeatid_fromhtid(all_attr_data['all_imgs'][sample]))
+    train_imgslabels=[]
+    for pos,val in enumerate(all_attr_data['attr_vals'][one_attr]):
+	one_val = val.rstrip()  
+	print("Getting images with value: {}.".format(one_val))
+	for sample in train[one_val]:
+	    #print sample
+	    sys.stdout.flush()
+	    imgs_id=all_attr_data['all_imgs'][sample]
+	    if not imgs_id: # there is no image in this ad!
+		continue
+            sample_feat_ids=get_precompfeatid_fromhtid(imgs_id)
+	    if not sample_feat_ids:
+		continue
+            train_feats_id.extend(sample_feat_ids)
+	    train_imgslabels.extend([int(labels[pos])]*len(sample_feat_ids))
+    # Need to convert ads indices to images indices somehow...
+    print("Looking for {} features.".format(len(train_feats_id)))
     train_feats=get_all_precomp_feats(train_feats_id)
+    print train_imgslabels
     clf = svm.SVC()
-    clf.fit(train_feats, labels_train)
+    clf.fit(train_feats, train_imgslabels)
     pickle.dump(clf,open('svmmodel_'+str(one_attr)+'.pkl','wb'))
     data={}
-    data['train_ids']=train
-    data['test_ids']=test
-    data['labels_train']=labels_train
-    data['labels_test']=labels_test
+    data['train_feats_ids']=train_feats_id
+    data['train_imgslabels']=train_imgslabels
+    data['test']=test
+    data['train']=train
     pickle.dump(data,open('data_'+str(one_attr)+'.pkl','wb'))
