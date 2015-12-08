@@ -22,6 +22,13 @@ localdb=global_var['local_db_dbname']
 attr_dir="./ISIweakLabels/"
 base_hdfs_path=attr_dir+"trial113"
 feature_num = 4096
+use_svm_weights=True
+kernel_type='rbf' # or 'linear'
+if use_svm_weights:
+	#class_weights_type='balanced'
+	class_weights_type='auto'
+else:
+	class_weights_type=None
 #base_hdfs_path="hdfs://memex:/user/worker/crf/trial113"
 
 def get_all_precomp_feats(feats_id):
@@ -133,15 +140,58 @@ if __name__ == "__main__":
   # Now we should have all attributes and corresponding images ids.
   # Start training SVMs
   for attr in all_attr_data['attr_set']:
-    one_attr = attr.rstrip()
-    print("Processing attribute {}".format(one_attr))
-    pos={}
-    train={}
-    test={}
+   one_attr = attr.rstrip()
+   data_attr='data_'+str(one_attr)+'.pkl'
+   if class_weights_type:
+   	svm_model_file='svmmodel_'+str(one_attr)+'_'+kernel_type+'_balanced.pkl'
+   else:
+   	svm_model_file='svmmodel_'+str(one_attr)+'_'+kernel_type+'.pkl'
+   if osp.isfile(data_attr) and osp.isfile(svm_model_file):
+    data=pickle.load(open(data_attr,'rb'))
+    clf=pickle.load(open(svm_model_file,'rb'))
+    test=data['test']
+    test_feats_id=[]
+    test_imgslabels=[]
     labels=[]
     label_id=0
-    # Get all samples annotated with this attribute, samples here are ads.
-    for val in all_attr_data['attr_vals'][one_attr]:
+    for pos,val in enumerate(all_attr_data['attr_vals'][one_attr]):
+      one_val = val.rstrip()
+      print("Getting test images with value: {}.".format(one_val))
+      labels.append(label_id)
+      for sample in test[one_val]:
+        #print sample
+        sys.stdout.flush()
+        imgs_id=all_attr_data['all_imgs'][sample]
+        if not imgs_id: # there is no image in this ad!
+            continue
+        sample_feat_ids=get_precompfeatid_fromhtid(imgs_id)
+        if not sample_feat_ids:
+            continue
+        test_feats_id.extend(sample_feat_ids)
+        test_imgslabels.extend([int(labels[pos])]*len(sample_feat_ids))
+      label_id=label_id+1
+    print("Looking for {} test features.".format(len(test_feats_id)))
+    test_feats=get_all_precomp_feats(test_feats_id)
+    predictions=clf.predict(test_feats)
+    print predictions
+    res={}
+    res['predictions']=predictions
+    res['labels']=test_imgslabels
+    if class_weights_type:
+        res_file='res_'+str(one_attr)+'_'+kernel_type+'_balanced.pkl'
+    else:
+        res_file='res_'+str(one_attr)+'_'+kernel_type+'.pkl'
+    pickle.dump(res,open(res_file,"wb"))
+   else: 
+    if not osp.isfile(data_attr):
+      print("Processing attribute {}".format(one_attr))
+      pos={}
+      train={}
+      test={}
+      labels=[]
+      label_id=0
+      # Get all samples annotated with this attribute, samples here are ads.
+      for val in all_attr_data['attr_vals'][one_attr]:
 	one_val = val.rstrip()
         print("Getting positive samples of {}.".format(one_val))
         pos[one_val] = [i for i, x in enumerate(all_attr_data['all_vals']) if x[0]==one_attr and x[1]==one_val]
@@ -154,9 +204,9 @@ if __name__ == "__main__":
         #labels_test.extend([label_id]*len(test[one_val]))
 	labels.append(label_id)
         label_id=label_id+1
-    train_feats_id=[]
-    train_imgslabels=[]
-    for pos,val in enumerate(all_attr_data['attr_vals'][one_attr]):
+      train_feats_id=[]
+      train_imgslabels=[]
+      for pos,val in enumerate(all_attr_data['attr_vals'][one_attr]):
 	one_val = val.rstrip()  
 	print("Getting images with value: {}.".format(one_val))
 	for sample in train[one_val]:
@@ -170,16 +220,20 @@ if __name__ == "__main__":
 		continue
             train_feats_id.extend(sample_feat_ids)
 	    train_imgslabels.extend([int(labels[pos])]*len(sample_feat_ids))
+      data={}
+      data['train_feats_ids']=train_feats_id
+      data['train_imgslabels']=train_imgslabels
+      data['test']=test
+      data['train']=train
+      pickle.dump(data,open(data_attr,'wb'))
+    else:
+      data=pickle.load(open(data_attr,'rb'))
+    train_feats_id=data['train_feats_ids']
+    train_imgslabels=data['train_imgslabels']
     # Need to convert ads indices to images indices somehow...
     print("Looking for {} features.".format(len(train_feats_id)))
     train_feats=get_all_precomp_feats(train_feats_id)
     print train_imgslabels
-    clf = svm.SVC()
+    clf = svm.SVC(kernel=kernel_type,class_weight=class_weights_type)
     clf.fit(train_feats, train_imgslabels)
-    pickle.dump(clf,open('svmmodel_'+str(one_attr)+'.pkl','wb'))
-    data={}
-    data['train_feats_ids']=train_feats_id
-    data['train_imgslabels']=train_imgslabels
-    data['test']=test
-    data['train']=train
-    pickle.dump(data,open('data_'+str(one_attr)+'.pkl','wb'))
+    pickle.dump(clf,open(svm_model_file,'wb'))
