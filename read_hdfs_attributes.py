@@ -25,10 +25,10 @@ feature_num = 4096
 use_svm_weights=True
 kernel_type='rbf' # or 'linear'
 if use_svm_weights:
-	#class_weights_type='balanced'
-	class_weights_type='auto'
+    #class_weights_type='balanced'
+    class_weights_type='auto'
 else:
-	class_weights_type=None
+    class_weights_type=None
 #base_hdfs_path="hdfs://memex:/user/worker/crf/trial113"
 
 def get_all_precomp_feats(feats_id):
@@ -143,9 +143,9 @@ if __name__ == "__main__":
    one_attr = attr.rstrip()
    data_attr='data_'+str(one_attr)+'.pkl'
    if class_weights_type:
-   	svm_model_file='svmmodel_'+str(one_attr)+'_'+kernel_type+'_balanced.pkl'
+       svm_model_file='svmmodel_'+str(one_attr)+'_'+kernel_type+'_balanced.pkl'
    else:
-   	svm_model_file='svmmodel_'+str(one_attr)+'_'+kernel_type+'.pkl'
+       svm_model_file='svmmodel_'+str(one_attr)+'_'+kernel_type+'.pkl'
    if osp.isfile(data_attr) and osp.isfile(svm_model_file):
     data=pickle.load(open(data_attr,'rb'))
     clf=pickle.load(open(svm_model_file,'rb'))
@@ -188,38 +188,34 @@ if __name__ == "__main__":
       pos={}
       train={}
       test={}
-      labels=[]
-      label_id=0
       # Get all samples annotated with this attribute, samples here are ads.
       for val in all_attr_data['attr_vals'][one_attr]:
-	one_val = val.rstrip()
+        one_val = val.rstrip()
         print("Getting positive samples of {}.".format(one_val))
         pos[one_val] = [i for i, x in enumerate(all_attr_data['all_vals']) if x[0]==one_attr and x[1]==one_val]
-	#print pos[one_val]
+        #print pos[one_val]
         # Random sample 2/3 of each value as training samples and the last 1/3 at test.
         train[one_val] = [pos[one_val][i] for i in sorted(random.sample(xrange(len(pos[one_val])), int(len(pos[one_val])*2./3)))]
         test[one_val] = list(set(pos[one_val])-set(train[one_val]))
-	print("We have {} training samples.".format(len(train[one_val])))
+        print("We have {} training samples.".format(len(train[one_val])))
         #labels_train.extend([label_id]*len(train[one_val]))
         #labels_test.extend([label_id]*len(test[one_val]))
-	labels.append(label_id)
-        label_id=label_id+1
       train_feats_id=[]
       train_imgslabels=[]
-      for pos,val in enumerate(all_attr_data['attr_vals'][one_attr]):
-	one_val = val.rstrip()  
-	print("Getting images with value: {}.".format(one_val))
-	for sample in train[one_val]:
-	    #print sample
-	    sys.stdout.flush()
-	    imgs_id=all_attr_data['all_imgs'][sample]
-	    if not imgs_id: # there is no image in this ad!
-		continue
-            sample_feat_ids=get_precompfeatid_fromhtid(imgs_id)
-	    if not sample_feat_ids:
-		continue
-            train_feats_id.extend(sample_feat_ids)
-	    train_imgslabels.extend([int(labels[pos])]*len(sample_feat_ids))
+      for ind,val in enumerate(sorted(all_attr_data['attr_vals'][one_attr])):
+        one_val = val.rstrip()
+        print("Getting images with value: {}.".format(one_val))
+        for sample in train[one_val]:
+          #print sample
+          sys.stdout.flush()
+          imgs_id=all_attr_data['all_imgs'][sample]
+          if not imgs_id: # there is no image in this ad!
+            continue
+          sample_feat_ids=get_precompfeatid_fromhtid(imgs_id)
+          if not sample_feat_ids:
+            continue
+          train_feats_id.extend(sample_feat_ids)
+          train_imgslabels.extend([int(ind)]*len(sample_feat_ids))
       data={}
       data['train_feats_ids']=train_feats_id
       data['train_imgslabels']=train_imgslabels
