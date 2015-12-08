@@ -154,7 +154,7 @@ if __name__ == "__main__":
     test_imgslabels=[]
     labels=[]
     label_id=0
-    for pos,val in enumerate(all_attr_data['attr_vals'][one_attr]):
+    for ind,val in enumerate(sorted(all_attr_data['attr_vals'][one_attr])):
       one_val = val.rstrip()
       print("Getting test images with value: {}.".format(one_val))
       labels.append(label_id)
@@ -168,8 +168,7 @@ if __name__ == "__main__":
         if not sample_feat_ids:
             continue
         test_feats_id.extend(sample_feat_ids)
-        test_imgslabels.extend([int(labels[pos])]*len(sample_feat_ids))
-      label_id=label_id+1
+        test_imgslabels.extend([int(ind)]*len(sample_feat_ids))
     print("Looking for {} test features.".format(len(test_feats_id)))
     test_feats=get_all_precomp_feats(test_feats_id)
     predictions=clf.predict(test_feats)
