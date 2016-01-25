@@ -51,6 +51,9 @@ if __name__ == '__main__':
 	featurefilename = featurename+'_fc7.dat'
 	outputname = img_filename[:-4] + '-sim_'+str(sim_limit)+'_'+ratio+dupstr+'.json'
 		
+	if os.path.exists(outputname):
+		os.remove(outputname)
+
 	if not os.path.exists(outputname):
 		simname = featurename + '_fc7-sim_'+ratio+'.txt'
 
@@ -70,9 +73,11 @@ if __name__ == '__main__':
 			prefix = ''
 		else:
 			prefix = './'
+
+		if os.path.exists(featurefilename):
+			os.remove(featurefilename)
+
 		if not os.path.exists(featurefilename):
-
-
 			batch_size = min(64,ins_num)
 			iteration = int(math.ceil(ins_num/float(batch_size)))
 			print 'image_number:', ins_num, 'batch_size:', batch_size, 'iteration:', iteration
@@ -93,6 +98,8 @@ if __name__ == '__main__':
 
 			os.remove(protoname)
 		os.remove(testname)
+		if os.path.exists(simname):
+			os.remove(simname)
 		if not os.path.exists(simname):
 			command = prefix+'hashing '+featurefilename + ' 256 '+ratio;
 			print command
