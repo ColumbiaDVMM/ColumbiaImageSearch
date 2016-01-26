@@ -15,7 +15,8 @@ import pickle
 import json
 ist_down=False
 
-global_var = json.load(open('global_var_all.json'))
+os.chdir('/home/ubuntu/memex/')
+global_var = json.load(open('./conf/global_var_all.json'))
 isthost=global_var['ist_db_host']
 istuser=global_var['ist_db_user']
 istpwd=global_var['ist_db_pwd']
@@ -68,7 +69,6 @@ if __name__ == '__main__':
 		exit()
 	img_filename = sys.argv[1]
 	sim_limit = 100
-	global_var = json.load(open('global_var_all.json'))
 	print len(sys.argv)
 	if len(sys.argv)>2:
 		sim_limit = int(sys.argv[2])
@@ -152,10 +152,7 @@ if __name__ == '__main__':
 			all_img_filenames.append(img_filename)
 		f.close()
 		f_pre.close()
-		if os.name=='nt':
-			prefix = ''
-		else:
-			prefix = './'
+		prefix = './DeepSentiBank_memex/hashing/'
 		nb_query=len(all_img_filenames)
 
 #		if not os.path.exists(featurefilename) and ins_num>0:
