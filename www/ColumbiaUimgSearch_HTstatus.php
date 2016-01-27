@@ -1,9 +1,11 @@
 <?php
 error_reporting(E_ALL | E_STRICT);
 
-$mainpath = '/home/ubuntu/memex/';
-$fgval = fopen ("global_var_all.json", "rb");
-$gread=fread($fgval,filesize("global_var_all.json"));
+$conf_file = "/home/ubuntu/memex/conf/global_var_all.json";
+$mainpath = "/home/ubuntu/memex/DeepSentiBank_memex/www/";
+
+$fgval = fopen($conf_file, "rb");
+$gread=fread($fgval,filesize($conf_file));
 $global_var = json_decode($gread);
 $images_by_batch = $global_var->{'images_update_batch'};
 

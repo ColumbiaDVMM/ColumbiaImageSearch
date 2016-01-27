@@ -23,9 +23,13 @@ function downloadFile ($url, $path) {
     fclose($newf);
   }
  }
-$mainpath = '/home/ubuntu/memex/';
+$mainpath = '/home/ubuntu/memex/DeepSentiBank_memex/www/';
 $savepath = $mainpath . 'img/';
+if (PHP_SAPI === 'cli') {
+$image_url = $argv[1];
+} else {
 $image_url = $_GET['url'];
+}
 $name = basename($image_url);
 $fullname = $savepath . $name;
 $pos = strrpos($fullname, ".");
