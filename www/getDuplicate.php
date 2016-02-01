@@ -1,11 +1,17 @@
 <?php
+if (PHP_SAPI === 'cli') {
+$htid = $argv[1];
+$vis = $argv[2];
+$img_style = $argv[3];
+$url = $argv[4];
+$sha1 = $argv[5];
+} else {
 $htid = $_GET["htid"];
-
 $vis = $_GET['visualize'];
 $img_style = $_GET['style'];
-
 $url = $_GET['url'];
 $sha1 = $_GET['sha1'];
+}
 $fast=0;
 if ($url && $sha1){
 //	echo 'fast';
@@ -31,7 +37,8 @@ if (mysqli_connect_errno()) {
     exit();
 }
 if (!$fast){
-$query = "SELECT f.uid,u.location,u.sha1 FROM fullIds f left join uniqueIds u on f.uid=u.htid where f.htid=". $htid;
+//$query = "SELECT f.uid,u.location,u.sha1 FROM fullIds f left join uniqueIds u on f.uid=u.htid where f.htid=". $htid;
+$query = "SELECT f.unique_cdr_id,u.location,u.sha1 FROM fullIdsCDR f left join uniqueIdsCDR u on f.unique_cdr_id=u.cdr_id where f.htid=". $htid;
 //echo $query;
 if ($stmt = $mysqli->prepare($query)) {
 
@@ -43,7 +50,6 @@ if ($stmt = $mysqli->prepare($query)) {
 
     /* fetch values */
     $stmt->fetch();
-    
 
     /* close statement */
     $stmt->close();
@@ -60,33 +66,59 @@ if ($vis){
 else {
 	echo '{ "SHA1": '.$sha1.', "cached_url": '.$url.', "ht_index": [';
 }
-$query = "SELECT htid FROM fullIds where uid=". $unique_idx;
-if ($stmt = $mysqli->prepare($query)) {
+//$query = "SELECT htid FROM fullIds where uid=". $unique_idx;
+$query = "SELECT htid,cdr_id FROM fullIdsCDR where `unique_cdr_id`=\"". $unique_idx ."\"";
+//echo $query;
+$HT_idx_array = array();
+$CDR_idx_array = array();
+$res = $mysqli->query($query);
+while($row = $res->fetch_assoc()) {
+	array_push($HT_idx_array,$row['htid']);
+	array_push($CDR_idx_array,$row['cdr_id']);
+}
+echo join(', ',$HT_idx_array);
+if (!$vis) {
+	echo ']';
+}
+if ($vis){
+	echo '<br/>CDR_ID: ';
+} else {
+        echo ' "CDR_IDS": [';
+}
+echo join(', ',$CDR_idx_array);
+if (!$vis) {
+        echo ']}';
+} else {
+	echo '<br/>';
+}
+/*if ($stmt = $mysqli->prepare($query)) {
 
-    /* execute statement */
+    // execute statement 
     $stmt->execute();
 
-    /* bind result variables */
-    $stmt->bind_result($HT_idx);
-	$fir = 1;
-    /* fetch values */
+    // bind result variables 
+    $stmt->bind_result($HT_idx,$CDR_idx);
+    $fir = 1;
+    // fetch values 
     while ($stmt->fetch()) {
 		if ($fir) {
 			$fir = 0;
-		} 
+		}
 		else {
 			echo ', ';
 		}
 		echo($HT_idx);
-		
+		echo($CDR_idx);
     }
 
-    /* close statement */
+    // close statement 
     $stmt->close();
 }
 if (!$vis) {
 	echo ']}';
-}
+}*/
+
+
 /* close connection */
 $mysqli->close();
 

@@ -1,3 +1,4 @@
+
 import os,sys,json
 import struct,time
 import MySQLdb
@@ -25,11 +26,14 @@ localhost=global_var['local_db_host']
 localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
+base_image_search_dirpath=global_var['base_image_search_dirpath']
+os.chdir('/home/ubuntu/memex/'+base_image_search_dirpath)
 
 def exist_img_precompfeat(query_sha1):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
-	query="select id from uniqueIds where sha1=\""+query_sha1+"\";"
+	#query="select id from uniqueIds where sha1=\""+query_sha1+"\";"
+	query="select feat_id from uniqueIdsCDR where sha1=\""+query_sha1+"\";"
 	print query
 	c.execute(query) #Should we use id or htid here?
 	remax = c.fetchall()
@@ -152,7 +156,8 @@ if __name__ == '__main__':
 			all_img_filenames.append(img_filename)
 		f.close()
 		f_pre.close()
-		prefix = './DeepSentiBank_memex/hashing/'
+		prefix = './features_extract/'
+		hash_prefix = './'+base_image_search_dirpath+'/hashing/'
 		nb_query=len(all_img_filenames)
 
 #		if not os.path.exists(featurefilename) and ins_num>0:
@@ -161,14 +166,14 @@ if __name__ == '__main__':
 			iteration = int(math.ceil(ins_num/float(batch_size)))
 			print 'image_number:', ins_num, 'batch_size:', batch_size, 'iteration:', iteration
 
-			f = open('test.prototxt')
+			f = open(prefix+'/test.prototxt')
 			proto = f.read()
 			f.close()
 			proto = proto.replace('test.txt',testname.replace('\\','/')).replace('batch_size: 1','batch_size: '+str(batch_size))
 			f = open(protoname,'w');
 			f.write(proto)
 			f.close()
-			command = prefix+'extract_nfeatures caffe_sentibank_train_iter_250000 '+protoname+ ' fc7,prob '+fresh_featurefilename.replace('\\','/')+','+fresh_featurefilename.replace('\\','/')+'_prob '+str(iteration)+' '+device;
+			command = prefix+'extract_nfeatures '+prefix+'caffe_sentibank_train_iter_250000 '+protoname+ ' fc7,prob '+fresh_featurefilename.replace('\\','/')+','+fresh_featurefilename.replace('\\','/')+'_prob '+str(iteration)+' '+device;
 			print command
 			os.system(command)
 			print 'sentibank time: ', time.time() - t0
@@ -215,9 +220,11 @@ if __name__ == '__main__':
 
 		os.remove(testname)
 		if not os.path.exists(simname) or always_recompute:
-			command = prefix+'hashing '+featurefilename + ' 256 '+ratio;
+			os.chdir('/home/ubuntu/memex/')
+			command = hash_prefix+'hashing '+base_image_search_dirpath+'/'+featurefilename+' 256 '+ratio;
 			print command
 			os.system(command)
+			os.chdir('/home/ubuntu/memex/'+base_image_search_dirpath)
 			os.rename(featurename + '_fc7-sim.txt',simname)
 		
 		#os.remove(probfilename.dat)
@@ -231,7 +238,8 @@ if __name__ == '__main__':
 		sim_score=[]
 		db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 		c=db.cursor()
-		sql='SELECT NULL,location,NULL,NULL,htid,sha1 FROM uniqueIds WHERE id in (%s) ORDER BY FIELD(id, %s)' 
+		#sql='SELECT NULL,location,NULL,NULL,htid,sha1 FROM uniqueIds WHERE id in (%s) ORDER BY FIELD(id, %s)' 
+		sql='SELECT cdr_id,location,NULL,timestamp,htid,sha1 FROM uniqueIdsCDR WHERE feat_id in (%s) ORDER BY FIELD(feat_id, %s)' 
 
 		# get similar images
 		count = 0
@@ -271,17 +279,22 @@ if __name__ == '__main__':
 			new_sim = []
 			new_sim_score = []
 			if not global_var['demo']:
-				sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
+				#sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
+				sql='SELECT htid,unique_cdr_id FROM fullIdsCDR WHERE unique_cdr_id in (%s) ORDER BY FIELD(unique_cdr_id, %s)' 
 			else:
-				sql='SELECT htid,uid,url,location,ads_url,ads_id FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
+				#sql='SELECT htid,uid,url,location,ads_url,ads_id FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
+				sql='SELECT htid,uid,url,location,ads_url,ads_id FROM fullIdsCDR WHERE feat_id in (%s) ORDER BY FIELD(feat_id, %s)' 
+				# Are ads_url,ads_id used?
 			for i in range(0,nb_query):	
 				new_sim.append([])
 				new_sim_score.append([])
 				if not sim[i]: # empty
 					continue
-				query_num = [simj[4] for simj in sim[i]]
+				query_num = [simj[0] for simj in sim[i]]
+				print query_num
 				in_p=', '.join(map(lambda x: '%s', query_num))
 				sqlq = sql % (in_p,in_p)
+				print query_num*2
 				c.execute(sqlq, query_num*2)
 				tmpresult = c.fetchall()
 				#print len(tmpresult)
@@ -307,7 +320,7 @@ if __name__ == '__main__':
 			for i in range(0,nb_query):	
 				if not sim[i]: # empty
 					continue
-				query_num = [simj[4] for simj in sim[i]]
+				query_num = [simj[3] for simj in sim[i]]
 				in_p=', '.join(map(lambda x: '%s', query_num))
 				sqlq = sql % (in_p,in_p)
 				c.execute(sqlq, query_num*2)
