@@ -39,7 +39,8 @@ if($ist_db->connect_errno > 0){
     die('Unable to connect to database [' . $ist_db->connect_error . ']');
 }
 // Get how many images have been added to IST DB since local biggest HT_ID
-$sql='select id,location from images where id > '.$biggest_local_htid.' and location is not null order by id LIMIT '.$images_by_batch;
+//$sql='select id,location from images where id > '.$biggest_local_htid.' and location is not null order by id LIMIT '.$images_by_batch;
+$sql='select id,location from images where id > '.$biggest_local_htid.' and location is not null order by id';
 $result = $ist_db->query($sql);
 if (!$result) {
     die("Invalid request : " . $ist_db->error());
