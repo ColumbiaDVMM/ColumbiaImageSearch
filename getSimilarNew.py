@@ -16,7 +16,9 @@ import pickle
 import json
 ist_down=False
 
-os.chdir('/home/ubuntu/memex/')
+base_path='/home/ubuntu/memex/'
+
+os.chdir(base_path)
 global_var = json.load(open('./conf/global_var_all.json'))
 isthost=global_var['ist_db_host']
 istuser=global_var['ist_db_user']
@@ -27,7 +29,7 @@ localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
 base_image_search_dirpath=global_var['base_image_search_dirpath']
-os.chdir('/home/ubuntu/memex/'+base_image_search_dirpath)
+os.chdir(base_path+base_image_search_dirpath)
 
 def exist_img_precompfeat(query_sha1):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
@@ -156,8 +158,8 @@ if __name__ == '__main__':
 			all_img_filenames.append(img_filename)
 		f.close()
 		f_pre.close()
-		prefix = './features_extract/'
-		hash_prefix = './'+base_image_search_dirpath+'/hashing/'
+		prefix = base_path+'/features_extract/'
+		hash_prefix = base_path+base_image_search_dirpath+'/hashing/'
 		nb_query=len(all_img_filenames)
 
 #		if not os.path.exists(featurefilename) and ins_num>0:
@@ -185,7 +187,7 @@ if __name__ == '__main__':
 		nb_precomp=len(precomp_img_filenames)
 		out_fresh_featurefilename=fresh_featurefilename.replace('\\','/')+".dat"
 		if nb_precomp>0:
-			command = prefix+'get_precomp_feats '+precomp_featurename+' '+precomp_featurefilename;
+			command = hash_prefix+'get_precomp_feats '+precomp_featurename+' '+precomp_featurefilename;
 			print command
 			os.system(command)
 			# merge with freshly computed features
@@ -220,11 +222,11 @@ if __name__ == '__main__':
 
 		os.remove(testname)
 		if not os.path.exists(simname) or always_recompute:
-			os.chdir('/home/ubuntu/memex/')
-			command = hash_prefix+'hashing '+base_image_search_dirpath+'/'+featurefilename+' 256 '+ratio;
+			os.chdir(base_path)
+			command = hash_prefix+'hashing '+featurefilename+' 256 '+ratio;
 			print command
 			os.system(command)
-			os.chdir('/home/ubuntu/memex/'+base_image_search_dirpath)
+			os.chdir(base_path+base_image_search_dirpath)
 			os.rename(featurename + '_fc7-sim.txt',simname)
 		
 		#os.remove(probfilename.dat)
@@ -299,9 +301,15 @@ if __name__ == '__main__':
 				tmpresult = c.fetchall()
 				#print len(tmpresult)
 				p = 0
+				print sim
 				for k in tmpresult:
-					if sim[i][p][4]!=k[1]:
+					print k[1]
+					#if sim[i][p][4]!=k[1]:
+					if sim[i][p][0]!=k[1]:
 						p = p+1
+					print i,p
+					print sim[i]
+					print sim[i][p]
 					if not global_var['demo']:
 						new_sim[i].append((sim[i][p][0],sim[i][p][1],sim[i][p][2],sim[i][p][3],k[0],sim[i][p][5]))
 					else:

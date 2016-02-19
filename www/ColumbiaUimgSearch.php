@@ -4,7 +4,7 @@ error_reporting(E_ALL | E_STRICT);
 $conf_file = "/home/ubuntu/memex/conf/global_var_all.json";
 $mainpath = "/home/ubuntu/memex/DeepSentiBank_memex/www/";
 
-$verbose=0;
+$verbose=1;
 
 function downloadFile ($url, $path) {
   $newfname = $path;

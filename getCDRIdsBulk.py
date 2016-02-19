@@ -41,7 +41,7 @@ def buildPayload(ht_ids):
 			payload=payload+"{\"match\":{\"crawl_data.image_id\":\""+str(ht_id[0])+"\"}}"
 		else:
 			payload=payload+"{\"match\":{\"crawl_data.image_id\":\""+str(ht_id[0])+"\"}},"
-	payload=payload+"\n]\n}\n}\n}"
+	payload=payload+"\n]\n}\n}\n}" # No setting the size here makes each scroll be only 10*nb_primary_shards
 	#print payload
 	return payload
 
@@ -51,11 +51,15 @@ def getCDRInfos(ht_ids):
 	while True:
 		try:
 			response = es.search(index="memex-domains_2016.01.01",doc_type="escorts",body=payload)
-		except:
-			print "ElasticSearch error when requesting:",payload[:100],"... at:",str(datetime.now())
+		except Exception as inst:
+   			#import pdb; pdb.set_trace()
+			#print "ElasticSearch error when requesting:",payload[:100],"... at:",str(datetime.now())
+			print "ElasticSearch error when requesting:",payload,"... at:",str(datetime.now())
+			print ht_ids
+			print inst
 			# Could be just a timeout that will be solved next time we query...
 			# Give ES a little rest first.
-			time.sleep(30)
+			time.sleep(10)
 	#print(response)
 	#print response.keys()
 	#print response['hits'].keys()
@@ -71,18 +75,36 @@ def getCDRInfosScan(ht_ids):
 	while True:
 		try:
 			print "ElasticSearch query at:",str(datetime.datetime.now())
-			response = es.search(index="memex-domains_2016.01.01",doc_type="escorts",body=payload, search_type="scan", scroll="5m")
+			#response = es.search(index="memex-domains_2016.01.01",doc_type="escorts",body=payload, search_type="scan", scroll="30m")
+			response = es.search(index="memex-domains",doc_type="escorts",body=payload, search_type="scan", scroll="30m")
 			break
-		except:
-			print "ElasticSearch error when requesting:",payload[:100],"... at:",str(datetime.datetime.now())
+		except Exception as inst:
+   			#import pdb; pdb.set_trace()
+			#print "ElasticSearch error when requesting:",payload[:100],"... at:",str(datetime.datetime.now())
+			print "ElasticSearch error when requesting:",payload,"... at:",str(datetime.datetime.now())
+			print ht_ids
+			print inst
+			if inst[0]==404:
+				print "Breaking loop on error 404."
+				break
 			# Could be just a timeout that will be solved next time we query...
 			# Give ES a little rest first.
-			time.sleep(30)
+			time.sleep(10)
 	#print(response)
 	print "Got "+str(response['hits']['total'])+" results in "+str(response['took'])+"ms."
 	scrollId = response['_scroll_id']
 	scroll_ids.append(""+str(scrollId)+"")
-	response = es.scroll(scroll_id=scrollId, scroll="5m")
+	while True:
+		try:
+			response = es.scroll(scroll_id=scrollId, scroll="30m")
+			break
+		except Exception as inst:
+			print "ElasticSearch error when requesting first step of scrolling at:",str(datetime.datetime.now())
+                        print inst
+			if inst[0]==404:
+				print "Breaking loop on error 404."
+				break
+                        time.sleep(10)
 	while len(response['hits']['hits'])>0:
 		print "Getting "+str(len(response['hits']['hits']))+" docs."
 		cdr_infos.extend(response['hits']['hits'])
@@ -92,13 +114,20 @@ def getCDRInfosScan(ht_ids):
 		while True:
 			try:
 				print "ElasticSearch query at:",str(datetime.datetime.now())
-				response = es.scroll(scroll_id=scrollId, scroll="5m")
+				response = es.scroll(scroll_id=scrollId, scroll="30m")
 				break
-			except:
-				print "ElasticSearch error when requesting:",payload[:100],"... at:",str(datetime.datetime.now())
+			except Exception as inst:
+   				#import pdb; pdb.set_trace()
+				#print "ElasticSearch error when requesting:",payload[:100],"... at:",str(datetime.datetime.now())
+				print "ElasticSearch error when requesting:",payload,"... at:",str(datetime.datetime.now())
+				print ht_ids
+				print inst
+				if inst[0]==404:
+					print "Breaking loop on error 404."
+					break
 				# Could be just a timeout that will be solved next time we query...
 				# Give ES a little rest first.
-				time.sleep(30)
+				time.sleep(10)
 	#print ""+','.join(scroll_ids)+""
 	#es.clear_scroll(scroll_id=""+', '.join(scroll_ids)+"")
 	#es.clear_scroll(scroll_id="{"+','.join(scroll_ids)+"}")
@@ -236,8 +265,11 @@ def getHTIds(num,start):
 	db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
 	c=db.cursor()
 	sql='SELECT u.location,f.htid,u.sha1,u.id FROM fullIds as f join uniqueIds as u on f.uid=u.htid \
- left join uniqueIdsCDR as uidcdr on uidcdr.feat_id=u.id where u.id>'+str(start)+' and uidcdr.feat_id is null \
- order by u.id LIMIT '+str(num)+';'
+ left join uniqueIdsCDR as uidcdr on uidcdr.feat_id=u.id where u.id>'+str(start)+' and u.id<='+str(start+num)+' and \
+ uidcdr.feat_id is null;'
+#	sql='SELECT u.location,f.htid,u.sha1,u.id FROM fullIds as f join uniqueIds as u on f.uid=u.htid \
+# left join uniqueIdsCDR as uidcdr on uidcdr.feat_id=u.id where u.id>'+str(start)+' and uidcdr.feat_id is null \
+# order by u.id LIMIT '+str(num)+';'
 	#sql='SELECT u.location,f.htid,u.sha1,u.id FROM fullIds as f join uniqueIds as u on f.uid=u.htid where u.id>'+str(start)+' ORDER BY u.id LIMIT '+str(num)
 	c.execute(sql)
         tmpresult = c.fetchall()
@@ -257,12 +289,12 @@ def getLastId():
 	
 
 if __name__ == '__main__':
-	num=2000
+	num=1000
 	#start=(worker_id)*1210000
 	#stop=(worker_id+1)*1210000
 	#start=(worker_id)*3500000
 	#stop=(worker_id+1)*3500000
-	start=0
+	start=3000000
 	stop=getLastId()
 	while start<=stop:
 		t0 = time.time()
@@ -270,10 +302,22 @@ if __name__ == '__main__':
 		ht_ids=getHTIds(num,start)
 		print "Getting ids took "+str(time.time()-t0)+"s."
 		#print ht_ids
-		print "Biggest unique id of batch?",str(ht_ids[len(ht_ids)-1][2])
+		print "[Batch info] samples number:",str(len(ht_ids))+", biggest unique id:",str(ht_ids[len(ht_ids)-1][2])
 		if len(ht_ids)>0:
 			#print ht_ids
-			list_cdr_infos=getCDRInfosScan(ht_ids)
+			if len(ht_ids)>4096: # limit of match clause from ES
+				list_cdr_infos=[]
+				start=0
+				while len(ht_ids[start:])>4096:
+					print len(ht_ids[start:])
+					list_cdr_infos.extend(getCDRInfosScan(ht_ids[start:start+4096]))
+					start=start+4096
+				print len(ht_ids[start:])
+				if len(ht_ids[start:])>0:
+					list_cdr_infos.extend(getCDRInfosScan(ht_ids[start:]))
+			else:
+				list_cdr_infos=getCDRInfosScan(ht_ids)
+			print "Got "+str(len(list_cdr_infos))+" ES docs total."
 			#print list_cdr_infos
 			processCDRInfosBulk(list_cdr_infos,ht_ids)
 		else:
