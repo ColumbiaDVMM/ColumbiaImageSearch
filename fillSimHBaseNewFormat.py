@@ -24,8 +24,22 @@ if __name__ == '__main__':
   	image_id=jd['crawl_data']['image_id']
   	print image_id
   	# TODO also get obj_parent, one_row[0] i.e. CDR_ID, crawl_data.memex_ht_id
-  	hash_row = tab_hash.row(image_id)
-  	sim_row = tab_aaron.row(image_id)
+  	hash_row = tab_hash.row(str(image_id))
+  	sim_row = tab_aaron.row(str(image_id))
+        if hash_row:
+                print hash_row
+	else:
+		print "Hash row is empty. Skipping"
+		continue # Get hash from MySQL or recompute from image
+        if sim_row:
+		print sim_row
+	else:
+		print "Sim row is empty. Skipping."
+                continue # Should compute similarity from API?
   	print hash_row['image:hash']
-  	print sim_row['meta:columbia_near_dups'], sim_row['meta:columbia_near_dups_dist']
-  	time.sleep(1)
+        if 'meta:columbia_near_dups' in sim_row:
+	  	print sim_row['meta:columbia_near_dups'], sim_row['meta:columbia_near_dups_dist']
+  	else:
+		print "Similarity not yet computed. Skipping"
+		continue
+	time.sleep(1)
