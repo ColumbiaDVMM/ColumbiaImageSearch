@@ -103,10 +103,14 @@ def saveSHA1(image_id,cdr_id,sha1hash):
     # old table indexed by htid 'tab_hash'
     tab_hash.put(str(image_id), {'image:hash': sha1hash})
     # new table indexed by cdrid
-    tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
+    if cdr_id:
+        tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
 
 def getSHA1(image_id,cdr_id):
-    hash_row = tab_hash.row(str(image_id))
+    print image_id,cdr_id
+    hash_row = None
+    if image_id:
+        hash_row = tab_hash.row(str(image_id))
     sha1hash = None
     if hash_row:
         sha1hash = hash_row['image:hash']
@@ -152,9 +156,12 @@ if __name__ == '__main__':
             time.sleep(1)
             continue
         sim_ids = getSimIds(image_id)
-        for sim_id in sim_ids[0]:
-        	# Need to query ES to get the cdr_id
-        	getSHA1(sim_id,None) 
         if not sim_ids:
             #time.sleep(1)
             continue
+        print sim_ids
+        for sim_id in sim_ids[0].split(','):
+            if sim_id:
+                print sim_id
+                # Need to query ES to get the cdr_id
+                getSHA1(sim_id,None) 
