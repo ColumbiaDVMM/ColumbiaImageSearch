@@ -27,7 +27,7 @@ tab_hash = connection.table('image_hash')
 # use field: images:images_doc
 tab_samples = connection.table('dig_isi_cdr2_ht_images_sample')
 # save sha1 in 'ht_images_cdrid_to_sha1_sample'
-
+tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_sample')
 # save similarities in 'ht_columbia_similar_images_sample'
 
 # save all image info in 'ht_images_infos_sample' with sha1 as rowkey and
@@ -100,10 +100,10 @@ def computeSHA1(cdr_id):
 
 def saveSHA1(image_id,cdr_id,sha1hash):
     # save in the two tables
-    pass
     # old table indexed by htid 'tab_hash'
-
+    tab_hash.put(str(image_id), {'image:hash': sha1hash})
     # new table indexed by cdrid
+    tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
 
 def getSHA1(image_id,cdr_id):
     hash_row = tab_hash.row(str(image_id))
