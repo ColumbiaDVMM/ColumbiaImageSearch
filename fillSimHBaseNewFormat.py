@@ -6,7 +6,7 @@ import time
 import MySQLdb
 
 # MySQL connection infos
-global_var = json.load(open('global_var_all.json'))
+global_var = json.load(open('../conf/global_var_all.json'))
 localhost=global_var['local_db_host']
 localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
@@ -32,11 +32,11 @@ def getSHA1(image_id):
         # Get hash from MySQL or recompute from image
         db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
         c=db.cursor()
-        sql='SELECT NULL,location,NULL,NULL,htid,sha1 FROM uniqueIds WHERE htid={}'.format(image_id) 
+        sql='SELECT location,htid,sha1 FROM uniqueIds WHERE htid={}'.format(image_id) 
         c.execute(sql)
         res=c.fetchall()
         print res
-        print res[2]
+        print res[0][2]
         print "Saving SHA1 {} for image {} in HBase".format(sha1hash,image_id)
     return sha1hash
 
@@ -66,5 +66,6 @@ if __name__ == '__main__':
             time.sleep(1)
             continue
         sim_ids = getSimIds(image_id)
-        if not sim_ids:time.sleep(1)
+        if not sim_ids:
+            time.sleep(1)
             continue
