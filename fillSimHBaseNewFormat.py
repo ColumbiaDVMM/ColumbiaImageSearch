@@ -115,7 +115,7 @@ def getSHA1(image_id,cdr_id):
         # Get hash from MySQL...
         sha1hash = getSHA1FromMySQL(image_id)
         # or recompute from image if failed.
-        if not sha1hash:
+        if not sha1hash and cdr_id:
             print "Could not get SHA1 from MYSQL. Recomputing..."
             sha1hash = computeSHA1(cdr_id)
     if sha1hash:
@@ -152,6 +152,9 @@ if __name__ == '__main__':
             time.sleep(1)
             continue
         sim_ids = getSimIds(image_id)
+        for sim_id in sim_ids[0]:
+        	# Need to query ES to get the cdr_id
+        	getSHA1(sim_id,None) 
         if not sim_ids:
             #time.sleep(1)
             continue
