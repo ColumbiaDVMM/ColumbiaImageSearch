@@ -83,7 +83,10 @@ def computeSHA1(cdr_id):
     sha1hash = None
     # get image url
     one_row = tab_samples.row(cdr_id)
-    one_url = one_row[1]['obj_stored_url']
+    print one_row
+    doc = one_row['images:images_doc']
+    jd = json.loads(doc)
+    one_url = jd['obj_stored_url']
     if not one_url:
         print "Could not get URL from cdrid {}.".format(cdr_id)
     else: # download
