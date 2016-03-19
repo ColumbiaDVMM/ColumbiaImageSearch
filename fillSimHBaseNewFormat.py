@@ -153,5 +153,5 @@ if __name__ == '__main__':
             continue
         sim_ids = getSimIds(image_id)
         if not sim_ids:
-            time.sleep(1)
+            #time.sleep(1)
             continue
