@@ -85,7 +85,7 @@ def computeSHA1(cdr_id):
     sha1hash = None
     # get image url
     one_row = tab_samples.row(cdr_id)
-    print one_row
+    #print one_row
     doc = one_row['images:images_doc']
     jd = json.loads(doc)
     one_url = jd['obj_stored_url']
@@ -101,7 +101,7 @@ def computeSHA1(cdr_id):
     return sha1hash
 
 def getSHA1(image_id,cdr_id):
-    print image_id,cdr_id
+    #print image_id,cdr_id
     hash_row = None
     if image_id:
         hash_row = tab_hash.row(str(image_id))
@@ -109,18 +109,18 @@ def getSHA1(image_id,cdr_id):
     if hash_row:
         sha1hash = hash_row['image:hash']
     else:
-        print "HBase Hash row is empty. Trying to get SHA1 from MySQL."
+        #print "HBase Hash row is empty. Trying to get SHA1 from MySQL."
         # Get hash from MySQL...
         sha1hash = getSHA1FromMySQL(image_id)
         # or recompute from image if failed.
         if not sha1hash and cdr_id:
-            print "Could not get SHA1 from MYSQL. Recomputing..."
+            #print "Could not get SHA1 from MYSQL. Recomputing..."
             sha1hash = computeSHA1(cdr_id)
     if sha1hash:
-        print "Saving SHA1 {} for image ({},{}) in HBase".format(sha1hash,cdr_id,image_id)
+        #print "Saving SHA1 {} for image ({},{}) in HBase".format(sha1hash,cdr_id,image_id)
         saveSHA1(image_id,cdr_id,sha1hash.upper())
     else:
-        print "Could not get/compute SHA1..."
+        print "Could not get/compute SHA1 for {} {}.".format(image_id,cdr_id)
     return sha1hash
 
 def saveSHA1(image_id,cdr_id,sha1hash):
@@ -135,7 +135,7 @@ def getSimIds(image_id):
     sim_row = tab_aaron.row(str(image_id))
     sim_ids = None
     if not sim_row:
-        print "Sim row is empty. Skipping."
+        #print "Sim row is empty. Skipping."
         return sim_ids # Should compute similarity from API?
     if 'meta:columbia_near_dups' in sim_row:
         sim_ids=(sim_row['meta:columbia_near_dups'], sim_row['meta:columbia_near_dups_dist'])
@@ -153,27 +153,25 @@ if __name__ == '__main__':
     last_row=None
     while not done:
         try:
-            for one_row in tab_samples.scan(start_row=last_row):
+            for one_row in tab_samples.scan(row_start=last_row):
                 last_row = one_row[0]
                 doc = one_row[1]['images:images_doc']
                 jd = json.loads(doc)
                 image_id=jd['crawl_data']['image_id']
-                print image_id
                 # TODO also get obj_parent, one_row[0] i.e. CDR_ID, crawl_data.memex_ht_id
                 sha1 = getSHA1(image_id,one_row[0])
-                print sha1
                 if not sha1:
-                    time.sleep(1)
+                    #time.sleep(1)
                     continue
                 sim_ids = getSimIds(image_id)
                 if not sim_ids:
                     #time.sleep(1)
                     continue
-                print sim_ids
+                #print sim_ids
                 sha1_sim_ids=[]
                 for sim_id in sim_ids[0].split(','):
                     if sim_id:
-                        print sim_id
+                        #print sim_id
                         # Need to query ES to get the cdr_id
                         sha1_sim_ids.append(getSHA1(sim_id,None))
                 # prepare to save similarities
@@ -192,3 +190,4 @@ if __name__ == '__main__':
             done=True
         except Exception as inst:
             print "[Caught error] {}".format(inst)
+            time.sleep(10)
