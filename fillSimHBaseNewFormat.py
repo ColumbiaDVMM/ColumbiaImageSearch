@@ -29,10 +29,12 @@ tab_samples = connection.table('dig_isi_cdr2_ht_images_sample')
 # save sha1 in 'ht_images_cdrid_to_sha1_sample'
 tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_sample')
 # save similarities in 'ht_columbia_similar_images_sample'
-
+# key min_sha1-max_sha1,value dist in column info:dist
+tab_similar = connection.table('ht_columbia_similar_images_sample')
 # save all image info in 'ht_images_infos_sample' with sha1 as rowkey and
 # a JSON of all_cdr_ids, all_parents_cdr_ids, all_cdr_docs, all_images_htid, all_images_htadsid.
 # [check if column exist, if id already there, append]
+tab_allinfos = connection.table('ht_images_infos_sample')
 
 def mkpath(outpath):
     pos_slash=[pos for pos,c in enumerate(outpath) if c=="/"]
@@ -98,14 +100,6 @@ def computeSHA1(cdr_id):
             print "Could not download image from URL {} of cdrid {}.".format(one_url,cdr_id)
     return sha1hash
 
-def saveSHA1(image_id,cdr_id,sha1hash):
-    # save in the two tables
-    # old table indexed by htid 'tab_hash'
-    tab_hash.put(str(image_id), {'image:hash': sha1hash})
-    # new table indexed by cdrid
-    if cdr_id:
-        tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
-
 def getSHA1(image_id,cdr_id):
     print image_id,cdr_id
     hash_row = None
@@ -129,6 +123,14 @@ def getSHA1(image_id,cdr_id):
         print "Could not get/compute SHA1..."
     return sha1hash
 
+def saveSHA1(image_id,cdr_id,sha1hash):
+    # save in the two tables
+    # old table indexed by htid 'tab_hash'
+    tab_hash.put(str(image_id), {'image:hash': sha1hash})
+    # new table indexed by cdrid
+    if cdr_id:
+        tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
+
 def getSimIds(image_id):
     sim_row = tab_aaron.row(str(image_id))
     sim_ids = None
@@ -142,26 +144,51 @@ def getSimIds(image_id):
     return sim_ids
         
 
-if __name__ == '__main__':
+def saveSimPairs(sha1_sim_pairs):
+    for pair in sha1_sim_pairs:
+        tab_similar.put(str(pair[0]), {'info:dist': pair[1]})
 
-    for one_row in tab_samples.scan():
-        doc = one_row[1]['images:images_doc']
-        jd = json.loads(doc)
-        image_id=jd['crawl_data']['image_id']
-        print image_id
-        # TODO also get obj_parent, one_row[0] i.e. CDR_ID, crawl_data.memex_ht_id
-        sha1 = getSHA1(image_id,one_row[0])
-        print sha1
-        if not sha1:
-            time.sleep(1)
-            continue
-        sim_ids = getSimIds(image_id)
-        if not sim_ids:
-            #time.sleep(1)
-            continue
-        print sim_ids
-        for sim_id in sim_ids[0].split(','):
-            if sim_id:
-                print sim_id
-                # Need to query ES to get the cdr_id
-                getSHA1(sim_id,None) 
+if __name__ == '__main__':
+    done=False
+    last_row=None
+    while not done:
+        try:
+            for one_row in tab_samples.scan(start_row=last_row):
+                last_row = one_row[0]
+                doc = one_row[1]['images:images_doc']
+                jd = json.loads(doc)
+                image_id=jd['crawl_data']['image_id']
+                print image_id
+                # TODO also get obj_parent, one_row[0] i.e. CDR_ID, crawl_data.memex_ht_id
+                sha1 = getSHA1(image_id,one_row[0])
+                print sha1
+                if not sha1:
+                    time.sleep(1)
+                    continue
+                sim_ids = getSimIds(image_id)
+                if not sim_ids:
+                    #time.sleep(1)
+                    continue
+                print sim_ids
+                sha1_sim_ids=[]
+                for sim_id in sim_ids[0].split(','):
+                    if sim_id:
+                        print sim_id
+                        # Need to query ES to get the cdr_id
+                        sha1_sim_ids.append(getSHA1(sim_id,None))
+                # prepare to save similarities
+                # key should be: min(sha1,sim_sha1)-max(sha1,sim_sha1)
+                # value in column info:dist is corresponding distance
+                sha1_sim_pairs=[]
+                sim_dists=sim_ids[1].split(',')
+                for i,sha1_sim_id in enumerate(sha1_sim_ids):
+                    if sha1_sim_id:
+                        tup=("{}-{}".format(min(sha1,sha1_sim_id).upper(),max(sha1,sha1_sim_id).upper()),sim_dists[i])
+                        sha1_sim_pairs.append(tup)
+                print sha1_sim_pairs
+                sha1_sim_pairs=set(sha1_sim_pairs)
+                print sha1_sim_pairs
+                saveSimPairs(sha1_sim_pairs)
+            done=True
+        except Exception as inst:
+            print "[Caught error] {}".format(inst)
