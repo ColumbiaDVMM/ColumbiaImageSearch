@@ -148,14 +148,27 @@ def saveSimPairs(sha1_sim_pairs):
     for pair in sha1_sim_pairs:
         tab_similar.put(str(pair[0]), {'info:dist': pair[1]})
 
-def saveInfos(sha1,img_cdr_id,parent_cdr_id,doc,image_ht_id,ads_ht_id):
+def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
     row = tab_allinfos.row(str(sha1))
+    hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
+    args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
     if not row:
-    	# First insert
-    	tab_allinfos.put(str(sha1), {'info:all_cdr_ids': str(img_cdr_id), 'info:all_parent_ids': str(parent_cdr_id), 'info:all_docs': "{'all_docs': "+json.dumps(doc)+"}", 'info:image_ht_ids': str(image_ht_id), 'info:ads_ht_id': str(ads_ht_id) })
+        # First insert
+        first_insert=', '.join(["'"+hbase_fields[x]+"': "+args[x] for x in range(len(hbase_fields))])
+        #tab_allinfos.put(str(sha1), {'info:all_cdr_ids': str(img_cdr_id), 'info:all_parent_ids': str(parent_cdr_id), 'info:image_ht_ids': str(image_ht_id), 'info:ads_ht_id': str(ads_ht_id) })
+        tab_allinfos.put(str(sha1), {first_insert})
     else:
-    	# Merge everything
-    	pass
+        # Merge everything
+        check_presence=[args[i] in row[field].split(',') for i,field in enumerate(hbase_fields)]
+        print check_presence
+        if check_presence.count(True)==0:
+            merged=[row[field].split(',').append(args[i]) for i,field in enumerate(hbase_fields)]
+            merge_insert=', '.join(["'"+hbase_fields[x]+"': "+', '.join(merged[x]) for x in range(len(hbase_fields))])
+            print merge_insert
+            tab_allinfos.put(str(sha1), {first_insert})
+        else:
+            print "Image with infos ({},{},{},{}) already associated with sha1 {}.".format(img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,sha1)
+        time.sleep(5)
 
 if __name__ == '__main__':
     done=False
@@ -175,7 +188,7 @@ if __name__ == '__main__':
                     #time.sleep(1)
                     continue
                 # save all infos
-                saveInfos(sha1.upper(),last_row,parent_cdr_id,doc,image_id,ad_id)
+                saveInfos(sha1.upper(),last_row,parent_cdr_id,image_id,ad_id)
                 # get similar ids
                 sim_ids = getSimIds(image_id)
                 if not sim_ids:
