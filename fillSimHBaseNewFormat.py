@@ -148,6 +148,15 @@ def saveSimPairs(sha1_sim_pairs):
     for pair in sha1_sim_pairs:
         tab_similar.put(str(pair[0]), {'info:dist': pair[1]})
 
+def saveInfos(sha1,img_cdr_id,parent_cdr_id,doc,image_ht_id,ads_ht_id):
+    row = tab_allinfos.row(str(sha1))
+    if not row:
+    	# First insert
+    	tab_allinfos.put(str(sha1), {'info:all_cdr_ids': str(img_cdr_id), 'info:all_parent_ids': str(parent_cdr_id), 'info:all_docs': "{'all_docs': "+json.dumps(doc)+"}", 'info:image_ht_ids': str(image_ht_id), 'info:ads_ht_id': str(ads_ht_id) })
+    else:
+    	# Merge everything
+    	pass
+
 if __name__ == '__main__':
     done=False
     last_row=None
@@ -158,11 +167,16 @@ if __name__ == '__main__':
                 doc = one_row[1]['images:images_doc']
                 jd = json.loads(doc)
                 image_id=jd['crawl_data']['image_id']
-                # TODO also get obj_parent, one_row[0] i.e. CDR_ID, crawl_data.memex_ht_id
+                ad_id=jd['crawl_data']['memex_ht_id']
+                parent_cdr_id=jd['obj_parent']
+                # get SHA1
                 sha1 = getSHA1(image_id,one_row[0])
                 if not sha1:
                     #time.sleep(1)
                     continue
+                # save all infos
+                saveInfos(sha1.upper(),last_row,parent_cdr_id,doc,image_id,ad_id)
+                # get similar ids
                 sim_ids = getSimIds(image_id)
                 if not sim_ids:
                     #time.sleep(1)
