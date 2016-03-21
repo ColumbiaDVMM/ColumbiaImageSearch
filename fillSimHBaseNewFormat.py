@@ -120,7 +120,8 @@ def getSHA1(image_id,cdr_id):
         #print "Saving SHA1 {} for image ({},{}) in HBase".format(sha1hash,cdr_id,image_id)
         saveSHA1(image_id,cdr_id,sha1hash.upper())
     else:
-        print "Could not get/compute SHA1 for {} {}.".format(image_id,cdr_id)
+        pass
+        #print "Could not get/compute SHA1 for {} {}.".format(image_id,cdr_id)
     return sha1hash
 
 def saveSHA1(image_id,cdr_id,sha1hash):
@@ -154,21 +155,23 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
     args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
     if not row:
         # First insert
-        first_insert=', '.join(["'"+hbase_fields[x]+"': "+args[x] for x in range(len(hbase_fields))])
-        #tab_allinfos.put(str(sha1), {'info:all_cdr_ids': str(img_cdr_id), 'info:all_parent_ids': str(parent_cdr_id), 'info:image_ht_ids': str(image_ht_id), 'info:ads_ht_id': str(ads_ht_id) })
-        tab_allinfos.put(str(sha1), {first_insert})
+        first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+args[x]+"\"" for x in range(len(hbase_fields))])+"}"
+        tab_allinfos.put(str(sha1), json.loads(first_insert))
     else:
         # Merge everything
+        split_row=[list(row[field].split(',')) for i,field in enumerate(hbase_fields)]
+        print sha1
         check_presence=[args[i] in row[field].split(',') for i,field in enumerate(hbase_fields)]
-        print check_presence
-        if check_presence.count(True)==0:
-            merged=[row[field].split(',').append(args[i]) for i,field in enumerate(hbase_fields)]
-            merge_insert=', '.join(["'"+hbase_fields[x]+"': "+', '.join(merged[x]) for x in range(len(hbase_fields))])
+        if check_presence.count(True)<len(hbase_fields):
+            merged_tmp=[split_row[i].append(args[i]) for i in range(len(hbase_fields))]
+            merged=split_row
+            #print "merged:",merged
+            merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+', '.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
             print merge_insert
-            tab_allinfos.put(str(sha1), {first_insert})
+            tab_allinfos.put(str(sha1), json.loads(merge_insert))
         else:
-            print "Image with infos ({},{},{},{}) already associated with sha1 {}.".format(img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,sha1)
-        time.sleep(5)
+            pass
+            #print "Image with infos ({},{},{},{}) already associated with sha1 {}.".format(img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,sha1)
 
 if __name__ == '__main__':
     done=False
@@ -210,9 +213,9 @@ if __name__ == '__main__':
                     if sha1_sim_id:
                         tup=("{}-{}".format(min(sha1,sha1_sim_id).upper(),max(sha1,sha1_sim_id).upper()),sim_dists[i])
                         sha1_sim_pairs.append(tup)
-                print sha1_sim_pairs
+                #print sha1_sim_pairs
                 sha1_sim_pairs=set(sha1_sim_pairs)
-                print sha1_sim_pairs
+                #print sha1_sim_pairs
                 saveSimPairs(sha1_sim_pairs)
             done=True
         except Exception as inst:
