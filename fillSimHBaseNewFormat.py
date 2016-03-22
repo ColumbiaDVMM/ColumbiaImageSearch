@@ -160,14 +160,14 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
     else:
         # Merge everything
         split_row=[list(row[field].split(',')) for i,field in enumerate(hbase_fields)]
-        print sha1
+        #print sha1
         check_presence=[args[i] in row[field].split(',') for i,field in enumerate(hbase_fields)]
         if check_presence.count(True)<len(hbase_fields):
             merged_tmp=[split_row[i].append(args[i]) for i in range(len(hbase_fields))]
             merged=split_row
             #print "merged:",merged
             merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+', '.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
-            print merge_insert
+            #print merge_insert
             tab_allinfos.put(str(sha1), json.loads(merge_insert))
         else:
             pass
@@ -176,10 +176,13 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
 if __name__ == '__main__':
     done=False
     last_row=None
+    nb_img=0
+    start=time.time()
     while not done:
         try:
             for one_row in tab_samples.scan(row_start=last_row):
                 last_row = one_row[0]
+                nb_img = nb_img+1
                 doc = one_row[1]['images:images_doc']
                 jd = json.loads(doc)
                 image_id=jd['crawl_data']['image_id']
@@ -217,6 +220,8 @@ if __name__ == '__main__':
                 sha1_sim_pairs=set(sha1_sim_pairs)
                 #print sha1_sim_pairs
                 saveSimPairs(sha1_sim_pairs)
+                if nb_img%100==0:
+                     print "Processed {} images. Average time per image is {}.".format(nb_img,float(time.time()-start)/nb_img)
             done=True
         except Exception as inst:
             print "[Caught error] {}".format(inst)
