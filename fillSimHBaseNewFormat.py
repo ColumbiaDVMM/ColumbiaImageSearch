@@ -67,12 +67,14 @@ def dlImage(url):
 
 def getSHA1FromMySQL(image_id):
     res_sha1 = None
-    db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
-    c=db.cursor()
-    sql='SELECT sha1 FROM uniqueIds WHERE htid={}'.format(image_id) 
-    c.execute(sql)
-    res=c.fetchall()
-    if res:
+    if image_id:
+      db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
+      c=db.cursor()
+      sql='SELECT sha1 FROM uniqueIds WHERE htid=\"{}\"'.format(image_id) 
+      print sql
+      c.execute(sql)
+      res=c.fetchall()
+      if res:
         res_sha1=res[0][0]
     return res_sha1
 
@@ -188,7 +190,7 @@ if __name__ == '__main__':
     time_save_sim=0
     start=time.time()
     while not done:
-        try:
+        #try:
             for one_row in tab_samples.scan(row_start=last_row):
                 last_row = one_row[0]
                 nb_img = nb_img+1
@@ -243,6 +245,6 @@ if __name__ == '__main__':
                      print "Processed {} images. Average time per image is {}.".format(nb_img,float(time.time()-start)/nb_img)
                      print "Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img)
             done=True
-        except Exception as inst:
-            print "[Caught error] {}".format(inst)
-            time.sleep(10)
+        #except Exception as inst:
+         #   print "[Caught error] {}".format(inst)
+          #  time.sleep(10)
