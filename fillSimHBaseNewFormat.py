@@ -26,15 +26,19 @@ tab_aaron = connection.table('aaron_memex_ht-images')
 tab_hash = connection.table('image_hash')
 # use field: images:images_doc
 tab_samples = connection.table('dig_isi_cdr2_ht_images_sample')
+#tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
 # save sha1 in 'ht_images_cdrid_to_sha1_sample'
 tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_sample')
+#tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_2016')
 # save similarities in 'ht_columbia_similar_images_sample'
 # key min_sha1-max_sha1,value dist in column info:dist
 tab_similar = connection.table('ht_columbia_similar_images_sample')
+#tab_similar = connection.table('ht_columbia_similar_images_2016')
 # save all image info in 'ht_images_infos_sample' with sha1 as rowkey and
 # a JSON of all_cdr_ids, all_parents_cdr_ids, all_cdr_docs, all_images_htid, all_images_htadsid.
 # [check if column exist, if id already there, append]
 tab_allinfos = connection.table('ht_images_infos_sample')
+#tab_allinfos = connection.table('ht_images_infos_2016')
 
 def mkpath(outpath):
     pos_slash=[pos for pos,c in enumerate(outpath) if c=="/"]
@@ -177,6 +181,9 @@ if __name__ == '__main__':
     done=False
     last_row=None
     nb_img=0
+    time_sha1=0
+    time_save_info=0
+    time_get_sim=0
     start=time.time()
     while not done:
         try:
@@ -189,14 +196,20 @@ if __name__ == '__main__':
                 ad_id=jd['crawl_data']['memex_ht_id']
                 parent_cdr_id=jd['obj_parent']
                 # get SHA1
+                start_sha1=time.time()
                 sha1 = getSHA1(image_id,one_row[0])
+                time_sha1=time_sha1+time.time()-start_sha1
                 if not sha1:
                     #time.sleep(1)
                     continue
                 # save all infos
+                start_save_info=time.time()
                 saveInfos(sha1.upper(),last_row,parent_cdr_id,image_id,ad_id)
+                time_save_info=time_save_info+time.time()-start_save_info
                 # get similar ids
+                start_get_sim=time.time()
                 sim_ids = getSimIds(image_id)
+                time_get_sim=time_get_sim+time.time()-start_get_sim
                 if not sim_ids:
                     #time.sleep(1)
                     continue
@@ -205,7 +218,7 @@ if __name__ == '__main__':
                 for sim_id in sim_ids[0].split(','):
                     if sim_id:
                         #print sim_id
-                        # Need to query ES to get the cdr_id
+                        # Would need to query ES to get the cdr_id...
                         sha1_sim_ids.append(getSHA1(sim_id,None))
                 # prepare to save similarities
                 # key should be: min(sha1,sim_sha1)-max(sha1,sim_sha1)
@@ -221,7 +234,7 @@ if __name__ == '__main__':
                 #print sha1_sim_pairs
                 saveSimPairs(sha1_sim_pairs)
                 if nb_img%100==0:
-                     print "Processed {} images. Average time per image is {}.".format(nb_img,float(time.time()-start)/nb_img)
+                     print "Processed {} images. Average time per image is {}. [sha1:{}, save_info:{}, get_sim:{}]".format(nb_img,float(time.time()-start)/nb_img,float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img)
             done=True
         except Exception as inst:
             print "[Caught error] {}".format(inst)
