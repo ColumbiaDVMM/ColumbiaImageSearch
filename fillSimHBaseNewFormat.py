@@ -66,15 +66,15 @@ def dlImage(url):
         return None
 
 def getSHA1FromMySQL(image_id):
-    sha1 = None
+    res_sha1 = None
     db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
     c=db.cursor()
     sql='SELECT sha1 FROM uniqueIds WHERE htid={}'.format(image_id) 
     c.execute(sql)
     res=c.fetchall()
     if res:
-        sha1=res[0][0]
-    return sha1
+        res_sha1=res[0][0]
+    return res_sha1
 
 def getSHA1FromFile(filepath):
     sha1 = hashlib.sha1()
