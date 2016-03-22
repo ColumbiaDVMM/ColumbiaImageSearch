@@ -71,7 +71,7 @@ def getSHA1FromMySQL(image_id):
       db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
       c=db.cursor()
       sql='SELECT sha1 FROM uniqueIds WHERE htid=\"{}\"'.format(image_id) 
-      print sql
+      #print sql
       c.execute(sql)
       res=c.fetchall()
       if res:
