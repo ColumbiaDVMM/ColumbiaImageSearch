@@ -25,20 +25,20 @@ tab_aaron = connection.table('aaron_memex_ht-images')
 #use field: image:hash
 tab_hash = connection.table('image_hash')
 # use field: images:images_doc
-tab_samples = connection.table('dig_isi_cdr2_ht_images_sample')
-#tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
+#tab_samples = connection.table('dig_isi_cdr2_ht_images_sample')
+tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
 # save sha1 in 'ht_images_cdrid_to_sha1_sample'
-tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_sample')
-#tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_2016')
+#tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_sample')
+tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_2016')
 # save similarities in 'ht_columbia_similar_images_sample'
 # key min_sha1-max_sha1,value dist in column info:dist
-tab_similar = connection.table('ht_columbia_similar_images_sample')
-#tab_similar = connection.table('ht_columbia_similar_images_2016')
+#tab_similar = connection.table('ht_columbia_similar_images_sample')
+tab_similar = connection.table('ht_columbia_similar_images_2016')
 # save all image info in 'ht_images_infos_sample' with sha1 as rowkey and
 # a JSON of all_cdr_ids, all_parents_cdr_ids, all_cdr_docs, all_images_htid, all_images_htadsid.
 # [check if column exist, if id already there, append]
-tab_allinfos = connection.table('ht_images_infos_sample')
-#tab_allinfos = connection.table('ht_images_infos_2016')
+#tab_allinfos = connection.table('ht_images_infos_sample')
+tab_allinfos = connection.table('ht_images_infos_2016')
 
 def mkpath(outpath):
     pos_slash=[pos for pos,c in enumerate(outpath) if c=="/"]
@@ -184,6 +184,8 @@ if __name__ == '__main__':
     time_sha1=0
     time_save_info=0
     time_get_sim=0
+    time_prep_sim=0
+    time_save_sim=0
     start=time.time()
     while not done:
         try:
@@ -214,6 +216,7 @@ if __name__ == '__main__':
                     #time.sleep(1)
                     continue
                 #print sim_ids
+                start_prep_sim=time.time()
                 sha1_sim_ids=[]
                 for sim_id in sim_ids[0].split(','):
                     if sim_id:
@@ -231,10 +234,14 @@ if __name__ == '__main__':
                         sha1_sim_pairs.append(tup)
                 #print sha1_sim_pairs
                 sha1_sim_pairs=set(sha1_sim_pairs)
+                time_prep_sim=time_prep_sim+time.time()-start_prep_sim
                 #print sha1_sim_pairs
+                start_save_sim=time.time()
                 saveSimPairs(sha1_sim_pairs)
+                time_save_sim=time_save_sim+time.time()-start_save_sim
                 if nb_img%100==0:
-                     print "Processed {} images. Average time per image is {}. [sha1:{}, save_info:{}, get_sim:{}]".format(nb_img,float(time.time()-start)/nb_img,float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img)
+                     print "Processed {} images. Average time per image is {}.".format(nb_img,float(time.time()-start)/nb_img)
+                     print "Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img)
             done=True
         except Exception as inst:
             print "[Caught error] {}".format(inst)
