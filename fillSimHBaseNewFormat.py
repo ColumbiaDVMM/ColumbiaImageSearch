@@ -10,6 +10,7 @@ import hashlib
 #import numpy as np
 
 tmp_img_dl_dir = 'tmp_img_dl'
+imagedltimeout = 2
 
 # MySQL connection infos
 global_var = json.load(open('../conf/global_var_all.json'))
@@ -54,7 +55,7 @@ def dlImage(url):
     outpath=os.path.join(tmp_img_dl_dir,file_img)
     mkpath(outpath)
     try:
-        r = requests.get(url, stream=True, timeout=5)
+        r = requests.get(url, stream=True, timeout=imagedltimeout)
         if r.status_code == 200:
             with open(outpath, 'wb') as f:
                 r.raw.decode_content = True
@@ -190,7 +191,7 @@ if __name__ == '__main__':
     time_save_sim=0
     start=time.time()
     while not done:
-        #try:
+        try:
             for one_row in tab_samples.scan(row_start=last_row):
                 last_row = one_row[0]
                 nb_img = nb_img+1
@@ -245,6 +246,6 @@ if __name__ == '__main__':
                      print "Processed {} images. Average time per image is {}.".format(nb_img,float(time.time()-start)/nb_img)
                      print "Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img)
             done=True
-        #except Exception as inst:
-         #   print "[Caught error] {}".format(inst)
-          #  time.sleep(10)
+        except Exception as inst:
+            print "[Caught error] {}".format(inst)
+            time.sleep(10)
