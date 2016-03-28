@@ -11,7 +11,8 @@ import hashlib
 
 tmp_img_dl_dir = 'tmp_img_dl'
 imagedltimeout = 2
-
+start_img_fail="https://s3.amazonaws.com/memex-images/full"
+row_start=None
 # MySQL connection infos
 global_var = json.load(open('../conf/global_var_all.json'))
 localhost=global_var['local_db_host']
@@ -50,10 +51,14 @@ def mkpath(outpath):
             pass
 
 def dlImage(url):
+    if url.startswith(start_img_fail):
+        print "Skipping image in failed s3 bucket."
+        return None
     pos_slash=[pos for pos,c in enumerate(url) if c=="/"]
     file_img=url[pos_slash[-1]:]
     outpath=os.path.join(tmp_img_dl_dir,file_img)
     mkpath(outpath)
+    print "Downloading image from {} to {}.".format(url,outpath)
     try:
         r = requests.get(url, stream=True, timeout=imagedltimeout)
         if r.status_code == 200:
@@ -86,6 +91,7 @@ def getSHA1FromFile(filepath):
         sha1.update(f.read())
     finally:
         f.close()
+    os.unlink(outpath)
     return sha1.hexdigest()
 
 def computeSHA1(cdr_id):
@@ -182,7 +188,7 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
 
 if __name__ == '__main__':
     done=False
-    last_row=None
+    last_row=row_start
     nb_img=0
     time_sha1=0
     time_save_info=0
