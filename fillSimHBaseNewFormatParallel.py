@@ -11,6 +11,9 @@ from Queue import *
 from threading import Thread
 
 nb_threads=16
+# HBase connection pool
+pool = happybase.ConnectionPool(size=24,host='10.1.94.57')
+
 batch_size=1000000
 imagedltimeout=2
 tmp_img_dl_dir="tmp_img_dl"
@@ -87,7 +90,9 @@ def getSHA1FromFile(filepath):
 def computeSHA1(cdr_id,logf=None):
     sha1hash = None
     # get image url
-    one_row = tab_samples.row(cdr_id)
+    with pool.connection() as connection:
+        tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
+        one_row = tab_samples.row(cdr_id)
     #print one_row
     doc = one_row['images:images_doc']
     jd = json.loads(doc)
@@ -113,7 +118,9 @@ def getSHA1(image_id,cdr_id,logf=None):
     #print image_id,cdr_id
     hash_row = None
     if image_id:
-        hash_row = tab_hash.row(str(image_id))
+        with pool.connection() as connection:
+            tab_hash = connection.table('image_hash')
+            hash_row = tab_hash.row(str(image_id))
     sha1hash = None
     if hash_row:
         sha1hash = hash_row['image:hash']
@@ -136,13 +143,20 @@ def getSHA1(image_id,cdr_id,logf=None):
 def saveSHA1(image_id,cdr_id,sha1hash):
     # save in the two tables
     # old table indexed by htid 'tab_hash'
-    tab_hash.put(str(image_id), {'image:hash': sha1hash})
+    with pool.connection() as connection:
+        tab_hash = connection.table('image_hash')
+        tab_hash.put(str(image_id), {'image:hash': sha1hash})
     # new table indexed by cdrid
     if cdr_id:
-        tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
+        with pool.connection() as connection:
+            tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_2016')
+            tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
 
 def getSimIds(image_id,logf=None):
-    sim_row = tab_aaron.row(str(image_id))
+    with pool.connection() as connection:
+        tab_aaron = connection.table('aaron_memex_ht-images')
+        sim_row = tab_aaron.row(str(image_id))
+        
     sim_ids = None
     if not sim_row:
         #print "Sim row is empty. Skipping."
@@ -158,31 +172,35 @@ def getSimIds(image_id,logf=None):
         
 
 def saveSimPairs(sha1_sim_pairs):
-    for pair in sha1_sim_pairs:
-        tab_similar.put(str(pair[0]), {'info:dist': pair[1]})
+    with pool.connection() as connection:
+        tab_similar = connection.table('ht_columbia_similar_images_2016')
+        for pair in sha1_sim_pairs:
+            tab_similar.put(str(pair[0]), {'info:dist': pair[1]})
 
 def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
-    row = tab_allinfos.row(str(sha1))
-    hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
-    args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
-    if not row:
-        # First insert
-        first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+args[x]+"\"" for x in range(len(hbase_fields))])+"}"
-        tab_allinfos.put(str(sha1), json.loads(first_insert))
-    else:
-        # Merge everything
-        split_row=[list(row[field].split(',')) for i,field in enumerate(hbase_fields)]
-        #print sha1
-        check_presence=[args[i] in row[field].split(',') for i,field in enumerate(hbase_fields)]
-        if check_presence.count(True)<len(hbase_fields):
-            merged_tmp=[split_row[i].append(args[i]) for i in range(len(hbase_fields))]
-            merged=split_row
-            #print "merged:",merged
-            merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+', '.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
-            #print merge_insert
-            tab_allinfos.put(str(sha1), json.loads(merge_insert))
+    with pool.connection() as connection:
+        tab_allinfos = connection.table('ht_images_infos_2016')
+        row = tab_allinfos.row(str(sha1))
+        hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
+        args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
+        if not row:
+            # First insert
+            first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+args[x]+"\"" for x in range(len(hbase_fields))])+"}"
+            tab_allinfos.put(str(sha1), json.loads(first_insert))
         else:
-            pass
+            # Merge everything
+            split_row=[list(row[field].split(',')) for i,field in enumerate(hbase_fields)]
+            #print sha1
+            check_presence=[args[i] in row[field].split(',') for i,field in enumerate(hbase_fields)]
+            if check_presence.count(True)<len(hbase_fields):
+                merged_tmp=[split_row[i].append(args[i]) for i in range(len(hbase_fields))]
+                merged=split_row
+                #print "merged:",merged
+                merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+', '.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
+                #print merge_insert
+                tab_allinfos.put(str(sha1), json.loads(merge_insert))
+            else:
+                pass
             #print "Image with infos ({},{},{},{}) already associated with sha1 {}.".format(img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,sha1)
 
 def processBatch(first_row,last_row):
@@ -195,7 +213,9 @@ def processBatch(first_row,last_row):
     start=time.time()
     done=False
     f = open("logFillSimNewFormatParallel_{}-{}.txt".format(first_row,last_row), 'wt', 0) # 0 for no buffering
-    while not done:
+    with pool.connection() as connection:
+      tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
+      while not done:
         try:
             for one_row in tab_samples.scan(row_start=first_row,row_stop=last_row):
                 first_row = one_row[0]
@@ -270,43 +290,23 @@ if __name__ == '__main__':
         t.daemon=True
         t.start()
 
-    # HBase connection infos
-    pool = happybase.ConnectionPool(size=20,host='10.1.94.57')
-    connection = pool.connection()
-    # use fields: meta:columbia_near_dups, meta:columbia_near_dups_dist
-    tab_aaron = connection.table('aaron_memex_ht-images')
-    #use field: image:hash
-    tab_hash = connection.table('image_hash')
-    # use field: images:images_doc
-    #tab_samples = connection.table('dig_isi_cdr2_ht_images_sample')
-    tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
-    # save sha1 in 'ht_images_cdrid_to_sha1_sample'
-    #tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_sample')
-    tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_2016')
-    # save similarities in 'ht_columbia_similar_images_sample'
-    # key min_sha1-max_sha1,value dist in column info:dist
-    #tab_similar = connection.table('ht_columbia_similar_images_sample')
-    tab_similar = connection.table('ht_columbia_similar_images_2016')
-    # save all image info in 'ht_images_infos_sample' with sha1 as rowkey and
-    # a JSON of all_cdr_ids, all_parents_cdr_ids, all_cdr_docs, all_images_htid, all_images_htadsid.
-    # [check if column exist, if id already there, append]
-    #tab_allinfos = connection.table('ht_images_infos_sample')
-    tab_allinfos = connection.table('ht_images_infos_2016')
-    
-    row_count=0
-    first_row=None
-    for one_row in tab_samples.scan(row_start=row_start):
-        row_count=row_count+1
-        if row_count%(batch_size/100)==0:
-            print "Scanned {} rows so far.".format(row_count)
-            sys.stdout.flush()
-        if first_row is None:
-            first_row=one_row[0]
-        if row_count%batch_size==0:
-            last_row=one_row[0]
-            print "Pushing batch {}-{}".format(first_row,last_row)
-            sys.stdout.flush()
-            tupInp=(first_row,last_row)
-            first_row=None
-            q.put(tupInp)
+    with pool.connection() as connection:
+        tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
+        
+        row_count=0
+        first_row=None
+        for one_row in tab_samples.scan(row_start=row_start):
+            row_count=row_count+1
+            if row_count%(batch_size/100)==0:
+                print "Scanned {} rows so far.".format(row_count)
+                sys.stdout.flush()
+            if first_row is None:
+                first_row=one_row[0]
+            if row_count%batch_size==0:
+                last_row=one_row[0]
+                print "Pushing batch {}-{}".format(first_row,last_row)
+                sys.stdout.flush()
+                tupInp=(first_row,last_row)
+                first_row=None
+                q.put(tupInp)
     
