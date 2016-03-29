@@ -188,7 +188,8 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
 
 if __name__ == '__main__':
     done=False
-    last_row=row_start
+    first_row=row_start
+    last_row=None
     nb_img=0
     time_sha1=0
     time_save_info=0
@@ -198,14 +199,14 @@ if __name__ == '__main__':
     start=time.time()
     while not done:
         try:
-            for one_row in tab_samples.scan(row_start=last_row):
-                last_row = one_row[0]
+            for one_row in tab_samples.scan(row_start=first_row,row_end=last_row):
+                first_row = one_row[0]
                 nb_img = nb_img+1
                 doc = one_row[1]['images:images_doc']
                 jd = json.loads(doc)
                 image_id=jd['crawl_data']['image_id']
                 ad_id=jd['crawl_data']['memex_ht_id']
-                parent_cdr_id=jd['obj_parent']
+                parent_cdr_id=jd['obj_parent'] # might be corrupted.
                 # get SHA1
                 start_sha1=time.time()
                 sha1 = getSHA1(image_id,one_row[0])
