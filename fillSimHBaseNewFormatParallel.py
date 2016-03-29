@@ -16,7 +16,8 @@ imagedltimeout=2
 tmp_img_dl_dir="tmp_img_dl"
 start_img_fail="https://s3.amazonaws.com/memex-images/full"
 #row_start=None
-row_start="0FE98D4F5D6B03D59AD670AA06ACA4309DA1B139309903A46E5FA71008BE04FF"
+#row_start="0FE98D4F5D6B03D59AD670AA06ACA4309DA1B139309903A46E5FA71008BE04FF"
+row_start="11AF5668A95D17484A5943827FDF425D548C7563DC2B064678F34B91947A6AFF"
 # MySQL connection infos
 global_var = json.load(open('../conf/global_var_all.json'))
 localhost=global_var['local_db_host']
@@ -24,27 +25,6 @@ localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
 
-# HBase connection infos
-connection = happybase.Connection('10.1.94.57')
-# use fields: meta:columbia_near_dups, meta:columbia_near_dups_dist
-tab_aaron = connection.table('aaron_memex_ht-images')
-#use field: image:hash
-tab_hash = connection.table('image_hash')
-# use field: images:images_doc
-#tab_samples = connection.table('dig_isi_cdr2_ht_images_sample')
-tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
-# save sha1 in 'ht_images_cdrid_to_sha1_sample'
-#tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_sample')
-tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_2016')
-# save similarities in 'ht_columbia_similar_images_sample'
-# key min_sha1-max_sha1,value dist in column info:dist
-#tab_similar = connection.table('ht_columbia_similar_images_sample')
-tab_similar = connection.table('ht_columbia_similar_images_2016')
-# save all image info in 'ht_images_infos_sample' with sha1 as rowkey and
-# a JSON of all_cdr_ids, all_parents_cdr_ids, all_cdr_docs, all_images_htid, all_images_htadsid.
-# [check if column exist, if id already there, append]
-#tab_allinfos = connection.table('ht_images_infos_sample')
-tab_allinfos = connection.table('ht_images_infos_2016')
 
 def mkpath(outpath):
     pos_slash=[pos for pos,c in enumerate(outpath) if c=="/"]
@@ -57,7 +37,7 @@ def mkpath(outpath):
 def dlImage(url,logf=None):
     if url.startswith(start_img_fail):
         if logf:
-            logf.write("Skipping image in failed s3 bucket.")
+            logf.write("Skipping image in failed s3 bucket.\n")
         else:
             print "Skipping image in failed s3 bucket."
         return None
@@ -75,7 +55,7 @@ def dlImage(url,logf=None):
             return outpath
     except Exception as inst:
         if logf:
-            logf.write("Download failed for img that should be saved at {} from url {}.".format(outpath,url))
+            logf.write("Download failed for img that should be saved at {} from url {}.\n".format(outpath,url))
         else:
             print "Download failed for img that should be saved at {} from url {}.".format(outpath,url)
         print inst 
@@ -114,7 +94,7 @@ def computeSHA1(cdr_id,logf=None):
     one_url = jd['obj_stored_url']
     if not one_url:
         if logf:
-            logf.write("Could not get URL from cdrid {}.".format(cdr_id))
+            logf.write("Could not get URL from cdrid {}.\n".format(cdr_id))
         else:
             print "Could not get URL from cdrid {}.".format(cdr_id)
     else: # download
@@ -124,7 +104,7 @@ def computeSHA1(cdr_id,logf=None):
             sha1hash = getSHA1FromFile(localpath)
         else:
             if logf:
-                logf.write("Could not download image from URL {} of cdrid {}.".format(one_url,cdr_id))
+                logf.write("Could not download image from URL {} of cdrid {}.\n".format(one_url,cdr_id))
             else:
                 print "Could not download image from URL {} of cdrid {}.".format(one_url,cdr_id)
     return sha1hash
@@ -171,7 +151,7 @@ def getSimIds(image_id,logf=None):
         sim_ids=(sim_row['meta:columbia_near_dups'], sim_row['meta:columbia_near_dups_dist'])
     else:
         if logf:
-            f.write("Similarity not yet computed. Skipping")
+            f.write("Similarity not yet computed. Skipping\n")
         else:
             print "Similarity not yet computed. Skipping"
     return sim_ids
@@ -214,10 +194,10 @@ def processBatch(first_row,last_row):
     time_save_sim=0
     start=time.time()
     done=False
-    f = open("logFillSimNewFormatParallel_{}-{}.txt".format(first_row,last_row), 'rt')
+    f = open("logFillSimNewFormatParallel_{}-{}.txt".format(first_row,last_row), 'wt', 0) # 0 for no buffering
     while not done:
         try:
-            for one_row in tab_samples.scan(row_start=first_row,row_end=last_row):
+            for one_row in tab_samples.scan(row_start=first_row,row_stop=last_row):
                 first_row = one_row[0]
                 nb_img = nb_img+1
                 doc = one_row[1]['images:images_doc']
@@ -268,12 +248,12 @@ def processBatch(first_row,last_row):
                 saveSimPairs(sha1_sim_pairs)
                 time_save_sim=time_save_sim+time.time()-start_save_sim
                 if nb_img%100==0:
-                    f.write("Processed {} images. Average time per image is {}.".format(nb_img,float(time.time()-start)/nb_img))
-                    f.write("Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img))
+                    f.write("Processed {} images. Average time per image is {}\n.".format(nb_img,float(time.time()-start)/nb_img))
+                    f.write("Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}\n".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img))
             done=True
         except Exception as inst:
-            f.write("[Caught error] {}".format(inst))
-            time.sleep(10)
+            f.write("[Caught error] {}\n".format(inst))
+            time.sleep(2)
     f.close()
 
 def worker():
@@ -289,16 +269,43 @@ if __name__ == '__main__':
         t=Thread(target=worker)
         t.daemon=True
         t.start()
+
+    # HBase connection infos
+    pool = happybase.ConnectionPool(size=20,host='10.1.94.57')
+    connection = pool.connection()
+    # use fields: meta:columbia_near_dups, meta:columbia_near_dups_dist
+    tab_aaron = connection.table('aaron_memex_ht-images')
+    #use field: image:hash
+    tab_hash = connection.table('image_hash')
+    # use field: images:images_doc
+    #tab_samples = connection.table('dig_isi_cdr2_ht_images_sample')
+    tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
+    # save sha1 in 'ht_images_cdrid_to_sha1_sample'
+    #tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_sample')
+    tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_2016')
+    # save similarities in 'ht_columbia_similar_images_sample'
+    # key min_sha1-max_sha1,value dist in column info:dist
+    #tab_similar = connection.table('ht_columbia_similar_images_sample')
+    tab_similar = connection.table('ht_columbia_similar_images_2016')
+    # save all image info in 'ht_images_infos_sample' with sha1 as rowkey and
+    # a JSON of all_cdr_ids, all_parents_cdr_ids, all_cdr_docs, all_images_htid, all_images_htadsid.
+    # [check if column exist, if id already there, append]
+    #tab_allinfos = connection.table('ht_images_infos_sample')
+    tab_allinfos = connection.table('ht_images_infos_2016')
     
     row_count=0
     first_row=None
     for one_row in tab_samples.scan(row_start=row_start):
         row_count=row_count+1
+        if row_count%(batch_size/100)==0:
+            print "Scanned {} rows so far.".format(row_count)
+            sys.stdout.flush()
         if first_row is None:
             first_row=one_row[0]
         if row_count%batch_size==0:
             last_row=one_row[0]
             print "Pushing batch {}-{}".format(first_row,last_row)
+            sys.stdout.flush()
             tupInp=(first_row,last_row)
             first_row=None
             q.put(tupInp)
