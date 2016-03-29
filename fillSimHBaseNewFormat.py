@@ -9,10 +9,11 @@ import shutil
 import hashlib
 #import numpy as np
 
-tmp_img_dl_dir = 'tmp_img_dl'
-imagedltimeout = 2
+tmp_img_dl_dir="tmp_img_dl"
+imagedltimeout=2
 start_img_fail="https://s3.amazonaws.com/memex-images/full"
-row_start=None
+#row_start=None
+row_start="0FE98D4F5D6B03D59AD670AA06ACA4309DA1B139309903A46E5FA71008BE04FF"
 # MySQL connection infos
 global_var = json.load(open('../conf/global_var_all.json'))
 localhost=global_var['local_db_host']
@@ -58,7 +59,7 @@ def dlImage(url):
     file_img=url[pos_slash[-1]:]
     outpath=os.path.join(tmp_img_dl_dir,file_img)
     mkpath(outpath)
-    print "Downloading image from {} to {}.".format(url,outpath)
+    #print "Downloading image from {} to {}.".format(url,outpath)
     try:
         r = requests.get(url, stream=True, timeout=imagedltimeout)
         if r.status_code == 200:
@@ -91,7 +92,7 @@ def getSHA1FromFile(filepath):
         sha1.update(f.read())
     finally:
         f.close()
-    os.unlink(outpath)
+    os.unlink(filepath)
     return sha1.hexdigest()
 
 def computeSHA1(cdr_id):
