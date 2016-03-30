@@ -183,16 +183,16 @@ def saveSimPairs(sha1_sim_pairs):
             tab_similar.put(str(pair[0]), {'info:dist': pair[1]})
 
 def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
-	# deal with obj_parent list
-	if type(parent_cdr_id)==list:
-		if logf:
+    # deal with obj_parent list
+    if type(parent_cdr_id)==list:
+        if logf:
             logf.write("We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id))
         else:
-        	print "We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id)
-		for one_pcid in parent_cdr_id:
-		    saveInfos(sha1,img_cdr_id,one_pcid.strip(),image_ht_id,ads_ht_id)
+            print "We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id)
+        for one_pcid in parent_cdr_id:
+            saveInfos(sha1,img_cdr_id,one_pcid.strip(),image_ht_id,ads_ht_id)
         return
-	else: # single obj_parent case
+    else: # single obj_parent case
         args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
     with pool.connection() as connection:
         tab_allinfos = connection.table('ht_images_infos_2016')
