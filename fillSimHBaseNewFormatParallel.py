@@ -243,7 +243,7 @@ def processBatch(first_row,last_row):
     with pool.connection() as connection:
       tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
       while not done:
-        #try:
+        try:
             for one_row in tab_samples.scan(row_start=first_row,row_stop=last_row):
                 first_row = one_row[0]
                 nb_img = nb_img+1
@@ -298,9 +298,9 @@ def processBatch(first_row,last_row):
                     f.write("Processed {} images. Average time per image is {}\n.".format(nb_img,float(time.time()-start)/nb_img))
                     f.write("Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}\n".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img))
             done=True
-        #except Exception as inst:
-        #    f.write("[Caught error] {}\n".format(inst))
-        #    time.sleep(2)
+        except Exception as inst:
+            f.write("[Caught error] {}\n".format(inst))
+            time.sleep(2)
     f.close()
 
 def worker():
