@@ -182,12 +182,22 @@ def saveSimPairs(sha1_sim_pairs):
         for pair in sha1_sim_pairs:
             tab_similar.put(str(pair[0]), {'info:dist': pair[1]})
 
-def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
+def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
+	# deal with obj_parent list
+	if type(parent_cdr_id)==list:
+		if logf:
+            logf.write("We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id))
+        else:
+        	print "We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id)
+		for one_pcid in parent_cdr_id:
+		    saveInfos(sha1,img_cdr_id,one_pcid.strip(),image_ht_id,ads_ht_id)
+        return
+	else: # single obj_parent case
+        args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
     with pool.connection() as connection:
         tab_allinfos = connection.table('ht_images_infos_2016')
         row = tab_allinfos.row(str(sha1))
         hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
-        args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
         if not row:
             # First insert
             first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+args[x].strip()+"\"" for x in range(len(hbase_fields))])+"}"
@@ -198,7 +208,6 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
             try:
                 split_row=[[str(tmp_field).strip() for tmp_field in row[field].split(',')] for field in hbase_fields]
                 #print sha1
-                # args[i] is a list?
                 check_presence=[args[i].strip() in split_row[i] for i,field in enumerate(hbase_fields)]
                 if check_presence.count(True)<len(hbase_fields):
                     merged_tmp=[split_row[i].append(args[i].strip()) for i in range(len(hbase_fields))]
@@ -214,9 +223,9 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 print(exc_type, fname, exc_tb.tb_lineno)
                 print "Image infos:",sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id
-                print "Split row:",split_row
-                print "Tmp merged:",tmp_merged
-                print "Merge insert:",merge_insert
+                #print "Split row:",split_row
+                #print "Tmp merged:",tmp_merged
+                #print "Merge insert:",merge_insert
             else:
                 pass
             #print "Image with infos ({},{},{},{}) already associated with sha1 {}.".format(img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,sha1)
@@ -240,9 +249,9 @@ def processBatch(first_row,last_row):
                 nb_img = nb_img+1
                 doc = one_row[1]['images:images_doc']
                 jd = json.loads(doc)
-                image_id=jd['crawl_data']['image_id']
-                ad_id=jd['crawl_data']['memex_ht_id']
-                parent_cdr_id=jd['obj_parent'] # might be corrupted.
+                image_id=jd['crawl_data']['image_id'].strip()
+                ad_id=jd['crawl_data']['memex_ht_id'].strip()
+                parent_cdr_id=jd['obj_parent'] # might be corrupted? might be a list?
                 # get SHA1
                 start_sha1=time.time()
                 sha1 = getSHA1(image_id,one_row[0],f)
@@ -252,7 +261,7 @@ def processBatch(first_row,last_row):
                     continue
                 # save all infos
                 start_save_info=time.time()
-                saveInfos(sha1.upper(),last_row,parent_cdr_id,image_id,ad_id)
+                saveInfos(sha1.upper(),one_row[0],parent_cdr_id,image_id,ad_id,f)
                 time_save_info=time_save_info+time.time()-start_save_info
                 # get similar ids
                 start_get_sim=time.time()
