@@ -136,7 +136,9 @@ def getSHA1(image_id,cdr_id,logf=None):
         #print "Saving SHA1 {} for image ({},{}) in HBase".format(sha1hash,cdr_id,image_id)
         saveSHA1(image_id,cdr_id,sha1hash.upper())
     else:
-        pass
+        with pool.connection() as connection:
+            tab_missing_sha1 = connection.table('ht_images_2016_missing_sha1')
+            tab_missing_sha1.put(str(image_id), {'info:cdr_id': str(cdr_id)})
         #print "Could not get/compute SHA1 for {} {}.".format(image_id,cdr_id)
     return sha1hash
 
@@ -165,7 +167,10 @@ def getSimIds(image_id,logf=None):
         sim_ids=(sim_row['meta:columbia_near_dups'], sim_row['meta:columbia_near_dups_dist'])
     else:
         if logf:
-            f.write("Similarity not yet computed. Skipping\n")
+            logf.write("Similarity not yet computed. Skipping\n")
+            with pool.connection() as connection:
+                tab_missing_sim = connection.table('ht_images_2016_missing_sim')
+                tab_missing_sim.put(str(image_id), {'info:image_id': str(image_id)})
         else:
             print "Similarity not yet computed. Skipping"
     return sim_ids
@@ -185,20 +190,31 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id):
         args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
         if not row:
             # First insert
-            first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+args[x]+"\"" for x in range(len(hbase_fields))])+"}"
+            first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+args[x].strip()+"\"" for x in range(len(hbase_fields))])+"}"
             tab_allinfos.put(str(sha1), json.loads(first_insert))
         else:
             # Merge everything
-            split_row=[list(row[field].split(',')) for i,field in enumerate(hbase_fields)]
+            #split_row=[list(row[field].split(',')) for i,field in enumerate(hbase_fields)]
+            split_row=[[str(tmp_field).strip() for tmp_field in row[field].split(',')] for i,field in enumerate(hbase_fields)]
             #print sha1
-            check_presence=[args[i] in row[field].split(',') for i,field in enumerate(hbase_fields)]
+            check_presence=[args[i].strip() in row[field].split(',') for i,field in enumerate(hbase_fields)]
             if check_presence.count(True)<len(hbase_fields):
-                merged_tmp=[split_row[i].append(args[i]) for i in range(len(hbase_fields))]
-                merged=split_row
-                #print "merged:",merged
-                merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+', '.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
-                #print merge_insert
-                tab_allinfos.put(str(sha1), json.loads(merge_insert))
+                try:
+                    merged_tmp=[split_row[i].append(args[i].strip()) for i in range(len(hbase_fields))]
+                    merged=split_row
+                    #print "merged:",merged
+                    tmp_merged=[', '.join(merged[x]) for x in range(len(hbase_fields))]
+                    merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
+                    tab_allinfos.put(str(sha1), json.loads(merge_insert))
+                except Exception as inst:
+                    print "[Error in saveInfos]:",inst
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    print(exc_type, fname, exc_tb.tb_lineno)
+                    print "Image infos:",sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id
+                    print "Split row:",split_row
+                    print "Tmp merged:",tmp_merged
+                    print "Merge insert:",merge_insert
             else:
                 pass
             #print "Image with infos ({},{},{},{}) already associated with sha1 {}.".format(img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,sha1)
@@ -216,7 +232,7 @@ def processBatch(first_row,last_row):
     with pool.connection() as connection:
       tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
       while not done:
-        try:
+        #try:
             for one_row in tab_samples.scan(row_start=first_row,row_stop=last_row):
                 first_row = one_row[0]
                 nb_img = nb_img+1
@@ -271,9 +287,9 @@ def processBatch(first_row,last_row):
                     f.write("Processed {} images. Average time per image is {}\n.".format(nb_img,float(time.time()-start)/nb_img))
                     f.write("Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}\n".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img))
             done=True
-        except Exception as inst:
-            f.write("[Caught error] {}\n".format(inst))
-            time.sleep(2)
+        #except Exception as inst:
+        #    f.write("[Caught error] {}\n".format(inst))
+        #    time.sleep(2)
     f.close()
 
 def worker():
