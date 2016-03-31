@@ -18,9 +18,9 @@ batch_size=100000
 imagedltimeout=2
 tmp_img_dl_dir="tmp_img_dl"
 start_img_fail="https://s3.amazonaws.com/memex-images/full"
-#row_start=None
+row_start=None
 #row_start="0FE98D4F5D6B03D59AD670AA06ACA4309DA1B139309903A46E5FA71008BE04FF"
-row_start="11AF5668A95D17484A5943827FDF425D548C7563DC2B064678F34B91947A6AFF"
+#row_start="11AF5668A95D17484A5943827FDF425D548C7563DC2B064678F34B91947A6AFF"
 # MySQL connection infos
 global_var = json.load(open('../conf/global_var_all.json'))
 localhost=global_var['local_db_host']
@@ -111,10 +111,11 @@ def computeSHA1(cdr_id,logf=None):
     jd = json.loads(doc)
     one_url = jd['obj_stored_url']
     if not one_url:
-        if logf:
-            logf.write("Could not get URL from cdrid {}.\n".format(cdr_id))
-        else:
-            print "Could not get URL from cdrid {}.".format(cdr_id)
+        #if logf:
+        #    logf.write("Could not get URL from cdrid {}.\n".format(cdr_id))
+        #else:
+        #    print "Could not get URL from cdrid {}.".format(cdr_id)
+        pass
     else: # download
         localpath = dlImage(one_url,logf)
         # compute sha1
@@ -157,9 +158,19 @@ def getSHA1(image_id,cdr_id,logf=None):
 
 def get_batch_SHA1_from_imageids(image_ids,logf=None):
     #print image_id,cdr_id
+    if not image_ids:
+        #logf.write("[get_batch_SHA1_from_imageids] image_ids is empty!\n")
+        return None
     str_image_ids=[str(iid) for iid in image_ids]
+    if not str_image_ids:
+        #logf.write("[get_batch_SHA1_from_imageids] str_image_ids is empty!\n")
+	return None
     hash_rows = None
+    #if logf:
+    #    logf.write("Looking for images: {}\n".format(",".join(str_image_ids)))
     with pool.connection() as connection:
+       # if logf:
+       #     logf.write("Connection opened on port: {}\n".format(connection.port))
         tab_hash = connection.table('image_hash')
         hash_rows = tab_hash.rows(str_image_ids)
     sha1hash=[]
@@ -250,10 +261,10 @@ def saveSimPairs(sha1_sim_pairs):
 def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
     # deal with obj_parent list
     if type(parent_cdr_id)==list:
-        if logf:
-            logf.write("We have a list of obj_parent for image {} with cdr_id {}.\n".format(sha1,img_cdr_id))
-        else:
-            print "We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id)
+        #if logf:
+        #    logf.write("We have a list of obj_parent for image {} with cdr_id {}.\n".format(sha1,img_cdr_id))
+        #else:
+        #    print "We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id)
         for one_pcid in parent_cdr_id:
             saveInfos(sha1,img_cdr_id,str(one_pcid).strip(),image_ht_id,ads_ht_id)
         return
@@ -308,7 +319,7 @@ def processBatch(first_row,last_row):
     with pool.connection() as connection:
       tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
       while not done:
-        try:
+        #try:
             for one_row in tab_samples.scan(row_start=first_row,row_stop=last_row):
                 first_row = one_row[0]
                 nb_img = nb_img+1
@@ -319,26 +330,27 @@ def processBatch(first_row,last_row):
                 parent_cdr_id=jd['obj_parent'] # might be corrupted? might be a list?
                 # get SHA1
                 start_sha1=time.time()
-                sha1 = getSHA1(image_id,one_row[0],f)
-                time_sha1=time_sha1+time.time()-start_sha1
+                sha1=getSHA1(image_id,one_row[0],f)
+                time_sha1+=time.time()-start_sha1
                 if not sha1:
                     #time.sleep(1)
                     continue
                 # save all infos
                 start_save_info=time.time()
                 saveInfos(sha1.upper(),one_row[0],parent_cdr_id,image_id,ad_id,f)
-                time_save_info=time_save_info+time.time()-start_save_info
+                time_save_info+=time.time()-start_save_info
                 # get similar ids
                 start_get_sim=time.time()
                 sim_ids = getSimIds(image_id,f)
-                time_get_sim=time_get_sim+time.time()-start_get_sim
-                if not sim_ids:
+                time_get_sim+=time.time()-start_get_sim
+                if not sim_ids or not sim_ids[0]:
                     #time.sleep(1)
                     continue
                 #print sim_ids
                 start_prep_sim=time.time()
+                #f.write("Looking for sim_ids of image {}: {}\n".format(image_id,sim_ids))
                 # Process sim_ids as batch?
-                sha1_sim_ids=get_batch_SHA1_from_imageids(sim_ids[0].split(','))
+                sha1_sim_ids=get_batch_SHA1_from_imageids(sim_ids[0].split(','),f)
                 ## OLD processing one by one
                 #sha1_sim_ids=[]
                 #for sim_id in sim_ids[0].split(','):
@@ -363,12 +375,15 @@ def processBatch(first_row,last_row):
                 saveSimPairs(sha1_sim_pairs)
                 time_save_sim=time_save_sim+time.time()-start_save_sim
                 if nb_img%100==0:
-                    f.write("Processed {} images. Average time per image is {}\n.".format(nb_img,float(time.time()-start)/nb_img))
+                    f.write("Processed {} images. Average time per image is {}.\n".format(nb_img,float(time.time()-start)/nb_img))
                     f.write("Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}\n".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img))
             done=True
-        except Exception as inst:
-            f.write("[Caught error] {}\n".format(inst))
-            time.sleep(2)
+        #except Exception as inst:
+        #    f.write("[Caught error] {}\n".format(inst))
+        #    exc_type, exc_obj, exc_tb = sys.exc_info()  
+        #    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        #    f.write("{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno))
+        #    time.sleep(2)
     f.close()
 
 def worker():
