@@ -12,7 +12,7 @@ from threading import Thread
 
 nb_threads=8
 # HBase connection pool
-pool = happybase.ConnectionPool(size=16,host='10.1.94.57')
+pool = happybase.ConnectionPool(size=24,host='10.1.94.57')
 
 batch_size=100000
 imagedltimeout=2
@@ -273,38 +273,42 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
     with pool.connection() as connection:
         tab_allinfos = connection.table('ht_images_infos_2016')
         row = tab_allinfos.row(str(sha1))
-        hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
-        if not row:
-            # First insert
-            first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+str(args[x]).strip()+"\"" for x in range(len(hbase_fields))])+"}"
+    hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
+    if not row:
+        # First insert
+        first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+str(args[x]).strip()+"\"" for x in range(len(hbase_fields))])+"}"
+        with pool.connection() as connection:
+            tab_allinfos = connection.table('ht_images_infos_2016')
             tab_allinfos.put(str(sha1), json.loads(first_insert))
-        else:
-            # Merge everything
-            #split_row=[list(row[field].split(',')) for i,field in enumerate(hbase_fields)]
-            try:
-                split_row=[[str(tmp_field).strip() for tmp_field in row[field].split(',')] for field in hbase_fields]
-                #print sha1
-                check_presence=[str(args[i]).strip() in split_row[i] for i,field in enumerate(hbase_fields)]
-                if check_presence.count(True)<len(hbase_fields):
-                    merged_tmp=[split_row[i].append(str(args[i]).strip()) for i in range(len(hbase_fields))]
-                    merged=split_row
-                    #print "merged:",merged
-                    tmp_merged=[', '.join(merged[x]) for x in range(len(hbase_fields))]
-                    merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
+    else:
+        # Merge everything
+        #split_row=[list(row[field].split(',')) for i,field in enumerate(hbase_fields)]
+        try:
+            split_row=[[str(tmp_field).strip() for tmp_field in row[field].split(',')] for field in hbase_fields]
+            #print sha1
+            check_presence=[str(args[i]).strip() in split_row[i] for i,field in enumerate(hbase_fields)]
+            if check_presence.count(True)<len(hbase_fields):
+                merged_tmp=[split_row[i].append(str(args[i]).strip()) for i in range(len(hbase_fields))]
+                merged=split_row
+                #print "merged:",merged
+                tmp_merged=[', '.join(merged[x]) for x in range(len(hbase_fields))]
+                merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
+                with pool.connection() as connection:
+                    tab_allinfos = connection.table('ht_images_infos_2016')
                     tab_allinfos.put(str(sha1), json.loads(merge_insert))
-            except Exception as inst:
-                print "[Error in saveInfos]:",inst
-                print "sha1,args:",sha1,args
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print(exc_type, fname, exc_tb.tb_lineno)
-                print "Image infos:",sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id
-                #print "Split row:",split_row
-                #print "Tmp merged:",tmp_merged
-                #print "Merge insert:",merge_insert
-            else:
-                pass
-            #print "Image with infos ({},{},{},{}) already associated with sha1 {}.".format(img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,sha1)
+        except Exception as inst:
+            print "[Error in saveInfos]:",inst
+            print "sha1,args:",sha1,args
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
+            print "Image infos:",sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id
+            #print "Split row:",split_row
+            #print "Tmp merged:",tmp_merged
+            #print "Merge insert:",merge_insert
+        else:
+            pass
+        #print "Image with infos ({},{},{},{}) already associated with sha1 {}.".format(img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,sha1)
 
 def processBatch(first_row,last_row):
     nb_img=0
