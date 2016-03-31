@@ -12,7 +12,7 @@ from threading import Thread
 
 nb_threads=8
 # HBase connection pool
-pool = happybase.ConnectionPool(size=16,host='10.1.94.57')
+pool = happybase.ConnectionPool(size=24,host='10.1.94.57')
 
 batch_size=100000
 imagedltimeout=2
