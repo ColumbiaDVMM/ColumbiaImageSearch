@@ -186,11 +186,11 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
     # deal with obj_parent list
     if type(parent_cdr_id)==list:
         if logf:
-            logf.write("We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id))
+            logf.write("We have a list of obj_parent for image {} with cdr_id {}.\n".format(sha1,img_cdr_id))
         else:
             print "We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id)
         for one_pcid in parent_cdr_id:
-            saveInfos(sha1,img_cdr_id,one_pcid.strip(),image_ht_id,ads_ht_id)
+            saveInfos(sha1,img_cdr_id,str(one_pcid).strip(),image_ht_id,ads_ht_id)
         return
     else: # single obj_parent case
         args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
@@ -200,7 +200,7 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
         hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
         if not row:
             # First insert
-            first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+args[x].strip()+"\"" for x in range(len(hbase_fields))])+"}"
+            first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+str(args[x]).strip()+"\"" for x in range(len(hbase_fields))])+"}"
             tab_allinfos.put(str(sha1), json.loads(first_insert))
         else:
             # Merge everything
@@ -208,9 +208,9 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
             try:
                 split_row=[[str(tmp_field).strip() for tmp_field in row[field].split(',')] for field in hbase_fields]
                 #print sha1
-                check_presence=[args[i].strip() in split_row[i] for i,field in enumerate(hbase_fields)]
+                check_presence=[str(args[i]).strip() in split_row[i] for i,field in enumerate(hbase_fields)]
                 if check_presence.count(True)<len(hbase_fields):
-                    merged_tmp=[split_row[i].append(args[i].strip()) for i in range(len(hbase_fields))]
+                    merged_tmp=[split_row[i].append(str(args[i]).strip()) for i in range(len(hbase_fields))]
                     merged=split_row
                     #print "merged:",merged
                     tmp_merged=[', '.join(merged[x]) for x in range(len(hbase_fields))]
@@ -249,8 +249,8 @@ def processBatch(first_row,last_row):
                 nb_img = nb_img+1
                 doc = one_row[1]['images:images_doc']
                 jd = json.loads(doc)
-                image_id=jd['crawl_data']['image_id'].strip()
-                ad_id=jd['crawl_data']['memex_ht_id'].strip()
+                image_id=str(jd['crawl_data']['image_id']).strip()
+                ad_id=str(jd['crawl_data']['memex_ht_id']).strip()
                 parent_cdr_id=jd['obj_parent'] # might be corrupted? might be a list?
                 # get SHA1
                 start_sha1=time.time()
@@ -336,4 +336,4 @@ if __name__ == '__main__':
                 tupInp=(first_row,last_row)
                 first_row=None
                 q.put(tupInp)
-    
+    q.join()    
