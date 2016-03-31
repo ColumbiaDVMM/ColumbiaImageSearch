@@ -257,7 +257,7 @@ def saveSimPairs(sha1_sim_pairs):
         tab_similar = connection.table('ht_columbia_similar_images_2016')
         b = tab_similar.batch()
         for pair in sha1_sim_pairs:
-        	if not tab_similar.row(str(pair[0])):
+            if not tab_similar.row(str(pair[0])):
                 b.put(str(pair[0]), {'info:dist': pair[1]})
         b.send()
 
