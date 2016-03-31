@@ -255,8 +255,11 @@ def getSimIds(image_id,logf=None):
 def saveSimPairs(sha1_sim_pairs):
     with pool.connection() as connection:
         tab_similar = connection.table('ht_columbia_similar_images_2016')
+        b = tab_similar.batch()
         for pair in sha1_sim_pairs:
-            tab_similar.put(str(pair[0]), {'info:dist': pair[1]})
+        	if not tab_similar.row(str(pair[0])):
+                b.put(str(pair[0]), {'info:dist': pair[1]})
+        b.send()
 
 def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
     # deal with obj_parent list
