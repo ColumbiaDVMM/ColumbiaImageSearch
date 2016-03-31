@@ -246,7 +246,8 @@ def getSimIds(image_id,logf=None):
             logf.write("Similarity not yet computed. Skipping\n")
             with pool.connection() as connection:
                 tab_missing_sim = connection.table('ht_images_2016_missing_sim')
-                tab_missing_sim.put(str(image_id), {'info:image_id': str(image_id)})
+                if not tab_missing_sim.row(str(image_id)):
+                    tab_missing_sim.put(str(image_id), {'info:image_id': str(image_id)})
         else:
             print "Similarity not yet computed. Skipping"
     return sim_ids
