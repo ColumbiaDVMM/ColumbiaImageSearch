@@ -10,11 +10,11 @@ import hashlib
 from Queue import *
 from threading import Thread
 
-nb_threads=16
+nb_threads=8
 # HBase connection pool
-pool = happybase.ConnectionPool(size=24,host='10.1.94.57')
+pool = happybase.ConnectionPool(size=16,host='10.1.94.57')
 
-batch_size=1000000
+batch_size=100000
 imagedltimeout=2
 tmp_img_dl_dir="tmp_img_dl"
 start_img_fail="https://s3.amazonaws.com/memex-images/full"
@@ -75,6 +75,19 @@ def getSHA1FromMySQL(image_id):
       res=c.fetchall()
       if res:
         res_sha1=res[0][0]
+    return res_sha1
+
+def get_batch_SHA1_from_mysql(image_ids):
+    res_sha1 = [None]*len(image_ids)
+    if image_id:
+        db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
+        c=db.cursor()
+        sql='SELECT sha1,htid FROM uniqueIds WHERE htid IN (%s)'
+        #print sql
+        c.execute(sql,','.join(image_ids))
+        res=c.fetchall()
+        for row in res:
+            res_sha1[image_ids.index(str(row[1]))]=row[0]
     return res_sha1
 
 def getSHA1FromFile(filepath):
@@ -140,6 +153,58 @@ def getSHA1(image_id,cdr_id,logf=None):
             tab_missing_sha1 = connection.table('ht_images_2016_missing_sha1')
             tab_missing_sha1.put(str(image_id), {'info:cdr_id': str(cdr_id)})
         #print "Could not get/compute SHA1 for {} {}.".format(image_id,cdr_id)
+    return sha1hash
+
+def get_batch_SHA1_from_imageids(image_ids,logf=None):
+    #print image_id,cdr_id
+    str_image_ids=[str(iid) for iid in image_ids]
+    hash_rows = None
+    with pool.connection() as connection:
+        tab_hash = connection.table('image_hash')
+        hash_rows = tab_hash.rows(str_image_ids)
+    sha1hash=[]
+    misssing_sha1=[]
+    stillmissing_sha1=[]
+    # check if we have all sha1 requested
+    if len(hash_rows)==len(str_image_ids):
+        # hash_rows should have kept the order of image_ids
+        for iid,sha1 in hash_rows:
+            sha1hash.append(sha1['image:hash'])
+    else:
+        # fill whatever we got up to now
+        sha1hash=[None]*len(str_image_ids) 
+        for iid,sha1 in hash_rows:
+            sha1hash[str_image_ids.index(iid)]=sha1['image:hash']
+        missing_sha1=[str_image_ids[iid] for iid in range(len(str_image_ids)) if sha1hash[iid] is None]
+        # try to get the missing sha1 form mysql...
+        if missing_sha1:
+            sha1hash_sql = get_batch_SHA1_from_mysql(missing_sha1)
+            for missid,iid in enumerate(missing_sha1):
+                if sha1hash_sql[missid] is not None:
+                    sha1hash[str_image_ids.index(iid)]=sha1hash_sql[missid]
+                else:
+                    stillmissing_sha1.append(iid)
+            # no more fallbacks at this point.
+    # save the missing sha1
+    if stillmissing_sha1: 
+        with pool.connection() as connection:
+            tab_missing_sha1 = connection.table('ht_images_2016_missing_sha1')
+            b = tab_missing_sha1.batch()
+            for image_id in stillmissing_sha1:
+                b.put(str(image_id), {'info:cdr_id': ''})
+            b.send()
+    # save the new sha1 we got
+    if len(hash_rows)!=len(str_image_ids) and [sha1 is not None for sha1 in sha1hash].count(True)>len(hash_rows): 
+        sha1_hbase=[]
+        for iid,sha1 in hash_rows:
+            sha1_hbase.append(iid)
+        new_sha1=[(str_image_ids[lid],sha1) for lid,sha1 in enumerate(sha1hash) if sha1 is not None and str_image_ids[lid] not in sha1_hbase]
+        with pool.connection() as connection:
+            tab_hash = connection.table('image_hash')
+            b = tab_hash.batch()
+            for image_id,sha1 in new_sha1:
+                b.put(str(image_id), {'image:hash': sha1})
+            b.send()
     return sha1hash
 
 def saveSHA1(image_id,cdr_id,sha1hash):
@@ -272,12 +337,15 @@ def processBatch(first_row,last_row):
                     continue
                 #print sim_ids
                 start_prep_sim=time.time()
-                sha1_sim_ids=[]
-                for sim_id in sim_ids[0].split(','):
-                    if sim_id:
-                        #print sim_id
-                        # Would need to query ES to get the cdr_id...
-                        sha1_sim_ids.append(getSHA1(sim_id,None))
+                # Process sim_ids as batch?
+                sha1_sim_ids=get_batch_SHA1_from_imageids(sim_ids[0].split(','))
+                ## OLD processing one by one
+                #sha1_sim_ids=[]
+                #for sim_id in sim_ids[0].split(','):
+                #    if sim_id:
+                #        #print sim_id
+                #        # Would need to query ES to get the cdr_id...
+                #        sha1_sim_ids.append(getSHA1(sim_id,None))
                 # prepare to save similarities
                 # key should be: min(sha1,sim_sha1)-max(sha1,sim_sha1)
                 # value in column info:dist is corresponding distance
