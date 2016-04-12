@@ -27,7 +27,21 @@ localhost=global_var['local_db_host']
 localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
+tab_hash_name='image_hash'
+suffix='_2016_old_crawler'
+tab_samples_name='dig_isi_cdr2_ht_images'+suffix
+ # need to create these tables
+tab_ht_images_infos='ht_images_infos'+suffix # need to create it
+# column family "info"
 
+tab_missing_sha1_name='ht_images_missing_sha1'+suffix # need to create it
+# column family "info"
+tab_missing_sim_name='ht_images_missing_sim'+suffix # need to create it
+# column family "info"
+tab_cdrid_sha1_name='ht_images_cdrid_to_sha1'+suffix # need to create it
+# column family "hash"
+tab_columbia_sim_imgs_name='ht_columbia_similar_images'+suffix # need to create it
+# end tables to be created
 
 def mkpath(outpath):
     pos_slash=[pos for pos,c in enumerate(outpath) if c=="/"]
@@ -36,6 +50,10 @@ def mkpath(outpath):
             os.mkdir(outpath[:pos])
         except:
             pass
+
+def createHBaseTable(tab_name,cf):
+    with pool.connection() as connection:
+        connection.create_table(tab_name, { cf: dict(), })
 
 def dlImage(url,logf=None):
     if url.startswith(start_img_fail):
@@ -104,7 +122,7 @@ def computeSHA1(cdr_id,logf=None):
     sha1hash = None
     # get image url
     with pool.connection() as connection:
-        tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
+        tab_samples = connection.table(tab_samples_name)
         one_row = tab_samples.row(cdr_id)
     #print one_row
     doc = one_row['images:images_doc']
@@ -133,7 +151,7 @@ def getSHA1(image_id,cdr_id,logf=None):
     hash_row = None
     if image_id:
         with pool.connection() as connection:
-            tab_hash = connection.table('image_hash')
+            tab_hash = connection.table(tab_hash_name)
             hash_row = tab_hash.row(str(image_id))
     sha1hash = None
     if hash_row:
@@ -151,7 +169,7 @@ def getSHA1(image_id,cdr_id,logf=None):
         saveSHA1(image_id,cdr_id,sha1hash.upper())
     else:
         with pool.connection() as connection:
-            tab_missing_sha1 = connection.table('ht_images_2016_missing_sha1')
+            tab_missing_sha1 = connection.table(tab_missing_sha1_name)
             tab_missing_sha1.put(str(image_id), {'info:cdr_id': str(cdr_id)})
         #print "Could not get/compute SHA1 for {} {}.".format(image_id,cdr_id)
     return sha1hash
@@ -171,7 +189,7 @@ def get_batch_SHA1_from_imageids(image_ids,logf=None):
     with pool.connection() as connection:
        # if logf:
        #     logf.write("Connection opened on port: {}\n".format(connection.port))
-        tab_hash = connection.table('image_hash')
+        tab_hash = connection.table(tab_hash_name)
         hash_rows = tab_hash.rows(str_image_ids)
     sha1hash=[]
     misssing_sha1=[]
@@ -199,7 +217,7 @@ def get_batch_SHA1_from_imageids(image_ids,logf=None):
     # save the missing sha1
     if stillmissing_sha1: 
         with pool.connection() as connection:
-            tab_missing_sha1 = connection.table('ht_images_2016_missing_sha1')
+            tab_missing_sha1 = connection.table(tab_missing_sim_name)
             b = tab_missing_sha1.batch()
             for image_id in stillmissing_sha1:
                 b.put(str(image_id), {'info:cdr_id': ''})
@@ -211,7 +229,7 @@ def get_batch_SHA1_from_imageids(image_ids,logf=None):
             sha1_hbase.append(iid)
         new_sha1=[(str_image_ids[lid],sha1) for lid,sha1 in enumerate(sha1hash) if sha1 is not None and str_image_ids[lid] not in sha1_hbase]
         with pool.connection() as connection:
-            tab_hash = connection.table('image_hash')
+            tab_hash = connection.table(tab_hash_name)
             b = tab_hash.batch()
             for image_id,sha1 in new_sha1:
                 b.put(str(image_id), {'image:hash': sha1})
@@ -222,12 +240,12 @@ def saveSHA1(image_id,cdr_id,sha1hash):
     # save in the two tables
     # old table indexed by htid 'tab_hash'
     with pool.connection() as connection:
-        tab_hash = connection.table('image_hash')
+        tab_hash = connection.table(tab_hash_name)
         tab_hash.put(str(image_id), {'image:hash': sha1hash})
     # new table indexed by cdrid
     if cdr_id:
         with pool.connection() as connection:
-            tab_cdr_hash = connection.table('ht_images_cdrid_to_sha1_2016')
+            tab_cdr_hash = connection.table(tab_cdrid_sha1_name)
             tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
 
 def getSimIds(image_id,logf=None):
@@ -245,7 +263,7 @@ def getSimIds(image_id,logf=None):
         if logf:
             logf.write("Similarity not yet computed. Skipping\n")
             with pool.connection() as connection:
-                tab_missing_sim = connection.table('ht_images_2016_missing_sim')
+                tab_missing_sim = connection.table(tab_missing_sim_name)
                 if not tab_missing_sim.row(str(image_id)):
                     tab_missing_sim.put(str(image_id), {'info:image_id': str(image_id)})
         else:
@@ -255,7 +273,7 @@ def getSimIds(image_id,logf=None):
 
 def saveSimPairs(sha1_sim_pairs):
     with pool.connection() as connection:
-        tab_similar = connection.table('ht_columbia_similar_images_2016')
+        tab_similar = connection.table(tab_columbia_sim_imgs_name)
         b = tab_similar.batch()
         for pair in sha1_sim_pairs:
             if not tab_similar.row(str(pair[0])):
@@ -275,14 +293,14 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
     else: # single obj_parent case
         args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
     with pool.connection() as connection:
-        tab_allinfos = connection.table('ht_images_infos_2016')
+        tab_allinfos = connection.table(tab_ht_images_infos)
         row = tab_allinfos.row(str(sha1))
     hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
     if not row:
         # First insert
         first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+str(args[x]).strip()+"\"" for x in range(len(hbase_fields))])+"}"
         with pool.connection() as connection:
-            tab_allinfos = connection.table('ht_images_infos_2016')
+            tab_allinfos = connection.table(tab_ht_images_infos)
             tab_allinfos.put(str(sha1), json.loads(first_insert))
     else:
         # Merge everything
@@ -298,7 +316,7 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
                 tmp_merged=[', '.join(merged[x]) for x in range(len(hbase_fields))]
                 merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
                 with pool.connection() as connection:
-                    tab_allinfos = connection.table('ht_images_infos_2016')
+                    tab_allinfos = connection.table(tab_ht_images_infos)
                     tab_allinfos.put(str(sha1), json.loads(merge_insert))
         except Exception as inst:
             print "[Error in saveInfos]:",inst
@@ -325,7 +343,7 @@ def processBatch(first_row,last_row):
     done=False
     f = open("logFillSimNewFormatParallel_{}-{}.txt".format(first_row,last_row), 'wt', 0) # 0 for no buffering
     with pool.connection() as connection:
-      tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
+      tab_samples = connection.table(tab_samples_name)
       while not done:
         #try:
             for one_row in tab_samples.scan(row_start=first_row,row_stop=last_row):
@@ -409,7 +427,7 @@ if __name__ == '__main__':
         t.start()
 
     with pool.connection() as connection:
-        tab_samples = connection.table('dig_isi_cdr2_ht_images_2016')
+        tab_samples = connection.table(tab_samples_name)
         
         row_count=0
         first_row=None
