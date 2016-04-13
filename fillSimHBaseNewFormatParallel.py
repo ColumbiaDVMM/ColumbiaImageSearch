@@ -30,16 +30,11 @@ localdb=global_var['local_db_dbname']
 tab_hash_name='image_hash'
 suffix='_2016_old_crawler'
 tab_samples_name='dig_isi_cdr2_ht_images'+suffix
- # need to create these tables
+# need to create these tables
 tab_ht_images_infos='ht_images_infos'+suffix # need to create it
-# column family "info"
-
 tab_missing_sha1_name='ht_images_missing_sha1'+suffix # need to create it
-# column family "info"
 tab_missing_sim_name='ht_images_missing_sim'+suffix # need to create it
-# column family "info"
 tab_cdrid_sha1_name='ht_images_cdrid_to_sha1'+suffix # need to create it
-# column family "hash"
 tab_columbia_sim_imgs_name='ht_columbia_similar_images'+suffix # need to create it
 # end tables to be created
 
@@ -52,8 +47,11 @@ def mkpath(outpath):
             pass
 
 def createHBaseTable(tab_name,cf):
-    with pool.connection() as connection:
-        connection.create_table(tab_name, { cf: dict(), })
+    try:
+        with pool.connection() as connection:
+            connection.create_table(tab_name, { cf: dict(), })
+    except Exception as inst:
+        print "[createHBaseTable] Error when creating table '{}'. {}".format(tab_name,inst)
 
 def dlImage(url,logf=None):
     if url.startswith(start_img_fail):
@@ -345,7 +343,7 @@ def processBatch(first_row,last_row):
     with pool.connection() as connection:
       tab_samples = connection.table(tab_samples_name)
       while not done:
-        #try:
+        try:
             for one_row in tab_samples.scan(row_start=first_row,row_stop=last_row):
                 first_row = one_row[0]
                 nb_img = nb_img+1
@@ -404,12 +402,12 @@ def processBatch(first_row,last_row):
                     f.write("Processed {} images. Average time per image is {}.\n".format(nb_img,float(time.time()-start)/nb_img))
                     f.write("Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}\n".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img))
             done=True
-        #except Exception as inst:
-        #    f.write("[Caught error] {}\n".format(inst))
-        #    exc_type, exc_obj, exc_tb = sys.exc_info()  
-        #    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        #    f.write("{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno))
-        #    time.sleep(2)
+        except Exception as inst:
+            f.write("[Caught error] {}\n".format(inst))
+            exc_type, exc_obj, exc_tb = sys.exc_info()  
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            f.write("{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno))
+            time.sleep(2)
     f.close()
 
 def worker():
@@ -419,6 +417,15 @@ def worker():
         q.task_done()
 
 if __name__ == '__main__':
+
+    # need to create these tables
+    createHBaseTable(tab_ht_images_infos,'info') # column family "info"
+    createHBaseTable(tab_missing_sha1_name,'info') # column family "info"
+    createHBaseTable(tab_missing_sim_name,'info') # column family "info"
+    createHBaseTable(tab_columbia_sim_imgs_name,'info') # column family "info"
+    createHBaseTable(tab_cdrid_sha1_name,'hash') # column family "hash"
+    # end tables to be created
+
 
     q = Queue()
     for i in range(nb_threads):
@@ -446,3 +453,4 @@ if __name__ == '__main__':
                 first_row=None
                 q.put(tupInp)
     q.join()    
+    print "Done."
