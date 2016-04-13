@@ -241,7 +241,7 @@ def saveSHA1(image_id,cdr_id,sha1hash):
         tab_hash = connection.table(tab_hash_name)
         tab_hash.put(str(image_id), {'image:hash': sha1hash})
     # new table indexed by cdrid
-    if cdr_id:
+    if cdr_id and sha1hash:
         with pool.connection() as connection:
             tab_cdr_hash = connection.table(tab_cdrid_sha1_name)
             tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
@@ -432,25 +432,33 @@ if __name__ == '__main__':
         t=Thread(target=worker)
         t.daemon=True
         t.start()
+    
+    row_count=0
+    first_row=None
+    last_row=row_start
 
-    with pool.connection() as connection:
-        tab_samples = connection.table(tab_samples_name)
-        
-        row_count=0
-        first_row=None
-        for one_row in tab_samples.scan(row_start=row_start):
-            row_count=row_count+1
-            if row_count%(batch_size/100)==0:
-                print "Scanned {} rows so far.".format(row_count)
-                sys.stdout.flush()
-            if first_row is None:
-                first_row=one_row[0]
-            if row_count%batch_size==0:
-                last_row=one_row[0]
-                print "Pushing batch {}-{}".format(first_row,last_row)
-                sys.stdout.flush()
-                tupInp=(first_row,last_row)
-                first_row=None
-                q.put(tupInp)
+    try:
+        with pool.connection() as connection:
+            tab_samples = connection.table(tab_samples_name)
+            for one_row in tab_samples.scan(row_start=last_row):
+                row_count=row_count+1
+                if row_count%(batch_size/100)==0:
+                    print "Scanned {} rows so far.".format(row_count)
+                    sys.stdout.flush()
+                if first_row is None:
+                    first_row=one_row[0]
+                if row_count%batch_size==0:
+                    last_row=one_row[0]
+                    print "Pushing batch {}-{}".format(first_row,last_row)
+                    sys.stdout.flush()
+                    tupInp=(first_row,last_row)
+                    first_row=None
+                    q.put(tupInp)
+    except Exception as inst:
+        f.write("[Caught error] {}\n".format(inst))
+        exc_type, exc_obj, exc_tb = sys.exc_info()  
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        f.write("{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno))
+        time.sleep(2)
     q.join()    
     print "Done."
