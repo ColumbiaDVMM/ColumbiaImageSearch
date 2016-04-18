@@ -95,7 +95,7 @@ def getSHA1FromMySQL(image_id):
 
 def get_batch_SHA1_from_mysql(image_ids):
     res_sha1 = [None]*len(image_ids)
-    if image_id:
+    if image_ids:
         db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
         c=db.cursor()
         sql='SELECT sha1,htid FROM uniqueIds WHERE htid IN (%s)'
