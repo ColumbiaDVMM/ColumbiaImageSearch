@@ -10,7 +10,7 @@ import hashlib
 from Queue import *
 from threading import Thread
 
-nb_threads=8
+nb_threads=14
 # HBase connection pool
 pool = happybase.ConnectionPool(size=24,host='10.1.94.57')
 
@@ -22,15 +22,15 @@ row_start=None
 #row_start="0FE98D4F5D6B03D59AD670AA06ACA4309DA1B139309903A46E5FA71008BE04FF"
 #row_start="11AF5668A95D17484A5943827FDF425D548C7563DC2B064678F34B91947A6AFF"
 # MySQL connection infos
-global_var = json.load(open('../conf/global_var_all.json'))
+global_var = json.load(open('../../conf/global_var_all.json'))
 localhost=global_var['local_db_host']
 localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
 localdb=global_var['local_db_dbname']
-tab_hash_name='image_hash'
-suffix='_2016_old_crawler'
+suffix='_2015_oct_nov'
 tab_samples_name='dig_isi_cdr2_ht_images'+suffix
 # need to create these tables
+tab_hash_name='image_hash'+suffix
 tab_ht_images_infos='ht_images_infos'+suffix # need to create it
 tab_missing_sha1_name='ht_images_missing_sha1'+suffix # need to create it
 tab_missing_sim_name='ht_images_missing_sim'+suffix # need to create it
@@ -237,11 +237,12 @@ def get_batch_SHA1_from_imageids(image_ids,logf=None):
 def saveSHA1(image_id,cdr_id,sha1hash):
     # save in the two tables
     # old table indexed by htid 'tab_hash'
-    with pool.connection() as connection:
-        tab_hash = connection.table(tab_hash_name)
-        tab_hash.put(str(image_id), {'image:hash': sha1hash})
+    if image_id and sha1hash and sha1hash!='NULL':
+        with pool.connection() as connection:
+            tab_hash = connection.table(tab_hash_name)
+            tab_hash.put(str(image_id), {'image:hash': sha1hash})
     # new table indexed by cdrid
-    if cdr_id and sha1hash:
+    if cdr_id and sha1hash and sha1hash!='NULL':
         with pool.connection() as connection:
             tab_cdr_hash = connection.table(tab_cdrid_sha1_name)
             tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
@@ -269,6 +270,7 @@ def getSimIds(image_id,logf=None):
     return sim_ids
         
 
+# This is slow? Why?
 def saveSimPairs(sha1_sim_pairs):
     with pool.connection() as connection:
         tab_similar = connection.table(tab_columbia_sim_imgs_name)
