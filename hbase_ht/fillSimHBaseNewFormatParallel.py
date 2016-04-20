@@ -215,7 +215,7 @@ def get_batch_SHA1_from_imageids(image_ids,logf=None):
     # save the missing sha1
     if stillmissing_sha1: 
         with pool.connection() as connection:
-            tab_missing_sha1 = connection.table(tab_missing_sim_name)
+            tab_missing_sha1 = connection.table(tab_missing_sha1_name)
             b = tab_missing_sha1.batch()
             for image_id in stillmissing_sha1:
                 b.put(str(image_id), {'info:cdr_id': ''})
