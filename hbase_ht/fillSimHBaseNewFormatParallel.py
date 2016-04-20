@@ -401,7 +401,7 @@ def processBatch(first_row,last_row):
                 saveSimPairs(sha1_sim_pairs)
                 time_save_sim=time_save_sim+time.time()-start_save_sim
                 if nb_img%100==0:
-                    f.write("Processed {} images. Average time per image is {}.\n".format(nb_img,float(time.time()-start)/nb_img))
+                    f.write("Processed {} images. Total time : {}. Average time per image is {}.\n".format(nb_img,time.time()-start,float(time.time()-start)/nb_img))
                     f.write("Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}\n".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img))
             done=True
         except Exception as inst:
