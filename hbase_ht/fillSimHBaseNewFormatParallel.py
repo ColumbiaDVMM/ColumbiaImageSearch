@@ -167,11 +167,22 @@ def getSHA1(image_id,cdr_id,logf=None):
         #print "Saving SHA1 {} for image ({},{}) in HBase".format(sha1hash,cdr_id,image_id)
         saveSHA1(image_id,cdr_id,sha1hash.upper())
     else:
-        with pool.connection(timeout=hbase_conn_timeout) as connection:
-            tab_missing_sha1 = connection.table(tab_missing_sha1_name)
-            tab_missing_sha1.put(str(image_id), {'info:cdr_id': str(cdr_id)})
+        save_missing_sha1(image_id,cdr_id)
         #print "Could not get/compute SHA1 for {} {}.".format(image_id,cdr_id)
     return sha1hash
+
+def save_missing_sha1(image_id,cdr_id):
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
+        tab_missing_sha1 = connection.table(tab_missing_sha1_name)
+        # TODO maybe list of info:cdr_id if already exists?
+        if not tab_missing_sha1.row(str(image_id)):
+            tab_missing_sha1.put(str(image_id), {'info:cdr_id': str(cdr_id)})
+
+def save_missing_sim(image_id):
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
+        tab_missing_sim = connection.table(tab_missing_sim_name)
+        if not tab_missing_sim.row(str(image_id)):
+            tab_missing_sim.put(str(image_id), {'info:image_id': str(image_id)})
 
 def get_batch_SHA1_from_imageids(image_ids,logf=None):
     #print image_id,cdr_id
@@ -262,10 +273,7 @@ def getSimIds(image_id,logf=None):
     else:
         if logf:
             logf.write("Similarity not yet computed. Skipping\n")
-            with pool.connection(timeout=hbase_conn_timeout) as connection:
-                tab_missing_sim = connection.table(tab_missing_sim_name)
-                if not tab_missing_sim.row(str(image_id)):
-                    tab_missing_sim.put(str(image_id), {'info:image_id': str(image_id)})
+            save_missing_sim(image_id)
         else:
             print "Similarity not yet computed. Skipping"
     return sim_ids
@@ -282,7 +290,7 @@ def saveSimPairs(sha1_sim_pairs):
         b.send()
 
 # save URL too
-def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
+def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=None):
     # deal with obj_parent list
     if type(parent_cdr_id)==list:
         #if logf:
@@ -290,14 +298,14 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
         #else:
         #    print "We have a list of obj_parent for image {} with cdr_id {}.".format(sha1,img_cdr_id)
         for one_pcid in parent_cdr_id:
-            saveInfos(sha1,img_cdr_id,str(one_pcid).strip(),image_ht_id,ads_ht_id)
+            saveInfos(sha1,img_cdr_id,str(one_pcid).strip(),image_ht_id,ads_ht_id,s3_url)
         return
     else: # single obj_parent case
-        args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
+        args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id),str(s3_url)]
     with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_allinfos = connection.table(tab_ht_images_infos)
         row = tab_allinfos.row(str(sha1))
-    hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
+    hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id','info:s3_url']
     if not row:
         # First insert
         first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+str(args[x]).strip()+"\"" for x in range(len(hbase_fields))])+"}"
@@ -305,18 +313,23 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
             tab_allinfos = connection.table(tab_ht_images_infos)
             tab_allinfos.put(str(sha1), json.loads(first_insert))
     else:
-        # Merge everything
-        #split_row=[list(row[field].split(',')) for i,field in enumerate(hbase_fields)]
+        # Merge everything, except s3_url which should only be added if it is empty for now
+        merge_hbase_fields=hbase_fields[:-2]
         try:
             split_row=[[str(tmp_field).strip() for tmp_field in row[field].split(',')] for field in hbase_fields]
             #print sha1
-            check_presence=[str(args[i]).strip() in split_row[i] for i,field in enumerate(hbase_fields)]
-            if check_presence.count(True)<len(hbase_fields):
-                merged_tmp=[split_row[i].append(str(args[i]).strip()) for i in range(len(hbase_fields))]
+            check_presence=[str(args[i]).strip() in split_row[i] for i,field in enumerate(merge_hbase_fields)]
+            if check_presence.count(True)<len(merge_hbase_fields):
+                merged_tmp=[split_row[i].append(str(args[i]).strip()) for i in range(len(merge_hbase_fields))]
                 merged=split_row
                 #print "merged:",merged
-                tmp_merged=[', '.join(merged[x]) for x in range(len(hbase_fields))]
-                merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
+                merge_insert="{"
+                merge_insert+=', '.join(["\""+merge_hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(merge_hbase_fields))])
+                if not merged[-1][0].startswith("https://s3") and s3_url.startswith("https://s3"):
+                    merge_insert+=', \"'+hbase_fields[-1]+'\": \"'+s3_url+'\"'
+                else: # used old s3_url
+                    merge_insert+=', \"'+hbase_fields[-1]+'\": \"'+merged[-1][0]+'\"'
+                merge_insert+="}"
                 with pool.connection(timeout=hbase_conn_timeout) as connection:
                     tab_allinfos = connection.table(tab_ht_images_infos)
                     tab_allinfos.put(str(sha1), json.loads(merge_insert))
@@ -328,7 +341,6 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
             print(exc_type, fname, exc_tb.tb_lineno)
             print "Image infos:",sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id
             #print "Split row:",split_row
-            #print "Tmp merged:",tmp_merged
             #print "Merge insert:",merge_insert
         else:
             pass
@@ -356,12 +368,15 @@ def processBatch(first_row,last_row):
                 image_id=str(jd['crawl_data']['image_id']).strip()
                 ad_id=str(jd['crawl_data']['memex_ht_id']).strip()
                 parent_cdr_id=jd['obj_parent'] # might be corrupted? might be a list?
-                # get URL too
+                # get obj_stored_url and discard if not s3
+                s3_url=jd['obj_stored_url']
+                if not s3_url.startswith("https://s3"):
+                    s3_url=""
                 # get SHA1
                 start_sha1=time.time()
                 sha1=getSHA1(image_id,one_row[0],f)
                 time_sha1+=time.time()-start_sha1
-                if not sha1: # save missing sha1
+                if not sha1: 
                     #time.sleep(1)
                     continue
                 # get similar ids
@@ -370,9 +385,9 @@ def processBatch(first_row,last_row):
                 time_get_sim+=time.time()-start_get_sim
                 # save all infos
                 start_save_info=time.time()
-                saveInfos(sha1.upper(),one_row[0],parent_cdr_id,image_id,ad_id,f)
+                saveInfos(sha1.upper(),one_row[0],parent_cdr_id,image_id,ad_id,s3_url,f)
                 time_save_info+=time.time()-start_save_info
-                if not sim_ids or not sim_ids[0]: # save missing sim
+                if not sim_ids or not sim_ids[0]: 
                     #time.sleep(1)
                     continue
                 #print sim_ids
