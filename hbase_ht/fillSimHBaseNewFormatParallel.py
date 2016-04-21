@@ -281,12 +281,19 @@ def getSimIds(image_id,logf=None):
 
 # This is slow? Why?
 def saveSimPairs(sha1_sim_pairs):
+    row_keys=[pair[0] for pair in sha1_sim_pairs]
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
+        tab_similar = connection.table(tab_columbia_sim_imgs_name)
+        sim_rows=tab.rows(row_keys)
+    if len(sim_rows)==len(row_keys): # everything already there
+        return
+    existing_pairs_key=[row[0] for row in sim_rows]
+    new_sha1_sim_pairs=[pair for pair in sha1_sim_pairs if pair[0] not in existing_pairs_key]
     with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_similar = connection.table(tab_columbia_sim_imgs_name)
         b = tab_similar.batch()
-        for pair in sha1_sim_pairs:
-            if not tab_similar.row(str(pair[0])):
-                b.put(str(pair[0]), {'info:dist': pair[1]})
+        for pair in new_sha1_sim_pairs:
+            b.put(str(pair[0]), {'info:dist': pair[1]})
         b.send()
 
 # save URL too
