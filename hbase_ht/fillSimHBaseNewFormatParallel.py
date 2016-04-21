@@ -10,9 +10,10 @@ import hashlib
 from Queue import *
 from threading import Thread
 
-nb_threads=14
+nb_threads=12
 # HBase connection pool
-pool = happybase.ConnectionPool(size=24,host='10.1.94.57')
+hbase_conn_timeout = None
+pool = happybase.ConnectionPool(size=16,host='10.1.94.57',timeout=hbase_conn_timeout)
 
 batch_size=100000
 imagedltimeout=2
@@ -48,7 +49,7 @@ def mkpath(outpath):
 
 def createHBaseTable(tab_name,cf):
     try:
-        with pool.connection() as connection:
+        with pool.connection(timeout=hbase_conn_timeout) as connection:
             connection.create_table(tab_name, { cf: dict(), })
     except Exception as inst:
         print "[createHBaseTable] Error when creating table '{}'. {}".format(tab_name,inst)
@@ -119,7 +120,7 @@ def getSHA1FromFile(filepath):
 def computeSHA1(cdr_id,logf=None):
     sha1hash = None
     # get image url
-    with pool.connection() as connection:
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_samples = connection.table(tab_samples_name)
         one_row = tab_samples.row(cdr_id)
     #print one_row
@@ -148,7 +149,7 @@ def getSHA1(image_id,cdr_id,logf=None):
     #print image_id,cdr_id
     hash_row = None
     if image_id:
-        with pool.connection() as connection:
+        with pool.connection(timeout=hbase_conn_timeout) as connection:
             tab_hash = connection.table(tab_hash_name)
             hash_row = tab_hash.row(str(image_id))
     sha1hash = None
@@ -166,7 +167,7 @@ def getSHA1(image_id,cdr_id,logf=None):
         #print "Saving SHA1 {} for image ({},{}) in HBase".format(sha1hash,cdr_id,image_id)
         saveSHA1(image_id,cdr_id,sha1hash.upper())
     else:
-        with pool.connection() as connection:
+        with pool.connection(timeout=hbase_conn_timeout) as connection:
             tab_missing_sha1 = connection.table(tab_missing_sha1_name)
             tab_missing_sha1.put(str(image_id), {'info:cdr_id': str(cdr_id)})
         #print "Could not get/compute SHA1 for {} {}.".format(image_id,cdr_id)
@@ -184,7 +185,7 @@ def get_batch_SHA1_from_imageids(image_ids,logf=None):
     hash_rows = None
     #if logf:
     #    logf.write("Looking for images: {}\n".format(",".join(str_image_ids)))
-    with pool.connection() as connection:
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
        # if logf:
        #     logf.write("Connection opened on port: {}\n".format(connection.port))
         tab_hash = connection.table(tab_hash_name)
@@ -214,7 +215,7 @@ def get_batch_SHA1_from_imageids(image_ids,logf=None):
             # no more fallbacks at this point.
     # save the missing sha1
     if stillmissing_sha1: 
-        with pool.connection() as connection:
+        with pool.connection(timeout=hbase_conn_timeout) as connection:
             tab_missing_sha1 = connection.table(tab_missing_sha1_name)
             b = tab_missing_sha1.batch()
             for image_id in stillmissing_sha1:
@@ -226,7 +227,7 @@ def get_batch_SHA1_from_imageids(image_ids,logf=None):
         for iid,sha1 in hash_rows:
             sha1_hbase.append(iid)
         new_sha1=[(str_image_ids[lid],sha1) for lid,sha1 in enumerate(sha1hash) if sha1 is not None and str_image_ids[lid] not in sha1_hbase]
-        with pool.connection() as connection:
+        with pool.connection(timeout=hbase_conn_timeout) as connection:
             tab_hash = connection.table(tab_hash_name)
             b = tab_hash.batch()
             for image_id,sha1 in new_sha1:
@@ -238,17 +239,17 @@ def saveSHA1(image_id,cdr_id,sha1hash):
     # save in the two tables
     # old table indexed by htid 'tab_hash'
     if image_id and sha1hash and sha1hash!='NULL':
-        with pool.connection() as connection:
+        with pool.connection(timeout=hbase_conn_timeout) as connection:
             tab_hash = connection.table(tab_hash_name)
             tab_hash.put(str(image_id), {'image:hash': sha1hash})
     # new table indexed by cdrid
     if cdr_id and sha1hash and sha1hash!='NULL':
-        with pool.connection() as connection:
+        with pool.connection(timeout=hbase_conn_timeout) as connection:
             tab_cdr_hash = connection.table(tab_cdrid_sha1_name)
             tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
 
 def getSimIds(image_id,logf=None):
-    with pool.connection() as connection:
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_aaron = connection.table('aaron_memex_ht-images')
         sim_row = tab_aaron.row(str(image_id))
         
@@ -261,7 +262,7 @@ def getSimIds(image_id,logf=None):
     else:
         if logf:
             logf.write("Similarity not yet computed. Skipping\n")
-            with pool.connection() as connection:
+            with pool.connection(timeout=hbase_conn_timeout) as connection:
                 tab_missing_sim = connection.table(tab_missing_sim_name)
                 if not tab_missing_sim.row(str(image_id)):
                     tab_missing_sim.put(str(image_id), {'info:image_id': str(image_id)})
@@ -272,7 +273,7 @@ def getSimIds(image_id,logf=None):
 
 # This is slow? Why?
 def saveSimPairs(sha1_sim_pairs):
-    with pool.connection() as connection:
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_similar = connection.table(tab_columbia_sim_imgs_name)
         b = tab_similar.batch()
         for pair in sha1_sim_pairs:
@@ -280,6 +281,7 @@ def saveSimPairs(sha1_sim_pairs):
                 b.put(str(pair[0]), {'info:dist': pair[1]})
         b.send()
 
+# save URL too
 def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
     # deal with obj_parent list
     if type(parent_cdr_id)==list:
@@ -292,14 +294,14 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
         return
     else: # single obj_parent case
         args=[img_cdr_id,parent_cdr_id,str(image_ht_id),str(ads_ht_id)]
-    with pool.connection() as connection:
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_allinfos = connection.table(tab_ht_images_infos)
         row = tab_allinfos.row(str(sha1))
     hbase_fields=['info:all_cdr_ids','info:all_parent_ids','info:image_ht_ids','info:ads_ht_id']
     if not row:
         # First insert
         first_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+str(args[x]).strip()+"\"" for x in range(len(hbase_fields))])+"}"
-        with pool.connection() as connection:
+        with pool.connection(timeout=hbase_conn_timeout) as connection:
             tab_allinfos = connection.table(tab_ht_images_infos)
             tab_allinfos.put(str(sha1), json.loads(first_insert))
     else:
@@ -315,7 +317,7 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,logf=None):
                 #print "merged:",merged
                 tmp_merged=[', '.join(merged[x]) for x in range(len(hbase_fields))]
                 merge_insert="{"+', '.join(["\""+hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(hbase_fields))])+"}"
-                with pool.connection() as connection:
+                with pool.connection(timeout=hbase_conn_timeout) as connection:
                     tab_allinfos = connection.table(tab_ht_images_infos)
                     tab_allinfos.put(str(sha1), json.loads(merge_insert))
         except Exception as inst:
@@ -342,7 +344,7 @@ def processBatch(first_row,last_row):
     start=time.time()
     done=False
     f = open("logFillSimNewFormatParallel_{}-{}.txt".format(first_row,last_row), 'wt', 0) # 0 for no buffering
-    with pool.connection() as connection:
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
       tab_samples = connection.table(tab_samples_name)
       while not done:
         try:
@@ -354,22 +356,23 @@ def processBatch(first_row,last_row):
                 image_id=str(jd['crawl_data']['image_id']).strip()
                 ad_id=str(jd['crawl_data']['memex_ht_id']).strip()
                 parent_cdr_id=jd['obj_parent'] # might be corrupted? might be a list?
+                # get URL too
                 # get SHA1
                 start_sha1=time.time()
                 sha1=getSHA1(image_id,one_row[0],f)
                 time_sha1+=time.time()-start_sha1
-                if not sha1:
+                if not sha1: # save missing sha1
                     #time.sleep(1)
                     continue
-                # save all infos
-                start_save_info=time.time()
-                saveInfos(sha1.upper(),one_row[0],parent_cdr_id,image_id,ad_id,f)
-                time_save_info+=time.time()-start_save_info
                 # get similar ids
                 start_get_sim=time.time()
                 sim_ids = getSimIds(image_id,f)
                 time_get_sim+=time.time()-start_get_sim
-                if not sim_ids or not sim_ids[0]:
+                # save all infos
+                start_save_info=time.time()
+                saveInfos(sha1.upper(),one_row[0],parent_cdr_id,image_id,ad_id,f)
+                time_save_info+=time.time()-start_save_info
+                if not sim_ids or not sim_ids[0]: # save missing sim
                     #time.sleep(1)
                     continue
                 #print sim_ids
@@ -410,6 +413,9 @@ def processBatch(first_row,last_row):
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             f.write("{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno))
             time.sleep(2)
+    f.write('Batch done.')
+    f.write("Processed {} images. Total time : {}. Average time per image is {}.\n".format(nb_img,time.time()-start,float(time.time()-start)/nb_img))
+    f.write("Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}\n".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img))
     f.close()
 
 def worker():
@@ -457,10 +463,10 @@ if __name__ == '__main__':
                     first_row=None
                     q.put(tupInp)
     except Exception as inst:
-        f.write("[Caught error] {}\n".format(inst))
+        print "[Caught error] {}\n".format(inst)
         exc_type, exc_obj, exc_tb = sys.exc_info()  
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        f.write("{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno))
+        print "{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno)
         time.sleep(2)
     q.join()    
     print "Done."
