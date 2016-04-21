@@ -272,10 +272,10 @@ def getSimIds(image_id,logf=None):
         sim_ids=(sim_row['meta:columbia_near_dups'], sim_row['meta:columbia_near_dups_dist'])
     else:
         if logf:
-            logf.write("Similarity not yet computed. Skipping\n")
-            save_missing_sim(image_id)
+            logf.write("Similarity not yet computed for image {}. Skipping\n".format(image_id))
         else:
-            print "Similarity not yet computed. Skipping"
+            print "Similarity not yet computed for image {}. Skipping".format(image_id)
+        save_missing_sim(image_id)
     return sim_ids
         
 
@@ -316,7 +316,7 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=No
         # Merge everything, except s3_url which should only be added if it is empty for now
         merge_hbase_fields=hbase_fields[:-2]
         try:
-            split_row=[[str(tmp_field).strip() for tmp_field in row[field].split(',')] for field in hbase_fields]
+            split_row=[[str(tmp_field).strip() for tmp_field in row[field].split(',')] for field in hbase_fields if field in row]
             #print sha1
             check_presence=[str(args[i]).strip() in split_row[i] for i,field in enumerate(merge_hbase_fields)]
             if check_presence.count(True)<len(merge_hbase_fields):
@@ -325,10 +325,10 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=No
                 #print "merged:",merged
                 merge_insert="{"
                 merge_insert+=', '.join(["\""+merge_hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(merge_hbase_fields))])
-                if not merged[-1][0].startswith("https://s3") and s3_url.startswith("https://s3"):
+                if len(merged)<len(hbase_fields) or (len(merged)==len(hbase_fields) and not merged[len(hbase_fields)][0].startswith("https://s3") and s3_url.startswith("https://s3")):
                     merge_insert+=', \"'+hbase_fields[-1]+'\": \"'+s3_url+'\"'
                 else: # used old s3_url
-                    merge_insert+=', \"'+hbase_fields[-1]+'\": \"'+merged[-1][0]+'\"'
+                    merge_insert+=', \"'+hbase_fields[-1]+'\": \"'+merged[len(hbase_fields)][0]+'\"'
                 merge_insert+="}"
                 with pool.connection(timeout=hbase_conn_timeout) as connection:
                     tab_allinfos = connection.table(tab_ht_images_infos)
@@ -465,7 +465,7 @@ if __name__ == '__main__':
             tab_samples = connection.table(tab_samples_name)
             for one_row in tab_samples.scan(row_start=last_row):
                 row_count=row_count+1
-                if row_count%(batch_size/100)==0:
+                if row_count%(batch_size/10)==0:
                     print "Scanned {} rows so far.".format(row_count)
                     sys.stdout.flush()
                 if first_row is None:
