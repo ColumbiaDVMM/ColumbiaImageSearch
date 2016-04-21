@@ -284,7 +284,7 @@ def saveSimPairs(sha1_sim_pairs):
     row_keys=[pair[0] for pair in sha1_sim_pairs]
     with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_similar = connection.table(tab_columbia_sim_imgs_name)
-        sim_rows=tab.rows(row_keys)
+        sim_rows = tab_similar.rows(row_keys)
     if len(sim_rows)==len(row_keys): # everything already there
         return
     existing_pairs_key=[row[0] for row in sim_rows]
