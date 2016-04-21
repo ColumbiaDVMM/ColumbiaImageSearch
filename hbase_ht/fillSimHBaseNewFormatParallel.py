@@ -340,6 +340,10 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=No
                 with pool.connection(timeout=hbase_conn_timeout) as connection:
                     tab_allinfos = connection.table(tab_ht_images_infos)
                     tab_allinfos.put(str(sha1), json.loads(merge_insert))
+            if len(split_row)<len(hbase_fields): # i.e. missing s3_url
+                with pool.connection(timeout=hbase_conn_timeout) as connection:
+                    tab_allinfos = connection.table(tab_ht_images_infos)
+                    tab_allinfos.put(str(sha1), {'info:s3_url': str(s3_url)})
         except Exception as inst:
             print "[Error in saveInfos]:",inst
             print "sha1,args:",sha1,args
