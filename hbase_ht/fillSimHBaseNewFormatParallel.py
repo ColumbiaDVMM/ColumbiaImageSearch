@@ -332,7 +332,7 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=No
                 #print "merged:",merged
                 merge_insert="{"
                 merge_insert+=', '.join(["\""+merge_hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(merge_hbase_fields))])
-                if len(merged)<len(hbase_fields) or (len(merged)==len(hbase_fields) and not merged[len(hbase_fields)][0].startswith("https://s3") and s3_url.startswith("https://s3")):
+                if len(merged)<len(hbase_fields) or (len(merged)==len(hbase_fields) and not merged[len(hbase_fields)].startswith("https://s3") and s3_url.startswith("https://s3")):
                     merge_insert+=', \"'+hbase_fields[-1]+'\": \"'+s3_url+'\"'
                 else: # used old s3_url
                     merge_insert+=', \"'+hbase_fields[-1]+'\": \"'+merged[len(hbase_fields)][0]+'\"'
@@ -439,7 +439,7 @@ def processBatch(first_row,last_row):
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             f.write("{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno))
             time.sleep(2)
-    f.write('Batch done.')
+    f.write('Batch done. ')
     f.write("Processed {} images. Total time : {}. Average time per image is {}.\n".format(nb_img,time.time()-start,float(time.time()-start)/nb_img))
     f.write("Timing details: sha1:{}, save_info:{}, get_sim:{}, prep_sim:{}, save_sim:{}\n".format(float(time_sha1)/nb_img,float(time_save_info)/nb_img,float(time_get_sim)/nb_img,float(time_prep_sim)/nb_img,float(time_save_sim)/nb_img))
     f.close()
