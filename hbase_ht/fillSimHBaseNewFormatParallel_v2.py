@@ -10,7 +10,7 @@ import hashlib
 from Queue import *
 from threading import Thread
 
-sys.path.insert(0, os.path.abspath('../tools'))
+sys.path.insert(0, os.path.abspath('../memex_tools'))
 import sha1_tools
 
 nb_threads=12
