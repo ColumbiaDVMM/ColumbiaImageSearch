@@ -3,6 +3,8 @@ import hashlib
 import os
 import happybase
 
+pool=None
+
 def get_SHA1_from_MySQL(image_id):
     res_sha1 = None
     if image_id:

@@ -17,6 +17,7 @@ nb_threads=12
 # HBase connection pool
 hbase_conn_timeout = None
 pool = happybase.ConnectionPool(size=12,host='10.1.94.57',timeout=hbase_conn_timeout)
+sha1_tools.pool = pool
 
 batch_size=100000
 imagedltimeout=2
