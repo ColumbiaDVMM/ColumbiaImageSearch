@@ -67,7 +67,6 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=No
         merge_hbase_fields=hbase_fields[:-2]
         try:
             split_row=[[str(tmp_field).strip() for tmp_field in row[field].split(',')] for field in hbase_fields if field in row]
-            #print sha1
             check_presence=[str(args[i]).strip() in split_row[i] for i,field in enumerate(merge_hbase_fields)]
             if check_presence.count(True)<len(merge_hbase_fields):
                 merged_tmp=[split_row[i].append(str(args[i]).strip()) for i in range(len(merge_hbase_fields))]
@@ -75,7 +74,7 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=No
                 #print "merged:",merged
                 merge_insert="{"
                 merge_insert+=', '.join(["\""+merge_hbase_fields[x]+"\": \""+','.join(merged[x])+"\"" for x in range(len(merge_hbase_fields))])
-                if len(merged)<len(hbase_fields) or (len(merged)==len(hbase_fields) and not merged[len(hbase_fields)].startswith("https://s3") and s3_url.startswith("https://s3")):
+                if len(merged)<len(hbase_fields) or (len(merged)==len(hbase_fields) and not merged[len(hbase_fields)-1].startswith("https://s3") and s3_url.startswith("https://s3")):
                     merge_insert+=', \"'+hbase_fields[-1]+'\": \"'+s3_url+'\"'
                 else: # used old s3_url
                     merge_insert+=', \"'+hbase_fields[-1]+'\": \"'+merged[len(hbase_fields)][0]+'\"'
@@ -83,7 +82,7 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=No
                 with pool.connection(timeout=hbase_conn_timeout) as connection:
                     tab_allinfos = connection.table(tab_ht_images_infos)
                     tab_allinfos.put(str(sha1), json.loads(merge_insert))
-            if len(split_row)<len(hbase_fields): # i.e. missing s3_url
+            if len(split_row)<len(hbase_fields) or (len(split_row)==len(hbase_fields) and not split_row[len(hbase_fields)-1][0].startswith("https://s3") and s3_url.startswith("https://s3")): # i.e. missing s3_url
                 with pool.connection(timeout=hbase_conn_timeout) as connection:
                     tab_allinfos = connection.table(tab_ht_images_infos)
                     tab_allinfos.put(str(sha1), {'info:s3_url': str(s3_url)})
@@ -94,6 +93,7 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=No
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print(exc_type, fname, exc_tb.tb_lineno)
             print "Image infos:",sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id
+            time.sleep(5)
             #print "Split row:",split_row
             #print "Merge insert:",merge_insert
         else:
@@ -101,12 +101,11 @@ def saveInfos(sha1,img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,s3_url,logf=No
         #print "Image with infos ({},{},{},{}) already associated with sha1 {}.".format(img_cdr_id,parent_cdr_id,image_ht_id,ads_ht_id,sha1)
 
 def fix_s3_url(sha1,all_cdr_ids):    
-    for row_key in all_cdr_ids:
+    for row_key in all_cdr_ids.split(','):
         with pool.connection(timeout=hbase_conn_timeout) as connection:
             tab_samples = connection.table(tab_samples_name)
             one_row = tab_samples.row(row_key)
-        first_row = one_row[0]
-        doc = one_row[1]['images:images_doc']
+        doc = one_row['images:images_doc']
         jd = json.loads(doc)
         image_id=str(jd['crawl_data']['image_id']).strip()
         ad_id=str(jd['crawl_data']['memex_ht_id']).strip()
@@ -114,7 +113,7 @@ def fix_s3_url(sha1,all_cdr_ids):
         s3_url=jd['obj_stored_url']
         if s3_url.startswith("https://s3"):
             print "Fixing {} with s3_url {}.".format(sha1.upper(),s3_url)
-            saveInfos(sha1.upper(),one_row[0],parent_cdr_id,image_id,ad_id,s3_url)
+            return saveInfos(sha1.upper(),row_key,parent_cdr_id,image_id,ad_id,s3_url)
 
 
 def worker():
@@ -124,14 +123,21 @@ def worker():
         q.task_done()
 
 if __name__ == '__main__':
-        
-    tab = connection.table(tab_ht_images_infos)
-    for one_row in tab.scan():
-        if 'info:s3_url' in one_row[1].keys() and not one_row[1]['info:s3_url']:
-            tupInp=(one_row[0],one_row[1]['all_cdr_ids'])
-            q.put(tupInp)
-    q.join()
-    print "Done."
+
+    q = Queue()
+    for i in range(nb_threads):
+        t=Thread(target=worker)
+        t.daemon=True
+        t.start()
+
+    with pool.connection(timeout=hbase_conn_timeout) as connection:        
+        tab = connection.table(tab_ht_images_infos)
+        for one_row in tab.scan(row_start="5"):
+            if 'info:s3_url' in one_row[1].keys() and not one_row[1]['info:s3_url']:
+                tupInp=(one_row[0],one_row[1]['info:all_cdr_ids'])
+                q.put(tupInp)
+        q.join()
+        print "Done."
 
 
     
