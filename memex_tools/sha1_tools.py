@@ -53,6 +53,7 @@ def get_SHA1_from_file(filepath,delete_after=False):
     return sha1.hexdigest()
 
 def compute_SHA1_for_cdr_id_from_tab_samples(cdr_id,tab_samples_name,logf=None):
+    global pool
     sha1hash = None
     # get image url
     with pool.connection(timeout=hbase_conn_timeout) as connection:
@@ -79,6 +80,7 @@ def compute_SHA1_for_cdr_id_from_tab_samples(cdr_id,tab_samples_name,logf=None):
     return sha1hash
 
 def get_SHA1_from_hbase_imagehash(image_id,tab_hash_name='image_hash'):
+    global pool
     hash_row = None
     sha1hash = None
     if image_id:
@@ -102,6 +104,7 @@ def get_SHA1_from_image_id_or_cdr_id(image_id,cdr_id,tab_hash_name='image_hash',
     return sha1hash
 
 def save_SHA1_to_hbase_cdrid_sha1(cdr_id,sha1hash,tab_cdrid_sha1_name='ht_images_cdrid_to_sha1'):
+    global pool
     # new table indexed by cdrid
     if cdr_id and sha1hash and sha1hash!='NULL':
         with pool.connection(timeout=hbase_conn_timeout) as connection:
@@ -109,6 +112,7 @@ def save_SHA1_to_hbase_cdrid_sha1(cdr_id,sha1hash,tab_cdrid_sha1_name='ht_images
             tab_cdr_hash.put(str(cdr_id), {'hash:sha1': sha1hash})
 
 def save_SHA1_to_hbase_imagehash(image_id,sha1hash,tab_hash_name='image_hash'):
+    global pool
     # old table indexed by htid 'tab_hash'
     if image_id and sha1hash and sha1hash!='NULL':
         with pool.connection(timeout=hbase_conn_timeout) as connection:
@@ -121,6 +125,7 @@ def save_SHA1_to_hbase(image_id,cdr_id,sha1hash,tab_hash_name='image_hash',tab_c
     save_SHA1_to_hbase_cdrid_sha1(cdr_id,sha1hash,tab_cdrid_sha1_name)
 
 def save_missing_sha1(image_id,cdr_id,tab_missing_sha1_name='ht_images_missing_sha1'):
+    global pool
     with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_missing_sha1 = connection.table(tab_missing_sha1_name)
         # TODO maybe list of info:cdr_id if already exists?
@@ -128,6 +133,7 @@ def save_missing_sha1(image_id,cdr_id,tab_missing_sha1_name='ht_images_missing_s
             tab_missing_sha1.put(str(image_id), {'info:cdr_id': str(cdr_id)})
 
 def get_batch_SHA1_from_imageids(image_ids,tab_hash_name='image_hash',logf=None):
+    global pool
     #print image_id,cdr_id
     if not image_ids:
         #logf.write("[get_batch_SHA1_from_imageids] image_ids is empty!\n")
@@ -175,6 +181,7 @@ def get_batch_SHA1_from_imageids(image_ids,tab_hash_name='image_hash',logf=None)
 
 
 def save_missing_SHA1_to_hbase_missing_sha1(missing_sha1,tab_missing_sha1_name='ht_images_missing_sha1'):
+    global pool
     # save the missing sha1
     if missing_sha1: 
         with pool.connection(timeout=hbase_conn_timeout) as connection:
@@ -185,6 +192,7 @@ def save_missing_SHA1_to_hbase_missing_sha1(missing_sha1,tab_missing_sha1_name='
             b.send()
 
 def save_batch_SHA1_to_hbase_image_hash(new_sha1,tab_hash_name='image_hash'):
+    global pool
     # save the new sha1 we got
     with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_hash = connection.table(tab_hash_name)
