@@ -11,9 +11,10 @@ import hashlib
 
 tmp_img_dl_dir="tmp_img_dl"
 imagedltimeout=2
+check_rul = False
 start_img_fail="https://s3.amazonaws.com/memex-images/full"
-#row_start=None
-row_start="0FE98D4F5D6B03D59AD670AA06ACA4309DA1B139309903A46E5FA71008BE04FF"
+row_start=None
+#row_start="0FE98D4F5D6B03D59AD670AA06ACA4309DA1B139309903A46E5FA71008BE04FF"
 # MySQL connection infos
 global_var = json.load(open('../conf/global_var_all.json'))
 localhost=global_var['local_db_host']
@@ -52,7 +53,7 @@ def mkpath(outpath):
             pass
 
 def dlImage(url):
-    if url.startswith(start_img_fail):
+    if check_url and url.startswith(start_img_fail):
         print "Skipping image in failed s3 bucket."
         return None
     pos_slash=[pos for pos,c in enumerate(url) if c=="/"]

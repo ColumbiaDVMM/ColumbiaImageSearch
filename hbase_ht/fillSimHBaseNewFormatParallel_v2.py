@@ -18,8 +18,9 @@ nb_threads=12
 hbase_conn_timeout = None
 pool = happybase.ConnectionPool(size=12,host='10.1.94.57',timeout=hbase_conn_timeout)
 sha1_tools.pool = pool
+sha1_tools.hbase_conn_timeout = hbase_conn_timeout
 
-batch_size=100000
+batch_size=10000
 imagedltimeout=2
 tmp_img_dl_dir="tmp_img_dl"
 start_img_fail="https://s3.amazonaws.com/memex-images/full"
@@ -28,6 +29,7 @@ row_start=None
 #row_start="11AF5668A95D17484A5943827FDF425D548C7563DC2B064678F34B91947A6AFF"
 # MySQL connection infos
 global_var = json.load(open('../../conf/global_var_all.json'))
+sha1_tools.global_var = global_var
 localhost=global_var['local_db_host']
 localuser=global_var['local_db_user']
 localpwd=global_var['local_db_pwd']
@@ -204,6 +206,7 @@ def processBatch(first_row,last_row):
             for one_row in tab_samples.scan(row_start=first_row,row_stop=last_row):
                 first_row = one_row[0]
                 nb_img = nb_img+1
+                cdr_id = one_row[0]
                 doc = one_row[1]['images:images_doc']
                 jd = json.loads(doc)
                 image_id=str(jd['crawl_data']['image_id']).strip()
@@ -215,7 +218,8 @@ def processBatch(first_row,last_row):
                     s3_url=""
                 # get SHA1
                 start_sha1=time.time()
-                sha1=sha1_tools.get_SHA1_from_image_id_or_cdr_id(image_id,one_row[0],f)
+                sha1hash=sha1_tools.get_SHA1_from_image_id_or_cdr_id(image_id,cdr_id,tab_hash_name,f)
+                print sha1hash
                 if sha1hash:
                     #print "Saving SHA1 {} for image ({},{}) in HBase".format(sha1hash,cdr_id,image_id)
                     sha1_tools.save_SHA1_to_hbase(image_id,cdr_id,sha1hash.upper(),tab_hash_name,tab_cdrid_sha1_name)
@@ -223,16 +227,16 @@ def processBatch(first_row,last_row):
                     sha1_tools.save_missing_sha1(image_id,cdr_id,tab_missing_sha1_name)
                     #print "Could not get/compute SHA1 for {} {}.".format(image_id,cdr_id)
                 time_sha1+=time.time()-start_sha1
-                if not sha1: 
+                if not sha1hash: 
                     #time.sleep(1)
                     continue
                 # get similar ids
-                start_get_sim=time.time()
+                start_get_sim = time.time()
                 sim_ids = getSimIds(image_id,f)
                 time_get_sim+=time.time()-start_get_sim
                 # save all infos
                 start_save_info=time.time()
-                saveInfos(sha1.upper(),one_row[0],parent_cdr_id,image_id,ad_id,s3_url,f)
+                saveInfos(sha1hash.upper(),one_row[0],parent_cdr_id,image_id,ad_id,s3_url,f)
                 time_save_info+=time.time()-start_save_info
                 if not sim_ids or not sim_ids[0]: 
                     #time.sleep(1)
@@ -249,7 +253,7 @@ def processBatch(first_row,last_row):
                 sim_dists=sim_ids[1].split(',')
                 for i,sha1_sim_id in enumerate(sha1_sim_ids):
                     if sha1_sim_id:
-                        tup=("{}-{}".format(min(sha1,sha1_sim_id).upper(),max(sha1,sha1_sim_id).upper()),sim_dists[i])
+                        tup=("{}-{}".format(min(sha1hash,sha1_sim_id).upper(),max(sha1hash,sha1_sim_id).upper()),sim_dists[i])
                         sha1_sim_pairs.append(tup)
                 #print sha1_sim_pairs
                 sha1_sim_pairs=set(sha1_sim_pairs)
@@ -317,6 +321,7 @@ if __name__ == '__main__':
                     tupInp=(first_row,last_row)
                     first_row=None
                     q.put(tupInp)
+                    time.sleep(60)
     except Exception as inst:
         print "[Caught error] {}\n".format(inst)
         exc_type, exc_obj, exc_tb = sys.exc_info()  

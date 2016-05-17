@@ -139,11 +139,11 @@ def get_batch_SHA1_from_imageids(image_ids,tab_hash_name='image_hash',logf=None)
     #print image_id,cdr_id
     if not image_ids:
         #logf.write("[get_batch_SHA1_from_imageids] image_ids is empty!\n")
-        return None
+        return None, None, None
     str_image_ids=[str(iid) for iid in image_ids if str(iid)]
     if not str_image_ids:
         #logf.write("[get_batch_SHA1_from_imageids] str_image_ids is empty!\n")
-        return None
+        return None, None, None
     hash_rows = None
     #if logf:
     #    logf.write("Looking for images: {}\n".format(",".join(str_image_ids)))
@@ -155,6 +155,7 @@ def get_batch_SHA1_from_imageids(image_ids,tab_hash_name='image_hash',logf=None)
     sha1hash=[]
     misssing_sha1=[]
     stillmissing_sha1=[]
+    new_sha1=[]
     # check if we have all sha1 requested
     if len(hash_rows)==len(str_image_ids):
         # hash_rows should have kept the order of image_ids
