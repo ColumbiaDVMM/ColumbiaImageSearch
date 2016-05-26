@@ -18,7 +18,7 @@ sha1_aaron = sha1_tools.compute_SHA1_for_image_id_from_tab_aaron(1,"aaron_memex_
 print sha1_aaron
 sha1_aaron = sha1_tools.compute_SHA1_for_image_id_from_tab_aaron(10,"aaron_memex_ht-images")
 print sha1_aaron
-sha1s_mysql = sha1_tools.get_batch_SHA1_from_mysql(["1","10"])
+sha1s_mysql = sha1_tools.get_batch_SHA1_from_mysql(["1","10","151"])
 print sha1s_mysql
-sha1s_mysql = sha1_tools.get_batch_SHA1_from_mysql([1,10])
+sha1s_mysql = sha1_tools.get_batch_SHA1_from_mysql([1,10,151])
 print sha1s_mysql
