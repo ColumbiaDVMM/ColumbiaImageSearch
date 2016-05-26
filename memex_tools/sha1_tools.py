@@ -4,6 +4,11 @@ import os
 import happybase
 
 pool=None
+# After import do
+#pool = happybase.ConnectionPool(size=12,host='10.1.94.57',timeout=hbase_conn_timeout)
+#sha1_tools.pool = pool
+#global_var = json.load(open('../../conf/global_var_all.json'))
+#sha1_tools.global_var = global_var
 
 def get_SHA1_from_MySQL(image_id):
     res_sha1 = None
@@ -54,6 +59,32 @@ def get_SHA1_from_file(filepath,delete_after=False):
         os.unlink(filepath)
     return sha1.hexdigest()
 
+
+def compute_SHA1_for_image_id_from_tab_aaron(image_id,tab_aaron_name,logf=None):
+    global pool, hbase_conn_timeout
+    sha1hash = None
+    # get image url
+    with pool.connection(timeout=hbase_conn_timeout) as connection:
+        tab_aaron = connection.table(tab_aaron_name)
+        one_row = tab_aaron.row(image_id)
+    #print one_row
+    one_url = one_row['meta:location']
+    if not one_url: 
+        # save the info that the URL is empty somewhere?
+        pass
+    else: # download
+        localpath = dlImage(one_url,logf)
+        # compute sha1
+        if localpath:
+            # True for delete after
+            sha1hash = get_SHA1_from_file(localpath,True) 
+        else:
+            if logf:
+                logf.write("Could not download image from URL {} of cdrid {}.\n".format(one_url,cdr_id))
+            else:
+                print "Could not download image from URL {} of cdrid {}.".format(one_url,cdr_id)
+    return sha1hash
+
 def compute_SHA1_for_cdr_id_from_tab_samples(cdr_id,tab_samples_name,logf=None):
     global pool, hbase_conn_timeout
     sha1hash = None
@@ -98,7 +129,9 @@ def get_SHA1_from_image_id_or_cdr_id(image_id,cdr_id,tab_hash_name='image_hash',
         sha1hash = get_SHA1_from_hbase_imagehash(image_id,tab_hash_name)
     if not sha1hash:
         # HBase Hash row is empty. Trying to get SHA1 from MySQL.
-        sha1hash = get_batch_SHA1_from_mysql(image_id)
+        # Why batch here?
+        #sha1hash = get_batch_SHA1_from_mysql(image_id)
+        sha1hash = get_SHA1_from_MySQL(image_id)
         # Or recompute from image if failed.
         if not sha1hash and cdr_id:
             #print "Could not get SHA1 from MYSQL. Recomputing..."
