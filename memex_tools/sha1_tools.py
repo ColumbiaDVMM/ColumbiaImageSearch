@@ -2,8 +2,10 @@ import MySQLdb
 import hashlib
 import os
 import happybase
+import image_dl
 
 pool=None
+hbase_conn_timeout=None
 # After import do
 #pool = happybase.ConnectionPool(size=12,host='10.1.94.57',timeout=hbase_conn_timeout)
 #sha1_tools.pool = pool
@@ -21,7 +23,8 @@ def get_SHA1_from_MySQL(image_id):
         # query
         db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
         c=db.cursor()
-        sql='SELECT sha1 FROM uniqueIds WHERE htid=\"{}\"'.format(image_id) 
+        #sql='SELECT sha1 FROM uniqueIds WHERE htid=\"{}\"'.format(image_id) 
+        sql='SELECT sha1 FROM uniqueIds JOIN fullIds ON fullIds.uid=uniqueIds.htid WHERE fullIds.htid=\"{}\"'.format(image_id) 
         #print sql
         c.execute(sql)
         res=c.fetchall()
@@ -30,6 +33,10 @@ def get_SHA1_from_MySQL(image_id):
     return res_sha1
 
 def get_batch_SHA1_from_mysql(image_ids):
+    if len(image_ids)==0 or type(image_ids)!=list:
+        return [None]
+    if type(image_ids[0])!=str:
+        image_ids = [str(iid) for iid in image_ids]
     res_sha1 = [None]*len(image_ids)
     if image_ids:
         # minimize the number of global variables using only global_var
@@ -41,10 +48,11 @@ def get_batch_SHA1_from_mysql(image_ids):
         db=MySQLdb.connect(host=localhost,user=localuser,passwd=localpwd,db=localdb)
         c=db.cursor()
         sql='SELECT sha1,htid FROM uniqueIds WHERE htid IN (%s)'
-        #print sql
-        c.execute(sql,','.join(image_ids))
+        print sql % (','.join(image_ids),)
+        c.execute(sql, (','.join(image_ids),))
         res=c.fetchall()
         for row in res:
+            print row
             res_sha1[image_ids.index(str(row[1]))]=row[0]
     return res_sha1
 
@@ -57,7 +65,7 @@ def get_SHA1_from_file(filepath,delete_after=False):
         f.close()
     if delete_after:
         os.unlink(filepath)
-    return sha1.hexdigest()
+    return sha1.hexdigest().upper()
 
 
 def compute_SHA1_for_image_id_from_tab_aaron(image_id,tab_aaron_name,logf=None):
@@ -66,23 +74,23 @@ def compute_SHA1_for_image_id_from_tab_aaron(image_id,tab_aaron_name,logf=None):
     # get image url
     with pool.connection(timeout=hbase_conn_timeout) as connection:
         tab_aaron = connection.table(tab_aaron_name)
-        one_row = tab_aaron.row(image_id)
+        one_row = tab_aaron.row(str(image_id))
     #print one_row
     one_url = one_row['meta:location']
     if not one_url: 
         # save the info that the URL is empty somewhere?
         pass
     else: # download
-        localpath = dlImage(one_url,logf)
+        localpath = image_dl.dlimage(one_url,logf)
         # compute sha1
         if localpath:
             # True for delete after
             sha1hash = get_SHA1_from_file(localpath,True) 
         else:
             if logf:
-                logf.write("Could not download image from URL {} of cdrid {}.\n".format(one_url,cdr_id))
+                logf.write("Could not download image from URL {} of image_id {}.\n".format(one_url,image_id))
             else:
-                print "Could not download image from URL {} of cdrid {}.".format(one_url,cdr_id)
+                print "Could not download image from URL {} of image_id {}.".format(one_url,image_id)
     return sha1hash
 
 def compute_SHA1_for_cdr_id_from_tab_samples(cdr_id,tab_samples_name,logf=None):
@@ -100,7 +108,7 @@ def compute_SHA1_for_cdr_id_from_tab_samples(cdr_id,tab_samples_name,logf=None):
         # save the info that the URL is empty somewhere?
         pass
     else: # download
-        localpath = dlImage(one_url,logf)
+        localpath = image_dl.image(one_url,logf)
         # compute sha1
         if localpath:
             # True for delete after
