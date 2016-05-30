@@ -6,6 +6,7 @@ import image_dl
 
 pool=None
 hbase_conn_timeout=None
+tab_aaron_name='aaron_memex_ht-images'
 # After import do
 #pool = happybase.ConnectionPool(size=12,host='10.1.94.57',timeout=hbase_conn_timeout)
 #sha1_tools.pool = pool
@@ -79,7 +80,7 @@ def get_SHA1_from_URL(one_url,delete_after=False):
         sha1hash = get_SHA1_from_file(localpath,True)
     return sha1hash
 
-def compute_SHA1_for_image_id_from_tab_aaron(image_id,tab_aaron_name,logf=None):
+def compute_SHA1_for_image_id_from_tab_aaron(image_id,tab_aaron_name=tab_aaron_name,logf=None):
     global pool, hbase_conn_timeout
     sha1hash = None
     # get image url
@@ -207,6 +208,7 @@ def get_batch_SHA1_from_imageids(image_ids,tab_hash_name='image_hash',logf=None)
     sha1hash=[]
     misssing_sha1=[]
     stillmissing_sha1=[]
+    stillstillmissing_sha1=[]
     new_sha1=[]
     # check if we have all sha1 requested
     if len(hash_rows)==len(str_image_ids):
@@ -227,12 +229,20 @@ def get_batch_SHA1_from_imageids(image_ids,tab_hash_name='image_hash',logf=None)
                     sha1hash[str_image_ids.index(iid)]=sha1hash_sql[missid]
                 else:
                     stillmissing_sha1.append(iid)
+        # trying to compute SHA1 from aaron's table location field
+        if stillmissing_sha1:
+            for missid,iid in enumerate(stillmissing_sha1):
+                sha1hash_aaron = compute_SHA1_for_image_id_from_tab_aaron(str_image_ids.index(iid))
+                if sha1hash_aaron is not None:
+                    sha1hash[str_image_ids.index(iid)]=sha1hash_aaron
+                else:
+                    stillstillmissing_sha1.append(iid)
     if len(hash_rows)!=len(str_image_ids) and [sha1 is not None for sha1 in sha1hash].count(True)>len(hash_rows): 
         sha1_hbase=[]
         for iid,sha1 in hash_rows:
             sha1_hbase.append(iid)
         new_sha1=[(str_image_ids[lid],sha1) for lid,sha1 in enumerate(sha1hash) if sha1 is not None and str_image_ids[lid] not in sha1_hbase]
-    return sha1hash,stillmissing_sha1,new_sha1
+    return sha1hash,stillstillmissing_sha1,new_sha1
 
 
 def save_missing_SHA1_to_hbase_missing_sha1(missing_sha1,tab_missing_sha1_name='ht_images_missing_sha1'):
