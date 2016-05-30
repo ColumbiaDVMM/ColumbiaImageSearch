@@ -3,6 +3,7 @@ import happybase
 import json
 import time
 import os
+import numpy as np
 import sys
 sys.path.insert(0, os.path.abspath('../memex_tools'))
 import sha1_tools
@@ -48,9 +49,24 @@ if __name__ == '__main__':
             tab_aaron = connection.table('aaron_memex_ht-images')
             for one_row in tab_aaron.scan(row_start=last_row):
                 row_count = row_count+1
-                row_sha1, from_url = get_row_sha1(row)
-                sim_sha1s, missing_sim_sha1s, new_sha1s = sha1_tools.get_batch_SHA1_from_imageids([str(x) for x in row[1]['meta:columbia_near_dups'].split(',')])
-                print row_count, row[0], row_sha1, from_url, sim_sha1s, missing_sim_sha1s, new_sha1s
+                row_sha1, from_url = get_row_sha1(one_row)
+                if not row_sha1:
+                    print "Could not get sha1 for image_id {}.".format(one_row[0])
+                    # push to missig sha1
+                    continue
+                if from_url:
+                    print "Computed new sha1 for image_id {}.".format(one_row[0])
+                    # push to image_hash
+                # add sha1 to row
+                if 'meta:columbia_near_dups' not in one_row[1].keys():
+                    print "Similar images not computed for image_id {}.".format(one_row[0])
+                    continue
+                sim_sha1s, missing_sim_sha1s, new_sha1s = sha1_tools.get_batch_SHA1_from_imageids([str(x) for x in one_row[1]['meta:columbia_near_dups'].split(',')])
+                unique_sim_sha1s, sim_sha1s_pos = np.unique(sim_sha1s,return_index=True)                
+                #print row_count, one_row[0], row_sha1, from_url, sim_sha1s, missing_sim_sha1s, new_sha1s
+                dists = np.asarray([np.float32(x) for x in one_row[1]['meta:columbia_near_dups_dist'].split(',')])
+                sim_sha1s_sorted_pos = np.argsort(dists[sim_sha1s_pos])
+                print row_count, one_row[0], row_sha1, from_url, unique_sim_sha1s[sim_sha1s_sorted_pos], dists[sim_sha1s_pos[sim_sha1s_sorted_pos]]
                 if row_count%(batch_size/10)==0:
                     print "Scanned {} rows so far.".format(row_count)
                     sys.stdout.flush()
