@@ -70,6 +70,14 @@ def get_SHA1_from_file(filepath,delete_after=False):
         os.unlink(filepath)
     return sha1.hexdigest().upper()
 
+def get_SHA1_from_URL(one_url,delete_after=False):
+    sha1hash = None
+    localpath = image_dl.dlimage(one_url)
+    # compute sha1
+    if localpath:
+        # True for delete after
+        sha1hash = get_SHA1_from_file(localpath,True)
+    return sha1hash
 
 def compute_SHA1_for_image_id_from_tab_aaron(image_id,tab_aaron_name,logf=None):
     global pool, hbase_conn_timeout
