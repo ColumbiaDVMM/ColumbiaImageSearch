@@ -86,7 +86,7 @@ if __name__ == '__main__':
                 dists = np.asarray([np.float32(x) for x in dists])
                 sim_sha1s_sorted_pos = np.argsort(dists[sim_sha1s_pos])
                 print row_count, one_row[0], row_sha1, from_url, unique_sim_sha1s[sim_sha1s_sorted_pos], dists[sim_sha1s_pos[sim_sha1s_sorted_pos]]
-                tab_aaron.put(one_row[0],{'meta:sha1': row_sha1, 'meta:columbia_near_dups_sha1': unique_sim_sha1s[sim_sha1s_sorted_pos], 'meta:columbia_near_dups_sha1_dist': dists[sim_sha1s_pos[sim_sha1s_sorted_pos]]})
+                tab_aaron.put(one_row[0],{'meta:sha1': str(row_sha1), 'meta:columbia_near_dups_sha1': ','.join([str(x) for x in list(unique_sim_sha1s[sim_sha1s_sorted_pos])]), 'meta:columbia_near_dups_sha1_dist': ','.join([str(x) for x in list(dists[sim_sha1s_pos[sim_sha1s_sorted_pos]])])})
                 if row_count%(batch_size/10)==0:
                     print "Scanned {} rows so far.".format(row_count)
                     sys.stdout.flush()
