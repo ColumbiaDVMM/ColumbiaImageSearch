@@ -18,7 +18,7 @@ global_var = json.load(open('../../conf/global_var_all.json'))
 sha1_tools.global_var = global_var
 sha1_tools.tab_aaron_name = tab_aaron_name
 
-batch_size = 100
+batch_size = 1000
 
 ### fill sha1 sim in aaron_memex_ht-images
 # scan aaron_memex_ht-images
@@ -43,6 +43,8 @@ if __name__ == '__main__':
     start_time = time.time()
     last_row = None
     row_count = 0
+    missing_sha1_count = 0
+    missing_sim_count = 0
     done = False
 
     # # Prepare queue
@@ -56,20 +58,22 @@ if __name__ == '__main__':
             with pool.connection() as connection:
                 tab_aaron = connection.table(tab_aaron_name)
                 for one_row in tab_aaron.scan(row_start=last_row):
-                    row_count = row_count+1
+                    row_count += 1
                     row_sha1, from_url = get_row_sha1(one_row)
                     if not row_sha1:
-                        print "Could not get sha1 for image_id {}.".format(one_row[0])
+                        #print "Could not get sha1 for image_id {}.".format(one_row[0])
+                        missing_sha1_count += 1
                         # push to missig sha1
                         sha1_tools.save_missing_SHA1_to_hbase_missing_sha1([one_row[0]],tab_missing_sha1_name)
                         continue
                     if from_url:
-                        print "Computed new sha1 for image_id {}.".format(one_row[0])
+                        #print "Computed new sha1 for image_id {}.".format(one_row[0])
                         # push to image_hash
                         sha1_tools.save_SHA1_to_hbase_imagehash(one_row[0],row_sha1,tab_hash_name)
                     # add sha1 to row
                     if 'meta:columbia_near_dups' not in one_row[1].keys():
-                        print "Similar images not computed for image_id {}.".format(one_row[0])
+                        #print "Similar images not computed for image_id {}.".format(one_row[0])
+                        missing_sim_count += 1
                         save_missing_sim_images(one_row[0])
                         continue
                     sim_image_ids = [str(x) for x in one_row[1]['meta:columbia_near_dups'].split(',')]
@@ -90,7 +94,7 @@ if __name__ == '__main__':
                     tab_aaron.put(one_row[0],{'meta:sha1': str(row_sha1), 'meta:columbia_near_dups_sha1': ','.join([str(x) for x in list(unique_sim_sha1s[sim_sha1s_sorted_pos])]), 'meta:columbia_near_dups_sha1_dist': ','.join([str(x) for x in list(dists[sim_sha1s_pos[sim_sha1s_sorted_pos]])])})
                     if row_count%(batch_size)==0:
                         tel = time.time()-start_time
-                        print "Scanned {} rows so far. Average time per row is: {}. Total time is: {}.".format(row_count,tel/row_count,tel)
+                        print "Scanned {} rows so far (misssing sha1: {}, sim: {}). Average time per row is: {}. Total time is: {}.".format(row_count,missing_sha1_count,missing_sim_count,tel/row_count,tel)
                         sys.stdout.flush()
                         #time.sleep(60)
                 done = True
