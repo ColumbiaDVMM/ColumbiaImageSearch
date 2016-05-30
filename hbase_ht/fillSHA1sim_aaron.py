@@ -34,7 +34,7 @@ def save_missing_sim_images(image_id,tab_missing_sim_name=tab_missing_sim_name):
 def get_row_sha1(row):
     row_sha1 = sha1_tools.get_SHA1_from_hbase_imagehash(row[0])
     from_url = False
-    if not row_sha1:
+    if not row_sha1 and 'meta:location' in row[1].keys():
         row_sha1 = sha1_tools.get_SHA1_from_URL(row[1]['meta:location'])
         from_url = True
     return row_sha1, from_url
@@ -85,12 +85,13 @@ if __name__ == '__main__':
                 #print row_count, one_row[0], row_sha1, from_url, sim_sha1s, missing_sim_sha1s, new_sha1s
                 dists = np.asarray([np.float32(x) for x in dists])
                 sim_sha1s_sorted_pos = np.argsort(dists[sim_sha1s_pos])
-                print row_count, one_row[0], row_sha1, from_url, unique_sim_sha1s[sim_sha1s_sorted_pos], dists[sim_sha1s_pos[sim_sha1s_sorted_pos]]
+                #print row_count, one_row[0], row_sha1, from_url, unique_sim_sha1s[sim_sha1s_sorted_pos], dists[sim_sha1s_pos[sim_sha1s_sorted_pos]]
                 tab_aaron.put(one_row[0],{'meta:sha1': str(row_sha1), 'meta:columbia_near_dups_sha1': ','.join([str(x) for x in list(unique_sim_sha1s[sim_sha1s_sorted_pos])]), 'meta:columbia_near_dups_sha1_dist': ','.join([str(x) for x in list(dists[sim_sha1s_pos[sim_sha1s_sorted_pos]])])})
-                if row_count%(batch_size/10)==0:
-                    print "Scanned {} rows so far.".format(row_count)
+                if row_count%(batch_size)==0:
+                    tel = time.time()-start_time
+                    print "Scanned {} rows so far. Average time per row is: {}. Total time is: {}.".format(row_count,tel/row_count,tel)
                     sys.stdout.flush()
-                    time.sleep(60)
+                    #time.sleep(60)
     except Exception as inst:
         print "[Caught error] {}\n".format(inst)
         exc_type, exc_obj, exc_tb = sys.exc_info()  
