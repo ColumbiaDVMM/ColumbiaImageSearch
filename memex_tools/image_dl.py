@@ -2,7 +2,7 @@ import os
 import requests
 import shutil
 
-tmp_img_dl_dir="tmp_img_dl"
+tmp_img_dl_dir="./"
 imagedltimeout=2
 
 def mkpath(outpath):

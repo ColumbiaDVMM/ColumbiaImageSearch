@@ -1,5 +1,7 @@
 import MySQLdb
 import happybase
+from Queue import *
+from threading import Thread
 import json
 import time
 import os
@@ -22,7 +24,7 @@ row_count = 0
 missing_sha1_count = 0
 missing_sim_count = 0
 
-batch_size = 1000
+batch_size = 10000
 
 ### fill sha1 sim in aaron_memex_ht-images
 # scan aaron_memex_ht-images
@@ -32,6 +34,9 @@ batch_size = 1000
 
 def process_one_row(one_row):
     global missing_sha1_count,missing_sim_count
+    # should indicate row being already processed
+    if 'meta:sha1' in one_row[1].keys():
+        return
     row_sha1, from_url = get_row_sha1(one_row)
     if not row_sha1:
         #print "Could not get sha1 for image_id {}.".format(one_row[0])
@@ -69,16 +74,16 @@ def process_one_row(one_row):
     return
 
 def process_batch_rows(list_rows):
-    batch_start = time.time()
     for row in list_rows:
         process_one_row(one_row)
-    tel = time.time()-batch_start
-    print "Batch from row {} done in: {}.".format(list_rows[0],tel)
 
 def process_batch_worker():
     while True:
+        batch_start = time.time()
         tupInp = q.get()
         process_batch_rows(tupInp[0])
+        tel = time.time()-batch_start
+        print "Batch from row {} (count: {}) done in: {}.".format(tupInp[0][0][0],tupInp[1],tel)
         q.task_done()
 
 def save_missing_sim_images(image_id,tab_missing_sim_name=tab_missing_sim_name):
@@ -111,19 +116,23 @@ if __name__ == '__main__':
         try:
             with pool.connection() as connection:
                 tab_aaron = connection.table(tab_aaron_name)
+                # to do filter to select only columns needed
                 for one_row in tab_aaron.scan(row_start=last_row):
                     row_count += 1
                     list_rows.append(one_row)
                     if row_count%(batch_size)==0:
-                        print "Scanned {} rows so far. Pushing batch starting from row {}.".format(row_count,list_rows[0])
-                        q.put((list_rows,))
+                        while q.qsize()>nb_threads*2:
+                            print "Queue seems quite full. Waiting 10 seconds."
+                            time.sleep(10)
+                        print "Scanned {} rows so far. Pushing batch starting from row {}.".format(row_count,list_rows[0][0])
+                        q.put((list_rows,row_count))
                         list_rows = []
                         sys.stdout.flush()
                 done = True
                 if list_rows:
                     # push last batch
-                    print "Scanned {} rows so far. Pushing batch starting from row {}.".format(row_count,list_rows[0])
-                    q.put((list_rows,))
+                    print "Scanned {} rows so far. Pushing batch starting from row {}.".format(row_count,list_rows[0][0])
+                    q.put((list_rows,row_count))
                     list_rows = []
                     sys.stdout.flush()
         except Exception as inst:
