@@ -2,7 +2,6 @@ import os
 import requests
 import shutil
 
-tmp_img_dl_dir="./"
 imagedltimeout=2
 
 def mkpath(outpath):
@@ -15,8 +14,8 @@ def mkpath(outpath):
 
 def dlimage(url,logf=None):
     pos_slash=[pos for pos,c in enumerate(url) if c=="/"]
-    file_img=url[pos_slash[-1]:]
-    outpath=os.path.join(tmp_img_dl_dir,file_img)
+    file_img=url[pos_slash[-1]+1:]
+    outpath=os.path.join('./',file_img)
     mkpath(outpath)
     #print "Downloading image from {} to {}.".format(url,outpath)
     try:

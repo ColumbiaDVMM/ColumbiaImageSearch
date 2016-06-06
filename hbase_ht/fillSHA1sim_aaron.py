@@ -101,7 +101,8 @@ def get_row_sha1(row):
 
 if __name__ == '__main__':
     start_time = time.time()
-    last_row = None
+    #last_row = None
+    last_row = "108375573"
     done = False
     list_rows = []
 
@@ -141,6 +142,9 @@ if __name__ == '__main__':
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print "{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno)
             time.sleep(2)
+            # Should we reinitialize the pool?
+            pool = happybase.ConnectionPool(size=nb_threads,host='10.1.94.57',timeout=hbase_conn_timeout)
+            sha1_tools.pool = pool
         q.join()
         tel = time.time()-start_time
         print "Scanned {} rows total (misssing sha1: {}, sim: {}). Average time per row is: {}. Total time is: {}.".format(row_count,missing_sha1_count,missing_sim_count,tel/row_count,tel)
