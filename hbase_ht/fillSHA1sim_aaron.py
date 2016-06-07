@@ -141,11 +141,11 @@ if __name__ == '__main__':
                             has_slept = True
                         print "Scanned {} rows so far. Pushing batch starting from row {}.".format(row_count,list_rows[0][0])
                         q.put((list_rows,row_count))
+                        last_row = list_rows[-1]
                         list_rows = []
                         sys.stdout.flush()
                         # should we break after sleeping? scan may have timed out...
                         if has_slept:
-                            last_row = list_rows[-1]
                             break
                 done = True
                 if list_rows:
