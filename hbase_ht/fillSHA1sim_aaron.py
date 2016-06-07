@@ -14,7 +14,7 @@ tab_aaron_name = 'aaron_memex_ht-images'
 tab_hash_name = 'image_hash'
 tab_missing_sha1_name = 'ht-images_missing_sha1'
 tab_missing_sim_name = 'ht-images_missing_sim_images'
-nb_threads = 12
+nb_threads = 10
 pool = happybase.ConnectionPool(size=nb_threads,host='10.1.94.57',timeout=hbase_conn_timeout)
 sha1_tools.pool = pool
 global_var = json.load(open('../../conf/global_var_all.json'))
@@ -44,7 +44,7 @@ def process_one_row(one_row):
         # push to missig sha1
         sha1_tools.save_missing_SHA1_to_hbase_missing_sha1([one_row[0]],tab_missing_sha1_name)
         return
-    if from_url:
+    if row_sha1 is not None and from_url:
         #print "Computed new sha1 for image_id {}.".format(one_row[0])
         # push to image_hash
         sha1_tools.save_SHA1_to_hbase_imagehash(one_row[0],row_sha1,tab_hash_name)
@@ -81,10 +81,13 @@ def process_batch_worker():
     while True:
         batch_start = time.time()
         tupInp = q.get()
-        process_batch_rows(tupInp[0])
-        tel = time.time()-batch_start
-        print "Batch from row {} (count: {}) done in: {}.".format(tupInp[0][0][0],tupInp[1],tel)
-        q.task_done()
+        try:
+            process_batch_rows(tupInp[0])
+            tel = time.time()-batch_start
+            print "Batch from row {} (count: {}) done in: {}.".format(tupInp[0][0][0],tupInp[1],tel)
+            q.task_done()
+        except:
+            print "Batch from row {} (count: {}) FAILED.".format(tupInp[0][0][0],tupInp[1])
 
 def save_missing_sim_images(image_id,tab_missing_sim_name=tab_missing_sim_name):
     with pool.connection(timeout=hbase_conn_timeout) as connection:
@@ -102,7 +105,7 @@ def get_row_sha1(row):
 if __name__ == '__main__':
     start_time = time.time()
     #last_row = None
-    last_row = "108375573"
+    last_row = "109742986"
     done = False
     list_rows = []
 
@@ -121,14 +124,21 @@ if __name__ == '__main__':
                 for one_row in tab_aaron.scan(row_start=last_row):
                     row_count += 1
                     list_rows.append(one_row)
+                    has_slept = False
                     if row_count%(batch_size)==0:
-                        while q.qsize()>nb_threads*2:
-                            print "Queue seems quite full. Waiting 10 seconds."
-                            time.sleep(10)
+                        while q.qsize()>nb_threads+2:
+                            print "Queue seems quite full. Waiting 30 seconds."
+                            sys.stdout.flush()
+                            time.sleep(30)
+                            has_slept = True
                         print "Scanned {} rows so far. Pushing batch starting from row {}.".format(row_count,list_rows[0][0])
                         q.put((list_rows,row_count))
                         list_rows = []
                         sys.stdout.flush()
+                        # should we break after sleeping? scan may have timed out...
+                        if has_slept:
+                            last_row = list_rows[-1]
+                            break
                 done = True
                 if list_rows:
                     # push last batch

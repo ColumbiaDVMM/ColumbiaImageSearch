@@ -61,15 +61,21 @@ def get_batch_SHA1_from_mysql(image_ids):
     return res_sha1
 
 def get_SHA1_from_file(filepath,delete_after=False):
-    sha1 = hashlib.sha1()
-    f = open(filepath, 'rb')
+    sha1hash = None
     try:
+        sha1 = hashlib.sha1()
+        f = open(filepath, 'rb')
         sha1.update(f.read())
-    finally:
         f.close()
+        sha1hash = sha1.hexdigest().upper()
+    except:
+	print "Could not open file {}.".format(filepath)
     if delete_after:
-        os.unlink(filepath)
-    return sha1.hexdigest().upper()
+        try:
+            os.unlink(filepath)
+        except:
+            print "Could not delete file {}.".format(filepath)
+    return sha1hash
 
 def get_SHA1_from_URL(one_url,delete_after=False):
     sha1hash = None
