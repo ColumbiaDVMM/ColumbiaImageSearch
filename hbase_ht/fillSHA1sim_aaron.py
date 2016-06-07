@@ -49,7 +49,7 @@ def process_one_row(one_row):
         # push to image_hash
         sha1_tools.save_SHA1_to_hbase_imagehash(one_row[0],row_sha1,tab_hash_name)
     # add sha1 to row
-    if 'meta:columbia_near_dups' not in one_row[1].keys():
+    if 'meta:columbia_near_dups' not in one_row[1].keys() or one_row[1]['meta:columbia_near_dups']=='':
         #print "Similar images not computed for image_id {}.".format(one_row[0])
         missing_sim_count += 1
         save_missing_sim_images(one_row[0])
@@ -66,7 +66,15 @@ def process_one_row(one_row):
         dists = [d for d,i in enumerate(dists) if sim_image_ids[i] not in missing_sim_iids]
     unique_sim_sha1s, sim_sha1s_pos = np.unique(sim_sha1s,return_index=True)                
     #print row_count, one_row[0], row_sha1, from_url, sim_sha1s, missing_sim_sha1s, new_sha1s
-    dists = np.asarray([np.float32(x) for x in dists])
+    # ValueError: could not convert string to float?
+    try:
+        dists = np.asarray([np.float32(x) for x in dists])
+    except Exception as inst:
+        print inst
+        print dists
+        print missing_sim_iids
+        print one_row[0],one_row[1]['meta:columbia_near_dups_dist'].split(',')
+        raise ValueError('Incorrect dists')
     sim_sha1s_sorted_pos = np.argsort(dists[sim_sha1s_pos])
     with pool.connection() as connection:
         tab_aaron = connection.table(tab_aaron_name)
@@ -105,7 +113,7 @@ def get_row_sha1(row):
 if __name__ == '__main__':
     start_time = time.time()
     #last_row = None
-    last_row = "109742986"
+    last_row = "111803219"
     done = False
     list_rows = []
 
