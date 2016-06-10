@@ -1,6 +1,8 @@
 import os
 import requests
 import shutil
+import time
+import numpy as np
 
 imagedltimeout=2
 
@@ -14,8 +16,10 @@ def mkpath(outpath):
 
 def dlimage(url,logf=None):
     pos_slash=[pos for pos,c in enumerate(url) if c=="/"]
+    pos_point=[pos for pos,c in enumerate(url) if c=="."]
     file_img=url[pos_slash[-1]+1:]
-    outpath=os.path.join('./',file_img)
+    # path with time and random to ensure unique names
+    outpath=os.path.join('./'+str(time.time())+'_'+str(int32(np.random.random()*(10e6)))+'_',file_img)
     mkpath(outpath)
     #print "Downloading image from {} to {}.".format(url,outpath)
     try:

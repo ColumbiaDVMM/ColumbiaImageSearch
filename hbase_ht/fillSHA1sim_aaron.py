@@ -113,7 +113,7 @@ def get_row_sha1(row):
 if __name__ == '__main__':
     start_time = time.time()
     #last_row = None
-    last_row = "112090574"
+    last_row = "114955554"
     done = False
     list_rows = []
 
@@ -141,12 +141,14 @@ if __name__ == '__main__':
                             has_slept = True
                         print "Scanned {} rows so far. Pushing batch starting from row {}.".format(row_count,list_rows[0][0])
                         q.put((list_rows,row_count))
-                        last_row = list_rows[-1]
+                        last_row = list_rows[-1][0]
                         list_rows = []
                         sys.stdout.flush()
                         # should we break after sleeping? scan may have timed out...
-                        if has_slept:
-                            break
+                        #if has_slept:
+                        #    break
+                if has_slept:
+                    raise ValueError("Waited to long. Just restart scanning with new connection to avoid error.") 
                 done = True
                 if list_rows:
                     # push last batch
@@ -163,6 +165,7 @@ if __name__ == '__main__':
             # Should we reinitialize the pool?
             pool = happybase.ConnectionPool(size=nb_threads,host='10.1.94.57',timeout=hbase_conn_timeout)
             sha1_tools.pool = pool
-        q.join()
-        tel = time.time()-start_time
-        print "Scanned {} rows total (misssing sha1: {}, sim: {}). Average time per row is: {}. Total time is: {}.".format(row_count,missing_sha1_count,missing_sim_count,tel/row_count,tel)
+        if done:
+            q.join()
+            tel = time.time()-start_time
+            print "Scanned {} rows total (misssing sha1: {}, sim: {}). Average time per row is: {}. Total time is: {}.".format(row_count,missing_sha1_count,missing_sim_count,tel/row_count,tel)
