@@ -94,8 +94,9 @@ def process_batch_worker():
             tel = time.time()-batch_start
             print "Batch from row {} (count: {}) done in: {}.".format(tupInp[0][0][0],tupInp[1],tel)
             q.task_done()
-        except:
+        except Exception as inst:
             print "Batch from row {} (count: {}) FAILED.".format(tupInp[0][0][0],tupInp[1])
+            print inst
 
 def save_missing_sim_images(image_id,tab_missing_sim_name=tab_missing_sim_name):
     with pool.connection(timeout=hbase_conn_timeout) as connection:
