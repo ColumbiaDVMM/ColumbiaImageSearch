@@ -2,7 +2,7 @@
 import happybase,sys
 connection = happybase.Connection('10.1.94.57')
 #tab = connection.table('ht_columbia_similar_images_sample')
-#tab = connection.table('escorts_images_similar_dev')
+tab = connection.table('escorts_images_similar_dev')
 Sha1Filter="RowFilter ( =, 'substring:{}')"
 
 if __name__ == '__main__':
@@ -14,6 +14,3 @@ if __name__ == '__main__':
   print Sha1Filter.format(sha1)
   for one_row in tab.scan(filter=Sha1Filter.format(sha1)):
 	print one_row
-  # Nope.
-  #rows = tab.rows(filter=Sha1Filter.format(sha1))
-  #print rows

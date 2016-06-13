@@ -39,7 +39,7 @@ def read_batch(tab_in_name,start_row,batch_size):
     with pool.connection() as connection:
         tab_in = connection.table(tab_in_name)
         for one_row in tab_in.scan(row_start=start_row):
-            if len(batch<batch_size):
+            if len(batch)<batch_size:
                 batch.append(one_row)
                 new_start_row = one_row[0]
             else:
@@ -52,7 +52,7 @@ def write_batch(batch,tab_out_name):
         tab_out = connection.table(tab_out_name)
         batch_write = tab_out.batch()
         for row in batch:
-            batch_write.put(row)
+            batch_write.put(row[0],row[1])
         batch_write.send()
 
 def subsample_table(tab_in_name,start_row,batch_size,tab_out_name):
@@ -65,7 +65,7 @@ def subsample_table(tab_in_name,start_row,batch_size,tab_out_name):
             tmp_batch_size = rows_count-copy_count
         count,new_start_row = copy_batch(tab_in_name,start_row,tmp_batch_size,tab_out_name)
         if count is None:
-            print "Did not get any rows. Leaving."
+            print "Did not copy any rows. Leaving."
             break
         else:
             if count==tmp_batch_size: # full batch
@@ -77,7 +77,8 @@ def subsample_table(tab_in_name,start_row,batch_size,tab_out_name):
                 print "Only managed to get {} out of {} rows requested.".format(copy_count,rows_count)
                 break
     tel = time.time()-start_time
-    print "Copied {} rows total, out of {} requested. Average time per row is: {}. Total time is: {}.".format(copy_count,rows_count,tel/copy_count,tel)
+    if copy_count>0:
+        print "Copied {} rows total, out of {} requested. Average time per row is: {}. Total time is: {}.".format(copy_count,rows_count,tel/copy_count,tel)
     
 
 if __name__ == '__main__':
