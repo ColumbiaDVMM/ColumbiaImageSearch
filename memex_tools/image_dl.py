@@ -16,12 +16,12 @@ def mkpath(outpath):
 
 def dlimage(url,logf=None):
     pos_slash=[pos for pos,c in enumerate(url) if c=="/"]
-    pos_point=[pos for pos,c in enumerate(url) if c=="."]
+    #pos_point=[pos for pos,c in enumerate(url) if c=="."]
     file_img=url[pos_slash[-1]+1:]
     # path with time and random to ensure unique names
-    outpath=os.path.join('./'+str(time.time())+'_'+str(int32(np.random.random()*(10e6)))+'_',file_img)
+    outpath=os.path.join('./'+str(time.time())+'_'+str(np.int32(np.random.random()*(10e6)))+'_'+file_img)
     mkpath(outpath)
-    #print "Downloading image from {} to {}.".format(url,outpath)
+    print "Downloading image from {} to {}.".format(url,outpath)
     try:
         r = requests.get(url, stream=True, timeout=imagedltimeout)
         if r.status_code == 200:

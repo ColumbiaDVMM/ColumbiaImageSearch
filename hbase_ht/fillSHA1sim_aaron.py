@@ -36,10 +36,11 @@ def process_one_row(one_row):
     global missing_sha1_count,missing_sim_count
     # should indicate row being already processed
     if 'meta:sha1' in one_row[1].keys():
+        #print "Skipping row {} with keys {}.".format(one_row[0],one_row[1].keys())
         return
     row_sha1, from_url = get_row_sha1(one_row)
     if not row_sha1:
-        #print "Could not get sha1 for image_id {}.".format(one_row[0])
+        print "Could not get sha1 for image_id {}.".format(one_row[0])
         missing_sha1_count += 1
         # push to missig sha1
         sha1_tools.save_missing_SHA1_to_hbase_missing_sha1([one_row[0]],tab_missing_sha1_name)
@@ -82,7 +83,7 @@ def process_one_row(one_row):
     return
 
 def process_batch_rows(list_rows):
-    for row in list_rows:
+    for one_row in list_rows:
         process_one_row(one_row)
 
 def process_batch_worker():
@@ -90,6 +91,7 @@ def process_batch_worker():
         batch_start = time.time()
         tupInp = q.get()
         try:
+            #print "Starting to process batch of rows {}.".format([x[0] for x in tupInp[0]])
             process_batch_rows(tupInp[0])
             tel = time.time()-batch_start
             print "Batch from row {} (count: {}) done in: {}.".format(tupInp[0][0][0],tupInp[1],tel)
@@ -109,12 +111,15 @@ def get_row_sha1(row):
     if not row_sha1 and 'meta:location' in row[1].keys():
         row_sha1 = sha1_tools.get_SHA1_from_URL(row[1]['meta:location'])
         from_url = True
+        print "Got new SHA1 {} for image_id {} from_url  {}.".format(row_sha1,row[0],row[1]['meta:location'])
+    #print "Got SHA1 {} from image_id {} (from_url is {}).".format(row_sha1,row[0],from_url)
     return row_sha1, from_url
 
 if __name__ == '__main__':
     start_time = time.time()
-    #last_row = None
-    last_row = "114955554"
+    last_row = None
+    #issue_file = "issue_start_row.txt"
+    #fif = open(issue_file,"rt")
     done = False
     list_rows = []
 
@@ -131,6 +136,7 @@ if __name__ == '__main__':
                 tab_aaron = connection.table(tab_aaron_name)
                 # to do filter to select only columns needed
                 for one_row in tab_aaron.scan(row_start=last_row):
+                #for one_row in tab_aaron.scan(row_start=fif.readline()):
                     row_count += 1
                     list_rows.append(one_row)
                     has_slept = False
@@ -140,7 +146,8 @@ if __name__ == '__main__':
                             sys.stdout.flush()
                             time.sleep(30)
                             has_slept = True
-                        print "Scanned {} rows so far. Pushing batch starting from row {}.".format(row_count,list_rows[0][0])
+                        print "Pushing batch starting from row {}.".format(list_rows[0][0])
+                        print "Scanned {} rows so far (misssing sha1: {}, sim: {}).".format(row_count,missing_sha1_count,missing_sim_count)
                         q.put((list_rows,row_count))
                         last_row = list_rows[-1][0]
                         list_rows = []
@@ -153,7 +160,8 @@ if __name__ == '__main__':
                 done = True
                 if list_rows:
                     # push last batch
-                    print "Scanned {} rows so far. Pushing batch starting from row {}.".format(row_count,list_rows[0][0])
+                    print "Pushing batch starting from row {}.".format(list_rows[0][0])
+                    print "Scanned {} rows so far (misssing sha1: {}, sim: {}).".format(row_count,missing_sha1_count,missing_sim_count)
                     q.put((list_rows,row_count))
                     list_rows = []
                     sys.stdout.flush()
