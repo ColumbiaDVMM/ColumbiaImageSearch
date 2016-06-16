@@ -27,6 +27,7 @@ def download_shell(args):
 		down_success = download_image(url,filepath)
 		#print 'down time '+ str(time.time()-tm_start)
 		return down_success
+
 def download_image(url,filepath):
 	retry = 0
 	failed = 0
