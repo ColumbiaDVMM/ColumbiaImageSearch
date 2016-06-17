@@ -10,76 +10,40 @@ import sys
 sys.path.insert(0, os.path.abspath('../memex_tools'))
 import sha1_tools
 hbase_conn_timeout = None
-tab_aaron_name = 'aaron_memex_ht-images'
+#tab_aaron_name = 'aaron_memex_ht-images'
 tab_hash_name = 'image_hash'
-tab_missing_sha1_name = 'ht-images_missing_sha1'
-tab_missing_sim_name = 'ht-images_missing_sim_images'
-nb_threads = 10
+tab_escorts_images_name = 'escorts_images_cdrid_infos_dev'
+nb_threads = 2
 pool = happybase.ConnectionPool(size=nb_threads,host='10.1.94.57',timeout=hbase_conn_timeout)
 sha1_tools.pool = pool
 global_var = json.load(open('../../conf/global_var_all.json'))
 sha1_tools.global_var = global_var
-sha1_tools.tab_aaron_name = tab_aaron_name
+#sha1_tools.tab_aaron_name = tab_aaron_name
 row_count = 0
 missing_sha1_count = 0
 missing_sim_count = 0
 
 batch_size = 10000
 
-### fill sha1 sim in aaron_memex_ht-images
-# scan aaron_memex_ht-images
-# get sha1 of row-key
-# get sha1 for each image in meta:columbia_near_dups
-# compact meta:columbia_near_dups into meta:columbia_near_dups_sha1 and maintain distances info of corresponding images from meta:columbia_near_dups_dist in meta:columbia_near_dups_sha1_dist
+### fill sha1 'tab_escorts_images_name'
+# scan tab_escorts_images_name
+# get sha1 of row-key from 'tab_hash_name'
+# put it in info:sha1
 
 def process_one_row(one_row):
-    global missing_sha1_count,missing_sim_count
     # should indicate row being already processed
-    if 'meta:sha1' in one_row[1].keys():
-        #print "Skipping row {} with keys {}.".format(one_row[0],one_row[1].keys())
+    if 'info:sha1' in one_row[1].keys():
         return
-    row_sha1, from_url = get_row_sha1(one_row)
+    # we cannot get sha1 from tab_hash if we don't have the 'image_id'
+    if 'info:crawl_data.image_id' not in one_row[1].keys():
+        return
+    row_sha1 = get_row_sha1(one_row[1]['info:crawl_data.image_id'])
     if not row_sha1:
-        print "Could not get sha1 for image_id {}.".format(one_row[0])
-        missing_sha1_count += 1
-        # push to missig sha1
-        sha1_tools.save_missing_SHA1_to_hbase_missing_sha1([one_row[0]],tab_missing_sha1_name)
+        print "Could not get sha1 for image with cdr_id {} and image_id {}.".format(one_row[0],one_row[1]['info:crawl_data.image_id'])
         return
-    if row_sha1 is not None and from_url:
-        #print "Computed new sha1 for image_id {}.".format(one_row[0])
-        # push to image_hash
-        sha1_tools.save_SHA1_to_hbase_imagehash(one_row[0],row_sha1,tab_hash_name)
-    # add sha1 to row
-    if 'meta:columbia_near_dups' not in one_row[1].keys() or one_row[1]['meta:columbia_near_dups']=='':
-        #print "Similar images not computed for image_id {}.".format(one_row[0])
-        missing_sim_count += 1
-        save_missing_sim_images(one_row[0])
-        return
-    sim_image_ids = [str(x) for x in one_row[1]['meta:columbia_near_dups'].split(',')]
-    sim_sha1s, missing_sim_iids, new_sha1s = sha1_tools.get_batch_SHA1_from_imageids(sim_image_ids)
-    dists = one_row[1]['meta:columbia_near_dups_dist'].split(',')
-    if new_sha1s:
-        sha1_tools.save_batch_SHA1_to_hbase_image_hash(new_sha1s,tab_hash_name)
-    if missing_sim_iids:
-        # push missing sha1
-        sha1_tools.save_missing_SHA1_to_hbase_missing_sha1(missing_sim_iids,tab_missing_sha1_name)
-        # realign dists
-        dists = [d for d,i in enumerate(dists) if sim_image_ids[i] not in missing_sim_iids]
-    unique_sim_sha1s, sim_sha1s_pos = np.unique(sim_sha1s,return_index=True)                
-    #print row_count, one_row[0], row_sha1, from_url, sim_sha1s, missing_sim_sha1s, new_sha1s
-    # ValueError: could not convert string to float?
-    try:
-        dists = np.asarray([np.float32(x) for x in dists])
-    except Exception as inst:
-        print "[process_one_row] {}".format(inst)
-        print "[process_one_row] {}".format(dists)
-        print "[process_one_row] {}".format(missing_sim_iids)
-        print "[process_one_row] {},{}".format(one_row[0],one_row[1]['meta:columbia_near_dups_dist'].split(','))
-        raise ValueError('Incorrect dists')
-    sim_sha1s_sorted_pos = np.argsort(dists[sim_sha1s_pos])
     with pool.connection() as connection:
-        tab_aaron = connection.table(tab_aaron_name)
-        tab_aaron.put(one_row[0],{'meta:sha1': str(row_sha1), 'meta:columbia_near_dups_sha1': ','.join([str(x) for x in list(unique_sim_sha1s[sim_sha1s_sorted_pos])]), 'meta:columbia_near_dups_sha1_dist': ','.join([str(x) for x in list(dists[sim_sha1s_pos[sim_sha1s_sorted_pos]])])})
+        tab_escorts_images = connection.table(tab_escorts_images_name)
+        tab_escorts_images.put(one_row[0],{'info:sha1': str(row_sha1)})
     return
 
 def process_batch_rows(list_rows):
@@ -103,25 +67,13 @@ def process_batch_worker():
             print "{} in {} line {}.\n".format(exc_type, fname, exc_tb.tb_lineno)
             print "[process_batch_worker] {}.".format(inst)
 
-def save_missing_sim_images(image_id,tab_missing_sim_name=tab_missing_sim_name):
-    with pool.connection(timeout=hbase_conn_timeout) as connection:
-        tab_missing_sim = connection.table(tab_missing_sim_name)
-        tab_missing_sim.put(str(image_id), {'info:missing_sim': image_id})
-
-def get_row_sha1(row):
-    row_sha1 = sha1_tools.get_SHA1_from_hbase_imagehash(row[0])
-    from_url = False
-    # TODO check if image:orig exists, and compute sha1 from it if it does.
-    if not row_sha1 and 'meta:location' in row[1].keys():
-        row_sha1 = sha1_tools.get_SHA1_from_URL(row[1]['meta:location'])
-        from_url = True
-        print "Got new SHA1 {} for image_id {} from_url  {}.".format(row_sha1,row[0],row[1]['meta:location'])
-    #print "Got SHA1 {} from image_id {} (from_url is {}).".format(row_sha1,row[0],from_url)
-    return row_sha1, from_url
+def get_row_sha1(image_id):
+    row_sha1 = sha1_tools.get_SHA1_from_hbase_imagehash(image_id,tab_hash_name)
+    return row_sha1
 
 if __name__ == '__main__':
     start_time = time.time()
-    last_row = "2"
+    last_row = None
     #issue_file = "issue_start_row.txt"
     #fif = open(issue_file,"rt")
     done = False
@@ -137,9 +89,9 @@ if __name__ == '__main__':
     while not done:
         try:
             with pool.connection() as connection:
-                tab_aaron = connection.table(tab_aaron_name)
+                tab_escorts_images = connection.table(tab_escorts_images_name)
                 # to do filter to select only columns needed
-                for one_row in tab_aaron.scan(row_start=last_row):
+                for one_row in tab_escorts_images.scan(row_start=last_row):
                 #for one_row in tab_aaron.scan(row_start=fif.readline()):
                     row_count += 1
                     list_rows.append(one_row)
@@ -157,8 +109,8 @@ if __name__ == '__main__':
                         list_rows = []
                         sys.stdout.flush()
                         # should we break after sleeping? scan may have timed out...
-                        #if has_slept:
-                        #    break
+                        if has_slept:
+                            break
                 if has_slept:
                     raise ValueError("Waited to long. Just restart scanning with new connection to avoid error.") 
                 done = True
