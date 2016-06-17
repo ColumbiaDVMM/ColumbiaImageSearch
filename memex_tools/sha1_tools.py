@@ -50,13 +50,13 @@ def get_batch_SHA1_from_mysql(image_ids):
         c=db.cursor()
         #sql='SELECT sha1,htid FROM uniqueIds WHERE htid IN (%s)'
         sql='SELECT sha1,fullIds.htid FROM uniqueIds JOIN fullIds ON fullIds.uid=uniqueIds.htid WHERE fullIds.htid IN (%s)' % (','.join(image_ids),)
-        print sql
+        #print sql
         #c.execute(sql, (','.join(image_ids),))
         c.execute(sql)
         res=c.fetchall()
-        print res
+        #print res
         for row in res:
-            print row
+            #print row
             res_sha1[image_ids.index(str(row[1]))]=row[0]
     return res_sha1
 
