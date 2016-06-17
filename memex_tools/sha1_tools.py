@@ -69,12 +69,22 @@ def get_SHA1_from_file(filepath,delete_after=False):
         f.close()
         sha1hash = sha1.hexdigest().upper()
     except:
-	print "Could not open file {}.".format(filepath)
+        print "Could not open file {}.".format(filepath)
     if delete_after:
         try:
             os.unlink(filepath)
         except:
             print "Could not delete file {}.".format(filepath)
+    return sha1hash
+
+def get_SHA1_from_data(data):
+    sha1hash = None
+    try:
+        sha1 = hashlib.sha1()
+        sha1.update(data)
+        sha1hash = sha1.hexdigest().upper()
+    except:
+        print "Could not read data to compute SHA1."
     return sha1hash
 
 def get_SHA1_from_URL(one_url,delete_after=False):
