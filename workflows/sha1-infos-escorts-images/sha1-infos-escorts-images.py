@@ -73,6 +73,11 @@ if __name__ == '__main__':
     sc = SparkContext(appName='sha1_infos_from_'+tab_cdrid_name+'_in_'+tab_sha1_infos_name)
     sc.setLogLevel("ERROR")
     conf = SparkConf()
-    hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_cdrid_name)
+    # Get only these column from table tab_cdrid_name
+    #"info:sha1"
+    #"info:obj_stored_url"
+    #"info:obj_parent"
+    columns_list = ["info:sha1", "info:obj_stored_url", "info:obj_parent"]
+    hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_cdrid_name, columns_list)
     hbase_man_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
     fill_sha1_infos(sc, hbase_man_in, hbase_man_out)
