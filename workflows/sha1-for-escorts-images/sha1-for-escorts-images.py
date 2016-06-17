@@ -9,7 +9,7 @@ def get_SHA1_from_URL(URL):
 def get_row_sha1(URL_S3,verbose=False):
     row_sha1 = None
     #print type(URL_S3),URL_S3
-    if type(URL_S3) == unicode and URL_S3 != u'None':
+    if type(URL_S3) == unicode and URL_S3 != u'None' and URL_S3.startswith('https://s3'):
         row_sha1 = get_SHA1_from_URL(URL_S3)
     if row_sha1 and verbose:
         print "Got new SHA1 {} from_url {}.".format(row_sha1,URL_S3)

@@ -42,6 +42,24 @@ def save_htid_SHA1_mapping(htid_SHA1_mapping):
         b.put(str(pair[0]), {'image:hash': pair[1].upper()})
     b.send()
 
+# should we filter already existing pairs htid-SHA1?
+def save_htid_SHA1_mapping_filter(htid_SHA1_mapping):
+    all_htids = [str(pair[0]) for pair in htid_SHA1_mapping]
+    rows = tab_hash.rows(all_htids)
+    if len(rows)==len(all_htids): 
+        # all htid SHA1 already in tab_hash
+        return
+    else:
+        got_rows = [row[0] for row in rows]
+        b = tab_hash.batch()
+        for pair in htid_SHA1_mapping:
+            # only add missing htid-sha1 pairs
+            if str(pair[0]) not in got_rows:
+                b.put(str(pair[0]), {'image:hash': pair[1].upper()})
+                print "Put pair {}-{}.".format(str(pair[0]),pair[1].upper())
+        b.send()
+
+
 if __name__ == '__main__':
     # Scan uniqueIds and run on join query for each uniqueId ?
     start_time = time.time()
@@ -51,7 +69,8 @@ if __name__ == '__main__':
     htid_count=0
     for unique_id in range(biggest_unique_id):
         htid_SHA1_mapping=get_htid_SHA1_mapping(unique_id+1)
-        save_htid_SHA1_mapping(htid_SHA1_mapping)
+        #save_htid_SHA1_mapping(htid_SHA1_mapping)
+        save_htid_SHA1_mapping_filter(htid_SHA1_mapping)
         htid_count=htid_count+len(htid_SHA1_mapping)
         if unique_id%show==0:
             elapsed=time.time()-fill_start_time
