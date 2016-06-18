@@ -57,7 +57,7 @@ def process_batch_worker():
         batch_start = time.time()
         tupInp = q.get()
         try:
-            #print "Starting to process batch of rows {}.".format([x[0] for x in tupInp[0]])
+            print "Starting to process batch from row {}.".format(tupInp[0][0][0])
             process_batch_rows(tupInp[0])
             tel = time.time()-batch_start
             print "Batch from row {} (count: {}) done in: {}.".format(tupInp[0][0][0],tupInp[1],tel)
@@ -115,14 +115,15 @@ if __name__ == '__main__':
                             break
                 if has_slept:
                     raise ValueError("Waited to long. Just restart scanning with new connection to avoid error.") 
-                done = True
                 if list_rows:
                     # push last batch
-                    print "Pushing batch starting from row {}.".format(list_rows[0][0])
+                    print "Pushing last batch starting from row {}.".format(list_rows[0][0])
                     print "Scanned {} rows so far (misssing sha1: {}).".format(row_count,missing_sha1_count)
                     q.put((list_rows,row_count))
                     list_rows = []
                     sys.stdout.flush()
+                    time.sleep(2)
+                done = True
         except Exception as inst:
             print "[Caught error] {}\n".format(inst)
             exc_type, exc_obj, exc_tb = sys.exc_info()  
@@ -133,6 +134,9 @@ if __name__ == '__main__':
             pool = happybase.ConnectionPool(size=nb_threads,host='10.1.94.57',timeout=hbase_conn_timeout)
             sha1_tools.pool = pool
         if done:
+            print "Waiting for all tasks to end."
+            sys.stdout.flush()
+            time.sleep(2)
             q.join()
             tel = time.time()-start_time
             print "Scanned {} rows total (misssing sha1: {}). Average time per row is: {}. Total time is: {}.".format(row_count,missing_sha1_count,tel/row_count,tel)
