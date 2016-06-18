@@ -31,6 +31,7 @@ batch_size = 10000
 # put it in info:sha1
 
 def process_one_row(one_row):
+    global missing_sha1_count
     # should indicate row being already processed
     if 'info:sha1' in one_row[1].keys():
         return
@@ -39,7 +40,8 @@ def process_one_row(one_row):
         return
     row_sha1 = get_row_sha1(one_row[1]['info:crawl_data.image_id'])
     if not row_sha1:
-        print "Could not get sha1 for image with cdr_id {} and image_id {}.".format(one_row[0],one_row[1]['info:crawl_data.image_id'])
+        #print "Could not get sha1 for image with cdr_id {} and image_id {}.".format(one_row[0],one_row[1]['info:crawl_data.image_id'])
+        missing_sha1_count+=1
         return
     with pool.connection() as connection:
         tab_escorts_images = connection.table(tab_escorts_images_name)
@@ -103,7 +105,7 @@ if __name__ == '__main__':
                             time.sleep(30)
                             has_slept = True
                         print "Pushing batch starting from row {}.".format(list_rows[0][0])
-                        print "Scanned {} rows so far (misssing sha1: {}, sim: {}).".format(row_count,missing_sha1_count,missing_sim_count)
+                        print "Scanned {} rows so far (misssing sha1: {}).".format(row_count,missing_sha1_count)
                         q.put((list_rows,row_count))
                         last_row = list_rows[-1][0]
                         list_rows = []
@@ -117,7 +119,7 @@ if __name__ == '__main__':
                 if list_rows:
                     # push last batch
                     print "Pushing batch starting from row {}.".format(list_rows[0][0])
-                    print "Scanned {} rows so far (misssing sha1: {}, sim: {}).".format(row_count,missing_sha1_count,missing_sim_count)
+                    print "Scanned {} rows so far (misssing sha1: {}).".format(row_count,missing_sha1_count)
                     q.put((list_rows,row_count))
                     list_rows = []
                     sys.stdout.flush()
@@ -133,4 +135,4 @@ if __name__ == '__main__':
         if done:
             q.join()
             tel = time.time()-start_time
-            print "Scanned {} rows total (misssing sha1: {}, sim: {}). Average time per row is: {}. Total time is: {}.".format(row_count,missing_sha1_count,missing_sim_count,tel/row_count,tel)
+            print "Scanned {} rows total (misssing sha1: {}). Average time per row is: {}. Total time is: {}.".format(row_count,missing_sha1_count,tel/row_count,tel)
