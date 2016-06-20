@@ -14,7 +14,7 @@ tab_aaron_name = 'aaron_memex_ht-images'
 tab_hash_name = 'image_hash'
 tab_missing_sha1_name = 'ht-images_missing_sha1'
 tab_missing_sim_name = 'ht-images_missing_sim_images'
-nb_threads = 10
+nb_threads = 12
 pool = happybase.ConnectionPool(size=nb_threads,host='10.1.94.57',timeout=hbase_conn_timeout)
 sha1_tools.pool = pool
 global_var = json.load(open('../../conf/global_var_all.json'))
@@ -121,7 +121,7 @@ def get_row_sha1(row):
 
 if __name__ == '__main__':
     start_time = time.time()
-    last_row = "2"
+    last_row = "5"
     #issue_file = "issue_start_row.txt"
     #fif = open(issue_file,"rt")
     done = False
