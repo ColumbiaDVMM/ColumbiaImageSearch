@@ -49,6 +49,7 @@ if __name__ == '__main__':
     sc = SparkContext(appName=tab_name_in+'_to_'+tab_name_out)
     sc.setLogLevel("ERROR")
     conf = SparkConf()
-    hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_name_in)
+    in_columns_list = 
+    hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_name_in, columns_list=in_columns_list)
     hbase_man_out = HbaseManager(sc, conf, hbase_host, tab_name_out)
     fill_sim(sc, hbase_man_in, hbase_man_out)

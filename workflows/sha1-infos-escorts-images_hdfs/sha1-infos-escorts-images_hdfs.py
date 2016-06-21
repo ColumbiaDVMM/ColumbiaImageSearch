@@ -52,57 +52,36 @@ def reduce_sha1_infos(a,b):
 def split_sha1_kv(x):
     #print x
     fields_list = [("info","all_cdr_ids"), ("info","s3_url"), ("info","all_parent_ids")]
-    # split based on max_images value
     out = [(x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]) for field in fields_list]
-    if len(x[1][fields_list[0][0]+":"+fields_list[0][1]])>1:
-        print out
+    # print out when more than one cdr id for a sha1
+    #if len(x[1][fields_list[0][0]+":"+fields_list[0][1]])>1:
+    #    print out
     return out
 
-def split_sha1_kv_max_images(x):
+def split_sha1_kv_noarray(x):
     #print x
-    fields_list = [("info","all_cdr_ids"), ("info","s3_url"), ("info","all_parent_ids")]
-    # split based on max_images value
-    out = []
-    for field in fields_list:
-        field_images = len(x[1][field[0]+":"+field[1]])
-        if field_images>max_images:
-            nb_div = int(field_images/max_images)
-            if max_images>1 and field_images%max_images!=0:
-                nb_div+=1
-            print "Dividing list of {} which is more than {} images into {}.".format(field_images,max_images,nb_div)
-            for i in range(nb_div):
-                suffix=""
-                if i>0:
-                    suffix="_"+str(i)
-                tmp = (x[0], [x[0], field[0], field[1]+suffix, ','.join(x[1][field[0]+":"+field[1]][i*max_images:(i+1)*max_images])])
-                print tmp
-                out.append(tmp)
-        else:
-            out.append((x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]))
-    #out = [(x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]) for field in fields_list]
+    fields_list = [("info","s3_url"), ("info","all_cdr_ids"), ("info","all_parent_ids")]
+    out = [(x[0], ';'.join([field[0]+":"+field[1]+":"+','.join(x[1][field[0]+":"+field[1]]) for field in fields_list]))]
+    # print out when more than one cdr id for a sha1
+    #if len(x[1][fields_list[1][0]+":"+fields_list[1][1]])>1:
+    #    print out
     return out
 
-def split_sha1_kv_filter_max_images(x):
+def split_sha1_kv_json(x):
     #print x
-    fields_list = [("info","all_cdr_ids"), ("info","s3_url"), ("info","all_parent_ids")]
-    # split based on max_images value
-    out = []
-    for field in fields_list:
-        field_images = len(x[1][field[0]+":"+field[1]])
-        if field_images>max_images:
-            # just discard in this case
-            return []
-        else:
-            out.append((x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]))
-    #out = [(x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]) for field in fields_list]
+    fields_list = [("info","s3_url"), ("info","all_cdr_ids"), ("info","all_parent_ids")]
+    out = [(x[0], '{'+','.join(['"'+field[0]+':'+field[1]+'":["'+'","'.join(x[1][field[0]+":"+field[1]])+'"]' for field in fields_list])+'}')]
+    # print out when more than one cdr id for a sha1
+    #if len(x[1][fields_list[1][0]+":"+fields_list[1][1]])>1:
+    #    print out
     return out
 
-def fill_sha1_infos(sc, hbase_man_in, hbase_man_out):
+def fill_sha1_infos(sc, hbase_man_in, outfile_name):
     in_rdd = hbase_man_in.read_hbase_table()
     tmp_rdd = in_rdd.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos)
-    #out_rdd = tmp_rdd.flatMap(lambda x: split_sha1_kv_max_images(x))
-    out_rdd = tmp_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images(x))
-    hbase_man_out.rdd2hbase(out_rdd)
+    # array not compatible with SequenceFile output
+    out_rdd = tmp_rdd.flatMap(lambda x: split_sha1_kv_json(x))
+    out_rdd.saveAsSequenceFile(outfile_name)
 
 if __name__ == '__main__':
     from hbase_manager import HbaseManager
@@ -110,9 +89,8 @@ if __name__ == '__main__':
     print job_conf
     tab_cdrid_name = job_conf["tab_cdrid_name"]
     hbase_host = job_conf["hbase_host"]
-    tab_sha1_infos_name = job_conf["tab_sha1_infos_name"]
-    max_images = job_conf["max_images"]
-    sc = SparkContext(appName='sha1_infos_from_'+tab_cdrid_name+'_in_'+tab_sha1_infos_name)
+    outfile_name = job_conf["outfile_name_hdfs"]
+    sc = SparkContext(appName='sha1_infos_from_'+tab_cdrid_name+'_to_hdfs_'+outfile_name)
     sc.setLogLevel("ERROR")
     conf = SparkConf()
     # Get only these column from table tab_cdrid_name
@@ -121,5 +99,4 @@ if __name__ == '__main__':
     #"info:obj_parent"
     in_columns_list = ["info:sha1", "info:obj_stored_url", "info:obj_parent"]
     hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_cdrid_name, columns_list=in_columns_list)
-    hbase_man_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
-    fill_sha1_infos(sc, hbase_man_in, hbase_man_out)
+    fill_sha1_infos(sc, hbase_man_in, outfile_name)
