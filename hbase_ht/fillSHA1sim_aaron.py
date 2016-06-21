@@ -11,10 +11,10 @@ sys.path.insert(0, os.path.abspath('../memex_tools'))
 import sha1_tools
 hbase_conn_timeout = None
 tab_aaron_name = 'aaron_memex_ht-images'
-tab_hash_name = 'image_hash'
+tab_hash_name = 'image_id_sha1'
 tab_missing_sha1_name = 'ht-images_missing_sha1'
 tab_missing_sim_name = 'ht-images_missing_sim_images'
-nb_threads = 12
+nb_threads = 8
 pool = happybase.ConnectionPool(size=nb_threads,host='10.1.94.57',timeout=hbase_conn_timeout)
 sha1_tools.pool = pool
 global_var = json.load(open('../../conf/global_var_all.json'))
@@ -39,7 +39,7 @@ def process_one_row(one_row):
         #print "Skipping row {} with keys {}.".format(one_row[0],one_row[1].keys())
         return
     row_sha1, from_url = get_row_sha1(one_row)
-    if not row_sha1:
+    if not row_sha1 or row_sha1=='NULL' or row_sha1=='null':
         print "Could not get sha1 for image_id {}.".format(one_row[0])
         missing_sha1_count += 1
         # push to missig sha1
@@ -65,6 +65,7 @@ def process_one_row(one_row):
         sha1_tools.save_missing_SHA1_to_hbase_missing_sha1(missing_sim_iids,tab_missing_sha1_name)
         # realign dists
         dists = [d for d,i in enumerate(dists) if sim_image_ids[i] not in missing_sim_iids]
+    # are there some null sha1s here?
     unique_sim_sha1s, sim_sha1s_pos = np.unique(sim_sha1s,return_index=True)                
     #print row_count, one_row[0], row_sha1, from_url, sim_sha1s, missing_sim_sha1s, new_sha1s
     # ValueError: could not convert string to float?
@@ -121,7 +122,7 @@ def get_row_sha1(row):
 
 if __name__ == '__main__':
     start_time = time.time()
-    last_row = "5"
+    last_row = "77"
     #issue_file = "issue_start_row.txt"
     #fif = open(issue_file,"rt")
     done = False

@@ -272,6 +272,12 @@ def save_missing_SHA1_to_hbase_missing_sha1(missing_sha1,tab_missing_sha1_name='
                 b.put(str(image_id), {'info:cdr_id': ''})
             b.send()
 
+def check_sha1(sha1):
+    if sha1 is None or sha1=="NULL" or sha1=="null" or sha1==u'None' or sha1=='None':
+        return False
+    else:
+        return True
+
 def save_batch_SHA1_to_hbase_image_hash(new_sha1,tab_hash_name='image_hash'):
     global pool, hbase_conn_timeout
     # save the new sha1 we got
@@ -279,5 +285,7 @@ def save_batch_SHA1_to_hbase_image_hash(new_sha1,tab_hash_name='image_hash'):
         tab_hash = connection.table(tab_hash_name)
         b = tab_hash.batch()
         for image_id,sha1 in new_sha1:
-            b.put(str(image_id), {'image:hash': sha1})
+            # save only valid sha1
+            if check_sha1(sha1):
+                b.put(str(image_id), {'image:hash': sha1})
         b.send()
