@@ -122,7 +122,7 @@ def get_row_sha1(row):
 
 if __name__ == '__main__':
     start_time = time.time()
-    last_row = "77"
+    last_row = "996"
     #issue_file = "issue_start_row.txt"
     #fif = open(issue_file,"rt")
     done = False
@@ -180,6 +180,8 @@ if __name__ == '__main__':
             pool = happybase.ConnectionPool(size=nb_threads,host='10.1.94.57',timeout=hbase_conn_timeout)
             sha1_tools.pool = pool
         if done:
+            print "Joining i.e. waiting for all jobs to finish."
+            sys.stdout.flush()
             q.join()
             tel = time.time()-start_time
             print "Scanned {} rows total (misssing sha1: {}, sim: {}). Average time per row is: {}. Total time is: {}.".format(row_count,missing_sha1_count,missing_sim_count,tel/row_count,tel)

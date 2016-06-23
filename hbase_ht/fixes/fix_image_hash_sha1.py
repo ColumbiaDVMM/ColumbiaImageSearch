@@ -3,7 +3,7 @@ import time
 import sys
 
 #tab_name="ht_images_cdrid_to_sha1_2016_old_crawler"
-tab_name="image_id_sha1"
+tab_name="image_hash"
 connection = happybase.Connection('10.1.94.57')
 tab = connection.table(tab_name)
 show=10000
