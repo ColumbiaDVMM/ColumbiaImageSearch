@@ -122,7 +122,7 @@ def get_row_sha1(row):
 
 if __name__ == '__main__':
     start_time = time.time()
-    last_row = "996"
+    last_row = None
     #issue_file = "issue_start_row.txt"
     #fif = open(issue_file,"rt")
     done = False
