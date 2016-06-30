@@ -36,7 +36,7 @@ def to_sha1_key(data):
         #"info:ads_ht_id"
         #"info:all_s3_urls"
         #"info:all_original_urls"
-        return [(sha1, {"info:all_cdr_ids": [cdr_id], "info:s3_url": [obj_stored_url], "info:all_parent_ids": [cdr_id]})]
+        return [(sha1, {"info:all_cdr_ids": [cdr_id], "info:s3_url": [obj_stored_url], "info:all_parent_ids": [obj_parent]})]
     return []
 
 def reduce_sha1_infos(a,b):
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     hbase_host = job_conf["hbase_host"]
     tab_sha1_infos_name = job_conf["tab_sha1_infos_name"]
     max_images = job_conf["max_images"]
-    sc = SparkContext(appName='sha1_infos_from_'+tab_cdrid_name+'_in_'+tab_sha1_infos_name)
+    sc = SparkContext(appName='sha1_infos_from_'+tab_cdrid_name+'_in_'+tab_sha1_infos_name+'_filter_gt_'+str(max_images))
     sc.setLogLevel("ERROR")
     conf = SparkConf()
     # Get only these column from table tab_cdrid_name
