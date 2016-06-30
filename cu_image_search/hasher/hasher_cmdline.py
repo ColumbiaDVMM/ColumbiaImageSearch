@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import shutil
 from ..memex_tools.image_dl import mkpath
 
@@ -23,7 +24,7 @@ class HasherCmdLine():
         os.remove(featurefilename)
         return hashbits_filepath
 
-	def compress_feats(self):
+    def compress_feats(self):
         command = self.hashing_path+'/compress_feats'
         print command
         os.system(command)

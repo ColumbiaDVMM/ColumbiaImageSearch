@@ -1,6 +1,7 @@
 import os
 import time
-from memex_tools.image_dl import mkpath
+import json
+from ..memex_tools.image_dl import mkpath
 
 class SentiBankCmdLine():
 

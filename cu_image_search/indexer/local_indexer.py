@@ -22,7 +22,7 @@ class LocalIndexer(GenericIndexer):
                     \t- image_downloader: {}\n\
                     \t- feature_extractor_type: {}\n\
                     \t- hasher_type: {}\n\
-                    \t- and db_conf values {},{},{},{}.".format(self.image_downloader_type,
+                    \t- and db_conf values: {}, {}, {}, {}.".format(self.image_downloader_type,
                         self.feature_extractor_type,self.hasher_type,self.local_db_host,
                         self.local_db_user,self.local_db_pwd,self.local_dbname)
         # Initialize image_downloader, feature_extractor and hasher
@@ -33,7 +33,7 @@ class LocalIndexer(GenericIndexer):
     def initialize_image_downloader(self):
         if self.image_downloader_type=="file_downloader":
             from ..image_downloader.file_downloader import FileDownloader
-            self.image_downloader = FileDownloader(self.global_conf_file)
+            self.image_downloader = FileDownloader(self.global_conf_filename)
         else:
             raise ValueError("[LocalIndexer.initialize_indexer_backend error] Unsupported image_downloader_type: {}.".format(self.image_downloader_type))
         

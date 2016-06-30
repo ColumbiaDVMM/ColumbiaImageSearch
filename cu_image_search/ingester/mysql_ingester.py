@@ -13,7 +13,7 @@ class MySQLIngester(GenericIngester):
         self.user = self.global_conf['ist_db_user']
         self.pwd = self.global_conf['ist_db_pwd']
         self.db = self.global_conf['ist_db_dbname']
-        print "[MySQLIngester: log] initialized with values {},{},{},{}.".format(self.host,self.user,self.pwd,self.db)
+        print "[MySQLIngester: log] initialized with values {}, {}, {}, {}.".format(self.host,self.user,self.pwd,self.db)
 
     def get_batch(self):
         """ Should return a list of (id,url,other_data) querying for `batch_size` samples from `self.source` from `start`

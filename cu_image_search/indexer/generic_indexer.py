@@ -8,7 +8,7 @@ class GenericIndexer():
         self.backend = None
         self.verbose = 0
         self.global_conf_filename = global_conf_filename
-        self.global_conf = json.load(open(global_conf_file,'rt'))
+        self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.read_conf()
         self.initialize_indexer_backend()
         if "verbose" in self.global_conf:
