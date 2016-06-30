@@ -1,6 +1,11 @@
 INCLUDE_DIRS=/opt/local/include/
 LIB_DIRS=/opt/local/lib/
 CC=g++
+
+#INCLUDE_DIRS=/usr/local/include/
+#LIB_DIRS=/usr/local/lib/
+#CC=/usr/local/bin/gcc
+
 CFLAGS=-c -std=c++0x -O2
 CVLIBS=-lopencv_core -lopencv_highgui -lz
 

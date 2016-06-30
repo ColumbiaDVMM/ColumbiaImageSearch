@@ -17,15 +17,14 @@ class FileDownloader():
         self.verbose = 0
         mkpath(self.dl_image_path)
 
-    def download_images(self,url_list):
+    def download_images(self,batch,startid):
         pool = multiprocessing.Pool(self.dl_pool_size)
-        startid = url_list[0][0]
         basepath = os.path.join(self.dl_image_path,str(startid))
         if not os.path.isdir(basepath):
             mkpath(basepath)
         # Parallel downloading
         download_arg = []
-        for img_item in url_list:
+        for img_item in batch:
             url = img_item[1]
             #name = url.split('/')[-1]
             #filepath = os.path.join(update_image_cache,str(startid),name)
@@ -34,7 +33,7 @@ class FileDownloader():
         download_indicator = pool.map(dlimage_args, download_arg)
         # Gather results
         downloaded = []
-        for i,img_item in enumerate(url_list):
+        for i,img_item in enumerate(batch):
             if download_indicator[i]:
                 downloaded.append(img_item+(download_indicator[i],))
         print 'downloaded %d images' % len(downloaded)
