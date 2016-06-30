@@ -18,7 +18,7 @@ class FileDownloader():
         mkpath(self.dl_image_path)
 
     def download_images(self,batch,startid):
-    	print "[FileDownloader.download_images: log] Will download {} with {} workers.".format(len(batch),self.dl_pool_size)
+    	print "[FileDownloader.download_images: log] Will download {} images with {} workers.".format(len(batch),self.dl_pool_size)
         pool = multiprocessing.Pool(self.dl_pool_size)
         basepath = os.path.join(self.dl_image_path,str(startid))
         if not os.path.isdir(basepath):
@@ -61,7 +61,7 @@ class FileDownloader():
                 continue
             readable_images.append(img_item)
         f.close()
-        print "[FileDownloader.download_images: log] We have {} readble images.".format(len(readable_images))
+        print "[FileDownloader.download_images: log] We have {} readable images.".format(len(readable_images))
         if not readable_images:
             return None
         return readable_images
