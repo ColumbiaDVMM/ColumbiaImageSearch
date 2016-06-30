@@ -3,30 +3,60 @@ import sys
 import time
 import MySQLdb
 from generic_indexer import GenericIndexer
-from ..image_downloader.file_downloader import FileDownloader
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
 class LocalIndexer(GenericIndexer):
-        
+
+    def read_conf(self):
+        self.image_downloader_type = self.global_conf['LI_image_downloader']
+        self.hasher_type = self.global_conf['LI_hasher']
+        self.feature_extractor_type = self.global_conf['LI_feature_extractor']
+        self.master_update_filepath = self.global_conf['LI_master_update_filepath']
+        # Initialize db config
+        self.read_db_conf()
+
     def initialize_indexer_backend(self):
         """ Initialize backend.
         """
-        self.image_downloader = None
-        print "[LocalIndexer: log] initialized with values {},{},{},{}.".format(self.local_db_host,self.local_db_user,self.local_db_pwd,self.local_dbname)
+        print "[LocalIndexer: log] initialized with:\n\
+                    \t- image_downloader: {}\n\
+                    \t- feature_extractor_type: {}\n\
+                    \t- hasher_type: {}\n\
+                    \t- and db_conf values {},{},{},{}.".format(self.image_downloader_type,
+                        self.feature_extractor_type,self.hasher_type,self.local_db_host,
+                        self.local_db_user,self.local_db_pwd,self.local_dbname)
+        # Initialize image_downloader, feature_extractor and hasher
+        self.initialize_image_downloader()
+        self.initialize_feature_extractor()
+        self.initialize_hasher()
+
+    def initialize_image_downloader(self):
         if self.image_downloader_type=="file_downloader":
+            from ..image_downloader.file_downloader import FileDownloader
             self.image_downloader = FileDownloader(self.global_conf_file)
         else:
             raise ValueError("[LocalIndexer.initialize_indexer_backend error] Unsupported image_downloader_type: {}.".format(self.image_downloader_type))
-        # initialize db config
-        self.read_db_conf()
-        # intialize hasher and feature_extractor too
+        
+
+    def initialize_feature_extractor(self):
+        if self.feature_extractor_type=="sentibank_cmdline":
+            from ..feature_extractor.sentibank_cmdline import SentiBankCmdLine
+            self.feature_extractor = SentiBankCmdLine(self.global_conf_filename)
+        else:
+            raise ValueError("[LocalIndexer.initialize_feature_extractor: error] Unknown feature_extractor_type: {}.".format(self.feature_extractor_type))
+
+    def initialize_hasher(self):
+        if self.hasher_type=="hasher_cmdline":
+            from ..hasher.hasher_cmdline import HasherCmdLine
+            self.hasher = HasherCmdLine(self.global_conf_filename)
+        else:
+            raise ValueError("[LocalIndexer.initialize_hasher: error] Unknown hasher_type: {}.".format(self.hasher_type))
 
     def read_db_conf(self):
         self.local_db_host = self.global_conf['LI_local_db_host']
         self.local_db_user = self.global_conf['LI_local_db_user']
         self.local_db_pwd = self.global_conf['LI_local_db_pwd']
         self.local_dbname = self.global_conf['LI_local_dbname']
-        self.master_update_filepath = self.global_conf['LI_master_update_filepath']
 
     def open_localdb_connection(self):
         self.db = MySQLdb.connect(host=self.local_db_host,user=self.local_db_user,passwd=self.local_db_pwd,db=self.local_dbname)

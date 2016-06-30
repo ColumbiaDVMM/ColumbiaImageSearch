@@ -4,10 +4,10 @@ class GenericIndexer():
     """ Generic class defining an indexer object.
     """
 
-    def __init__(self,global_conf_file):
+    def __init__(self,global_conf_filename):
         self.backend = None
         self.verbose = 0
-        self.global_conf_file = global_conf_file
+        self.global_conf_filename = global_conf_filename
         self.global_conf = json.load(open(global_conf_file,'rt'))
         self.read_conf()
         self.initialize_indexer_backend()
@@ -17,13 +17,7 @@ class GenericIndexer():
             self.verbose = self.global_conf["indexer_verbose"]
 
     def read_conf(self):
-        self.image_downloader_type = self.global_conf['LI_image_downloader']
-        self.hasher = self.global_conf['LI_hasher']
-        self.feature_extractor = self.global_conf['LI_feature_extractor']
-        self.local_db_host = self.global_conf['LI_local_db_host']
-        self.local_db_user = self.global_conf['LI_local_db_user']
-        self.local_db_pwd = self.global_conf['LI_local_db_pwd']
-        self.local_dbname = self.global_conf['LI_local_dbname']
+        pass
 
     def initialize_indexer_backend(self):
         """ Use information contained in `self.global_conf` to initialize `self.backend`

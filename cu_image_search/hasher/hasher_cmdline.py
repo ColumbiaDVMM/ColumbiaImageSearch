@@ -1,7 +1,7 @@
 import os
 import time
 import shutil
-from memex_tools.image_dl import mkpath
+from ..memex_tools.image_dl import mkpath
 
 class HasherCmdLine():
 
