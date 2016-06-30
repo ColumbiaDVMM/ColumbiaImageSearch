@@ -12,8 +12,8 @@ class SentiBankCmdLine():
         #self.sentibank_path = self.global_conf["FE_sentibank_path"]
 
     def compute_features(self,new_files,startid):
-        self.sentibank_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),'sentibank')
-        print "[SentiBankCmdLine.compute_features: log] Set sentibank_path to {}.".format(sentibank_path)
+        self.sentibank_path = os.path.join(os.path.dirname(__file__),'sentibank/')
+        print "[SentiBankCmdLine.compute_features: log] Set sentibank_path to {}.".format(self.sentibank_path)
         mkpath(self.features_path)
 
         # create file listing images to be processed
