@@ -3,8 +3,8 @@ import sys
 import time
 import MySQLdb
 from generic_indexer import GenericIndexer
-from image_downloader.file_downloader import FileDownloader
-from memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
+from ..image_downloader.file_downloader import FileDownloader
+from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
 class LocalIndexer(GenericIndexer):
         
@@ -34,6 +34,12 @@ class LocalIndexer(GenericIndexer):
     def close_localdb_connection(self):
         self.db.close()
 
+    def get_next_batch_start(self):
+        """ Get start value for next update batch
+        :returns htid: Biggest htid in local database.
+        """
+        return self.get_max_ht_id()
+
     def is_indexed(self,sha1):
         # query index with single SHA1
         pass
@@ -55,6 +61,20 @@ class LocalIndexer(GenericIndexer):
             umax = 0
         self.close_localdb_connection()
         return umax
+
+    def get_max_ht_id(self):
+        """ Get max `htid` from `fullIds` table in local MySQL.
+        """
+        self.open_localdb_connection()
+        c = self.db.cursor()
+        c.execute('select htid from fullIds ORDER BY id DESC limit 1;')
+        remax = c.fetchall()
+        if len(remax):
+            fmax = int(remax[0][0])
+        else:
+            fmax = 0
+        self.close_localdb_connection()
+        return fmax
 
     def get_max_full_id(self):
         """ Get max `id` from `fullIds` table in local MySQL.
@@ -169,7 +189,7 @@ class LocalIndexer(GenericIndexer):
         """ Index a batch in the form of a list of (id,url,other_data)
         """
         # Download images
-        startid = url_list[0][0]
+        startid = batch[0][0]
         readable_images = self.image_downloader.download_images(batch,startid)
         #print readable_images
         # Compute sha1
