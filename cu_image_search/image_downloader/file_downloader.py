@@ -6,7 +6,7 @@ import requests
 import numpy as np
 import multiprocessing
 import subprocess as sub
-from memex_tools.image_dl import mkpath,dlimage_args
+from ..memex_tools.image_dl import mkpath,dlimage_args
 
 class FileDownloader():
 

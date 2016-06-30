@@ -1,3 +1,5 @@
+import json
+
 class Updater():
     """ This class enables updating the index of available images, 
     getting new images from an ingester and pushing them to an indexer.
@@ -22,16 +24,17 @@ class Updater():
         - mysql_ingester
         - cdr_ingester
         """
-        if 'ingester' not in self.global_conf:
-            raise ValueError("[Updater: error] 'ingester' is not defined in configuration file.")
-        if self.global_conf['UP_ingester']=="mysql_ingester":
+        field = 'UP_ingester'
+        if field not in self.global_conf:
+            raise ValueError("[Updater: error] "+field+" is not defined in configuration file.")
+        if self.global_conf[field]=="mysql_ingester":
             from ..ingester.mysql_ingester import MySQLIngester
             self.ingester = MySQLIngester(self.global_conf_file)
-        elif self.global_conf['UP_ingester']=="cdr_ingester":
+        elif self.global_conf[field]=="cdr_ingester":
             from ..ingester.cdr_ingester import CDRIngester
             self.ingester = CDRIngester(self.global_conf_file)
         else:
-            raise ValueError("[Updater: error] unkown 'ingester' {}.".format(self.global_conf['ingester']))
+            raise ValueError("[Updater: error] unkown 'ingester' {}.".format(self.global_conf[field]))
 
     def init_indexer(self):
         """ Initialize `indexer` from `global_conf['indexer']` value.
@@ -40,16 +43,17 @@ class Updater():
         - local_indexer
         - hbase_indexer
         """
-        if 'indexer' not in self.global_conf:
-            raise ValueError("[Updater: error] 'indexer' is not defined in configuration file.")
-        if self.global_conf['UP_indexer']=="local_indexer":
+        field = 'UP_indexer'
+        if field not in self.global_conf:
+            raise ValueError("[Updater: error] "+field+" is not defined in configuration file.")
+        if self.global_conf[field]=="local_indexer":
             from ..indexer.local_indexer import LocalIndexer
             self.indexer = LocalIndexer(self.global_conf_file)
-        elif self.global_conf['UP_indexer']=="hbase_indexer":
+        elif self.global_conf[field]=="hbase_indexer":
             from ..indexer.hbase_indexer import HBaseIndexer
             self.indexer = HBaseIndexer(self.global_conf_file)
         else:
-            raise ValueError("[Updater: error] unkown 'indexer' {}.".format(self.global_conf['indexer']))
+            raise ValueError("[Updater: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
     def run_udpate(self):
         """ Runs an update.

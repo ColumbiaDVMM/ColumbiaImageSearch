@@ -11,6 +11,7 @@ class GenericIngester():
         self.fail_less_than_batch = True
         self.verbose = 0
         self.global_conf = json.load(open(global_conf,'rt'))
+        self.read_conf()
         self.initialize_source()
         
     def read_conf(self):
