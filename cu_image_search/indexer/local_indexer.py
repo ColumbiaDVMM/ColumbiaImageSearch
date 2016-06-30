@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-#import MySQLdb
+import MySQLdb
 from generic_indexer import GenericIndexer
 from image_downloader.file_downloader import FileDownloader
 from memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
@@ -83,7 +83,7 @@ class LocalIndexer(GenericIndexer):
         old_uniques_htid = [int(i[0]) for i in re]
         return old_uniques,old_uniques_htid
 
-    def get_new_unique_images(self,sha1_images):
+    def get_new_unique_images(self,readable_images):
         # get unique images 
         sha1_list = [img_item[-1] for img_item in sha1_images]
         unique_sha1 = sorted(set(sha1_list))
@@ -104,8 +104,8 @@ class LocalIndexer(GenericIndexer):
             else:
                 unique_htid.append(old_uniques_htid[old_uniques.index(unique_sha1[i])])
         new_fulls = []
-        for i in range(0,num_readable):
-            new_fulls.append((int(readable_images[i][0]),unique_htid[full_idx[i]]))
+        for i in range(0,len(sha1_images)):
+            new_fulls.append((int(sha1_images[i][0]),unique_htid[full_idx[i]]))
         return new_files,new_uniques,new_fulls
 
     def insert_new_uniques(self,new_uniques):
@@ -174,7 +174,7 @@ class LocalIndexer(GenericIndexer):
         #print readable_images
         # Compute sha1
         sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
-        print "sha1_images",sha1_images
+        print "[LocalIndexer.index_batch: log] sha1_images",sha1_images
         # Record current biggest ids
         umax = self.get_max_unique_id()
         fmax = self.get_max_full_id()
@@ -190,7 +190,7 @@ class LocalIndexer(GenericIndexer):
         # Check that batch processing went well
         umax_new = self.get_max_unique_id()
         fmax_new = self.get_max_full_id()
-        update_success = self.check_batch(umax,umax_new,len(new_uniques),fmax_new,fmax,len(readable_images),hashbits_filepath,feature_filepath):
+        update_success = self.check_batch(umax,umax_new,len(new_uniques),fmax_new,fmax,len(sha1_images),hashbits_filepath,feature_filepath):
         if update_success:
             print "Update succesful!"
             self.open_localdb_connection()

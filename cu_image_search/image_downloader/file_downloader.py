@@ -18,6 +18,7 @@ class FileDownloader():
         mkpath(self.dl_image_path)
 
     def download_images(self,batch,startid):
+    	print "[FileDownloader.download_images: log] Will download {} with {} workers.".format(len(batch),self.dl_pool_size)
         pool = multiprocessing.Pool(self.dl_pool_size)
         basepath = os.path.join(self.dl_image_path,str(startid))
         if not os.path.isdir(basepath):
@@ -29,6 +30,7 @@ class FileDownloader():
             #name = url.split('/')[-1]
             #filepath = os.path.join(update_image_cache,str(startid),name)
             download_arg.append([url,basepath])
+        start_dl = time.time()
         # dlimage_basepath returns outpath if download succeeded, None otherwise
         download_indicator = pool.map(dlimage_args, download_arg)
         # Gather results
@@ -36,7 +38,7 @@ class FileDownloader():
         for i,img_item in enumerate(batch):
             if download_indicator[i]:
                 downloaded.append(img_item+(download_indicator[i],))
-        print 'downloaded %d images' % len(downloaded)
+        print "[FileDownloader.download_images: log] Downloaded {} images in {}s.".format(len(downloaded),time.time()-start_dl)
         if not downloaded:
             return None
         # Image integrity check
@@ -59,7 +61,7 @@ class FileDownloader():
                 continue
             readable_images.append(img_item)
         f.close()
-        print 'readable images: %d' % len(readable_images)
+        print "[FileDownloader.download_images: log] We have {} readble images.".format(len(readable_images))
         if not readable_images:
             return None
         return readable_images

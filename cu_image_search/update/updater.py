@@ -40,7 +40,7 @@ class Updater():
         - local_indexer
         - hbase_indexer
         """
-        if 'indexer' not in self.global_conf:
+        if 'UP_indexer' not in self.global_conf:
             raise ValueError("[Updater: error] 'indexer' is not defined in configuration file.")
         if self.global_conf['UP_indexer']=="local_indexer":
             from ..indexer.local_indexer import LocalIndexer
