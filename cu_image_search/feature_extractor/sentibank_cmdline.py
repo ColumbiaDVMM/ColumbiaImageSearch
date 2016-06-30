@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import math
 from ..memex_tools.image_dl import mkpath
 
 class SentiBankCmdLine():
@@ -14,7 +15,7 @@ class SentiBankCmdLine():
         mkpath(self.features_path)
 
         # create file listing images to be processed
-        img_filename = os.path.join(self.features_path,startid+'.txt')
+        img_filename = os.path.join(self.features_path,str(startid)+'.txt')
         f = open(img_filename,'w')
         f.writelines([filename+'\n' for filename in new_files])
         f.close()

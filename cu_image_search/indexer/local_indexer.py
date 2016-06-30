@@ -224,7 +224,7 @@ class LocalIndexer(GenericIndexer):
         #print readable_images
         # Compute sha1
         sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
-        print "[LocalIndexer.index_batch: log] sha1_images",sha1_images
+        #print "[LocalIndexer.index_batch: log] sha1_images",sha1_images
         # Record current biggest ids
         umax = self.get_max_unique_id()
         fmax = self.get_max_full_id()

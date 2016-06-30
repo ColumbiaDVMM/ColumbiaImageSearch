@@ -1,4 +1,6 @@
 import json
+import sys
+import traceback
 
 class Updater():
     """ This class enables updating the index of available images, 
@@ -65,3 +67,8 @@ class Updater():
             self.indexer.index_batch(batch)
         except Exception as inst:
             print "[Updater.run_udpate: error] {}".format(inst)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print "*** print_tb:"
+            traceback.print_tb(exc_traceback, file=sys.stdout)
+            print "*** print_exception:"
+            traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stdout)
