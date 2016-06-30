@@ -38,7 +38,7 @@ class FileDownloader():
         for i,img_item in enumerate(batch):
             if download_indicator[i]:
                 downloaded.append(img_item+(download_indicator[i],))
-        print "[FileDownloader.download_images: log] Downloaded {} images in {}s.".format(len(downloaded),time.time()-start_dl)
+        print "[FileDownloader.download_images: log] Downloaded {} images in {:.2f}s.".format(len(downloaded),time.time()-start_dl)
         if not downloaded:
             return None
         # Image integrity check

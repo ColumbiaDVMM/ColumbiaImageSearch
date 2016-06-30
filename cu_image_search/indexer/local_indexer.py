@@ -103,7 +103,7 @@ class LocalIndexer(GenericIndexer):
         old_uniques_htid = [int(i[0]) for i in re]
         return old_uniques,old_uniques_htid
 
-    def get_new_unique_images(self,readable_images):
+    def get_new_unique_images(self,sha1_images):
         # get unique images 
         sha1_list = [img_item[-1] for img_item in sha1_images]
         unique_sha1 = sorted(set(sha1_list))
@@ -210,7 +210,7 @@ class LocalIndexer(GenericIndexer):
         # Check that batch processing went well
         umax_new = self.get_max_unique_id()
         fmax_new = self.get_max_full_id()
-        update_success = self.check_batch(umax,umax_new,len(new_uniques),fmax_new,fmax,len(sha1_images),hashbits_filepath,feature_filepath):
+        update_success = self.check_batch(umax,umax_new,len(new_uniques),fmax_new,fmax,len(sha1_images),hashbits_filepath,feature_filepath)
         if update_success:
             print "Update succesful!"
             self.open_localdb_connection()
