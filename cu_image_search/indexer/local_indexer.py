@@ -92,6 +92,7 @@ class LocalIndexer(GenericIndexer):
             umax = int(remax[0][0])
         else:
             umax = 0
+        c.close()
         return umax
 
     def get_max_ht_id(self):
@@ -118,7 +119,7 @@ class LocalIndexer(GenericIndexer):
             fmax = int(remax[0][0])
         else:
             fmax = 0
-        self.close_localdb_connection()
+        c.close()
         return fmax
 
     def get_old_unique_ids(self,unique_sha1):
@@ -131,6 +132,7 @@ class LocalIndexer(GenericIndexer):
         re = c.fetchall()
         old_uniques = [i[1] for i in re]
         old_uniques_htid = [int(i[0]) for i in re]
+        c.close()
         return old_uniques,old_uniques_htid
 
     def get_new_unique_images(self,sha1_images):
@@ -170,7 +172,9 @@ class LocalIndexer(GenericIndexer):
         c = self.db.cursor()
         if len(new_uniques):
             insert_statement = "INSERT IGNORE INTO uniqueIds (htid, location, sha1) VALUES {}".format(','.join(map(str,new_uniques)))
+            print insert_statement
             c.execute(insert_statement)
+        c.close()
 
     def insert_new_fulls(self,new_fulls):
         """ Insert new_fulls ids in the local database.
@@ -182,7 +186,9 @@ class LocalIndexer(GenericIndexer):
         c = self.db.cursor()
         if len(new_fulls):
             insert_statement = "INSERT IGNORE INTO fullIds (htid, uid) VALUES {}".format(','.join(map(str,new_fulls)))
-        c.execute(insert_statement)
+            print insert_statement
+            c.execute(insert_statement)
+        c.close()
 
     def check_batch(self,umax,umax_new,num_new_unique,fmax_new,fmax,num_readable,hashbits_filepath,feature_filepath):
         if umax_new-umax != num_new_unique:
@@ -206,14 +212,14 @@ class LocalIndexer(GenericIndexer):
         with open(self.master_update_filepath, "a") as f:
                 f.write(startid+'\n')
 
-    def finalize_update(success,hashbits_filepath,feature_filepath,startid):
+    def finalize_update(self,success,hashbits_filepath,feature_filepath,update_id):
         if not success:
             if os.path.isfile(hashbits_filepath):
                 os.remove(hashbits_filepath)
             if os.path.isfile(feature_filepath):
                 os.remove(feature_filepath)
         else:
-            self.update_master_file(startid)
+            self.update_master_file(update_id)
             self.hasher.compress_feats()
             #vmtouch hashing and features folder
             #os.system('./cache.sh')
@@ -227,20 +233,20 @@ class LocalIndexer(GenericIndexer):
         """
         # Download images
         timestr= time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(time.time()))
-        startid = batch[0][0]
-        lastid = batch[-1][0]
-        update_suffix = timestr+'_'+startid+'_'+lastid
-        readable_images = self.image_downloader.download_images(batch,update_suffix)
+        startid = str(batch[0][0])
+        lastid = str(batch[-1][0])
+        update_id = timestr+'_'+startid+'_'+lastid
+        print "[LocalIndexer.index_batch: log] Starting udpate {}".format(update_id)
+        readable_images = self.image_downloader.download_images(batch,update_id)
         #print readable_images
         # Compute sha1
         sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
-        #print "[LocalIndexer.index_batch: log] sha1_images",sha1_images
         # Find new images
         new_files,new_uniques,new_fulls = self.get_new_unique_images(sha1_images)
         # Compute features
-        features_filename,ins_num = self.feature_extractor.compute_features(new_files,update_suffix)
+        features_filename,ins_num = self.feature_extractor.compute_features(new_files,update_id)
         # Compute hashcodes
-        hashbits_filepath = self.hasher.compute_hashcodes(features_filename,ins_num,update_suffix)
+        hashbits_filepath = self.hasher.compute_hashcodes(features_filename,ins_num,update_id)
         # Record current biggest ids
         umax = self.get_max_unique_id()
         fmax = self.get_max_full_id()
@@ -255,6 +261,6 @@ class LocalIndexer(GenericIndexer):
             print "Update succesful!"
             self.db.commit()
         self.close_localdb_connection()
-        self.finalize_udpate(update_success)
+        self.finalize_update(update_success,hashbits_filepath,features_filename,update_id)
 
         
