@@ -2,6 +2,7 @@ import sys
 sys.path.append('../..')
 import numpy as np
 from cu_image_search.indexer.local_indexer import LocalIndexer
+from cu_image_search.memex_tools.sha1_tools import get_SHA1_from_file
 
 if __name__=="__main__":
     LI = LocalIndexer('../../conf/global_var_localmysql.json')
@@ -24,6 +25,7 @@ if __name__=="__main__":
     #print readable_images
     # Compute sha1
     sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
+    print sha1_images
     new_files = [img[-1] for img in readable_images]
     list_feats_id = [x[0] for x in batch]
 
