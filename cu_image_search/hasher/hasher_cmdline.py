@@ -34,6 +34,7 @@ class HasherCmdLine():
         mkpath(os.path.join(self.base_update_path,'comp_idx'))
         # we could be passing additional arguments here
         command = self.hashing_execpath+'compress_feats '+self.base_update_path
+        # this will work only if all features are still present in self.base_update_path/features
         print command
         os.system(command)
 
@@ -56,7 +57,7 @@ class HasherCmdLine():
             for i in range(len(list_feats_id)):
                 try:
                     X.append(np.frombuffer(f_preout.read(read_dim),dtype=read_type))
-                    ok_ids.append(list_feats_id[i])
+                    ok_ids.append(i)
                 except Exception as inst:
                     print "[HasherCmdLine.get_precomp_X: error] Could not read requested {} with id {}. {}".format(str_precomp,list_feats_id[i],inst)
         # cleanup
