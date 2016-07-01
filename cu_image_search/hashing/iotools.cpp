@@ -42,12 +42,12 @@ int decompress_onefeat(char * in, char * comp, int compsize, int fsize) {
 // File reading functions
 std::ifstream::pos_type filesize(std::string filename)
 {
-	std::ifstream in(filename, std::ios::ate | std::ios::binary);
-	if (!in.fail()) {
-		return in.tellg();
-	} else {
-		return 0;
-	}
+    std::ifstream in(filename, std::ios::ate | std::ios::binary);
+    if (!in.fail()) {
+        return in.tellg();
+    } else {
+        return 0;
+    }
 }
 
 int get_file_pos(int * accum, int nb_files, int query, int & res)
@@ -79,7 +79,7 @@ int get_onefeatcomp(int query_id, size_t read_size, int* accum, vector<ifstream*
     file_id = get_file_pos(accum, (int)read_in_compidx.size(), query_id, new_pos);
     if (file_id==-1)
         return -1;
-    //std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
+    std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
     read_in_compidx[file_id]->seekg((unsigned long long int)(new_pos)*idx_size);
     read_in_compidx[file_id]->read((char*)&start_feat, idx_size);
     read_in_compidx[file_id]->read((char*)&end_feat, idx_size);
@@ -108,7 +108,7 @@ unsigned long long int fill_data_nums(vector<string>& update_hash_files, vector<
     {
         data_nums.push_back((unsigned long long int)filesize(update_hash_files[i])*8/bit_num);
         data_num += data_nums[i];
-	std::cout << "We have a " << data_nums[i] << " features in file " << update_hash_files[i] << std::endl;
+        std::cout << "We have a " << data_nums[i] << " features in file " << update_hash_files[i] << std::endl;
     }
     std::cout << "We have a total of " << data_num << " features." << std::endl;
     return data_num;
@@ -117,14 +117,14 @@ unsigned long long int fill_data_nums(vector<string>& update_hash_files, vector<
 int fill_vector_files(vector<ifstream*>& read_in, vector<string>& update_files){
     for (int i=0;i<update_files.size();i++)
     {
-	read_in.push_back(new ifstream(update_files[i],ios::in|ios::binary));
-	/*read_in.push_back(new ifstream);
-	read_in[i]->open(update_files[i],ios::in|ios::binary);*/
-        if (!read_in[i]->is_open())
-            {
-                std::cout << "Cannot load the file " << update_files[i] << std::endl;
-                return -1;
-            }
+    read_in.push_back(new ifstream(update_files[i],ios::in|ios::binary));
+    /*read_in.push_back(new ifstream);
+    read_in[i]->open(update_files[i],ios::in|ios::binary);*/
+    if (!read_in[i]->is_open())
+        {
+            std::cout << "Cannot load the file " << update_files[i] << std::endl;
+            return -1;
+        }
     }
     return 0;
 }
@@ -161,11 +161,12 @@ int get_n_features(string update_fn, int* query_ids, int query_num, int norm, in
     if (!fu.is_open())
     {
         std::cout << "No update! Was looking for " << update_fn << std::endl;
-	return -1;
+    return -1;
     }
     else
     {
         while (getline(fu, line)) {
+            std::cout << "Loading update: " << line << std::endl;
             update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
             update_compfeature_files.push_back(update_compfeature_prefix+line+update_compfeature_suffix);
             update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);
@@ -202,12 +203,11 @@ int get_n_features(string update_fn, int* query_ids, int query_num, int norm, in
         // BEWARE: we consider here ids are python/db, so in C they are ids+1...
         // TODO: maybe define a flag python id or not
         status = get_onefeatcomp(query_ids[i]-1,read_size,accum,read_in_compfeatures,read_in_compidx,feature_cp);
-	if (status==-1) {
-        	std::cout << "Could not load compressed feature " << query_ids[i]-1 << ". Exiting." << std::endl;
-        	// TODO: We should clean here
-        	return -1;
-   	}
-
+        if (status==-1) {
+            std::cout << "Could not load compressed feature " << query_ids[i]-1 << ". Exiting." << std::endl;
+            // TODO: We should clean here
+            return -1;
+        }
         feature_cp +=read_size;
     }
 
