@@ -40,7 +40,7 @@ int main(int argc, char** argv){
     vector<string> update_compidx_files;
     vector<int> need_comp;
     int status; //Not working on MAC
-    status = mkdir(update_comp_feature_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    status = mkdir(update_compfeature_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     status = mkdir(update_compidx_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     string update_feature_suffix = "" + str_norm;
     string update_comp_feature_suffix = "_comp" + str_norm;
@@ -56,7 +56,7 @@ int main(int argc, char** argv){
     {
         while (getline(fu, line)) {
             update_feature_files.push_back(update_feature_prefix+line+update_feature_suffix);
-            update_comp_feature_files.push_back(update_comp_feature_prefix+line+update_comp_feature_suffix);
+            update_comp_feature_files.push_back(update_compfeature_prefix+line+update_comp_feature_suffix);
             update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);
         }
     }
@@ -70,7 +70,7 @@ int main(int argc, char** argv){
     {
         filesizeidx = filesize(update_compidx_files[i]);
         filesizecomp = filesize(update_comp_feature_files[i]);
-        if (filesizecomp==0||filesizecomp==-1||filesizeidx==0||filesizeidx==-1) { 
+        if (filesizecomp==0||filesizecomp==-1||filesizeidx==0||filesizeidx==-1) {
             // Comp file empty or non existing
             std:cout << "Some file missing for " << update_comp_feature_files[i] << std::endl;
             need_comp.push_back(i);
@@ -79,7 +79,7 @@ int main(int argc, char** argv){
         data_num=filesize(update_feature_files[i])/(sizeof(float)*feature_dim);
         idx_num=filesize(update_compidx_files[i])/sizeof(unsigned long long int);
         if (idx_num-1!=data_num) {
-            // We have a mismatch indices vs features 
+            // We have a mismatch indices vs features
             std::cout << "Curr feat size: " << data_num << " (feat file size: " << filesize(update_feature_files[i]) << "), curr idx size: " << idx_num  << " (compidx file size: " << filesize(update_compidx_files[i]) << ")" << endl;
             need_comp.push_back(i);
         }
@@ -87,7 +87,7 @@ int main(int argc, char** argv){
     // ... if so we should be good to go.
     if (need_comp.size()==0) {
         std::cout << "Everything seems up-to-date, exiting." << std::endl;
-        return 0;        
+        return 0;
     } else {
         std::cout << "We need to compress " << need_comp.size() << " files." << std::endl;
     }
