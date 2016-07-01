@@ -1,5 +1,6 @@
 import sys
 sys.path.append('../..')
+import numpy as np
 from cu_image_search.indexer.local_indexer import LocalIndexer
 
 if __name__=="__main__":
@@ -10,6 +11,26 @@ if __name__=="__main__":
 
     #res = LI.get_precomp_from_sha1(['0000007031E3FA80C97940017253BEAB542EA334'],["feats","hashcodes"])
     #print res
- 
-    res = LI.get_precomp_from_sha1(['0000007031E3FA80C97940017253BEAB542EA334','LL00007031E3FA80C97940017253BEAB542EA334'],["feats","hashcodes"])
+    res = LI.get_precomp_from_sha1(['0000007031E3FA80C97940017253BEAB542EA334','LL00007031E3FA80C97940017253BEAB542EA334','000000A7CAD184BD6BC00DAF032E5F7C818C39D0'],["feats","hashcodes"])
     print res
+
+
+    update_id = 'test_indexer'
+    batch = []
+    batch.append(('0000007031E3FA80C97940017253BEAB542EA334','https://s3.amazonaws.com/roxyimages/dfeb5271d5a455c164cd27937213fb920fc0a78b.jpg',None))
+    batch.append(('000000A7CAD184BD6BC00DAF032E5F7C818C39D0','https://s3.amazonaws.com/roxyimages/99ec99a8467bed24ff2da39f8dcebb754008f791.jpg',None))
+    readable_images = LI.image_downloader.download_images(batch,update_id)
+    #print readable_images
+    # Compute sha1
+    sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
+    new_files = [img[-1] for img in readable_images]
+
+	# Compute features
+    features_filename,ins_num = LI.feature_extractor.compute_features(new_files,update_id)
+    # Compute hashcodes
+    hashbits_filepath = LI.hasher.compute_hashcodes(features_filename,ins_num,update_id)
+
+    list_feats_id = [x[0] for x in batch]
+    # read_binary_file(X_fn,str_precomp,list_feats_id,read_dim,read_type)
+    feats,feats_OK = LI.hasher.read_binary_file(features_filename,"feats",list_feats_id,4096*4,np.float32)
+    hashcodes,hashcodes_OK = LI.hasher.read_binary_file(hashbits_filepath,"hashcodes",list_feats_id,256/32,np.uint8)
