@@ -222,8 +222,11 @@ class LocalIndexer(GenericIndexer):
         """ Index a batch in the form of a list of (id,url,other_data)
         """
         # Download images
+        timestr= time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(time.time()))
         startid = batch[0][0]
-        readable_images = self.image_downloader.download_images(batch,startid)
+        lastid = batch[-1][0]
+        update_suffix = timestr+'_'+startid+'_'+lastid
+        readable_images = self.image_downloader.download_images(batch,update_suffix)
         #print readable_images
         # Compute sha1
         sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
@@ -234,9 +237,9 @@ class LocalIndexer(GenericIndexer):
         # Find new images
         new_files,new_uniques,new_fulls = self.get_new_unique_images(sha1_images)
         # Compute features
-        features_filename,ins_num = self.feature_extractor.compute_features(new_files,startid)
+        features_filename,ins_num = self.feature_extractor.compute_features(new_files,update_suffix)
         # Compute hashcodes
-        hashbits_filepath = self.hasher.compute_hashcodes(features_filename,ins_num,startid)
+        hashbits_filepath = self.hasher.compute_hashcodes(features_filename,ins_num,update_suffix)
         # Insert new ids
         self.insert_new_uniques(new_uniques)
         self.insert_new_fulls(new_fulls)
