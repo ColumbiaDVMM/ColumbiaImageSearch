@@ -26,22 +26,25 @@ void normalize(ty *X, size_t dim)
 		X[i] *= n;
 	}
 }
+
 int NumberOfSetBits(unsigned int i)
 {
 	i = i - ((i >> 1) & 0x55555555);
 	i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
 	return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
 }
-int count_bits(unsigned int n) {     
+
+int count_bits(unsigned int n) {
 	unsigned int c; // c accumulates the total bits set in v
-	for (c = 0; n; c++) 
+	for (c = 0; n; c++)
 		n &= n - 1; // clear the least significant bit set
 	return c;
 }
+
 ifstream::pos_type filesize(string filename)
 {
 	ifstream in(filename, ios::ate | ios::binary);
-	return in.tellg(); 
+	return in.tellg();
 }
 
 
@@ -51,8 +54,7 @@ int main(int argc, char** argv){
 	t[0] = get_wall_time(); // Start Time
 	float runtimes[6] = {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
 	if (argc < 3){
-		cout << "Usage: hashing feature_file_name feature_number [hashing_bits ]" << std::endl;
-
+		cout << "Usage: hashing feature_file_name feature_number [base_modelpath hashing_bits]" << std::endl;
 		return -1;
 	}
 	//omp_set_num_threads(omp_get_max_threads());
@@ -60,15 +62,20 @@ int main(int argc, char** argv){
 	int feature_dim = 4096;
 	int bit_num = 256;
 	int norm = true;
+        string basepath;
 	if (argc>3)
-		bit_num = atoi(argv[3]);
+		basepath = argv[3];
+        else
+                basepath = "./";
+	if (argc>4)
+		bit_num = atoi(argv[4]);
 	int int_num = bit_num/32;
 	string bit_string = to_string((long long)bit_num);
 	string str_norm = "";
 	if (norm)
 		str_norm = "norm_";
-	string W_name = "W_" + str_norm + bit_string;
-	string mvec_name = "mvec_" + str_norm + bit_string;
+	string W_name = basepath + "W_" + str_norm + bit_string;
+	string mvec_name = basepath + "mvec_" + str_norm + bit_string;
 
 	//read in query
 	int query_num = atoi(argv[2]);

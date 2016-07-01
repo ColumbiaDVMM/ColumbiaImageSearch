@@ -137,6 +137,7 @@ class LocalIndexer(GenericIndexer):
         # get unique images 
         sha1_list = [img_item[-1] for img_item in sha1_images]
         unique_sha1 = sorted(set(sha1_list))
+        print "[LocalIndexer.get_new_unique_images: log] We have {} unique images.".format(len(unique_sha1))
         unique_idx = [sha1_list.index(sha1) for sha1 in unique_sha1]
         full_idx = [unique_sha1.index(sha1) for sha1 in sha1_list]
         
@@ -156,6 +157,7 @@ class LocalIndexer(GenericIndexer):
         new_fulls = []
         for i in range(0,len(sha1_images)):
             new_fulls.append((int(sha1_images[i][0]),unique_htid[full_idx[i]]))
+        print "[LocalIndexer.get_new_unique_images: log] We have {} new unique images.".format(len(new_files))
         return new_files,new_uniques,new_fulls
 
     def insert_new_uniques(self,new_uniques):
