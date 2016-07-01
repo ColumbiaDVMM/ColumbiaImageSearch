@@ -25,13 +25,11 @@ if __name__=="__main__":
     # Compute sha1
     sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
     new_files = [img[-1] for img in readable_images]
+    list_feats_id = [x[0] for x in batch]
 
 	# Compute features
     features_filename,ins_num = LI.feature_extractor.compute_features(new_files,update_id)
+    feats,feats_OK = LI.hasher.read_binary_file(features_filename,"feats",list_feats_id,4096*4,np.float32)
     # Compute hashcodes
     hashbits_filepath = LI.hasher.compute_hashcodes(features_filename,ins_num,update_id)
-
-    list_feats_id = [x[0] for x in batch]
-    # read_binary_file(X_fn,str_precomp,list_feats_id,read_dim,read_type)
-    feats,feats_OK = LI.hasher.read_binary_file(features_filename,"feats",list_feats_id,4096*4,np.float32)
     hashcodes,hashcodes_OK = LI.hasher.read_binary_file(hashbits_filepath,"hashcodes",list_feats_id,256/32,np.uint8)
