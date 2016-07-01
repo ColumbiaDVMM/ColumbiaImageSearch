@@ -30,6 +30,7 @@ class LocalIndexer(GenericIndexer):
         self.initialize_image_downloader()
         self.initialize_feature_extractor()
         self.initialize_hasher()
+        self.db = None
 
     def initialize_image_downloader(self):
         if self.image_downloader_type=="file_downloader":
@@ -60,7 +61,8 @@ class LocalIndexer(GenericIndexer):
         self.local_dbname = self.global_conf['LI_local_dbname']
 
     def open_localdb_connection(self):
-        self.db = MySQLdb.connect(host=self.local_db_host,user=self.local_db_user,passwd=self.local_db_pwd,db=self.local_dbname)
+        if not self.db:
+            self.db = MySQLdb.connect(host=self.local_db_host,user=self.local_db_user,passwd=self.local_db_pwd,db=self.local_dbname)
 
     def close_localdb_connection(self):
         self.db.close()
@@ -90,7 +92,6 @@ class LocalIndexer(GenericIndexer):
             umax = int(remax[0][0])
         else:
             umax = 0
-        self.close_localdb_connection()
         return umax
 
     def get_max_ht_id(self):
@@ -104,7 +105,6 @@ class LocalIndexer(GenericIndexer):
             fmax = int(remax[0][0])
         else:
             fmax = 0
-        self.close_localdb_connection()
         return fmax
 
     def get_max_full_id(self):
@@ -129,7 +129,6 @@ class LocalIndexer(GenericIndexer):
         sqlq = sql % (in_p)
         c.execute(sqlq, unique_sha1)
         re = c.fetchall()
-        self.close_localdb_connection()
         old_uniques = [i[1] for i in re]
         old_uniques_htid = [int(i[0]) for i in re]
         return old_uniques,old_uniques_htid
@@ -167,6 +166,7 @@ class LocalIndexer(GenericIndexer):
         :param new_uniques: list of tuples (htid, location, sha1) to be inserted.
         :type new_uniques: list
         """
+        self.open_localdb_connection()
         c = self.db.cursor()
         if len(new_uniques):
             insert_statement = "INSERT IGNORE INTO uniqueIds (htid, location, sha1) VALUES {}".format(','.join(map(str,new_uniques)))
@@ -178,6 +178,7 @@ class LocalIndexer(GenericIndexer):
         :param new_fulls: list of tuples (htid, uid) to be inserted.
         :type new_fulls: list
         """
+        self.open_localdb_connection()
         c = self.db.cursor()
         if len(new_fulls):
             insert_statement = "INSERT IGNORE INTO fullIds (htid, uid) VALUES {}".format(','.join(map(str,new_fulls)))
@@ -229,17 +230,16 @@ class LocalIndexer(GenericIndexer):
         # Compute sha1
         sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
         #print "[LocalIndexer.index_batch: log] sha1_images",sha1_images
-        # Record current biggest ids
-        umax = self.get_max_unique_id()
-        fmax = self.get_max_full_id()
         # Find new images
         new_files,new_uniques,new_fulls = self.get_new_unique_images(sha1_images)
         # Compute features
         features_filename,ins_num = self.feature_extractor.compute_features(new_files,update_suffix)
         # Compute hashcodes
         hashbits_filepath = self.hasher.compute_hashcodes(features_filename,ins_num,update_suffix)
+        # Record current biggest ids
+        umax = self.get_max_unique_id()
+        fmax = self.get_max_full_id()
         # Insert new ids
-        self.open_localdb_connection()
         self.insert_new_uniques(new_uniques)
         self.insert_new_fulls(new_fulls)
         # Check that batch processing went well
