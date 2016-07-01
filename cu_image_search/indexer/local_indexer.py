@@ -94,7 +94,7 @@ class LocalIndexer(GenericIndexer):
         final_res = []
         for one_type_res in res:
             found_ids = one_type_res[1]
-            final_res.append((one_type_res[0],[x[1] for i,x in enumerate(list_ids_sha1_found) if i in found_ids])
+            final_res.append((one_type_res[0],[x[1] for i,x in enumerate(list_ids_sha1_found) if i in found_ids]))
         return final_res
 
     def is_indexed(self,sha1):
@@ -155,7 +155,7 @@ class LocalIndexer(GenericIndexer):
         c.execute(sqlq, sha1_list)
         re = c.fetchall()
         # return both id and sha1 to detect missing ones
-        uniques_ids = [int(i[0]),i[1] for i in re]
+        uniques_ids = [(int(i[0]),i[1]) for i in re]
         c.close()
         return uniques_ids
 

@@ -9,12 +9,13 @@ if __name__=="__main__":
     #readable_images = LI.index_batch(batch)
     #print readable_images
 
+    # precomputed
     #res = LI.get_precomp_from_sha1(['0000007031E3FA80C97940017253BEAB542EA334'],["feats","hashcodes"])
     #print res
     res = LI.get_precomp_from_sha1(['0000007031E3FA80C97940017253BEAB542EA334','LL00007031E3FA80C97940017253BEAB542EA334','000000A7CAD184BD6BC00DAF032E5F7C818C39D0'],["feats","hashcodes"])
     print res
 
-
+    # recomputing
     update_id = 'test_indexer'
     batch = []
     batch.append(('0000007031E3FA80C97940017253BEAB542EA334','https://s3.amazonaws.com/roxyimages/dfeb5271d5a455c164cd27937213fb920fc0a78b.jpg',None))
