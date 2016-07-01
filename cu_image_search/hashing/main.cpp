@@ -30,7 +30,7 @@ int main(int argc, char** argv){
 	t[0] = get_wall_time(); // Start Time
 	float runtimes[7] = {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
 	if (argc < 2){
-		cout << "Usage: hashing feature_file_name [hashing_bits post_ranking_ratio nomarlize_features read_threshold]" << std::endl;
+		cout << "Usage: hashing feature_file_name [base_modelpath base_updatepath hashing_bits post_ranking_ratio nomarlize_features read_threshold]" << std::endl;
 
 		return -1;
 	}
@@ -41,24 +41,29 @@ int main(int argc, char** argv){
 	float ratio = 0.001f;
 	int bit_num = 256;
 	int norm = true;
-	if (argc>2)
-		bit_num = atoi(argv[2]);
-	if (argc>3)
-		ratio = (float)atof(argv[3]);
+    if (argc>2)
+        base_modelpath = argv[2];
+    if (argc>3)
+        base_updatepath = argv[3];
+    set_paths();
 	if (argc>4)
-		norm = atoi(argv[4]);
+		bit_num = atoi(argv[4]);
+	if (argc>5)
+		ratio = (float)atof(argv[5]);
+	if (argc>6)
+		norm = atoi(argv[6]);
 
 	int read_thres = (int)(1.0f/ratio);
-	if (argc>5)
-		read_thres =  atoi(argv[5]);
+	if (argc>7)
+		read_thres =  atoi(argv[7]);
 	int int_num = bit_num/32;
 	string bit_string = to_string((long long)bit_num);
 	string str_norm = "";
 	if (norm)
 		str_norm = "_norm";
 	string itq_name = "itq" + str_norm + "_" + bit_string;
-	string W_name = "/home/ubuntu/memex/data/W" + str_norm + "_" + bit_string;
-	string mvec_name = "/home/ubuntu/memex/data/mvec" + str_norm + "_" + bit_string;
+	string W_name = base_modelpath + "W" + str_norm + "_" + bit_string;
+	string mvec_name = base_modelpath + "mvec" + str_norm + "_" + bit_string;
 
 	//read in query
 	int query_num = (int)filesize(argv[1])/4/feature_dim;
