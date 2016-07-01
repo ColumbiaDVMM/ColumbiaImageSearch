@@ -23,6 +23,9 @@ compress_feats: compress_feats.o header.o iotools.o
 get_precomp_feats: get_precomp_feats.o iotools.o header.o
 	$(CC) get_precomp_feats.o header.o iotools.o -o get_precomp_feats -I$(INCLUDE_DIRS) $(CVLIBS) -L$(LIB_DIRS)
 
+get_precomp_hashcodes: get_precomp_hashcodes.o iotools.o header.o
+	$(CC) get_precomp_hashcodes.o header.o iotools.o -o get_precomp_hashcodes -I$(INCLUDE_DIRS) $(CVLIBS) -L$(LIB_DIRS)
+
 iotools.o: iotools.cpp iotools.h header.h
 	$(CC) $(CFLAGS) iotools.cpp -o iotools.o
 
@@ -37,6 +40,9 @@ compress_feats.o: compress_feats.cpp header.h iotools.h
 
 get_precomp_feats.o: get_precomp_feats.cpp header.h iotools.h
 	$(CC) $(CFLAGS) get_precomp_feats.cpp -o get_precomp_feats.o -I$(INCLUDE_DIRS)
+
+get_precomp_hashcodes.o: get_precomp_hashcodes.cpp header.h iotools.h
+	$(CC) $(CFLAGS) get_precomp_hashcodes.cpp -o get_precomp_hashcodes.o -I$(INCLUDE_DIRS)
 
 header.o: header.cpp header.h 
 	$(CC) $(CFLAGS) header.cpp

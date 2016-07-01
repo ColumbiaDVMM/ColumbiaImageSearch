@@ -79,19 +79,20 @@ int get_onefeatcomp(int query_id, size_t read_size, int* accum, vector<ifstream*
     file_id = get_file_pos(accum, (int)read_in_compidx.size(), query_id, new_pos);
     if (file_id==-1)
         return -1;
-    std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
+    //std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
     read_in_compidx[file_id]->seekg((unsigned long long int)(new_pos)*idx_size);
     read_in_compidx[file_id]->read((char*)&start_feat, idx_size);
     read_in_compidx[file_id]->read((char*)&end_feat, idx_size);
     read_in_compfeatures[file_id]->seekg(start_feat);
     read_in_compfeatures[file_id]->read(comp_feature, end_feat-start_feat);
-    std::cout << "Reading compressed feature from "  << start_feat << " to " << end_feat << std::endl;
+    //std::cout << "Reading compressed feature from "  << start_feat << " to " << end_feat << std::endl;
     uLong total_out = decompress_onefeat(comp_feature, feature_cp, (int)end_feat-start_feat, read_size);
-    std::cout << "Decompressed size is "  << total_out << std::endl;
+    //std::cout << "Decompressed size is "  << total_out << std::endl;
     delete[] comp_feature;
     return 0;
 }
 
+/* Deprecated: use get_onesample
 int get_onefeat(int query_id, size_t read_size, int* accum, vector<ifstream*>& read_in_features, char* feature_cp) {
     int new_pos = 0;
     int file_id = 0;
@@ -101,6 +102,18 @@ int get_onefeat(int query_id, size_t read_size, int* accum, vector<ifstream*>& r
     //std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
     read_in_features[file_id]->seekg((unsigned long long int)(new_pos)*read_size);
     read_in_features[file_id]->read(feature_cp, read_size);
+    return 0;
+}*/
+
+int get_onesample(int query_id, size_t read_size, int* accum, vector<ifstream*>& read_in, char* cp) {
+    int new_pos = 0;
+    int file_id = 0;
+    file_id = get_file_pos(accum, (int)read_in.size(), query_id, new_pos);
+    if (file_id==-1)
+        return -1;
+    //std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
+    read_in_features[file_id]->seekg((unsigned long long int)(new_pos)*read_size);
+    read_in_features[file_id]->read(cp, read_size);
     return 0;
 }
 
@@ -221,6 +234,77 @@ int get_n_features(string update_fn, int* query_ids, int query_num, int norm, in
         read_in_compidx[i]->close();
         delete read_in_compfeatures[i];
         delete read_in_compidx[i];
+    }
+    return 0;
+}
+
+int get_n_hashcodes(string update_fn, int* query_ids, int query_num, int norm, int bit_num, size_t read_size, char* hashcode_cp) {
+    // Some ugly hard coded string initialization...
+    string bit_string = to_string((long long)bit_num);
+    string str_norm = "";
+    if (norm)
+        str_norm = "_norm";
+    string itq_name = "itq" + str_norm + "_" + bit_string;
+    string update_hash_suffix = "";
+    if (norm)
+    {
+        update_hash_suffix = "_" + itq_name;
+    }
+
+    // Config update
+    string line;
+    vector<string> update_hash_files;
+    ifstream fu(update_fn,ios::in);
+    if (!fu.is_open())
+    {
+        std::cout << "No update! Was looking for " << update_fn << std::endl;
+    return -1;
+    }
+    else
+    {
+        while (getline(fu, line)) {
+            std::cout << "Loading update: " << line << std::endl;
+            update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
+        }
+    }
+
+    // get compressed features files pointers and their corresponding indices
+    vector<ifstream*> read_in_hashcodes;
+    int status = 0;
+    status = fill_vector_files(read_in_hashcodes,update_hash_files);
+    if (status==-1) {
+        std::cout << "Could not load hashcodes properly. Exiting." << std::endl;
+        // TODO: We should clean here
+        return -1;
+    }
+
+    // read in all files size to know where to look for features...
+    vector<unsigned long long int> data_nums;
+    unsigned long long int data_num = fill_data_nums(update_hash_files,data_nums,bit_num);
+    int * accum = new int[data_nums.size()];
+    fill_accum(data_nums,accum);
+
+    // Get query feature(s)
+    for (int i=0;i<query_num;i++)
+    {
+        std::cout << "Looking for feature #" << query_ids[i] << std::endl;
+        // BEWARE: we consider here ids are python/db, so in C they are ids+1...
+        // TODO: maybe define a flag python id or not
+        status = get_onesample(query_ids[i]-1,read_size,accum,read_in_hashcodes,hashcode_cp);
+        if (status==-1) {
+            std::cout << "Could not load hashcode " << query_ids[i]-1 << ". Exiting." << std::endl;
+            // TODO: We should clean here
+            return -1;
+        }
+        hashcode_cp +=read_size;
+    }
+
+    // clean exit
+    delete[] accum;
+    for (int i = 1; i<data_nums.size();i++)
+    {
+        read_in_hashcodes[i]->close();
+        delete read_in_hashcodes[i];
     }
     return 0;
 }
