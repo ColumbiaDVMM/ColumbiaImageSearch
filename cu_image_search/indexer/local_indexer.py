@@ -8,6 +8,12 @@ from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 class LocalIndexer(GenericIndexer):
 
     def read_conf(self):
+        """ Reads configuration parameters.
+
+        Will read parameters 'LI_image_downloader', 'LI_hasher', 
+        'LI_feature_extractor', 'LI_master_update_filepath' and 'LI_base_update_path'
+        from self.global_conf.
+        """
         self.image_downloader_type = self.global_conf['LI_image_downloader']
         self.hasher_type = self.global_conf['LI_hasher']
         self.feature_extractor_type = self.global_conf['LI_feature_extractor']
@@ -208,11 +214,20 @@ class LocalIndexer(GenericIndexer):
             return True
         return False
 
-    def update_master_file(self,startid):
+    def update_master_file(self,update_id):
+        """ Appends `update_id` to the `master_update_filepath`.
+        """
         with open(self.master_update_filepath, "a") as f:
-                f.write(startid+'\n')
+                f.write(update_id+'\n')
 
     def finalize_update(self,success,hashbits_filepath,feature_filepath,update_id):
+        """ Finalize update.
+
+        If success, will update the `update_master_file` with current update_id
+        and compress the features.
+
+        If failure, will delete `hashbits_filepath` and `feature_filepath`.
+        """
         if not success:
             if os.path.isfile(hashbits_filepath):
                 os.remove(hashbits_filepath)
