@@ -25,7 +25,7 @@ if __name__=="__main__":
                 print 'sleep for',interval-time_lapse, 'seconds...'
                 time.sleep(interval-time_lapse)
             lasttime=time.time()
-            up_obj.run_udpate()
+            up_obj.run_update()
         except Exception as inst:
             print "Update failed at {} with error {}.".format(datetime.now(),inst)
 

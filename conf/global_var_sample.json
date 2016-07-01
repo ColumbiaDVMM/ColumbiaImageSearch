@@ -25,11 +25,9 @@
         "LI_image_downloader":"file_downloader",
         "LI_hasher":"syscall_hasher",
         "LI_feature_extractor":"sentibank_cmdline",
-        "LI_master_update_filepath":"update_list.txt",
-        "FD_dl_image_path":"./",
+        "LI_master_update_filepath":"update_list_dev.txt",
+        "FD_dl_image_path":"/home/ubuntu/memex/update/images/",
         "FD_dl_pool_size":2,
-        "FE_features_path":"features/",
-        "FE_sentibank_path":"sentibank/",
-        "HA_hashing_path":"hashing/",
+        "LI_base_update_path":"/home/ubuntu/memex/update/",
         "indexer_verbose":1
 }

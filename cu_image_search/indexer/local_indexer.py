@@ -12,6 +12,7 @@ class LocalIndexer(GenericIndexer):
         self.hasher_type = self.global_conf['LI_hasher']
         self.feature_extractor_type = self.global_conf['LI_feature_extractor']
         self.master_update_filepath = self.global_conf['LI_master_update_filepath']
+        self.base_update_path = self.global_conf['LI_base_update_path']
         # Initialize db config
         self.read_db_conf()
 
