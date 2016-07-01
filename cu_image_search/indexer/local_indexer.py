@@ -187,6 +187,11 @@ class LocalIndexer(GenericIndexer):
     def check_batch(self,umax,umax_new,num_new_unique,fmax_new,fmax,num_readable,hashbits_filepath,feature_filepath):
         if umax_new-umax != num_new_unique:
             print 'Update failed! unique table size mismatch!',umax_new,umax,num_new_unique
+            print 'You might need to run:\n\
+            alter table uniqueIds AUTO_INCREMENT = 1;\n\
+            alter table fullIds AUTO_INCREMENT = 1;\n\
+            in the local mysql to reset the incremental id.'
+        # TODO: replace hard coded values by hash_nb_bits/8 and feats_nb_dim*4.
         elif os.stat(hashbits_filepath).st_size!=num_new_unique*32:
             print 'Update failed! hash bits size mismatch!',os.stat(hashbits_filepath).st_size,num_new_unique*32
         elif os.stat(feature_filepath).st_size!=num_new_unique*16384:
