@@ -85,7 +85,9 @@ int get_onefeatcomp(int query_id, size_t read_size, int* accum, vector<ifstream*
     read_in_compidx[file_id]->read((char*)&end_feat, idx_size);
     read_in_compfeatures[file_id]->seekg(start_feat);
     read_in_compfeatures[file_id]->read(comp_feature, end_feat-start_feat);
-    decompress_onefeat(comp_feature, feature_cp, (int)end_feat-start_feat, read_size);
+    std::cout << "Reading compressed feature from "  << start_feat << " to " << end_feat << std::endl;
+    uLong total_out = decompress_onefeat(comp_feature, feature_cp, (int)end_feat-start_feat, read_size);
+    std::cout << "Decompressed size is "  << total_out << std::endl;
     delete[] comp_feature;
     return 0;
 }
