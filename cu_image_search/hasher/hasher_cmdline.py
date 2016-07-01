@@ -33,6 +33,7 @@ class HasherCmdLine():
         mkpath(os.path.join(self.base_update_path,'comp_idx'))
         # we could be passing additional arguments here
         command = self.hashing_execpath+'compress_feats '+self.base_update_path
+        # this will work only if all features are still present in self.base_update_path/features
         print command
         os.system(command)
 
