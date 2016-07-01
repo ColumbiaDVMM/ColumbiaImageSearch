@@ -3,6 +3,7 @@ import time
 import json
 import shutil
 import struct
+import numpy as np
 from ..memex_tools.image_dl import mkpath
 
 class HasherCmdLine():
@@ -45,7 +46,7 @@ class HasherCmdLine():
             for feat_id in list_feats_id:
                 f_prein.write(struct.pack('i',feat_id))
         # query for features
-        command = self.hashing_execpath+"get_precomp_{} {} {} {}".format(str_precomp,query_precomp_fn,features_fn,self.base_update_path)
+        command = self.hashing_execpath+"get_precomp_{} {} {} {}".format(str_precomp,query_precomp_fn,X_fn,self.base_update_path)
         print "[HasherCmdLine.get_precomp_X: log] running command: {}".format(command)
         os.system(command)
         # read features/hashcodes
@@ -67,6 +68,6 @@ class HasherCmdLine():
         return self.get_precomp_X(list_feats_id,"feats",self.features_dim*4,np.float32)
 
     def get_precomp_hashcodes(self,list_feats_id):
-        return self.get_precomp_X(list_feats_id,"hashcodes",self.bits_num/8,np.float32)
+        return self.get_precomp_X(list_feats_id,"hashcodes",self.bits_num/8,np.uint8)
 
 

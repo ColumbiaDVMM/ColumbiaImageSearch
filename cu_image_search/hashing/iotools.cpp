@@ -123,7 +123,7 @@ unsigned long long int fill_data_nums(vector<string>& update_hash_files, vector<
     {
         data_nums.push_back((unsigned long long int)filesize(update_hash_files[i])*8/bit_num);
         data_num += data_nums[i];
-        std::cout << "We have a " << data_nums[i] << " features in file " << update_hash_files[i] << std::endl;
+        //std::cout << "We have a " << data_nums[i] << " features in file " << update_hash_files[i] << std::endl;
     }
     std::cout << "We have a total of " << data_num << " features." << std::endl;
     return data_num;
@@ -181,7 +181,7 @@ int get_n_features(string update_fn, int* query_ids, int query_num, int norm, in
     else
     {
         while (getline(fu, line)) {
-            std::cout << "Loading update: " << line << std::endl;
+            //std::cout << "Loading update: " << line << std::endl;
             update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
             update_compfeature_files.push_back(update_compfeature_prefix+line+update_compfeature_suffix);
             update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);
@@ -263,7 +263,7 @@ int get_n_hashcodes(string update_fn, int* query_ids, int query_num, int norm, i
     else
     {
         while (getline(fu, line)) {
-            std::cout << "Loading update: " << line << std::endl;
+            //std::cout << "Loading update: " << line << std::endl;
             update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
         }
     }
