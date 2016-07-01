@@ -112,8 +112,8 @@ int get_onesample(int query_id, size_t read_size, int* accum, vector<ifstream*>&
     if (file_id==-1)
         return -1;
     //std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
-    read_in_features[file_id]->seekg((unsigned long long int)(new_pos)*read_size);
-    read_in_features[file_id]->read(cp, read_size);
+    read_in[file_id]->seekg((unsigned long long int)(new_pos)*read_size);
+    read_in[file_id]->read(cp, read_size);
     return 0;
 }
 
