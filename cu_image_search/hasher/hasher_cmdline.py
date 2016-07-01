@@ -57,7 +57,7 @@ class HasherCmdLine():
             for i in range(len(list_feats_id)):
                 try:
                     X.append(np.frombuffer(f_preout.read(read_dim),dtype=read_type))
-                    ok_ids.append(list_feats_id[i])
+                    ok_ids.append(i)
                 except Exception as inst:
                     print "[HasherCmdLine.get_precomp_X: error] Could not read requested {} with id {}. {}".format(str_precomp,list_feats_id[i],inst)
         # cleanup

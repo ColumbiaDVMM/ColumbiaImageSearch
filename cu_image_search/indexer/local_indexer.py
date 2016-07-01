@@ -88,8 +88,14 @@ class LocalIndexer(GenericIndexer):
         return res
 
     def get_precomp_from_sha1(self,list_sha1_id,list_type):
-        list_ids = self.get_ids_from_sha1s(list_sha1_id)
-        return self.get_precomp_from_ids(list_ids,list_type)
+        list_ids_sha1_found = self.get_ids_from_sha1s(list_sha1_id)
+        list_ids = [x[0] for x in list_ids_sha1_found]
+        res = self.get_precomp_from_ids(list_ids,list_type)
+        final_res = []
+        for one_type_res in res:
+            found_ids = one_type_res[1]
+            final_res.append((one_type_res[0],[x[1] for i,x in enumerate(list_ids_sha1_found) if i in found_ids])
+        return final_res
 
     def is_indexed(self,sha1):
         # query index with single SHA1
@@ -148,7 +154,8 @@ class LocalIndexer(GenericIndexer):
         sqlq = sql % (in_p)
         c.execute(sqlq, sha1_list)
         re = c.fetchall()
-        uniques_ids = [int(i[0]) for i in re]
+        # return both id and sha1 to detect missing ones
+        uniques_ids = [int(i[0]),i[1] for i in re]
         c.close()
         return uniques_ids
 
