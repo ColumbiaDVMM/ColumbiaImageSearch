@@ -10,6 +10,7 @@ class SentiBankCmdLine():
         self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.base_update_path = self.global_conf['LI_base_update_path']
         self.features_path = os.path.join(self.base_update_path,'features')
+        print self.features_path
         mkpath(self.features_path)
 
     def compute_features(self,new_files,startid):
