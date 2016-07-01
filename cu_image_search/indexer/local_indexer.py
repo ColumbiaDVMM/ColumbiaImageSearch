@@ -79,6 +79,18 @@ class LocalIndexer(GenericIndexer):
         """
         return self.get_max_ht_id()
 
+    def get_precomp_from_ids(self,list_ids,list_type):
+        res = []
+        if "feats" in list_type:
+            res.append(self.hasher.get_precomp_feats(list_ids))
+        if "hashcodes" in list_type:
+            res.append(self.hasher.get_precomp_hashcodes(list_ids))
+        return res
+
+    def get_precomp_from_sha1(self,list_sha1_id,list_type):
+        list_ids = self.get_ids_from_sha1s(list_sha1_id)
+        return self.get_precomp_from_ids(list_ids,list_type)
+
     def is_indexed(self,sha1):
         # query index with single SHA1
         pass
@@ -127,6 +139,18 @@ class LocalIndexer(GenericIndexer):
             fmax = 0
         c.close()
         return fmax
+
+    def get_ids_from_sha1s(self,sha1_list):
+        self.open_localdb_connection()
+        c = self.db.cursor()
+        sql='SELECT id,sha1 FROM uniqueIds WHERE sha1 in (%s);' 
+        in_p=', '.join(map(lambda x: '%s', sha1_list))
+        sqlq = sql % (in_p)
+        c.execute(sqlq, sha1_list)
+        re = c.fetchall()
+        uniques_ids = [int(i[0]) for i in re]
+        c.close()
+        return uniques_ids
 
     def get_old_unique_ids(self,unique_sha1):
         self.open_localdb_connection()
