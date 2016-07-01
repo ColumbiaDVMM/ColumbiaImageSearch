@@ -11,5 +11,5 @@ if __name__=="__main__":
     #res = LI.get_precomp_from_sha1(['0000007031E3FA80C97940017253BEAB542EA334'],["feats","hashcodes"])
     #print res
  
-    res = LI.get_precomp_from_sha1(['0000007031E3FA80C97940017253BEAB542EA334','LL00007031E3FA80C97940017253BEAB542EA334'],["feats","hashcodes"])
+    res = LI.get_precomp_from_sha1(['0000007031E3FA80C97940017253BEAB542EA334','LL00007031E3FA80C97940017253BEAB542EA334','000000A5DF1457034A05D8F3458695AE66AA9E77'],["feats","hashcodes"])
     print res
