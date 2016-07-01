@@ -9,7 +9,7 @@ CC=g++
 CFLAGS=-c -std=c++0x -O2
 CVLIBS=-lopencv_core -lopencv_highgui -lz
 
-all: hashing hashing_update compress_feats get_precomp_feats
+all: hashing hashing_update compress_feats get_precomp_feats get_precomp_hashcodes
 
 hashing: main.o header.o iotools.o
 	$(CC) main.o header.o iotools.o -o hashing -fopenmp $(CVLIBS) -L$(LIB_DIRS)

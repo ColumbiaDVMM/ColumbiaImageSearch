@@ -22,13 +22,15 @@ int get_file_pos(int * accum, int nb_files, int query, int & res);
 
 // Getting one features from the binary files
 int get_onefeatcomp(int query_ids, size_t read_size, int* accum, vector<ifstream*>& read_in_compfeatures, vector<ifstream*>& read_in_compidx, char* feature_cp);
-int get_onefeat(int query_ids, size_t read_size, int* accum, vector<ifstream*>& read_in_features, char* feature_cp);
+int get_onesample(int query_ids, size_t read_size, int* accum, vector<ifstream*>& read_in, char* cp);
+//int get_onefeat(int query_ids, size_t read_size, int* accum, vector<ifstream*>& read_in_features, char* feature_cp);
 
 void fill_accum(vector<unsigned long long int>& data_nums,int * accum);
 unsigned long long int fill_data_nums(vector<string>& update_hash_files, vector<unsigned long long int>& data_nums, int bit_num);
 int fill_vector_files(vector<ifstream*>& read_in, vector<string>& update_files);
 
 int get_n_features(string udpate_fn, int* query_ids, int query_num, int norm, int bit_num, size_t read_size, char* feature_cp);
+int get_n_hashcodes(string udpate_fn, int* query_ids, int query_num, int norm, int bit_num, size_t read_size, char* hashcode_cp);
 
 // Template functions have to be declared in header
 template<class ty>
