@@ -9,14 +9,13 @@ class SentiBankCmdLine():
     def __init__(self,global_conf_filename):
         self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.base_update_path = self.global_conf['LI_base_update_path']
-        self.features_path = os.path.join(self.base_update_path,'features')
-        print self.features_path
-        mkpath(self.features_path)
+        self.features_path = os.path.join(self.base_update_path,'features/')
 
     def compute_features(self,new_files,startid):
         self.sentibank_path = os.path.join(os.path.dirname(__file__),'sentibank/')
-        print "[SentiBankCmdLine.compute_features: log] Set sentibank_path to {}.".format(self.sentibank_path)
+        print "[SentiBankCmdLine.compute_features: log] sentibank_path is {}.".format(self.sentibank_path)
         mkpath(self.features_path)
+        print "[SentiBankCmdLine.compute_features: log] features_path is {}.".format(self.features_path)
 
         # create file listing images to be processed
         img_filename = os.path.join(self.features_path,str(startid)+'.txt')

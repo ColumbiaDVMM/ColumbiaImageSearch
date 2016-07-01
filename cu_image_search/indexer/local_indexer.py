@@ -167,12 +167,10 @@ class LocalIndexer(GenericIndexer):
         :param new_uniques: list of tuples (htid, location, sha1) to be inserted.
         :type new_uniques: list
         """
-        self.open_localdb_connection()
         c = self.db.cursor()
-        if num_new_unique:
+        if len(new_uniques):
             insert_statement = "INSERT IGNORE INTO uniqueIds (htid, location, sha1) VALUES {}".format(','.join(map(str,new_uniques)))
             c.execute(insert_statement)
-        self.close_localdb_connection()
 
     def insert_new_fulls(self,new_fulls):
         """ Insert new_fulls ids in the local database.
@@ -180,9 +178,10 @@ class LocalIndexer(GenericIndexer):
         :param new_fulls: list of tuples (htid, uid) to be inserted.
         :type new_fulls: list
         """
-        insert_statement = "INSERT IGNORE INTO fullIds (htid, uid) VALUES {}".format(','.join(map(str,new_fulls)))
+        c = self.db.cursor()
+        if len(new_fulls):
+            insert_statement = "INSERT IGNORE INTO fullIds (htid, uid) VALUES {}".format(','.join(map(str,new_fulls)))
         c.execute(insert_statement)
-        self.close_localdb_connection()
 
     def check_batch(self,umax,umax_new,num_new_unique,fmax_new,fmax,num_readable,hashbits_filepath,feature_filepath):
         if umax_new-umax != num_new_unique:
@@ -211,8 +210,7 @@ class LocalIndexer(GenericIndexer):
             self.update_master_file(startid)
             self.hasher.compress_feats()
             #vmtouch hashing and features folder
-            os.system('./cache.sh')
-
+            #os.system('./cache.sh')
             ## delete img cache # should be done in search.
             #os.system('find img -name "*sim_*.txt" -exec rm -rf {} \;')
             #os.system('find img -name "*sim_*.json" -exec rm -rf {} \;')
@@ -238,17 +236,17 @@ class LocalIndexer(GenericIndexer):
         # Compute hashcodes
         hashbits_filepath = self.hasher.compute_hashcodes(features_filename,ins_num,startid)
         # Insert new ids
+        self.open_localdb_connection()
         self.insert_new_uniques(new_uniques)
         self.insert_new_fulls(new_fulls)
         # Check that batch processing went well
         umax_new = self.get_max_unique_id()
         fmax_new = self.get_max_full_id()
-        update_success = self.check_batch(umax,umax_new,len(new_uniques),fmax_new,fmax,len(sha1_images),hashbits_filepath,feature_filepath)
+        update_success = self.check_batch(umax,umax_new,len(new_uniques),fmax_new,fmax,len(sha1_images),hashbits_filepath,features_filename)
         if update_success:
             print "Update succesful!"
-            self.open_localdb_connection()
             self.db.commit()
-            self.close_localdb_connection()
-        self.finalize(update)
+        self.close_localdb_connection()
+        self.finalize_udpate(update_success)
 
         
