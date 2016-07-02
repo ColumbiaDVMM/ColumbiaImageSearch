@@ -97,14 +97,6 @@ class LocalIndexer(GenericIndexer):
             final_res.append((one_type_res[0],[x[1] for i,x in enumerate(list_ids_sha1_found) if i in found_ids]))
         return final_res
 
-    def is_indexed(self,sha1):
-        # query index with single SHA1
-        pass
-
-    def are_indexed(self,sha1_list):
-        # query index with list of SHA1
-        pass
-
     def get_max_unique_id(self):
         """ Get max `id` from `uniqueIds` table in local MySQL.
         """
@@ -158,6 +150,32 @@ class LocalIndexer(GenericIndexer):
         uniques_ids = [(int(i[0]),i[1]) for i in re]
         c.close()
         return uniques_ids
+
+    def get_sha1s_htid_url_from_ids(self,ids_list):
+        self.open_localdb_connection()
+        c = self.db.cursor()
+        sql='SELECT sha1,htid,location,id FROM uniqueIds WHERE id in (%s);' 
+        in_p=', '.join(map(lambda x: '%s', ids_list))
+        sqlq = sql % (in_p)
+        c.execute(sqlq, ids_list)
+        re = c.fetchall()
+        uniques_ids = [(i[0],int(i[1]),i[2],int(i[3])) for i in re]
+        c.close()
+        return uniques_ids
+
+
+   def get_all_dup_from_ids(self,ids_list):
+        self.open_localdb_connection()
+        c = self.db.cursor()
+        # we could use 'BETWEEN ids_list[0] AND ids_list[1]' if we were sure ids_list were consecutives...
+        sql='SELECT `fullIds`.`htid`,`uniqueIds`.`sha1` FROM uniqueIds JOIN fullIds ON `uniqueIds`.`htid` = `fullIds`.`uid` WHERE `uniqueIds`.`id` IN (%s);' 
+        in_p=', '.join(map(lambda x: '%s', ids_list))
+        sqlq = sql % (in_p)
+        c.execute(sqlq, ids_list)
+        re = c.fetchall()
+        dups_ids = [(int(i[0]),i[1]) for i in re]
+        c.close()
+        return dups_ids
 
     def get_old_unique_ids(self,unique_sha1):
         self.open_localdb_connection()
