@@ -34,4 +34,5 @@ if __name__=="__main__":
     feats,feats_OK = LI.hasher.read_binary_file(features_filename,"feats",list_feats_id,4096*4,np.float32)
     # Compute hashcodes
     hashbits_filepath = LI.hasher.compute_hashcodes(features_filename,ins_num,update_id)
-    hashcodes,hashcodes_OK = LI.hasher.read_binary_file(hashbits_filepath,"hashcodes",list_feats_id,256/32,np.uint8)
+    hashcodes,hashcodes_OK = LI.hasher.read_binary_file(hashbits_filepath,"hashcodes",list_feats_id,256/8,np.uint8)
+    print np.sum(np.abs(feats[0]/np.linalg.norm(feats[0])-res[0][0][0]))
