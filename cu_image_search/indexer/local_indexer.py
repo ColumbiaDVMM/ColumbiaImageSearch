@@ -164,7 +164,7 @@ class LocalIndexer(GenericIndexer):
         return uniques_ids
 
 
-   def get_all_dup_from_ids(self,ids_list):
+    def get_all_dup_from_ids(self,ids_list):
         self.open_localdb_connection()
         c = self.db.cursor()
         # we could use 'BETWEEN ids_list[0] AND ids_list[1]' if we were sure ids_list were consecutives...
