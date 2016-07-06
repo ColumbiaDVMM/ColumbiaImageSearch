@@ -23,6 +23,9 @@ class GenericIngester():
             self.fail_less_than_batch = self.global_conf["fail_less_than_batch"]
         if "batch_size" in self.global_conf:
             self.batch_size = self.global_conf["batch_size"]
+        self.demo = None
+        if "demo" in self.global_conf:
+            self.demo = self.global_conf["demo"]
 
     def initialize_source(self):
         """ Use information contained in `self.global_conf` to initialize `self.source`

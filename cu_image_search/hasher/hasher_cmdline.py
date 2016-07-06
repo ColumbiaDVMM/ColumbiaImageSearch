@@ -80,8 +80,9 @@ class HasherCmdLine():
         #command = self.hashing_execpath+"hashing "+featurefilename+" "+str(self.bits_num)+" "+str(ratio)
         print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
         os.system(command)
-        simname = featurefilename + '_fc7-sim_'+str(ratio)+'.txt'
-        os.rename(featurefilename + '_fc7-sim.txt',simname)
-
-
+        initname = featurefilename[:-4] + '-sim.txt'
+        simname = featurefilename[:-4] + '-sim_'+str(ratio)+'.txt'
+        print "[HasherCmdLine.get_similar_images: log] try to rename {} to {}".format(initname,simname)
+        os.rename(initname,simname)
+        return simname
 

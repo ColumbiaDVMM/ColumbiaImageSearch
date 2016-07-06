@@ -35,7 +35,7 @@ class MySQLIngester(GenericIngester):
         return [(img[0],img[1],None) for img in re]
 
     def expand_metadata(self,tmp_sim):
-        out = sim
+        out = tmp_sim
         if not self.demo:
             self.source = MySQLdb.connect(host=self.host,user=self.user,passwd=self.pwd,db=self.db)
             c = self.source.cursor()

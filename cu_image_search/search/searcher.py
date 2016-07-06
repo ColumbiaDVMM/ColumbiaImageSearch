@@ -5,6 +5,7 @@ import json
 import struct
 import MySQLdb
 import numpy as np
+from collections import OrderedDict 
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
 class Searcher():
@@ -20,6 +21,7 @@ class Searcher():
     	# these parameters may be overwritten by web call
         self.features_dim = self.global_conf['FE_features_dim']
         self.sim_limit = self.global_conf['SE_sim_limit']
+        self.near_dup = self.global_conf['SE_near_dup']
         self.near_dup_th =  self.global_conf['SE_near_dup_th']
         self.get_dup = self.global_conf['SE_get_dup']
         self.ratio = self.global_conf['SE_ratio']
@@ -80,13 +82,13 @@ class Searcher():
         for i in range(0,len(sim)):    
             new_sim.append([])
             new_sim_score.append([])
-            tmpresult = self.local_indexer.get_url_infos(sim[i])
+            tmpresult = self.indexer.get_url_infos(sim[i])
             #print len(tmpresult)
             p = 0
             for k in tmpresult:
                 if sim[i][p][4]!=k[1]:
                     p = p+1
-                if not self.local_indexer.demo:
+                if not self.indexer.demo:
                     new_sim[i].append((sim[i][p][0],sim[i][p][1],sim[i][p][2],sim[i][p][3],k[0],sim[i][p][5]))
                 else:
                     new_sim[i].append((k[2],k[3],k[4],k[5],k[0],sim[i][p][5]))
@@ -114,17 +116,17 @@ class Searcher():
         for line in f:
             #sim_index.append([])
             nums = line.replace(' \n','').split(' ')
-            if near_dup: #filter near duplicate here
+            if self.near_dup: #filter near duplicate here
                 nums=self.filter_near_dup(nums)
             #print nums
             onum = len(nums)/2
-            n = min(sim_limit,onum)
+            n = min(self.sim_limit,onum)
             #print n
             if n==0: # no returned images, e.g. no near duplicate
                 sim.append(())
                 sim_score.append([])
                 continue
-            sim.append(self.local_indexer.get_sim_infos(nums[0:n]))
+            sim.append(self.indexer.get_sim_infos(nums[0:n]))
             sim_score.append(nums[onum:onum+n])
             count = count + 1
             if count == nb_query:
@@ -247,5 +249,6 @@ class Searcher():
                 out.write(tmp_feat)
         # query with merged features_filename
         simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile,self.ratio)
+        outputname = simname[:-4]+".json"
         self.format_output(simname, len(all_valid_images), outputname)
         return outputname
