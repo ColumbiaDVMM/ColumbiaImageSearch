@@ -30,7 +30,7 @@ int main(int argc, char** argv){
     t[0] = get_wall_time(); // Start Time
     float runtimes[7] = {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
     if (argc < 2){
-        cout << "Usage: hashing feature_file_name [base_modelpath base_updatepath hashing_bits post_ranking_ratio nomarlize_features read_threshold]" << std::endl;
+        cout << "Usage: hashing feature_file_name [base_modelpath base_updatepath hashing_bits post_ranking_ratio normalize_features read_threshold]" << std::endl;
         return -1;
     }
     //omp_set_num_threads(omp_get_max_threads());

@@ -76,7 +76,8 @@ class HasherCmdLine():
         return self.get_precomp_X(list_feats_id,"hashcodes",self.bits_num/8,np.uint8)
 
     def get_similar_images_from_featuresfile(self,featurefilename,ratio):
-        command = self.hashing_execpath+"hashing "+featurefilename+" "+str(self.bits_num)+" "+str(ratio);
+        command = self.hashing_execpath+"hashing {} {} {} {} {}".format(featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio)
+        #command = self.hashing_execpath+"hashing "+featurefilename+" "+str(self.bits_num)+" "+str(ratio)
         print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
         os.system(command)
         simname = featurefilename + '_fc7-sim_'+str(ratio)+'.txt'
