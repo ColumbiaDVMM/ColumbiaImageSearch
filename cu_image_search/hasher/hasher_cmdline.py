@@ -38,10 +38,6 @@ class HasherCmdLine():
         print command
         os.system(command)
 
-    @static_method
-    def read_binary_content(opened_binary_file,read_dim,read_type):
-        return np.frombuffer(opened_binary_file.read(read_dim),dtype=read_type)
-
     def read_binary_file(self,X_fn,str_precomp,list_feats_id,read_dim,read_type):
         X = []
         ok_ids = []
@@ -80,11 +76,11 @@ class HasherCmdLine():
         return self.get_precomp_X(list_feats_id,"hashcodes",self.bits_num/8,np.uint8)
 
     def get_similar_images_from_featuresfile(self,featurefilename,ratio):
-        command = self.hashing_execpath+"hashing "+featurefilename+" "+str(self.bits_num)+" "+ratio;
+        command = self.hashing_execpath+"hashing "+featurefilename+" "+str(self.bits_num)+" "+str(ratio);
         print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
         os.system(command)
-        simname = featurename + '_fc7-sim_'+ratio+'.txt'
-        os.rename(featurename + '_fc7-sim.txt',simname)
+        simname = featurefilename + '_fc7-sim_'+str(ratio)+'.txt'
+        os.rename(featurefilename + '_fc7-sim.txt',simname)
 
 
 

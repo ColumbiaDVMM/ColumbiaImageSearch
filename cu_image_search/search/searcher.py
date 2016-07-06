@@ -22,6 +22,7 @@ class Searcher():
         self.sim_limit = self.global_conf['SE_sim_limit']
         self.near_dup_th =  self.global_conf['SE_near_dup_th']
         self.get_dup = self.global_conf['SE_get_dup']
+        self.ratio = self.global_conf['SE_ratio']
 
     def init_ingester(self):
         """ Initialize `SE_ingester` from `global_conf['ingester']` value.
@@ -32,7 +33,7 @@ class Searcher():
         """
         field = 'SE_ingester'
         if field not in self.global_conf:
-            raise ValueError("[Updater: error] "+field+" is not defined in configuration file.")
+            raise ValueError("[Searcher: error] "+field+" is not defined in configuration file.")
         if self.global_conf[field]=="mysql_ingester":
             from ..ingester.mysql_ingester import MySQLIngester
             self.ingester = MySQLIngester(self.global_conf_filename)
@@ -40,7 +41,7 @@ class Searcher():
             from ..ingester.cdr_ingester import CDRIngester
             self.ingester = CDRIngester(self.global_conf_filename)
         else:
-            raise ValueError("[Updater: error] unkown 'ingester' {}.".format(self.global_conf[field]))
+            raise ValueError("[Searcher: error] unkown 'ingester' {}.".format(self.global_conf[field]))
 
     def init_indexer(self):
         """ Initialize `indexer` from `global_conf['SE_indexer']` value.
@@ -51,7 +52,7 @@ class Searcher():
         """
         field = 'SE_indexer'
         if field not in self.global_conf:
-            raise ValueError("[Updater: error] "+field+" is not defined in configuration file.")
+            raise ValueError("[Searcher: error] "+field+" is not defined in configuration file.")
         if self.global_conf[field]=="local_indexer":
             from ..indexer.local_indexer import LocalIndexer
             self.indexer = LocalIndexer(self.global_conf_filename)
@@ -59,7 +60,7 @@ class Searcher():
             from ..indexer.hbase_indexer import HBaseIndexer
             self.indexer = HBaseIndexer(self.global_conf_filename)
         else:
-            raise ValueError("[Updater: error] unkown 'indexer' {}.".format(self.global_conf[field]))
+            raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
     def filter_near_dup(self,nums):
         # maintain only near duplicates, i.e. distance less than self.dist_ths
@@ -185,7 +186,8 @@ class Searcher():
         # download the images we need
         if batch:
             readable_images = self.indexer.image_downloader.download_images(batch,search_id)
-            for img_tup in enumerate(readable_images):
+            for i,img_tup in enumerate(readable_images):
+                print "[Searcher.search_image_list: log] {} readable image tuple {}.".format(i,img_tup)
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         return self.search_from_image_filenames(all_img_filenames,search_id)
@@ -194,21 +196,24 @@ class Searcher():
         # compute all sha1s
         corrupted = []
         list_sha1_id = []
+        valid_images = []
         for i,image_name in enumerate(all_img_filenames):
-            if image_line[0:4]!="http":
+            print i,image_name
+            if image_name[0:4]!="http":
                 sha1 = get_SHA1_from_file(image_name)
+                print i,image_name,sha1
                 list_sha1_id.append(sha1)
                 valid_images.append((i,sha1,image_name))
             else: # we did not manage to download image
                 corrupted.append(i)
         # get indexed images
-        list_ids_sha1_found = self.get_ids_from_sha1s(list_sha1_id)
+        list_ids_sha1_found = self.indexer.get_ids_from_sha1s(list_sha1_id)
         list_ids_found = [x[0] for x in list_ids_sha1_found]
         list_sha1_found = [x[1] for x in list_ids_sha1_found]
         # get there features
-        feats,ok_ids = self.indexer.hasher.get_precomp_feats(self,list_ids_found)
+        feats,ok_ids = self.indexer.hasher.get_precomp_feats(list_ids_found)
         if len(ok_ids)!=len(list_ids_found):
-            raise ValueError("[Searcher.search_image_list: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
+            raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
         # compute new images features
         not_indexed_sha1 = set(list_sha1_id)-set(list_sha1_found)
         #res = self.indexer.get_precomp_from_sha1(list_ids_sha1_found)
@@ -219,26 +224,28 @@ class Searcher():
             if sha1 in list_sha1_found: # image is indexed
                 precomp_img_filenames.append(image_name)
             else:
-                new_files.append(image_name)
+                new_files.append(image_name[-1])
             all_valid_images.append(all_img_filenames[i])
+        print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
         features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
         if ins_num!=len(new_files):
-            raise ValueError("[Searcher.search_image_list: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
+            raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
         # merge feats with features_filename
         final_featuresfile = search_id+'.dat'
         read_dim = self.features_dim*4
         read_type = np.float32
+        print "[Searcher.search_from_image_filenames: log] feats {}".format(feats)
         with open(features_filename,'rb') as new_feats, open(final_featuresfile,'wb') as out:
             for image_name in all_valid_images:
                 if image_name in precomp_img_filenames:
                     # select precomputed 
                     precomp_pos = precomp_img_filenames.index(image_name)
-                    tmp_feat = feats[precomp_pos,:]
+                    tmp_feat = feats[precomp_pos][:]
                 else:
                     # read from new feats
                     tmp_feat = np.frombuffer(new_feats.read(read_dim),dtype=read_type)
                 out.write(tmp_feat)
         # query with merged features_filename
-        simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile)
+        simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile,self.ratio)
         self.format_output(simname, len(all_valid_images), outputname)
         return outputname

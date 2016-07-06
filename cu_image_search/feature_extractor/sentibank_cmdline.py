@@ -12,24 +12,29 @@ class SentiBankCmdLine():
         self.features_path = os.path.join(self.base_update_path,'features/')
 
     def compute_features(self,new_files,startid):
+        # create file listing images to be processed
+        img_filename = os.path.join(self.features_path,str(startid)+'.txt')
+        featurename = img_filename[:-4] + '-features'
+        featurefilename = featurename+'_fc7.dat'
+        if new_files:
+            f = open(img_filename,'w')
+            f.writelines([filename+'\n' for filename in new_files])
+            f.close()
+        else:
+            f = open(featurefilename,"wb")
+            f.close()
+            return featurefilename,0
+
         self.sentibank_path = os.path.join(os.path.dirname(__file__),'sentibank/')
         print "[SentiBankCmdLine.compute_features: log] sentibank_path is {}.".format(self.sentibank_path)
         mkpath(self.features_path)
         print "[SentiBankCmdLine.compute_features: log] features_path is {}.".format(self.features_path)
-
-        # create file listing images to be processed
-        img_filename = os.path.join(self.features_path,str(startid)+'.txt')
-        f = open(img_filename,'w')
-        f.writelines([filename+'\n' for filename in new_files])
-        f.close()
 
         # set parameters and filenames for feature extraction process
         device = 'GPU'
         feature_num = 4096
         testname = img_filename[:-4] + '-test.txt'
         protoname = img_filename[:-4] + '-test.prototxt'
-        featurename = img_filename[:-4] + '-features'
-        featurefilename = featurename+'_fc7.dat'
 
         # format input images list for caffe, i.e. adding dummy label 0
         f = open(testname,'w')
