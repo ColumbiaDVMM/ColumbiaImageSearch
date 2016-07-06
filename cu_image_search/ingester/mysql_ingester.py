@@ -33,4 +33,19 @@ class MySQLIngester(GenericIngester):
             print "[MySQLIngester.get_batch: error] Not enough images ("+str(len(re))+")"
             return None
         return [(img[0],img[1],None) for img in re]
+
+    def expand_metadata(self,tmp_sim):
+        out = sim
+        if not self.demo:
+            self.source = MySQLdb.connect(host=self.host,user=self.user,passwd=self.pwd,db=self.db)
+            c = self.source.cursor()
+            sql='select i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where i.id in (%s) order by field (i.id,%s);' 
+            query_num = [simj[3] for simj in tmp_sim]
+            in_p=', '.join(map(lambda x: '%s', query_num))
+            sqlq = sql % (in_p,in_p)
+            c.execute(sqlq, query_num*2)
+            tmpresult = c.fetchall()
+            out = [tmpresult[k]+sim[i][k][4:] for k in range(0,len(tmpresult))]
+            c.close()
+        return out
         

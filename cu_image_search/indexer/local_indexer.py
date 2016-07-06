@@ -19,6 +19,10 @@ class LocalIndexer(GenericIndexer):
         self.feature_extractor_type = self.global_conf['LI_feature_extractor']
         self.master_update_filepath = self.global_conf['LI_master_update_filepath']
         self.base_update_path = self.global_conf['LI_base_update_path']
+        try:
+            self.demo = self.global_conf['LI_demo']
+        except:
+            self.demo = None
         # Initialize db config
         self.read_db_conf()
 
@@ -326,5 +330,38 @@ class LocalIndexer(GenericIndexer):
             self.db.commit()
         self.close_localdb_connection()
         self.finalize_update(update_success,hashbits_filepath,features_filename,update_id)
+
+    def get_sim_infos(self,nums):
+        # should be something like get sim all infos? in local indexer.
+        self.open_localdb_connection()
+        c = self.db.cursor()
+        sql='SELECT NULL,location,NULL,NULL,htid,sha1 FROM uniqueIds WHERE id in (%s) ORDER BY FIELD(id, %s)' 
+        #sql='SELECT cdr_id,location,NULL,timestamp,htid,sha1 FROM uniqueIdsCDR WHERE feat_id in (%s) ORDER BY FIELD(feat_id, %s)' 
+
+        query_num = []
+        for i in range(len(nums)):
+            query_num.append(int(nums[i])+1)
+        in_p=', '.join(map(lambda x: '%s', query_num))
+        sqlq = sql % (in_p,in_p)
+        #print sqlq
+        c.execute(sqlq, query_num*2)
+        out = c.fetchall()
+        c.close()
+        return out
+
+    def get_url_infos(self,tmp_sim):
+        self.open_localdb_connection()
+        c = self.db.cursor()
+        if not self.demo:
+            sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
+        else:
+            sql='SELECT htid,uid,url,location,ads_url,ads_id FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
+        query_num = [simj[4] for simj in tmp_sim]
+        in_p=', '.join(map(lambda x: '%s', query_num))
+        sqlq = sql % (in_p,in_p)
+        c.execute(sqlq, query_num*2)
+        out = c.fetchall()
+        c.close()
+        return out
 
         

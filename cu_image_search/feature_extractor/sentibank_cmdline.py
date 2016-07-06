@@ -31,7 +31,7 @@ class SentiBankCmdLine():
         featurename = img_filename[:-4] + '-features'
         featurefilename = featurename+'_fc7.dat'
 
-        # format input images list for caffe
+        # format input images list for caffe, i.e. adding dummy label 0
         f = open(testname,'w')
         ins_num = 0
         for line in open(img_filename):

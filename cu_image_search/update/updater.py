@@ -39,7 +39,7 @@ class Updater():
             raise ValueError("[Updater: error] unkown 'ingester' {}.".format(self.global_conf[field]))
 
     def init_indexer(self):
-        """ Initialize `indexer` from `global_conf['indexer']` value.
+        """ Initialize `indexer` from `global_conf['UP_indexer']` value.
 
         Currently supported indexer types are:
         - local_indexer
