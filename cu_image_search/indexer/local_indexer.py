@@ -357,11 +357,15 @@ class LocalIndexer(GenericIndexer):
             sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
         else:
             sql='SELECT htid,uid,url,location,ads_url,ads_id FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
-        query_num = [simj[4] for simj in tmp_sim]
-        in_p=', '.join(map(lambda x: '%s', query_num))
-        sqlq = sql % (in_p,in_p)
-        c.execute(sqlq, query_num*2)
-        out = c.fetchall()
+        query_num = [simj[4] for simj in tmp_sim if simj[4]]
+        out = None
+        if query_num:
+            in_p=', '.join(map(lambda x: '%s', query_num))
+            sqlq = sql % (in_p,in_p)
+            c.execute(sqlq, query_num*2)
+            out = c.fetchall()
+        if not out:
+            out = tmp_sim
         c.close()
         return out
 

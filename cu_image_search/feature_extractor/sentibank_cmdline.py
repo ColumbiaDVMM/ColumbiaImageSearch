@@ -47,6 +47,8 @@ class SentiBankCmdLine():
         f.close()
 
         batch_size = min(64,ins_num)
+        if batch_size == 0: # no images?
+            return featurefilename,0
         iteration = int(math.ceil(ins_num/float(batch_size)))
         print 'feature extraction image_number:', ins_num, 'batch_size:', batch_size, 'iteration:', iteration
         f = open(self.sentibank_path+'test.prototxt')

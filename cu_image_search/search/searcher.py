@@ -175,9 +175,9 @@ class Searcher():
                 output[i]['similar_images']['ht_images_id'].append(simj[4])
                 output[i]['similar_images']['sha1'].append(simj[5])
             output[i]['similar_images']['distance']=sim_score[ii]
-        print "[Searcher.format_output: log] output {}".format(output)
+        #print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([['number',nb_query],['images',output]])
-        print "[Searcher.format_output: log] outp {}".format(outp)
+        #print "[Searcher.format_output: log] outp {}".format(outp)
         json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
 
     def search_one_imagepath(self,image_path):
@@ -204,7 +204,7 @@ class Searcher():
                     dl_images.append(i)
                 all_img_filenames.append(image_line)
                 i+=1
-        print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
+        #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
         # download the images we need
         if batch:
             readable_images = self.indexer.image_downloader.download_images(batch,search_id)
@@ -212,7 +212,7 @@ class Searcher():
                 #print "[Searcher.search_image_list: log] {} readable image tuple {}.".format(i,img_tup)
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
-        print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
+        #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
         return self.search_from_image_filenames(all_img_filenames,search_id)
 
     def search_from_image_filenames(self,all_img_filenames,search_id):
@@ -221,10 +221,8 @@ class Searcher():
         list_sha1_id = []
         valid_images = []
         for i,image_name in enumerate(all_img_filenames):
-            print i,image_name
             if image_name[0:4]!="http":
                 sha1 = get_SHA1_from_file(image_name)
-                print i,image_name,sha1
                 if sha1:
                     list_sha1_id.append(sha1)
                     valid_images.append((i,sha1,image_name))
@@ -233,16 +231,16 @@ class Searcher():
             else: # we did not manage to download image
                 # need to deal with that in output formatting too
                 corrupted.append(i)
-        print "[Searcher.search_from_image_filenames: log] valid_images {}".format(valid_images)
+        #print "[Searcher.search_from_image_filenames: log] valid_images {}".format(valid_images)
         # get indexed images
         list_ids_sha1_found = self.indexer.get_ids_from_sha1s(list_sha1_id)
         tmp_list_ids_found = [x[0] for x in list_ids_sha1_found]
         list_sha1_found = [x[1] for x in list_ids_sha1_found]
-        print "[Searcher.search_from_image_filenames: log] list_sha1_id {}".format(list_sha1_id)
-        print "[Searcher.search_from_image_filenames: log] list_sha1_found {}".format(list_sha1_found)
+        #print "[Searcher.search_from_image_filenames: log] list_sha1_id {}".format(list_sha1_id)
+        #print "[Searcher.search_from_image_filenames: log] list_sha1_found {}".format(list_sha1_found)
         list_ids_found = [tmp_list_ids_found[list_sha1_found.index(sha1)] for sha1 in list_sha1_id if sha1 in list_sha1_found]
-        print "[Searcher.search_from_image_filenames: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
-        print "[Searcher.search_from_image_filenames: log] list_ids_found {}".format(list_ids_found)
+        #print "[Searcher.search_from_image_filenames: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
+        #print "[Searcher.search_from_image_filenames: log] list_ids_found {}".format(list_ids_found)
         # get there features
         feats,ok_ids = self.indexer.hasher.get_precomp_feats(list_ids_found)
         if len(ok_ids)!=len(list_ids_found):
@@ -257,10 +255,10 @@ class Searcher():
             if sha1 in list_sha1_found: # image is indexed
                 precomp_img_filenames.append(image_name)
             else:
-                new_files.append(image_name[-1])
+                new_files.append(image_name)
             all_valid_images.append(all_img_filenames[i])
-        #print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
         print "[Searcher.search_from_image_filenames: log] all_valid_images {}".format(all_valid_images)
+        print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
         features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
         if ins_num!=len(new_files):
             raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
@@ -271,11 +269,11 @@ class Searcher():
         #print "[Searcher.search_from_image_filenames: log] feats {}".format(feats)
         with open(features_filename,'rb') as new_feats, open(final_featuresfile,'wb') as out:
             for image_name in all_valid_images:
-                print "[Searcher.search_from_image_filenames: log] saving feature of image {}".format(image_name)
+                #print "[Searcher.search_from_image_filenames: log] saving feature of image {}".format(image_name)
                 if image_name in precomp_img_filenames:
                     # select precomputed 
                     precomp_pos = precomp_img_filenames.index(image_name)
-                    print "[Searcher.search_from_image_filenames: log] getting precomputed feature at position {}".format(precomp_pos)
+                    #print "[Searcher.search_from_image_filenames: log] getting precomputed feature at position {}".format(precomp_pos)
                     tmp_feat = feats[precomp_pos][:]
                 else:
                     # read from new feats
