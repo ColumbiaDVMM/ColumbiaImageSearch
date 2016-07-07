@@ -219,8 +219,11 @@ class Searcher():
             if image_name[0:4]!="http":
                 sha1 = get_SHA1_from_file(image_name)
                 print i,image_name,sha1
-                list_sha1_id.append(sha1)
-                valid_images.append((i,sha1,image_name))
+                if sha1:
+                    list_sha1_id.append(sha1)
+                    valid_images.append((i,sha1,image_name))
+                else:
+                    corrupted.append(i)
             else: # we did not manage to download image
                 # need to deal with that in output formatting too
                 corrupted.append(i)
