@@ -169,7 +169,9 @@ class Searcher():
                 output[i]['similar_images']['ht_images_id'].append(simj[4])
                 output[i]['similar_images']['sha1'].append(simj[5])
             output[i]['similar_images']['distance']=sim_score[i]
+        print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([['number',nb_query],['images',output]])
+        print "[Searcher.format_output: log] outp {}".format(outp)
         json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
 
     def search_one_imagepath(self,image_path):
