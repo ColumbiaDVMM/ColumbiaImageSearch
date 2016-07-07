@@ -143,7 +143,7 @@ class Searcher():
         f.close()
         return sim,sim_score
 
-    def format_output(self, simname, nb_query, outputname):
+    def format_output(self, simname, nb_query, corrupted, outputname):
     	# read hashing similarity results
         sim,sim_score = self.read_sim(simname,nb_query)
         
@@ -158,17 +158,23 @@ class Searcher():
         
         # build final output
         output = []
+        dec = 0
         for i in range(0,nb_query):    
             output.append(dict())
-            output[i]['similar_images']= OrderedDict([['number',len(sim[i])],['image_urls',[]],['cached_image_urls',[]],['page_urls',[]],['ht_ads_id',[]],['ht_images_id',[]],['sha1',[]],['distance',[]]])
-            for simj in sim[i]:
+            if i in corrupted:
+                output[i]['similar_images']= OrderedDict([['number',0],['image_urls',[]],['cached_image_urls',[]],['page_urls',[]],['ht_ads_id',[]],['ht_images_id',[]],['sha1',[]],['distance',[]]])
+                dec += 1
+                continue
+            ii = i - dec
+            output[i]['similar_images']= OrderedDict([['number',len(sim[ii])],['image_urls',[]],['cached_image_urls',[]],['page_urls',[]],['ht_ads_id',[]],['ht_images_id',[]],['sha1',[]],['distance',[]]])
+            for simj in sim[ii]:
                 output[i]['similar_images']['image_urls'].append(simj[0])
                 output[i]['similar_images']['cached_image_urls'].append(simj[1])
                 output[i]['similar_images']['page_urls'].append(simj[2])
                 output[i]['similar_images']['ht_ads_id'].append(simj[3])
                 output[i]['similar_images']['ht_images_id'].append(simj[4])
                 output[i]['similar_images']['sha1'].append(simj[5])
-            output[i]['similar_images']['distance']=sim_score[i]
+            output[i]['similar_images']['distance']=sim_score[ii]
         print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([['number',nb_query],['images',output]])
         print "[Searcher.format_output: log] outp {}".format(outp)
@@ -278,5 +284,5 @@ class Searcher():
         # query with merged features_filename
         simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile,self.ratio)
         outputname = simname[:-4]+".json"
-        self.format_output(simname, len(all_valid_images), outputname)
+        self.format_output(simname, len(all_img_filenames), corrupted, outputname)
         return outputname
