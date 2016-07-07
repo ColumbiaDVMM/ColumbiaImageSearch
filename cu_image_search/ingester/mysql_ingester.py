@@ -40,15 +40,13 @@ class MySQLIngester(GenericIngester):
             self.source = MySQLdb.connect(host=self.host,user=self.user,passwd=self.pwd,db=self.db)
             c = self.source.cursor()
             sql='select i.url,i.location,ads.url,ads.id from images i left join ads on i.ads_id=ads.id where i.id in (%s) order by field (i.id,%s);' 
-            #query_num = [simj[3] for simj in tmp_sim]
             query_num = [simj[4] for simj in tmp_sim]
             in_p=', '.join(map(lambda x: '%s', query_num))
             sqlq = sql % (in_p,in_p)
-            print "[MySQLIngester.expand_metadata: log] sqlq: {}".format((sqlq, query_num*2))
+            #print "[MySQLIngester.expand_metadata: log] sqlq: {}".format((sqlq, query_num*2))
             c.execute(sqlq, query_num*2)
             tmpresult = c.fetchall()
-            print "[MySQLIngester.expand_metadata: log] tmpresult: {}".format(tmpresult)
-            #out = [tmpresult[k]+sim[i][k][4:] for k in range(0,len(tmpresult))]
+            #print "[MySQLIngester.expand_metadata: log] tmpresult: {}".format(tmpresult)
             out = [tmpresult[k]+tmp_sim[k][4:] for k in range(0,len(tmpresult))]
             c.close()
         return out

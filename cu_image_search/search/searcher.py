@@ -69,7 +69,7 @@ class Searcher():
         # onum is the number of similar images
         onum = len(nums)/2
         temp_nums=[]
-        print "[Searcher.filter_near_dup: log] nums {}".format(nums)
+        #print "[Searcher.filter_near_dup: log] nums {}".format(nums)
         for one_num in range(0,onum):
             # maintain only near duplicates, i.e. distance less than self.near_dup_th
             if float(nums[onum+one_num])>self.near_dup_th:
@@ -78,7 +78,7 @@ class Searcher():
             temp_nums.insert(one_num,nums[one_num])
             # insert corresponding distance at the end
             temp_nums.insert(len(temp_nums),nums[onum+one_num])
-        print "[Searcher.filter_near_dup: log] temp_nums {}".format(temp_nums)
+        #print "[Searcher.filter_near_dup: log] temp_nums {}".format(temp_nums)
         return temp_nums
 
     def get_dup_infos(self,sim,sim_score):
@@ -89,7 +89,7 @@ class Searcher():
             new_sim.append([])
             new_sim_score.append([])
             tmpresult = self.indexer.get_url_infos(sim[i])
-            print "[Searcher.get_dup_infos: log] tmpresult {}".format(tmpresult)
+            #print "[Searcher.get_dup_infos: log] tmpresult {}".format(tmpresult)
             #print len(tmpresult)
             p = 0
             for k in tmpresult:
@@ -108,9 +108,9 @@ class Searcher():
         for i in range(0,len(sim)):    
             if not sim[i]: # empty
                 continue
-            print "[Searcher.expand_metadata: log] sim[i] before expansion {}".format(sim[i])
+            #print "[Searcher.expand_metadata: log] sim[i] before expansion {}".format(sim[i])
             sim[i] = self.ingester.expand_metadata(sim[i])
-            print "[Searcher.expand_metadata: log] sim[i] after expansion {}".format(sim[i])
+            #print "[Searcher.expand_metadata: log] sim[i] after expansion {}".format(sim[i])
         return sim
 
 
@@ -149,9 +149,9 @@ class Searcher():
         
         # get_duplicates if needed
         if self.get_dup:
-            print "[Searcher.format_output: log] sim before get_dup_infos {}".format(sim)
+            #print "[Searcher.format_output: log] sim before get_dup_infos {}".format(sim)
             sim,sim_score = self.get_dup_infos(sim,sim_score)
-            print "[Searcher.format_output: log] sim after get_dup_infos {}".format(sim)
+            #print "[Searcher.format_output: log] sim after get_dup_infos {}".format(sim)
 
         # expand metadata
         sim = self.expand_metadata(sim)
@@ -239,7 +239,7 @@ class Searcher():
             else:
                 new_files.append(image_name[-1])
             all_valid_images.append(all_img_filenames[i])
-        print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
+        #print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
         features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
         if ins_num!=len(new_files):
             raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
@@ -247,7 +247,7 @@ class Searcher():
         final_featuresfile = search_id+'.dat'
         read_dim = self.features_dim*4
         read_type = np.float32
-        print "[Searcher.search_from_image_filenames: log] feats {}".format(feats)
+        #print "[Searcher.search_from_image_filenames: log] feats {}".format(feats)
         with open(features_filename,'rb') as new_feats, open(final_featuresfile,'wb') as out:
             for image_name in all_valid_images:
                 if image_name in precomp_img_filenames:
