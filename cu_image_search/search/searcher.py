@@ -222,14 +222,18 @@ class Searcher():
                 list_sha1_id.append(sha1)
                 valid_images.append((i,sha1,image_name))
             else: # we did not manage to download image
+                # need to deal with that in output formatting too
                 corrupted.append(i)
         print "[Searcher.search_from_image_filenames: log] valid_images {}".format(valid_images)
         # get indexed images
         list_ids_sha1_found = self.indexer.get_ids_from_sha1s(list_sha1_id)
-        list_ids_found = [x[0] for x in list_ids_sha1_found]
+        tmp_list_ids_found = [x[0] for x in list_ids_sha1_found]
         list_sha1_found = [x[1] for x in list_ids_sha1_found]
         print "[Searcher.search_from_image_filenames: log] list_sha1_id {}".format(list_sha1_id)
         print "[Searcher.search_from_image_filenames: log] list_sha1_found {}".format(list_sha1_found)
+        list_ids_found = [tmp_list_ids_found[list_sha1_found.index[sha1]]] for sha1 in list_sha1_id if sha1 in list_sha1_found]
+        print "[Searcher.search_from_image_filenames: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
+        print "[Searcher.search_from_image_filenames: log] list_ids_found {}".format(list_ids_found)
         # get there features
         feats,ok_ids = self.indexer.hasher.get_precomp_feats(list_ids_found)
         if len(ok_ids)!=len(list_ids_found):
