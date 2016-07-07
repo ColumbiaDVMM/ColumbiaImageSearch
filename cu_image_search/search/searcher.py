@@ -256,9 +256,11 @@ class Searcher():
         #print "[Searcher.search_from_image_filenames: log] feats {}".format(feats)
         with open(features_filename,'rb') as new_feats, open(final_featuresfile,'wb') as out:
             for image_name in all_valid_images:
+                print "[Searcher.search_from_image_filenames: log] saving feature of image {}".format(image_name)
                 if image_name in precomp_img_filenames:
                     # select precomputed 
                     precomp_pos = precomp_img_filenames.index(image_name)
+                    print "[Searcher.search_from_image_filenames: log] getting precomputed feature at position {}".format(precomp_pos)
                     tmp_feat = feats[precomp_pos][:]
                 else:
                     # read from new feats
