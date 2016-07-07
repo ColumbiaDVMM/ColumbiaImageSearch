@@ -219,6 +219,7 @@ class Searcher():
                 valid_images.append((i,sha1,image_name))
             else: # we did not manage to download image
                 corrupted.append(i)
+        print "[Searcher.search_from_image_filenames: log] valid_images {}".format(valid_images)
         # get indexed images
         list_ids_sha1_found = self.indexer.get_ids_from_sha1s(list_sha1_id)
         list_ids_found = [x[0] for x in list_ids_sha1_found]
@@ -240,6 +241,7 @@ class Searcher():
                 new_files.append(image_name[-1])
             all_valid_images.append(all_img_filenames[i])
         #print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
+        print "[Searcher.search_from_image_filenames: log] all_valid_images {}".format(all_valid_images)
         features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
         if ins_num!=len(new_files):
             raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
