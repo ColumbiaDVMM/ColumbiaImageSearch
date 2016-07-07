@@ -231,7 +231,7 @@ class Searcher():
         list_sha1_found = [x[1] for x in list_ids_sha1_found]
         print "[Searcher.search_from_image_filenames: log] list_sha1_id {}".format(list_sha1_id)
         print "[Searcher.search_from_image_filenames: log] list_sha1_found {}".format(list_sha1_found)
-        list_ids_found = [tmp_list_ids_found[list_sha1_found.index[sha1]]] for sha1 in list_sha1_id if sha1 in list_sha1_found]
+        list_ids_found = [tmp_list_ids_found[list_sha1_found.index(sha1)] for sha1 in list_sha1_id if sha1 in list_sha1_found]
         print "[Searcher.search_from_image_filenames: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
         print "[Searcher.search_from_image_filenames: log] list_ids_found {}".format(list_ids_found)
         # get there features
