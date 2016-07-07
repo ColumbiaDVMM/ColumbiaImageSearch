@@ -17,6 +17,6 @@ if __name__=="__main__":
     search_obj = searcher.Searcher(global_conf_file)
     start_time = time.time()
     outputname = search_obj.search_image_list(image_list)
-    print outputname
+    print '[search] outputname is {}'.format(outputname)
     print '[search] Query time: ', time.time() - start_time
 
