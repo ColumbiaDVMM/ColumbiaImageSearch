@@ -43,7 +43,7 @@ class MySQLIngester(GenericIngester):
             query_num = [simj[3] for simj in tmp_sim]
             in_p=', '.join(map(lambda x: '%s', query_num))
             sqlq = sql % (in_p,in_p)
-            print "[MySQLIngester.expand_metadata: log] sqlq: {}".format(sqlq)
+            print "[MySQLIngester.expand_metadata: log] sqlq: {}".format((sqlq, query_num*2))
             c.execute(sqlq, query_num*2)
             tmpresult = c.fetchall()
             print "[MySQLIngester.expand_metadata: log] tmpresult: {}".format(tmpresult)
