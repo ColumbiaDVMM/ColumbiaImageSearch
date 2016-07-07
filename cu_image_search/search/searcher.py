@@ -196,13 +196,15 @@ class Searcher():
                     dl_images.append(i)
                 all_img_filenames.append(image_line)
                 i+=1
+        print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
         # download the images we need
         if batch:
             readable_images = self.indexer.image_downloader.download_images(batch,search_id)
             for i,img_tup in enumerate(readable_images):
-                print "[Searcher.search_image_list: log] {} readable image tuple {}.".format(i,img_tup)
+                #print "[Searcher.search_image_list: log] {} readable image tuple {}.".format(i,img_tup)
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
+        print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
         return self.search_from_image_filenames(all_img_filenames,search_id)
 
     def search_from_image_filenames(self,all_img_filenames,search_id):
