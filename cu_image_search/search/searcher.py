@@ -65,14 +65,20 @@ class Searcher():
             raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
     def filter_near_dup(self,nums):
-        # maintain only near duplicates, i.e. distance less than self.dist_ths
+        # nums is a list of ids then distances
+        # onum is the number of similar images
         onum = len(nums)/2
         temp_nums=[]
+        print "[Searcher.filter_near_dup: log] nums {}".format(nums)
         for one_num in range(0,onum):
+            # maintain only near duplicates, i.e. distance less than self.near_dup_th
             if float(nums[onum+one_num])>self.near_dup_th:
                 return temp_nums
+            # insert id at its right place
             temp_nums.insert(one_num,nums[one_num])
+            # insert corresponding distance at the end
             temp_nums.insert(len(temp_nums),nums[onum+one_num])
+        print "[Searcher.filter_near_dup: log] temp_nums {}".format(temp_nums)
         return temp_nums
 
     def get_dup_infos(self,sim,sim_score):
@@ -83,6 +89,7 @@ class Searcher():
             new_sim.append([])
             new_sim_score.append([])
             tmpresult = self.indexer.get_url_infos(sim[i])
+            print "[Searcher.get_dup_infos: log] tmpresult {}".format(tmpresult)
             #print len(tmpresult)
             p = 0
             for k in tmpresult:
@@ -101,7 +108,9 @@ class Searcher():
         for i in range(0,len(sim)):    
             if not sim[i]: # empty
                 continue
+            print "[Searcher.expand_metadata: log] sim[i] before expansion {}".format(sim[i])
             sim[i] = self.ingester.expand_metadata(sim[i])
+            print "[Searcher.expand_metadata: log] sim[i] after expansion {}".format(sim[i])
         return sim
 
 
