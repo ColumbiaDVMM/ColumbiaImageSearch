@@ -228,6 +228,8 @@ class Searcher():
         list_ids_sha1_found = self.indexer.get_ids_from_sha1s(list_sha1_id)
         list_ids_found = [x[0] for x in list_ids_sha1_found]
         list_sha1_found = [x[1] for x in list_ids_sha1_found]
+        print "[Searcher.search_from_image_filenames: log] list_sha1_id {}".format(list_sha1_id)
+        print "[Searcher.search_from_image_filenames: log] list_sha1_found {}".format(list_sha1_found)
         # get there features
         feats,ok_ids = self.indexer.hasher.get_precomp_feats(list_ids_found)
         if len(ok_ids)!=len(list_ids_found):
