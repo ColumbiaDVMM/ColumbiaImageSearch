@@ -149,7 +149,9 @@ class Searcher():
         
         # get_duplicates if needed
         if self.get_dup:
+            print "[Searcher.format_output: log] sim before get_dup_infos {}".format(sim)
             sim,sim_score = self.get_dup_infos(sim,sim_score)
+            print "[Searcher.format_output: log] sim after get_dup_infos {}".format(sim)
 
         # expand metadata
         sim = self.expand_metadata(sim)
