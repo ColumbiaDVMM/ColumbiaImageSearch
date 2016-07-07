@@ -352,6 +352,7 @@ class LocalIndexer(GenericIndexer):
     def get_url_infos(self,tmp_sim):
         self.open_localdb_connection()
         c = self.db.cursor()
+        # uid is the htid of the unique image
         if not self.demo:
             sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
         else:
