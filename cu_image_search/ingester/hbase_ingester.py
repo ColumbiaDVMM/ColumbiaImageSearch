@@ -124,40 +124,61 @@ class HBaseIngester(GenericIngester):
         images_infos = []
         scan_done = False
         last_added = None
+        start_row = None
         # while we don't have enough images or did not reach end.
         while not scan_done and len(images_infos)<self.batch_size:
             with self.pool.connection() as connection:
                 table_timestamp = connection.table(self.table_timestamp_name)
                 # get self.batch_size rows up to self.start
                 # self.start should be the last row-key that was indexed previously
-                for rows in table_timestamp.scan(row_stop=self.start,batch_size=self.batch_size):
-                    ts_cdr_ids = [row[0] for row in rows]
-                    # look if cdr infos exist in 'table_cdrinfos_name'
-                    cdr_ids = self.get_cdr_ids_from_tscdrids(ts_cdr_ids)
-                    indexed, sha1s = self.get_cdr_ids_indexed(cdr_ids)
-                    # if not indexed push, filling up images_infos
-                    pos_indexed = [i for i,idx in indexed if idx]
-                    pos_not_indexed = [i for i,idx in indexed if not idx]
-                    new_rows = rows[pos_not_indexed]
-                    # fill images_infos with all extractions
-                    images_infos = self.fill_images_infos(new_rows,cdr_ids[pos_not_indexed],[self.extractions_types]*len(new_rows),images_infos)
-                    # stop scanning if we have a full batch
-                    if len(images_infos)==self.batch_size:
-                        break
-                    # everything below should run mostly for first check but not incremental update.
-                    # if exist, checks if sha1 is extracted.
-                    sha1s_indexed = sha1s[pos_indexed]
-                    sha1s_extracted_pos_tmp = [i for i,sha1 in enumerate(sha1s_indexed) if sha1]
-                    # if not probably failed sha1 just skip [or maybe push to missing sha1s... Think of another process that checks these missings sha1s?]
-                    # if sha1 extracted, check if extractions columns are present. If so skip.
-                    sha1s_extracted_pos = pos_indexed[sha1s_extracted_pos_tmp]
-                    new_rows, new_extractions = self.check_extractions_rows(rows[sha1s_extracted_pos],sha1s[sha1s_extracted_pos])
-                    # otherwise push to images_infos with informations about which extractions should be run
-                    images_infos = self.fill_images_infos(new_rows,cdr_ids[sha1s_extracted_pos],new_extractions,images_infos)
-                    # stop scanning if we have a full batch
-                    if len(images_infos)==self.batch_size:
+                rows = []
+                for row in table_timestamp.scan(row_start=start_row,row_stop=str(self.start),batch_size=self.batch_size):
+                    rk = row[0]
+                    rd = row[1]
+                    #print rk,rd,row
+                    rows.append((rk,rd))
+                    if len(rows)==self.batch_size:
                         break
                 scan_done = True
+            print len(rows) 
+            ts_cdr_ids = [row[0] for row in rows]
+            print ts_cdr_ids
+            # look if cdr infos exist in 'table_cdrinfos_name'
+            cdr_ids = self.get_cdr_ids_from_tscdrids(ts_cdr_ids)
+            print cdr_ids
+            indexed, sha1s = self.get_cdr_ids_indexed(cdr_ids)
+            print indexed, sha1s
+            # if not indexed push, filling up images_infos
+            pos_indexed = [i for i,idx in enumerate(indexed) if idx]
+            pos_not_indexed = [i for i,idx in enumerate(indexed) if not idx]
+            if pos_not_indexed:
+                new_rows = [rows[pos] for pos in pos_not_indexed]
+                new_cdr_ids = [cdr_ids[pos] for pos in pos_not_indexed]
+                # fill images_infos with all extractions
+                images_infos = self.fill_images_infos(new_rows,new_cdr_ids,[self.extractions_types]*len(new_rows),images_infos)
+                # stop scanning if we have a full batch
+                if len(images_infos)==self.batch_size:
+                    break
+            # everything below should run mostly for first check but not incremental update.
+            # if exist, checks if sha1 is extracted.
+            if pos_indexed:    
+                sha1s_indexed = [sha1s[pos] for pos in pos_indexed]
+                sha1s_extracted_pos_tmp = [i for i,sha1 in enumerate(sha1s_indexed) if sha1]
+                # if not probably failed sha1 just skip [or maybe push to missing sha1s... Think of another process that checks these missings sha1s?]
+                # if sha1 extracted, check if extractions columns are present. If so skip.
+                sha1s_extracted_pos = [pos_indexed[sha1_ept] for sha1_ept in sha1s_extracted_pos_tmp]
+                candidate_rows = [rows[sha1_ep] for sha1_ep in sha1s_extracted_pos]
+                candidate_cdr_ids = [cdr_ids[sha1_ep] for sha1_ep in sha1s_extracted_pos]
+                candidate_sha1s = [sha1s[sha1_ep] for sha1_ep in sha1s_extracted_pos]
+                new_rows, new_extractions = self.check_extractions_rows(candidate_rows,candidate_sha1s)
+                new_rows_ids = [i for i,row in enumerate(candidate_rows) if row in new_rows]
+                new_cdr_ids = [ccdr for i,ccdr in enumerate(candidate_cdr_ids) if i in new_rows_ids]
+                # otherwise push to images_infos with informations about which extractions should be run
+                images_infos = self.fill_images_infos(new_rows,new_cdr_ids,new_extractions,images_infos)
+            # stop scanning if we have a full batch
+            if len(images_infos)==self.batch_size:
+                break
+            start_row = rows[-1][0]
         if len(images_infos)<self.batch_size and self.fail_less_than_batch:
             print "[HBaseIngester.get_batch: error] Not enough images ("+str(len(images_infos))+")"
             return None
