@@ -35,6 +35,9 @@ class Updater():
         elif self.global_conf[field]=="cdr_ingester":
             from ..ingester.cdr_ingester import CDRIngester
             self.ingester = CDRIngester(self.global_conf_filename)
+        elif self.global_conf[field]=="hbase_ingester":
+            from ..ingester.hbase_ingester import HBaseIndexer
+            self.ingester = HBaseIndexer(self.global_conf_filename)
         else:
             raise ValueError("[Updater: error] unkown 'ingester' {}.".format(self.global_conf[field]))
 

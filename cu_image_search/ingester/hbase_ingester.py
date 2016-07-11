@@ -115,7 +115,6 @@ class HBaseIngester(GenericIngester):
         if self.batch_size is None:
             print "[HBaseIngester.get_batch: error] Parameter 'batch_size' not set."
             return None
-        # We should have a cdr_ingester prior to this to actually pull data out of the cdr.
         # Look at 'table_timestamp' to get 'self.batch_size' samples not yet indexed 
         # i.e. not yet in 'table_cdrinfos', 
         # or corresponding sha1 not in 'table_sha1infos', 
@@ -179,6 +178,9 @@ class HBaseIngester(GenericIngester):
             if len(images_infos)==self.batch_size:
                 break
             start_row = rows[-1][0]
+        if len(images_infos)<self.batch_size:
+            # We should have a cdr_ingester here to actually try to pull data out of the cdr, if we don't have enough images to index.
+            pass
         if len(images_infos)<self.batch_size and self.fail_less_than_batch:
             print "[HBaseIngester.get_batch: error] Not enough images ("+str(len(images_infos))+")"
             return None
