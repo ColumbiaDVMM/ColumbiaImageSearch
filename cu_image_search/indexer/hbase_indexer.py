@@ -167,7 +167,7 @@ class HBaseIndexer(GenericIndexer):
         if new_sb_files:
             print "[HBaseIndexer.index_batch: log] new_sb_files: {}".format(new_sb_files)
             # Compute features
-            features_filename, ins_num = self.feature_extractor.compute_features(new_files, update_id)
+            features_filename, ins_num = self.feature_extractor.compute_features(new_sb_files, update_id)
             # Compute hashcodes
             hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
             print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,features_filename[:-4]+"_norm",hashbits_filepath)

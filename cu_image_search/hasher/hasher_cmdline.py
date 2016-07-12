@@ -16,17 +16,18 @@ class HasherCmdLine():
         self.features_dim = self.global_conf['FE_features_dim']
         self.bits_num = self.global_conf['HA_bits_num']
         self.hashing_execpath = os.path.join(os.path.dirname(__file__),'../hashing/')
-        self.hashing_outpath = os.path.join(self.base_update_path,'hash_bits')
+        self.hashing_outpath = os.path.join(self.base_update_path,'hash_bits/')
+        mkpath(self.hashing_outpath)
 
     def compute_hashcodes(self,features_filename,ins_num,startid):
         feature_filepath = features_filename[:-4]+'_norm'
         # we could be passing additional arguments here
         command = self.hashing_execpath+'hashing_update '+features_filename+' '+str(ins_num)+' '+self.hashing_execpath
         print command
-        os.system(command)
-        
+        os.system(command)        
         hashbits_filepath = os.path.join(self.hashing_outpath,str(startid)+'_itq_norm_'+str(self.bits_num))
         itq_output_path = features_filename[:-4] + '_itq_norm_'+str(self.bits_num)
+        print "[HasherCmdLine.compute_hashcodes: log] Moving {} to {}.".format(itq_output_path,hashbits_filepath)
         shutil.move(itq_output_path, hashbits_filepath)
         os.remove(features_filename)
         return hashbits_filepath
