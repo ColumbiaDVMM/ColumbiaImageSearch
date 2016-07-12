@@ -7,7 +7,7 @@ import cu_image_search
 from cu_image_search.update import updater
 
 lasttime = 0
-interval = 60
+interval = 10
 
 if __name__=="__main__":
     """ Run updater based on `conf_file` given as parameter

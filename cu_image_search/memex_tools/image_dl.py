@@ -47,7 +47,7 @@ def dlimage(url,logf=None):
 
 def dlimage_args(args):
     if len(args)==2:
-       print args[0],args[1]
+       #print args[0],args[1]
        return dlimage_basepath(args[0],args[1])    
     else:
        print "[dl_image_args: warning] incorrect agruments: {}.".format(args)

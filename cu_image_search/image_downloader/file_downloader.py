@@ -33,7 +33,7 @@ class FileDownloader():
             #name = url.split('/')[-1]
             #filepath = os.path.join(update_image_cache,str(startid),name)
             download_arg.append([url,basepath])
-        print "[FileDownloader.download_images: log] download_arg {}.".format(download_arg)
+        #print "[FileDownloader.download_images: log] download_arg {}.".format(download_arg)
         start_dl = time.time()
         # dlimage_basepath returns outpath if download succeeded, None otherwise
         download_indicator = pool.map(dlimage_args, download_arg)

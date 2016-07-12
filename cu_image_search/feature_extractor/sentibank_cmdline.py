@@ -22,7 +22,7 @@ class SentiBankCmdLine():
         featurefilename = featurename+'_fc7.dat'
         if new_files:
             f = open(img_filename,'w')
-            print new_files
+            #print new_files
             f.writelines([filename+'\n' for filename in new_files])
             f.close()
         else:

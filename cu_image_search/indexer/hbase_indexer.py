@@ -59,8 +59,7 @@ class HBaseIndexer(GenericIndexer):
             from ..image_downloader.file_downloader import FileDownloader
             self.image_downloader = FileDownloader(self.global_conf_filename)
         else:
-            raise ValueError("[HBaseIndexer.initialize_indexer_backend error] Unsupported image_downloader_type: {}.".format(self.image_downloader_type))
-        
+            raise ValueError("[HBaseIndexer.initialize_indexer_backend error] Unsupported image_downloader_type: {}.".format(self.image_downloader_type))        
 
     def initialize_feature_extractor(self):
         if self.feature_extractor_type=="sentibank_cmdline":
@@ -178,6 +177,7 @@ class HBaseIndexer(GenericIndexer):
         :type extractions: dict
         """
         out_values = row[1]
+        print "[HBaseIndexer.add_extractions_to_row: log] adding extractions {} to row {}.".format(extractions.keys(),row[0])
         for extr in extractions.keys():
             out_values[extr] = extractions[extr]
         return (row[0],out_values)
@@ -226,16 +226,19 @@ class HBaseIndexer(GenericIndexer):
         with self.pool.connection() as connection:
             tab_out = connection.table(tab_out_name)
             batch_write = tab_out.batch()
-            print "Pushing batch from {}.".format(batch[0][0])
+            #print "Pushing batch from {}.".format(batch[0][0])
             for row in batch:
+                print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
                 batch_write.put(row[0],row[1])
-        batch_write.send()
+            batch_write.send()
+        
 
     def index_batch(self,batch):
         """ Index a batch in the form of a list of (cdr_id,url,[extractions,ts_cdrid,other_data])
         """
         # Download images
-        timestr = time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(time.time()))
+        start_time = time.time() 
+        timestr = time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(start_time))
         #startid = str(batch[0][0])
         #lastid = str(batch[-1][0])
         #update_id = timestr+'_'+startid+'_'+lastid
@@ -261,6 +264,7 @@ class HBaseIndexer(GenericIndexer):
             if "sentibank" in extr and new_fulls[i][0][-1] not in new_files_id:
                 new_sb_files.append(nf)
                 new_files_id.append(new_fulls[i][0][-1])
+        extractions = dict()
         if new_sb_files:
             #print "[HBaseIndexer.index_batch: log] new_sb_files: {}".format(new_sb_files)
             #print "[HBaseIndexer.index_batch: log] new_files_id: {}".format(new_files_id)
@@ -270,14 +274,17 @@ class HBaseIndexer(GenericIndexer):
             hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
             norm_features_filename = features_filename[:-4]+"_norm"
             # read features and hashcodes and pushback for insertion
-            print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,norm_features_filename,hashbits_filepath)
+            #print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,norm_features_filename,hashbits_filepath)
             feats,feats_ok_ids = read_binary_file(norm_features_filename,"feats",new_files_id,self.features_dim*4,np.float32)
             hashcodes,hash_ok_ids = read_binary_file(hashbits_filepath,"hashcodes",new_files_id,self.bits_num/8,np.uint8)
-            print "Norm features {}\n Hashcodes {}".format(feats,hashcodes)
+            #print "Norm features {}\n Hashcodes {}".format(feats,hashcodes)
+            # cleanup
+            os.remove(norm_features_filename)
+            os.remove(hashbits_filepath)
+            # need to cleanup images too
             if len(feats_ok_ids)!=len(new_files_id) or len(hash_ok_ids)!=len(new_files_id):
                 print "[HBaseIndexer.index_batch: error] Dimensions mismatch. Are we missing features {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id))
                 return False
-            extractions = dict()
             for i,sha1 in enumerate(new_files_id):
                 extractions[sha1] = dict()
                 sb_col_name = self.extractions_columns[self.extractions_types.index("sentibank")]
@@ -300,28 +307,36 @@ class HBaseIndexer(GenericIndexer):
         sha1_rows_merged = self.group_by_sha1(old_sha1_format)
         # push merged old images infos
         #print "[HBaseIndexer.index_batch: log] sha1_rows_merged: {}".format(sha1_rows_merged)
-        # insert new images
-        print "[HBaseIndexer.index_batch: log] writing batch from {} to table {}.".format(sha1_rows_merged[0][0],self.table_sha1infos_name)
-        self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
+        if sha1_rows_merged:
+            print "[HBaseIndexer.index_batch: log] writing batch to update old images from {} to table {}.".format(sha1_rows_merged[0][0],self.table_sha1infos_name)
+            self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
         # new_fulls is a list of list
         flatten_fulls = []
         insert_cdrid_sha1 = []
         for one_full_list in new_fulls:
             for one_full in one_full_list:
-                #print one_full
+                print "[HBaseIndexer.index_batch: log] flattening row {} with sha1 {}.".format(one_full[0],one_full[-1])
                 flatten_fulls.extend((one_full,))
-                insert_cdrid_sha1.append((one_full[0],{self.sha1_column: one_full[-1]}))
-        # First, insert sha1 in self.table_cdrinfos_name
-        self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
+                one_val = {self.sha1_column: one_full[-1]}
+                for tmpk in ["info:obj_parent","info:obj_stored_url"]: 
+                    if tmpk in one_full[2][2]:
+                        one_val[tmpk] = one_full[2][2][tmpk]
+                insert_cdrid_sha1.append((one_full[0],one_val))
+        if insert_cdrid_sha1:
+            # First, insert sha1 in self.table_cdrinfos_name
+            print "[HBaseIndexer.index_batch: log] writing batch from cdr id {} to table {}.".format(insert_cdrid_sha1[0][0],self.table_cdrinfos_name)
+            self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
         # Then insert sha1 row.
         #print "[HBaseIndexer.index_batch: log] flatten_fulls: {}".format(flatten_fulls)
         new_sha1_format, unique_sha1 = self.format_for_sha1_infos(flatten_fulls)
         new_sha1_rows_merged = self.group_by_sha1(new_sha1_format,extractions)
-        # Finally udpate self.table_updateinfos_name
-        #print "[HBaseIndexer.index_batch: log] new_sha1_rows_merged: {}".format(new_sha1_rows_merged)
-        print "[HBaseIndexer.index_batch: log] writing batch from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
-        #self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
-        
+        if new_sha1_rows_merged:
+            # Finally udpate self.table_updateinfos_name
+            #print "[HBaseIndexer.index_batch: log] new_sha1_rows_merged: {}".format(new_sha1_rows_merged)
+            print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
+            self.write_batch(new_sha1_rows_merged,self.table_sha1infos_name) 
+        print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
+                
         
 
 

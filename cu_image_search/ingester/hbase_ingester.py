@@ -157,8 +157,9 @@ class HBaseIngester(GenericIngester):
             # if not indexed push, filling up images_infos. 
             # This should be the case for most images when really running updates.
             pos_indexed = [i for i,idx in enumerate(indexed) if idx]
-            pos_not_indexed = [i for i,idx in enumerate(indexed) if not idx]
+            pos_not_indexed = [i for i,idx in enumerate(indexed) if not idx]            
             if pos_not_indexed:
+                print "[HBaseIngester.get_batch: log] We have {} images not yet indexed.".format(len(pos_not_indexed)) 
                 new_rows = [rows[pos] for pos in pos_not_indexed]
                 new_cdr_ids = [cdr_ids[pos] for pos in pos_not_indexed]
                 # fill images_infos with all extractions
@@ -170,6 +171,7 @@ class HBaseIngester(GenericIngester):
             # if exist, checks if sha1 is extracted.
             if pos_indexed:    
                 sha1s_indexed = [sha1s[pos] for pos in pos_indexed]
+                print "[HBaseIngester.get_batch: log] We have {} images already indexed. {}".format(len(pos_indexed),sha1s_indexed) 
                 sha1s_extracted_pos_tmp = [i for i,sha1 in enumerate(sha1s_indexed) if sha1]
                 # if not probably failed sha1 just skip [or maybe push to missing sha1s... Think of another process that checks these missings sha1s?]
                 # if sha1 extracted, check if extractions columns are present. If so skip.
@@ -181,6 +183,7 @@ class HBaseIngester(GenericIngester):
                 new_rows_ids = [i for i,row in enumerate(candidate_rows) if row in new_rows]
                 new_cdr_ids = [ccdr for i,ccdr in enumerate(candidate_cdr_ids) if i in new_rows_ids]
                 # otherwise push to images_infos with informations about which extractions should be run
+                print "[HBaseIngester.get_batch: log] We have {} images missing some extractions. {}".format(len(new_rows_ids),[candidate_sha1s[row_id] for row_id in new_rows_ids]) 
                 images_infos = self.fill_images_infos(new_rows,new_cdr_ids,new_extractions,images_infos)
             #print "[HBaseIngester.get_batch: log] scanned_rows {} and len(images_infos) {}.".format(scanned_rows, len(images_infos))
             # stop scanning if we have a full batch
