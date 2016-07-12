@@ -5,6 +5,7 @@ import happybase
 import numpy as np
 from generic_indexer import GenericIndexer
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
+from ..memex_tools.binary_file import read_binary_file
 
 class HBaseIndexer(GenericIndexer):
 
@@ -19,6 +20,7 @@ class HBaseIndexer(GenericIndexer):
         self.hasher_type = self.global_conf['HBI_hasher']
         self.feature_extractor_type = self.global_conf['HBI_feature_extractor']
         self.hbase_host = self.global_conf['HBI_host']
+        self.table_cdrinfos_name = self.global_conf['HBI_table_cdrinfos']
         self.table_sha1infos_name = self.global_conf['HBI_table_sha1infos']
         self.table_updateinfos_name = self.global_conf['HBI_table_updatesinfos']
         self.extractions_types = self.global_conf['HBI_extractions_types']
@@ -84,29 +86,36 @@ class HBaseIndexer(GenericIndexer):
                 return row[0]
 
     def get_precomp_from_cdrids(self,list_cdrids,list_type):
-        # what to do with missing sha1s here?
-        sha1_list = self.get_sha1s_from_cdrids(list_cdrids)
-        res = self.get_precomp_from_sha1(self,sha1_list,list_type)
+        pass
+        ## what to do with missing sha1s here?
+        #sha1_list = self.get_sha1s_from_cdrids(list_cdrids)
+        #res = self.get_precomp_from_sha1(self,sha1_list,list_type)
 
-    def get_precomp_from_sha1(self,list_sha1s,list_type):
-        res = []
+    def get_full_sha1_rows(self,list_sha1s):
+        rows = None
         if list_sha1s:
             with self.pool.connection() as connection:
                 table_sha1infos = connection.table(self.table_sha1infos_name)
                 rows = table_sha1infos.rows(list_sha1s)
-            # check if we have retrieved rows and extractions for each sha1
-            retrieved_sha1s = [row[0] for row in rows]
-            # building a list of ok_ids and res for each extraction type
-            ok_ids = [[]]*len(list_type)
-            res = [[]]*len(list_type)
-            for i,sha1 in enumerate(retrieved_sha1s):
-                for e,extr in enumerate(self.extractions_types):
-                    print i,sha1,e,extr
-                    print len(ok_ids)
-                    extr_column = self.extractions_columns[self.extractions_types.index(extr)]
-                    if extr_column in rows[i][1]:
-                        ok_ids[e].append(list_sha1s.index(sha1))
-                        res[e].append(rows[i][1][extr_column])
+        return rows
+
+    def get_precomp_from_sha1(self,list_sha1s,list_type):
+        res = []
+        ok_ids = []
+        rows = self.get_full_sha1_rows(list_sha1s)
+        # check if we have retrieved rows and extractions for each sha1
+        retrieved_sha1s = [row[0] for row in rows]
+        # building a list of ok_ids and res for each extraction type
+        ok_ids = [[]]*len(list_type)
+        res = [[]]*len(list_type)
+        for i,sha1 in enumerate(retrieved_sha1s):
+            for e,extr in enumerate(self.extractions_types):
+                #print i,sha1,e,extr
+                #print len(ok_ids)
+                extr_column = self.extractions_columns[self.extractions_types.index(extr)]
+                if extr_column in rows[i][1]:
+                    ok_ids[e].append(list_sha1s.index(sha1))
+                    res[e].append(rows[i][1][extr_column])
         return res,ok_ids
 
     def get_new_unique_images(self,sha1_images):
@@ -117,7 +126,6 @@ class HBaseIndexer(GenericIndexer):
         sha1_list = [img_item[-1] for img_item in sha1_images]
         unique_sha1 = sorted(set(sha1_list))
         print "[HBaseIndexer.get_new_unique_images: log] We have {} unique images.".format(len(unique_sha1))
-        ## only first time appearing?
         unique_idx = [sha1_list.index(sha1) for sha1 in unique_sha1]
         full_idx = [unique_sha1.index(sha1) for sha1 in sha1_list]
         # get what we already have indexed in 'table_sha1infos_name'
@@ -141,13 +149,40 @@ class HBaseIndexer(GenericIndexer):
                 new_fulls.append([sha1_images[k] for k in all_orig_ids])
 
         return new_files, new_fulls, old_to_be_merged
+
+    def format_for_sha1_infos(self,list_images):
+        sha1_infos = []
+        unique_sha1 = set()
+        # keys are "info:all_cdr_ids", "info:all_parent_ids", "info:all_htids", "info:featnorm_cu", "info:s3_url", "info:hash256_cu"
+        for image in list_images:
+            tmp = {}
+            sha1 = image[-1]
+            unique_sha1.add(sha1)
+            tmp[sha1] = {}
+            tmp[sha1]["info:all_cdr_ids"] = image[0]
+            tmp[sha1]["info:all_parent_ids"] = image[4]["info:obj_parent"]
+            tmp[sha1]["info:all_htids"] = image[4]["info:crawl_data.image_id"]
+            tmp[sha1]["info:s3_url"] = image[1]
+            sha1_infos.append(tmp)
+        return sha1_infos,unique_sha1
+            
+
+    def group_by_sha1(self,list_images,extractions=None):
+        out = dict{}
+        for tmp in list_images:
+            print tmp
+            if "info:featnorm_cu" in tmp:
+                print tmp["info:featnorm_cu"]
+            if "info:hash256_cu" in tmp:
+                print tmp["info:hash256_cu"]
+        return out
         
 
     def index_batch(self,batch):
         """ Index a batch in the form of a list of (cdr_id,url,[extractions,ts_cdrid,other_data])
         """
         # Download images
-        timestr= time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(time.time()))
+        timestr = time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(time.time()))
         #startid = str(batch[0][0])
         #lastid = str(batch[-1][0])
         #update_id = timestr+'_'+startid+'_'+lastid
@@ -176,12 +211,35 @@ class HBaseIndexer(GenericIndexer):
             # Compute hashcodes
             hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
             norm_features_filename = features_filename[:-4]+"_norm"
-            print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,,hashbits_filepath)
-            feats,feats_ok_ids = self.hasher.read_binary_file(norm_features_filename,"feats",new_files_id,self.features_dim*4,np.float32)
-            hashcodes,hash_ok_ids = self.hasher.read_binary_file(hashbits_filepath,"hashcodes",self.bits_num/8,np.uint8)
-            print "Norm features {}\n Hashcodes {}".format(feats,hashcodes)
             # read features and hashcodes and pushback for insertion
-        # Insert new ids
+            print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,,hashbits_filepath)
+            feats,feats_ok_ids = read_binary_file(norm_features_filename,"feats",new_files_id,self.features_dim*4,np.float32)
+            hashcodes,hash_ok_ids = read_binary_file(hashbits_filepath,"hashcodes",self.bits_num/8,np.uint8)
+            print "Norm features {}\n Hashcodes {}".format(feats,hashcodes)
+            if len(feats_ok_ids)!=len(new_files_id) or len(hash_ok_ids)!=len(new_files_id):
+                print "[HBaseIndexer.index_batch: error] Dimensions mismatch. Are we missing features {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id))
+                return False
+        # Need to update self.table_cdrinfos_name and self.table_sha1infos_name
+        # in self.table_sha1infos_name, 
+        # merge "info:crawl_data.image_id", "info:doc_id", "info:obj_parent"
+        # into "info:all_htids", "info:all_cdr_ids", "info:all_parent_ids"
+        # merge old_to_be_merged, no new extractions just merge ids
+        old_sha1_format, unique_sha1 = self.format_for_sha1_infos(old_to_be_merged)
+        print "[HBaseIndexer.index_batch: log] old_sha1_format: {}".format(old_sha1_format)
+        print "[HBaseIndexer.index_batch: log] unique_sha1: {}".format(unique_sha1)
+        # get corresponding rows
+        sha1_rows = self.get_full_sha1_rows(unique_sha1)
+        print "[HBaseIndexer.index_batch: log] sha1_rows: {}".format(sha1_rows)
+        # merge
+        sha1_rows_merged = group_by_sha1(self,old_sha1_format.extend(sha1_rows)):
+        # push merged old images infos
+        
+        # insert new images
+        # First, insert sha1 in self.table_cdrinfos_name
+
+        # Then insert sha1 row.
+
+        # Finally udpate self.table_updateinfos_name
         
 
 

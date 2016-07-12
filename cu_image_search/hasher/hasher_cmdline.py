@@ -5,6 +5,7 @@ import shutil
 import struct
 import numpy as np
 from ..memex_tools.image_dl import mkpath
+from ..memex_tools.binary_file import read_binary_file
 
 class HasherCmdLine():
 
@@ -41,17 +42,17 @@ class HasherCmdLine():
         print command
         os.system(command)
 
-    def read_binary_file(self,X_fn,str_precomp,list_feats_id,read_dim,read_type):
-        X = []
-        ok_ids = []
-        with open(X_fn,"rb") as f_preout:
-            for i in range(len(list_feats_id)):
-                try:
-                    X.append(np.frombuffer(f_preout.read(read_dim),dtype=read_type))
-                    ok_ids.append(i)
-                except Exception as inst:
-                    print "[HasherCmdLine.read_binary_file: error] Could not read requested {} with id {}. {}".format(str_precomp,list_feats_id[i],inst)
-        return X,ok_ids
+    # def read_binary_file(self,X_fn,str_precomp,list_feats_id,read_dim,read_type):
+    #     X = []
+    #     ok_ids = []
+    #     with open(X_fn,"rb") as f_preout:
+    #         for i in range(len(list_feats_id)):
+    #             try:
+    #                 X.append(np.frombuffer(f_preout.read(read_dim),dtype=read_type))
+    #                 ok_ids.append(i)
+    #             except Exception as inst:
+    #                 print "[HasherCmdLine.read_binary_file: error] Could not read requested {} with id {}. {}".format(str_precomp,list_feats_id[i],inst)
+    #     return X,ok_ids
 
     def get_precomp_X(self,list_feats_id,str_precomp,read_dim,read_type):
         query_time = time.time()
@@ -66,7 +67,7 @@ class HasherCmdLine():
         print "[HasherCmdLine.get_precomp_X: log] running command: {}".format(command)
         os.system(command)
         # read features/hashcodes
-        X, ok_ids = self.read_binary_file(X_fn,str_precomp,list_feats_id,read_dim,read_type)
+        X, ok_ids = read_binary_file(X_fn,str_precomp,list_feats_id,read_dim,read_type)
         # cleanup
         os.remove(query_precomp_fn)
         os.remove(X_fn)
