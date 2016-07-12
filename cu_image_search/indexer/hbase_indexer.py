@@ -165,10 +165,11 @@ class HBaseIndexer(GenericIndexer):
         # Compute missing extractions 
         new_sb_files = []
         new_files_id = []
-        for i,nf,extr in enumerate(new_files):
+        for i,nf_extr in enumerate(new_files):
+            nf,extr = nf_extr
             if "sentibank" in extr:
                 new_sb_files.append(nf)
-                new_files_id.append(new_fulls[i][]0)
+                new_files_id.append(new_fulls[i][0])
         if new_sb_files:
             print "[HBaseIndexer.index_batch: log] new_sb_files: {}".format(new_sb_files)
             # Compute features
@@ -176,9 +177,9 @@ class HBaseIndexer(GenericIndexer):
             # Compute hashcodes
             hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
             norm_features_filename = features_filename[:-4]+"_norm"
-            print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,,hashbits_filepath)
+            print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,norm_features_filename,hashbits_filepath)
             feats,feats_ok_ids = self.hasher.read_binary_file(norm_features_filename,"feats",new_files_id,self.features_dim*4,np.float32)
-            hashcodes,hash_ok_ids = self.hasher.read_binary_file(hashbits_filepath,"hashcodes",self.bits_num/8,np.uint8)
+            hashcodes,hash_ok_ids = self.hasher.read_binary_file(hashbits_filepath,"hashcodes",new_files_id,self.bits_num/8,np.uint8)
             print "Norm features {}\n Hashcodes {}".format(feats,hashcodes)
             # read features and hashcodes and pushback for insertion
         # Insert new ids
