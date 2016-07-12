@@ -15,8 +15,12 @@ def mkpath(outpath):
             pass
 
 def dlimage_basepath(url,basepath,logf=None):
+    if not url:
+        return None
     pos_slash=[pos for pos,c in enumerate(url) if c=="/"]
     #pos_point=[pos for pos,c in enumerate(url) if c=="."]
+    if not pos_slash:
+        return None
     file_img=url[pos_slash[-1]+1:]
     # path with time and random to ensure unique names
     outpath=os.path.join(basepath,str(time.time())+'_'+str(np.int32(np.random.random()*(10e6)))+'_'+file_img)
@@ -42,4 +46,9 @@ def dlimage(url,logf=None):
     return dlimage_basepath(url,'./',logf)
 
 def dlimage_args(args):
-    return dlimage_basepath(args[0],args[1])    
+    if len(args)==2:
+       print args[0],args[1]
+       return dlimage_basepath(args[0],args[1])    
+    else:
+       print "[dl_image_args: warning] incorrect agruments: {}.".format(args)
+       return None

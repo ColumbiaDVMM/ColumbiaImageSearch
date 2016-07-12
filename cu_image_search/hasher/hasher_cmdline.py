@@ -10,7 +10,9 @@ class HasherCmdLine():
 
     def __init__(self,global_conf_filename):
         self.global_conf = json.load(open(global_conf_filename,'rt'))
-        self.base_update_path = self.global_conf['LI_base_update_path']
+        self.base_update_path = os.path.dirname(__file__)
+        if 'LI_base_update_path' in self.global_conf:
+            self.base_update_path = self.global_conf['LI_base_update_path']
         self.features_dim = self.global_conf['FE_features_dim']
         self.bits_num = self.global_conf['HA_bits_num']
         self.hashing_execpath = os.path.join(os.path.dirname(__file__),'../hashing/')

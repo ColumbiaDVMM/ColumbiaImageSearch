@@ -84,6 +84,7 @@ class HBaseIngester(GenericIngester):
             nb_ins = min(self.batch_size-len(images_infos),len(new_rows))
             for i in range(nb_ins):
                 images_infos.append((cdr_ids[i],new_rows[i][1][self.in_url_column],[extractions[i],new_rows[i][0],new_rows[i][1]]))
+        #print images_infos
         return images_infos
 
     def check_extractions_rows(self,candidate_rows,sha1s):

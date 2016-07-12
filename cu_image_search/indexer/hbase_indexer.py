@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-import MySQLdb
+import happybase
 from generic_indexer import GenericIndexer
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
@@ -17,6 +17,7 @@ class HBaseIndexer(GenericIndexer):
         self.image_downloader_type = self.global_conf['HBI_image_downloader']
         self.hasher_type = self.global_conf['HBI_hasher']
         self.feature_extractor_type = self.global_conf['HBI_feature_extractor']
+        self.hbase_host = self.global_conf['HBI_host']
         self.table_sha1infos_name = self.global_conf['HBI_table_sha1infos']
         self.table_updateinfos_name = self.global_conf['HBI_table_updatesinfos']
         self.extractions_types = self.global_conf['HBI_extractions_types']
@@ -93,21 +94,20 @@ class HBaseIndexer(GenericIndexer):
             # check if we have retrieved rows and extractions for each sha1
             retrieved_sha1s = [row[0] for row in rows]
             # building a list of ok_ids and res for each extraction type
-            ok_ids = []*len(list_type)
-            res = []*len(list_type)
+            ok_ids = [[]]*len(list_type)
+            res = [[]]*len(list_type)
             for i,sha1 in enumerate(retrieved_sha1s):
-                for extr in list_type:
-                    if extr in self.extractions_types:
-                        extr_column = self.extractions_columns[self.extractions_types.index(extr)]
-                        if extr_column in rows[i][1]:
-                            ok_ids[e].append(list_sha1s.index(sha1))
-                            res[e].append(rows[i][1][extr_column]])
-                    else:
-                        raise ValueError("[HBaseIndexer.get_precomp_from_sha1: error] Unknown extraction type: {}.".format(extr))
+                for e,extr in enumerate(self.extractions_types):
+                    print i,sha1,e,extr
+                    print len(ok_ids)
+                    extr_column = self.extractions_columns[self.extractions_types.index(extr)]
+                    if extr_column in rows[i][1]:
+                        ok_ids[e].append(list_sha1s.index(sha1))
+                        res[e].append(rows[i][1][extr_column])
         return res,ok_ids
 
     def get_new_unique_images(self,sha1_images):
-        new_uniques = []
+        new_files = []
         new_fulls = []
         old_to_be_merged = []
         # get unique images 
@@ -117,17 +117,12 @@ class HBaseIndexer(GenericIndexer):
         ## only first time appearing?
         unique_idx = [sha1_list.index(sha1) for sha1 in unique_sha1]
         full_idx = [unique_sha1.index(sha1) for sha1 in sha1_list]
-        # first build superset of extractions
-        extractions = set()
-        for tmp_img in sha1_images:
-            extractions.add(tmp_img[2][0])
-        list_type = list(extractions)
         # get what we already have indexed in 'table_sha1infos_name'
-        res, ok_ids = self.get_precomp_from_sha1(list(unique_sha1),list_type)
+        res, ok_ids = self.get_precomp_from_sha1(list(unique_sha1),self.extractions_types)
         # check which images already exists and what extractions are present
         for i,sha1 in enumerate(unique_sha1):
             missing_extr = []
-            for e,extr in enumerate(list_type):
+            for e,extr in enumerate(self.extractions_types):
                 if i not in ok_ids[e]:
                     # we don't have this extraction for that image
                     missing_extr.append(extr)
@@ -150,9 +145,10 @@ class HBaseIndexer(GenericIndexer):
         """
         # Download images
         timestr= time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(time.time()))
-        startid = str(batch[0][0])
-        lastid = str(batch[-1][0])
-        update_id = timestr+'_'+startid+'_'+lastid
+        #startid = str(batch[0][0])
+        #lastid = str(batch[-1][0])
+        #update_id = timestr+'_'+startid+'_'+lastid
+        update_id = timestr
         print "[HBaseIndexer.index_batch: log] Starting udpate {}".format(update_id)
         readable_images = self.image_downloader.download_images(batch,update_id)
         #print readable_images

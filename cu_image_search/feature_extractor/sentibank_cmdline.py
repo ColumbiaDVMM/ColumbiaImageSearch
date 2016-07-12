@@ -8,7 +8,9 @@ class SentiBankCmdLine():
 
     def __init__(self,global_conf_filename):
         self.global_conf = json.load(open(global_conf_filename,'rt'))
-        self.base_update_path = self.global_conf['LI_base_update_path']
+        self.base_update_path = os.path.dirname(__file__)
+        if "LI_base_update_path" in self.global_conf:
+            self.base_update_path = self.global_conf['LI_base_update_path']
         self.features_path = os.path.join(self.base_update_path,'features/')
 
     def compute_features(self,new_files,startid):

@@ -36,8 +36,8 @@ class Updater():
             from ..ingester.cdr_ingester import CDRIngester
             self.ingester = CDRIngester(self.global_conf_filename)
         elif self.global_conf[field]=="hbase_ingester":
-            from ..ingester.hbase_ingester import HBaseIndexer
-            self.ingester = HBaseIndexer(self.global_conf_filename)
+            from ..ingester.hbase_ingester import HBaseIngester
+            self.ingester = HBaseIngester(self.global_conf_filename)
         else:
             raise ValueError("[Updater: error] unkown 'ingester' {}.".format(self.global_conf[field]))
 
@@ -67,6 +67,7 @@ class Updater():
             start = self.indexer.get_next_batch_start()
             self.ingester.set_start(start)
             batch = self.ingester.get_batch()
+            print batch
             self.indexer.index_batch(batch)
         except Exception as inst:
             print "[Updater.run_udpate: error] {}".format(inst)
