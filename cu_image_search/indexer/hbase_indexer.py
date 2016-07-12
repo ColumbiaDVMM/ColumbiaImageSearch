@@ -160,9 +160,11 @@ class HBaseIndexer(GenericIndexer):
             print "{}: {}".format(sha1,image)
             unique_sha1.add(sha1)
             tmp["info:all_cdr_ids"] = image[0]
-            print image[2]
-            tmp["info:all_parent_ids"] = image[2][2]["info:obj_parent"]
-            tmp["info:all_htids"] = image[2][2]["info:crawl_data.image_id"]
+            image_dict = image[2][2]
+            tmp["info:all_parent_ids"] = image_dict["info:obj_parent"]
+            # this field may be absent
+            if "info:crawl_data.image_id" in image_dict:
+                tmp["info:all_htids"] = image_dict["info:crawl_data.image_id"]
             tmp["info:s3_url"] = image[1]
             sha1_infos.append((sha1,tmp))
         return sha1_infos,unique_sha1
@@ -207,7 +209,7 @@ class HBaseIndexer(GenericIndexer):
             if tmp[0] not in sha1_list:
                 sha1_list.append(tmp[0])
                 if extractions and tmp[0] in extractions:
-                    tmp = self.add_extractions_to_row(row,extractions[tmp[0]])
+                    tmp = self.add_extractions_to_row(tmp,extractions[tmp[0]])
                 out.append(tmp)
             else:
                 pos = sha1_list.index(tmp[0])
@@ -215,7 +217,7 @@ class HBaseIndexer(GenericIndexer):
                 # merge
                 new_row = self.merge_two_rows(row,tmp)
                 if extractions and tmp[0] in extractions:
-                    new_row = self.add_extractions_to_row(row,extractions[tmp[0]])
+                    new_row = self.add_extractions_to_row(new_row,extractions[tmp[0]])
                 # update
                 out[pos] = new_row
         return out
@@ -288,7 +290,7 @@ class HBaseIndexer(GenericIndexer):
         # into "info:all_htids", "info:all_cdr_ids", "info:all_parent_ids"
         # merge old_to_be_merged, no new extractions just merge ids
         old_sha1_format, unique_sha1 = self.format_for_sha1_infos(old_to_be_merged)
-        print "[HBaseIndexer.index_batch: log] old_sha1_format: {}".format(old_sha1_format)
+        #print "[HBaseIndexer.index_batch: log] old_sha1_format: {}".format(old_sha1_format)
         print "[HBaseIndexer.index_batch: log] unique_sha1: {}".format(unique_sha1)
         # get corresponding rows
         sha1_rows = self.get_full_sha1_rows(unique_sha1)
@@ -297,7 +299,7 @@ class HBaseIndexer(GenericIndexer):
         old_sha1_format.extend(sha1_rows)
         sha1_rows_merged = self.group_by_sha1(old_sha1_format)
         # push merged old images infos
-        print "[HBaseIndexer.index_batch: log] sha1_rows_merged: {}".format(sha1_rows_merged)
+        #print "[HBaseIndexer.index_batch: log] sha1_rows_merged: {}".format(sha1_rows_merged)
         # insert new images
         print "[HBaseIndexer.index_batch: log] writing batch from {} to table {}.".format(sha1_rows_merged[0][0],self.table_sha1infos_name)
         self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
@@ -306,11 +308,13 @@ class HBaseIndexer(GenericIndexer):
         insert_cdrid_sha1 = []
         for one_full_list in new_fulls:
             for one_full in one_full_list:
-                flatten_fulls.extend(one_full)
+                print one_full
+                flatten_fulls.extend((one_full,))
                 insert_cdrid_sha1.append((one_full[0],{self.sha1_column: one_full[-1]}))
         # First, insert sha1 in self.table_cdrinfos_name
         self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
         # Then insert sha1 row.
+        print "[HBaseIndexer.index_batch: log] flatten_fulls: {}".format(flatten_fulls)
         new_sha1_format, unique_sha1 = self.format_for_sha1_infos(flatten_fulls)
         new_sha1_rows_merged = self.group_by_sha1(new_sha1_format,extractions)
         # Finally udpate self.table_updateinfos_name
