@@ -299,56 +299,58 @@ class HBaseIndexer(GenericIndexer):
         # merge "info:crawl_data.image_id", "info:doc_id", "info:obj_parent"
         # into "info:all_htids", "info:all_cdr_ids", "info:all_parent_ids"
         # merge old_to_be_merged, no new extractions just push back cdr ids
-        insert_cdrid_sha1 = []
-        for one_full in old_to_be_merged:
-            one_val = {self.sha1_column: one_full[-1]}
-            for tmpk in ["info:obj_parent","info:obj_stored_url"]: 
-                if tmpk in one_full[2][2]:
-                    one_val[tmpk] = one_full[2][2][tmpk]
-            insert_cdrid_sha1.append((one_full[0],one_val))
-        if insert_cdrid_sha1:
-            # First, insert sha1 in self.table_cdrinfos_name
-            print "[HBaseIndexer.index_batch: log] writing batch from cdr id {} to table {}.".format(insert_cdrid_sha1[0][0],self.table_cdrinfos_name)
-            self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
-        old_sha1_format, unique_sha1 = self.format_for_sha1_infos(old_to_be_merged)
-        #print "[HBaseIndexer.index_batch: log] old_sha1_format: {}".format(old_sha1_format)
-        #print "[HBaseIndexer.index_batch: log] unique_sha1: {}".format(unique_sha1)
-        # get corresponding rows
-        sha1_rows = self.get_full_sha1_rows(unique_sha1)
-        #print "[HBaseIndexer.index_batch: log] sha1_rows: {}".format(sha1_rows)
-        # merge
-        old_sha1_format.extend(sha1_rows)
-        sha1_rows_merged = self.group_by_sha1(old_sha1_format)
-        # push merged old images infos
-        #print "[HBaseIndexer.index_batch: log] sha1_rows_merged: {}".format(sha1_rows_merged)
-        if sha1_rows_merged:
-            print "[HBaseIndexer.index_batch: log] writing batch to update old images from {} to table {}.".format(sha1_rows_merged[0][0],self.table_sha1infos_name)
-            self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
-        # new_fulls is a list of list
-        flatten_fulls = []
-        insert_cdrid_sha1 = []
-        for one_full_list in new_fulls:
-            for one_full in one_full_list:
-                #print "[HBaseIndexer.index_batch: log] flattening row {} with sha1 {}.".format(one_full[0],one_full[-1])
-                flatten_fulls.extend((one_full,))
+        if old_to_be_merged:
+            insert_cdrid_sha1 = []
+            for one_full in old_to_be_merged:
                 one_val = {self.sha1_column: one_full[-1]}
                 for tmpk in ["info:obj_parent","info:obj_stored_url"]: 
                     if tmpk in one_full[2][2]:
                         one_val[tmpk] = one_full[2][2][tmpk]
                 insert_cdrid_sha1.append((one_full[0],one_val))
-        if insert_cdrid_sha1:
-            # First, insert sha1 in self.table_cdrinfos_name
-            print "[HBaseIndexer.index_batch: log] writing batch from cdr id {} to table {}.".format(insert_cdrid_sha1[0][0],self.table_cdrinfos_name)
-            self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
-        # Then insert sha1 row.
-        #print "[HBaseIndexer.index_batch: log] flatten_fulls: {}".format(flatten_fulls)
-        new_sha1_format, unique_sha1 = self.format_for_sha1_infos(flatten_fulls)
-        new_sha1_rows_merged = self.group_by_sha1(new_sha1_format,extractions)
-        if new_sha1_rows_merged:
-            # Finally udpate self.table_updateinfos_name
-            #print "[HBaseIndexer.index_batch: log] new_sha1_rows_merged: {}".format(new_sha1_rows_merged)
-            print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
-            self.write_batch(new_sha1_rows_merged,self.table_sha1infos_name) 
+            if insert_cdrid_sha1:
+                # First, insert sha1 in self.table_cdrinfos_name
+                print "[HBaseIndexer.index_batch: log] writing batch from cdr id {} to table {}.".format(insert_cdrid_sha1[0][0],self.table_cdrinfos_name)
+                self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
+            old_sha1_format, unique_sha1 = self.format_for_sha1_infos(old_to_be_merged)
+            #print "[HBaseIndexer.index_batch: log] old_sha1_format: {}".format(old_sha1_format)
+            #print "[HBaseIndexer.index_batch: log] unique_sha1: {}".format(unique_sha1)
+            # get corresponding rows
+            sha1_rows = self.get_full_sha1_rows(unique_sha1)
+            #print "[HBaseIndexer.index_batch: log] sha1_rows: {}".format(sha1_rows)
+            # merge
+            old_sha1_format.extend(sha1_rows)
+            sha1_rows_merged = self.group_by_sha1(old_sha1_format)
+            # push merged old images infos
+            #print "[HBaseIndexer.index_batch: log] sha1_rows_merged: {}".format(sha1_rows_merged)
+            if sha1_rows_merged:
+                print "[HBaseIndexer.index_batch: log] writing batch to update old images from {} to table {}.".format(sha1_rows_merged[0][0],self.table_sha1infos_name)
+                self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
+        if new_fulls:
+            # new_fulls is a list of list
+            flatten_fulls = []
+            insert_cdrid_sha1 = []
+            for one_full_list in new_fulls:
+                for one_full in one_full_list:
+                    #print "[HBaseIndexer.index_batch: log] flattening row {} with sha1 {}.".format(one_full[0],one_full[-1])
+                    flatten_fulls.extend((one_full,))
+                    one_val = {self.sha1_column: one_full[-1]}
+                    for tmpk in ["info:obj_parent","info:obj_stored_url"]: 
+                        if tmpk in one_full[2][2]:
+                            one_val[tmpk] = one_full[2][2][tmpk]
+                    insert_cdrid_sha1.append((one_full[0],one_val))
+            if insert_cdrid_sha1:
+                # First, insert sha1 in self.table_cdrinfos_name
+                print "[HBaseIndexer.index_batch: log] writing batch from cdr id {} to table {}.".format(insert_cdrid_sha1[0][0],self.table_cdrinfos_name)
+                self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
+            # Then insert sha1 row.
+            #print "[HBaseIndexer.index_batch: log] flatten_fulls: {}".format(flatten_fulls)
+            new_sha1_format, unique_sha1 = self.format_for_sha1_infos(flatten_fulls)
+            new_sha1_rows_merged = self.group_by_sha1(new_sha1_format,extractions)
+            if new_sha1_rows_merged:
+                # Finally udpate self.table_updateinfos_name
+                #print "[HBaseIndexer.index_batch: log] new_sha1_rows_merged: {}".format(new_sha1_rows_merged)
+                print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
+                self.write_batch(new_sha1_rows_merged,self.table_sha1infos_name) 
         print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
                 
         
