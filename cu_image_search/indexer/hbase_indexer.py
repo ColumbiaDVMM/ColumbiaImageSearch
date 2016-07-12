@@ -85,8 +85,9 @@ class HBaseIndexer(GenericIndexer):
             for row in table_updateinfos.scan():
                 return row[0]
 
-    def get_precomp_from_cdrids(self,list_cdrids,list_type):
-        pass
+    # maybe not needed
+    #def get_precomp_from_cdrids(self,list_cdrids,list_type):
+    #    pass
         ## what to do with missing sha1s here?
         #sha1_list = self.get_sha1s_from_cdrids(list_cdrids)
         #res = self.get_precomp_from_sha1(self,sha1_list,list_type)
@@ -295,7 +296,17 @@ class HBaseIndexer(GenericIndexer):
         # in self.table_sha1infos_name, 
         # merge "info:crawl_data.image_id", "info:doc_id", "info:obj_parent"
         # into "info:all_htids", "info:all_cdr_ids", "info:all_parent_ids"
-        # merge old_to_be_merged, no new extractions just merge ids
+        # merge old_to_be_merged, no new extractions just push back cdr ids
+        for one_full in old_to_be_merged:
+            one_val = {self.sha1_column: one_full[-1]}
+            for tmpk in ["info:obj_parent","info:obj_stored_url"]: 
+                if tmpk in one_full[2][2]:
+                    one_val[tmpk] = one_full[2][2][tmpk]
+            insert_cdrid_sha1.append((one_full[0],one_val))
+        if insert_cdrid_sha1:
+            # First, insert sha1 in self.table_cdrinfos_name
+            print "[HBaseIndexer.index_batch: log] writing batch from cdr id {} to table {}.".format(insert_cdrid_sha1[0][0],self.table_cdrinfos_name)
+            self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
         old_sha1_format, unique_sha1 = self.format_for_sha1_infos(old_to_be_merged)
         #print "[HBaseIndexer.index_batch: log] old_sha1_format: {}".format(old_sha1_format)
         #print "[HBaseIndexer.index_batch: log] unique_sha1: {}".format(unique_sha1)
