@@ -12,6 +12,7 @@ class SentiBankCmdLine():
         if "LI_base_update_path" in self.global_conf:
             self.base_update_path = self.global_conf['LI_base_update_path']
         self.features_path = os.path.join(self.base_update_path,'features/')
+        mkpath(self.features_path)
 
     def compute_features(self,new_files,startid):
         # create file listing images to be processed
