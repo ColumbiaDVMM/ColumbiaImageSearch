@@ -97,8 +97,8 @@ class HBaseIngester(GenericIngester):
             table_sha1infos = connection.table(self.table_sha1infos_name)
             candidate_rows_sha1s = table_sha1infos.rows(sha1s)
         found_candidates = [sha1s.index(crs_row[0]) for crs_row in candidate_rows_sha1s]
-        print "[HBase.ingester.check_extractions_rows: log] found_candidates: {}".format(found_candidates)
-        print "[HBase.ingester.check_extractions_rows: log] candidate_rows_sha1s: {}".format(candidate_rows_sha1s)
+        #print "[HBase.ingester.check_extractions_rows: log] found_candidates: {}".format(found_candidates)
+        #print "[HBase.ingester.check_extractions_rows: log] candidate_rows_sha1s: {}".format(candidate_rows_sha1s)
         # what to do with images with no rows found in table_sha1infos?
         # it would mean they are currently being updated?
         for i,row in enumerate(candidate_rows_sha1s):
@@ -136,7 +136,7 @@ class HBaseIngester(GenericIngester):
                 # self.start should be the last row-key that was indexed previously
                 scanned_rows = False
                 for row in table_timestamp.scan(row_start=start_row,row_stop=str(self.start),batch_size=self.batch_size):
-                    print row[0]
+                    #print row[0]
                     scanned_rows = True
                     rk = row[0]
                     rd = row[1]
@@ -144,7 +144,7 @@ class HBaseIngester(GenericIngester):
                     rows.append((rk,rd))
                     if len(rows)>=self.batch_size:
                         break
-            print "[HBaseIngester.get_batch: log] got {} rows.".format(len(rows)) 
+            #print "[HBaseIngester.get_batch: log] got {} rows.".format(len(rows)) 
             if rows:
                 start_row = rows[-1][0]
             ts_cdr_ids = [row[0] for row in rows]
@@ -154,7 +154,8 @@ class HBaseIngester(GenericIngester):
             #print cdr_ids
             indexed, sha1s = self.get_cdr_ids_indexed(cdr_ids)
             #print indexed, sha1s
-            # if not indexed push, filling up images_infos
+            # if not indexed push, filling up images_infos. 
+            # This should be the case for most images when really running updates.
             pos_indexed = [i for i,idx in enumerate(indexed) if idx]
             pos_not_indexed = [i for i,idx in enumerate(indexed) if not idx]
             if pos_not_indexed:
@@ -181,7 +182,7 @@ class HBaseIngester(GenericIngester):
                 new_cdr_ids = [ccdr for i,ccdr in enumerate(candidate_cdr_ids) if i in new_rows_ids]
                 # otherwise push to images_infos with informations about which extractions should be run
                 images_infos = self.fill_images_infos(new_rows,new_cdr_ids,new_extractions,images_infos)
-            print "[HBaseIngester.get_batch: log] scanned_rows {} and len(images_infos) {}.".format(scanned_rows, len(images_infos))
+            #print "[HBaseIngester.get_batch: log] scanned_rows {} and len(images_infos) {}.".format(scanned_rows, len(images_infos))
             # stop scanning if we have a full batch
             if len(images_infos)>=self.batch_size:
                 break
