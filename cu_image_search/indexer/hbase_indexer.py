@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import base64
 import happybase
 import numpy as np
 from generic_indexer import GenericIndexer
@@ -155,28 +156,68 @@ class HBaseIndexer(GenericIndexer):
         unique_sha1 = set()
         # keys are "info:all_cdr_ids", "info:all_parent_ids", "info:all_htids", "info:featnorm_cu", "info:s3_url", "info:hash256_cu"
         for image in list_images:
-            tmp = {}
+            tmp = dict()
             sha1 = image[-1]
+            print "{}: {}".format(sha1,image)
             unique_sha1.add(sha1)
-            tmp[sha1] = {}
-            tmp[sha1]["info:all_cdr_ids"] = image[0]
-            tmp[sha1]["info:all_parent_ids"] = image[4]["info:obj_parent"]
-            tmp[sha1]["info:all_htids"] = image[4]["info:crawl_data.image_id"]
-            tmp[sha1]["info:s3_url"] = image[1]
-            sha1_infos.append(tmp)
+            tmp["info:all_cdr_ids"] = image[0]
+            tmp["info:all_parent_ids"] = image[2][2]["info:obj_parent"]
+            tmp["info:all_htids"] = image[2][2]["info:crawl_data.image_id"]
+            tmp["info:s3_url"] = image[1]
+            sha1_infos.append((sha1,tmp))
         return sha1_infos,unique_sha1
             
+    def add_extractions_to_row(self,row,extractions):
+        return row
+
+    def merge_two_rows(self,row,tmp):
+        if row[0]!=tmp[0]:
+            raise ValueError("[HBaseIndexer.merge_two_rows: error] tried to merge two rows with different keys {} and {}.".format(row[0],tmp[0]))
+        all_keys = set(row[1].keys())
+        all_keys.union(set(tmp[1].keys()))
+        out = dict()
+        for key in all_keys:
+            # some values are list and should be merged
+            if key in row[1] and key in tmp[1] and key != 'info:s3_url' and key not in self.extractions_columns:
+                out[key] = ','.join(list(set(row[1][key].split(',')) | set(tmp[1][key].split(','))))               
+            # for others a single value should be kept: info:s3_url, and the extractions.
+            else:
+                if key in row[1]:
+                    out[key] = row[1][key]
+                elif key in tmp[1]:
+                    out[key] = tmp[1][key]       
+        out_row = (row[0],out)
+        return out_row
 
     def group_by_sha1(self,list_images,extractions=None):
-        out = dict{}
+        out = []
+        sha1_list = []
+        print "[group_by_sha1: log] list_images {}.".format(list_images)
         for tmp in list_images:
-            print tmp
-            if "info:featnorm_cu" in tmp:
-                print tmp["info:featnorm_cu"]
-            if "info:hash256_cu" in tmp:
-                print tmp["info:hash256_cu"]
+            if tmp[0] not in sha1_list:
+                sha1_list.append(tmp[0])
+                if extractions and tmp[0] in extractions:
+                    tmp = self.add_extractions_to_row(row,extractions[tmp[0]])
+                out.append(tmp)
+            else:
+                pos = sha1_list.index(tmp[0])
+                row = out[pos]
+                # merge
+                new_row = self.merge_two_rows(row,tmp)
+                if extractions and tmp[0] in extractions:
+                    new_row = self.add_extractions_to_row(row,extractions[tmp[0]])
+                # update
+                out[pos] = new_row
         return out
         
+    def write_batch(self,batch,tab_out_name):
+        with self.pool.connection() as connection:
+            tab_out = connection.table(tab_out_name)
+            batch_write = tab_out.batch()
+            print "Pushing batch from {}.".format(batch[0][0])
+            for row in batch:
+                batch_write.put(row[0],row[1])
+        batch_write.send()
 
     def index_batch(self,batch):
         """ Index a batch in the form of a list of (cdr_id,url,[extractions,ts_cdrid,other_data])
@@ -202,11 +243,12 @@ class HBaseIndexer(GenericIndexer):
         new_files_id = []
         for i,nf_extr in enumerate(new_files):
             nf,extr = nf_extr
-            if "sentibank" in extr:
+            if "sentibank" in extr and new_fulls[i][0][-1] not in new_files_id:
                 new_sb_files.append(nf)
-                new_files_id.append(new_fulls[i][0])
+                new_files_id.append(new_fulls[i][0][-1])
         if new_sb_files:
             print "[HBaseIndexer.index_batch: log] new_sb_files: {}".format(new_sb_files)
+            print "[HBaseIndexer.index_batch: log] new_files_id: {}".format(new_files_id)
             # Compute features
             features_filename, ins_num = self.feature_extractor.compute_features(new_sb_files, update_id)
             # Compute hashcodes
@@ -215,11 +257,18 @@ class HBaseIndexer(GenericIndexer):
             # read features and hashcodes and pushback for insertion
             print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,norm_features_filename,hashbits_filepath)
             feats,feats_ok_ids = read_binary_file(norm_features_filename,"feats",new_files_id,self.features_dim*4,np.float32)
-            hashcodes,hash_ok_ids = read_binary_file(hashbits_filepath,"hashcodes",self.bits_num/8,np.uint8)
+            hashcodes,hash_ok_ids = read_binary_file(hashbits_filepath,"hashcodes",new_files_id,self.bits_num/8,np.uint8)
             print "Norm features {}\n Hashcodes {}".format(feats,hashcodes)
             if len(feats_ok_ids)!=len(new_files_id) or len(hash_ok_ids)!=len(new_files_id):
                 print "[HBaseIndexer.index_batch: error] Dimensions mismatch. Are we missing features {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id))
                 return False
+            extractions = dict()
+            for i,sha1 in enumerate(new_files_id):
+                extractions[sha1] = dict()
+                sb_col_name = self.extractions_columns[self.extractions_types.index("sentibank")]
+                hash_col_name = self.extractions_columns[self.extractions_types.index("hashcode")]
+                extractions[sha1][sb_col_name] = base64.b64encode(feats[i])
+                extractions[sha1][hash_col_name] = base64.b64encode(hashcodes[i])
         # Need to update self.table_cdrinfos_name and self.table_sha1infos_name
         # in self.table_sha1infos_name, 
         # merge "info:crawl_data.image_id", "info:doc_id", "info:obj_parent"
@@ -230,12 +279,15 @@ class HBaseIndexer(GenericIndexer):
         print "[HBaseIndexer.index_batch: log] unique_sha1: {}".format(unique_sha1)
         # get corresponding rows
         sha1_rows = self.get_full_sha1_rows(unique_sha1)
-        print "[HBaseIndexer.index_batch: log] sha1_rows: {}".format(sha1_rows)
+        #print "[HBaseIndexer.index_batch: log] sha1_rows: {}".format(sha1_rows)
         # merge
-        sha1_rows_merged = group_by_sha1(self,old_sha1_format.extend(sha1_rows)):
+        old_sha1_format.extend(sha1_rows)
+        sha1_rows_merged = self.group_by_sha1(old_sha1_format)
         # push merged old images infos
-        
+        print "[HBaseIndexer.index_batch: log] sha1_rows_merged: {}".format(sha1_rows_merged)
         # insert new images
+        print "[HBaseIndexer.index_batch: log] writing batch from {} to table {}.".format(sha1_rows_merged[0][0],self.table_sha1infos_name)
+        self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
         # First, insert sha1 in self.table_cdrinfos_name
 
         # Then insert sha1 row.
