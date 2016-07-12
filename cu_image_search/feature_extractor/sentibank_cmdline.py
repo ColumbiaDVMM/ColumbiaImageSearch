@@ -10,8 +10,9 @@ class SentiBankCmdLine():
         self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.base_update_path = os.path.dirname(__file__)
         if "LI_base_update_path" in self.global_conf:
-            self.base_update_path = self.global_conf['LI_base_update_path']
+            self.base_update_path = self.global_conf["LI_base_update_path"]
         self.features_path = os.path.join(self.base_update_path,'features/')
+        self.features_dim = self.global_conf["FE_features_dim"]
         mkpath(self.features_path)
 
     def compute_features(self,new_files,startid):
@@ -36,7 +37,7 @@ class SentiBankCmdLine():
 
         # set parameters and filenames for feature extraction process
         device = 'GPU'
-        feature_num = 4096
+        feature_num = self.features_dim
         testname = img_filename[:-4] + '-test.txt'
         protoname = img_filename[:-4] + '-test.prototxt'
 

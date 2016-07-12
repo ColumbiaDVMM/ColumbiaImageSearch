@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import happybase
+import numpy as np
 from generic_indexer import GenericIndexer
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
@@ -24,6 +25,8 @@ class HBaseIndexer(GenericIndexer):
         self.extractions_columns = self.global_conf['HBI_extractions_columns']
         self.in_url_column = self.global_conf['HBI_in_url_column']
         self.sha1_column = self.global_conf['HBI_sha1_column']
+        self.features_dim = self.global_conf["FE_features_dim"]
+        self.bits_num = self.global_conf['HA_bits_num']
         if len(self.extractions_columns) != len(self.extractions_types):
             raise ValueError("[HBaseIngester.initialize_source: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
         self.nb_threads = 2
@@ -161,16 +164,22 @@ class HBaseIndexer(GenericIndexer):
         print "[HBaseIndexer.index_batch: log] old_to_be_merged: {}".format(old_to_be_merged)
         # Compute missing extractions 
         new_sb_files = []
-        for nf,extr in new_files:
+        new_files_id = []
+        for i,nf,extr in enumerate(new_files):
             if "sentibank" in extr:
                 new_sb_files.append(nf)
+                new_files_id.append(new_fulls[i][]0)
         if new_sb_files:
             print "[HBaseIndexer.index_batch: log] new_sb_files: {}".format(new_sb_files)
             # Compute features
             features_filename, ins_num = self.feature_extractor.compute_features(new_sb_files, update_id)
             # Compute hashcodes
             hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
-            print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,features_filename[:-4]+"_norm",hashbits_filepath)
+            norm_features_filename = features_filename[:-4]+"_norm"
+            print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,,hashbits_filepath)
+            feats,feats_ok_ids = self.hasher.read_binary_file(norm_features_filename,"feats",new_files_id,self.features_dim*4,np.float32)
+            hashcodes,hash_ok_ids = self.hasher.read_binary_file(hashbits_filepath,"hashcodes",self.bits_num/8,np.uint8)
+            print "Norm features {}\n Hashcodes {}".format(feats,hashcodes)
             # read features and hashcodes and pushback for insertion
         # Insert new ids
         
