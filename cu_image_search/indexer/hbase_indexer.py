@@ -178,7 +178,7 @@ class HBaseIndexer(GenericIndexer):
         :type extractions: dict
         """
         out_values = row[1]
-        print "[HBaseIndexer.add_extractions_to_row: log] adding extractions {} to row {}.".format(extractions.keys(),row[0])
+        #print "[HBaseIndexer.add_extractions_to_row: log] adding extractions {} to row {}.".format(extractions.keys(),row[0])
         for extr in extractions.keys():
             out_values[extr] = extractions[extr]
         return (row[0],out_values)
@@ -229,7 +229,7 @@ class HBaseIndexer(GenericIndexer):
             batch_write = tab_out.batch()
             #print "Pushing batch from {}.".format(batch[0][0])
             for row in batch:
-                print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
+                #print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
                 batch_write.put(row[0],row[1])
             batch_write.send()
         
@@ -282,6 +282,8 @@ class HBaseIndexer(GenericIndexer):
             # cleanup
             os.remove(norm_features_filename)
             os.remove(hashbits_filepath)
+            for new_file in new_sb_files:
+                os.remove(new_file)
             # need to cleanup images too
             if len(feats_ok_ids)!=len(new_files_id) or len(hash_ok_ids)!=len(new_files_id):
                 print "[HBaseIndexer.index_batch: error] Dimensions mismatch. Are we missing features {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id))
@@ -297,6 +299,7 @@ class HBaseIndexer(GenericIndexer):
         # merge "info:crawl_data.image_id", "info:doc_id", "info:obj_parent"
         # into "info:all_htids", "info:all_cdr_ids", "info:all_parent_ids"
         # merge old_to_be_merged, no new extractions just push back cdr ids
+        insert_cdrid_sha1 = []
         for one_full in old_to_be_merged:
             one_val = {self.sha1_column: one_full[-1]}
             for tmpk in ["info:obj_parent","info:obj_stored_url"]: 
@@ -326,7 +329,7 @@ class HBaseIndexer(GenericIndexer):
         insert_cdrid_sha1 = []
         for one_full_list in new_fulls:
             for one_full in one_full_list:
-                print "[HBaseIndexer.index_batch: log] flattening row {} with sha1 {}.".format(one_full[0],one_full[-1])
+                #print "[HBaseIndexer.index_batch: log] flattening row {} with sha1 {}.".format(one_full[0],one_full[-1])
                 flatten_fulls.extend((one_full,))
                 one_val = {self.sha1_column: one_full[-1]}
                 for tmpk in ["info:obj_parent","info:obj_stored_url"]: 

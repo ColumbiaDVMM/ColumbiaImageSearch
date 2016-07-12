@@ -127,9 +127,9 @@ class HBaseIngester(GenericIngester):
         last_added = None
         start_row = None
         scanned_rows = True
-        rows = []
         # while we don't have enough images or did not reach end.
         while scanned_rows and len(images_infos)<self.batch_size:
+            rows = []        
             with self.pool.connection() as connection:
                 table_timestamp = connection.table(self.table_timestamp_name)
                 # get self.batch_size rows up to self.start
