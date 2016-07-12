@@ -148,7 +148,6 @@ class HBaseIndexer(GenericIndexer):
                 orig_pos = unique_idx[i]
                 new_files.append((sha1_images[orig_pos][-2],missing_extr))
                 new_fulls.append([sha1_images[k] for k in all_orig_ids])
-
         return new_files, new_fulls, old_to_be_merged
 
     def format_for_sha1_infos(self,list_images):
@@ -168,7 +167,17 @@ class HBaseIndexer(GenericIndexer):
         return sha1_infos,unique_sha1
             
     def add_extractions_to_row(self,row,extractions):
-        return row
+        """ Add newly extracted columns to row.
+
+        :param row: tuple (sha1,row_data)
+        :type row: tuple
+        :param extractions: dictionary of extractions, keys should be columns name.
+        :type extractions: dict
+        """
+        out_values = row[1]
+        for extr in extractions.keys():
+            out_values[extr] = extractions[extr]
+        return (row[0],out_values)
 
     def merge_two_rows(self,row,tmp):
         if row[0]!=tmp[0]:
@@ -288,11 +297,23 @@ class HBaseIndexer(GenericIndexer):
         # insert new images
         print "[HBaseIndexer.index_batch: log] writing batch from {} to table {}.".format(sha1_rows_merged[0][0],self.table_sha1infos_name)
         self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
+        # new_fulls is a list of list
+        flatten_fulls = []
+        insert_cdrid_sha1 = []
+        for one_full_list in new_fulls:
+            for one_full in one_full_list:
+                flatten_fulls.extend(one_full)
+                insert_cdrid_sha1.append((one_full[0],{self.sha1_column: one_ful[-1]}))
         # First, insert sha1 in self.table_cdrinfos_name
-
+        self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
         # Then insert sha1 row.
-
+        new_sha1_format, unique_sha1 = self.format_for_sha1_infos(flatten_fulls)
+        new_sha1_rows_merged = self.group_by_sha1(new_sha1_format,extractions)
         # Finally udpate self.table_updateinfos_name
+        print "[HBaseIndexer.index_batch: log] new_sha1_rows_merged: {}".format(new_sha1_rows_merged)
+        print "[HBaseIndexer.index_batch: log] writing batch from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
+        #self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
+        
         
 
 
