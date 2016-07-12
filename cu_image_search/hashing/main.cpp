@@ -87,7 +87,7 @@ int main(int argc, char** argv){
     vector<string> update_hash_files;
     //vector<string> update_feature_files;
     vector<string> update_compfeature_files;
-       vector<string> update_compidx_files;
+    vector<string> update_compidx_files;
     string update_feature_suffix = "" + str_norm;
     string update_compfeature_suffix = "_comp" + str_norm;
     string update_compidx_suffix = "_compidx" + str_norm;

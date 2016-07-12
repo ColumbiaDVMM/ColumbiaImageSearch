@@ -170,8 +170,8 @@ class HBaseIndexer(GenericIndexer):
             features_filename, ins_num = self.feature_extractor.compute_features(new_files, update_id)
             # Compute hashcodes
             hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
-
-        # Check at what point features are normalized
+            print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,features_filename[:-4]+"_norm",hashbits_filepath)
+            # read features and hashcodes and pushback for insertion
         # Insert new ids
         
 
