@@ -18,6 +18,9 @@ class FileDownloader():
         mkpath(self.dl_image_path)
 
     def download_images(self,batch,startid):
+        if not batch:
+            print "[FileDownloader.download_images: error] Empty batch: {}.".format(batch)
+            return None
     	print "[FileDownloader.download_images: log] Will download {} images with {} workers.".format(len(batch),self.dl_pool_size)
         pool = multiprocessing.Pool(self.dl_pool_size)
         basepath = os.path.join(self.dl_image_path,str(startid))

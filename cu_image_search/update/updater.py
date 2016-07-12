@@ -66,8 +66,9 @@ class Updater():
         try:
             start = self.indexer.get_next_batch_start()
             self.ingester.set_start(start)
+            self.ingester.set_fail_less_than_batch(False)
             batch = self.ingester.get_batch()
-            print batch
+            #print batch
             self.indexer.index_batch(batch)
         except Exception as inst:
             print "[Updater.run_udpate: error] {}".format(inst)

@@ -160,6 +160,7 @@ class HBaseIndexer(GenericIndexer):
             print "{}: {}".format(sha1,image)
             unique_sha1.add(sha1)
             tmp["info:all_cdr_ids"] = image[0]
+            print image[2]
             tmp["info:all_parent_ids"] = image[2][2]["info:obj_parent"]
             tmp["info:all_htids"] = image[2][2]["info:crawl_data.image_id"]
             tmp["info:s3_url"] = image[1]
@@ -240,6 +241,9 @@ class HBaseIndexer(GenericIndexer):
         print "[HBaseIndexer.index_batch: log] Starting udpate {}".format(update_id)
         readable_images = self.image_downloader.download_images(batch,update_id)
         #print readable_images
+        if not readable_images:
+            print "[HBaseIndexer.index_batch: log] No readble images!"
+            return None
         # Compute sha1
         sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
         # Now that we have sha1s, check if we actually don't already have all extractions
@@ -303,7 +307,7 @@ class HBaseIndexer(GenericIndexer):
         for one_full_list in new_fulls:
             for one_full in one_full_list:
                 flatten_fulls.extend(one_full)
-                insert_cdrid_sha1.append((one_full[0],{self.sha1_column: one_ful[-1]}))
+                insert_cdrid_sha1.append((one_full[0],{self.sha1_column: one_full[-1]}))
         # First, insert sha1 in self.table_cdrinfos_name
         self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
         # Then insert sha1 row.
