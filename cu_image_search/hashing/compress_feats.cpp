@@ -14,7 +14,7 @@ int main(int argc, char** argv){
     double t[2]; // timing
     t[0] = get_wall_time(); // Start Time
     if (argc < 1){
-        cout << "Usage: compress_feat [base_updatepath feature_dim normalize_features]" << std::endl;
+        cout << "Usage: compress_feat [base_updatepath feature_dim normalize_features master_file]" << std::endl;
         return -1;
     }
 
@@ -28,6 +28,9 @@ int main(int argc, char** argv){
         feature_dim = atoi(argv[3]);
     if (argc>4)
         norm = atoi(argv[4]);
+    if (argc>5)
+        update_files_listname = argv[5];
+    set_paths();
 
     string str_norm = "";
     if (norm)

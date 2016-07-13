@@ -2,7 +2,6 @@ import os
 import time
 import json
 import shutil
-import struct
 import numpy as np
 from ..memex_tools.image_dl import mkpath
 from ..memex_tools.binary_file import read_binary_file
@@ -21,6 +20,10 @@ class HasherCmdLine():
         self.hashing_execpath = os.path.join(os.path.dirname(__file__),'../hashing/')
         self.hashing_outpath = os.path.join(self.base_update_path,'hash_bits/')
         mkpath(self.hashing_outpath)
+        # need to be able to set/get master_update file.
+        self.master_update_file = "update_list_dev.txt"
+        if 'HA_master_update_file' in self.global_conf:
+            self.master_update_file = self.global_conf['HA_master_update_file']
 
     def compute_hashcodes(self,features_filename,ins_num,startid):
         """ Compute ITQ hashcodes for the features in 'features_filename'
@@ -43,16 +46,29 @@ class HasherCmdLine():
         os.remove(features_filename)
         return hashbits_filepath
 
+    def get_max_feat_id(self):
+        """ Returns number of images indexed based on the size of hashcodes files.
+        """
+        with open(os.path.join(self.base_update_path,self.master_update_file),'rt') as master_file:
+            total_nb = 0
+            # sum up sizes of files in master_file
+            for line in master_file:
+                statinfo = os.stat(os.path.join(self.hashing_outpath,line.strip()))
+                total_nb += statinfo.st_size*8/self.bits_num
+        return total_nb
+
     def compress_feats(self):
         """ Compress the features with zlib.
         """
         mkpath(os.path.join(self.base_update_path,'comp_features'))
         mkpath(os.path.join(self.base_update_path,'comp_idx'))
         # we could be passing additional arguments here
-        command = self.hashing_execpath+'compress_feats '+self.base_update_path
-        # this will work only if all features are still present in self.base_update_path/features
+        command = self.hashing_execpath+'compress_feats '+self.base_update_path+' '+self.master_update_file
+        # this will work only if all features are present in self.base_update_path/features
         print command
         os.system(command)
+
+    # we would need to be able to compress just one update file and merge with previous update.
 
     # deprecated, now in memex_tools/binary_file.py
     # def read_binary_file(self,X_fn,str_precomp,list_feats_id,read_dim,read_type):
