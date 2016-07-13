@@ -6,6 +6,7 @@ import shutil
 import happybase
 import numpy as np
 from generic_indexer import GenericIndexer
+from ..memex_tools.image_dl import mkpath
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 from ..memex_tools.binary_file import read_binary_file, write_binary_file
 
@@ -281,6 +282,8 @@ class HBaseIndexer(GenericIndexer):
                 tmp_sha1_featid_mapping.append(row[0].strip())
                 list_feats.append(base64.b64decode(row[1]))
                 list_hashcodes.append(base64.b64decode(row[2]))
+            mkpath(os.path.join(base_update_path,'features'))
+            mkpath(os.path.join(base_update_path,'hash_bits'))
             # save features in base_update_path/features
             write_binary_file(os.path.join(base_update_path,'features',tmp_udpate_id+'_norm'),list_feats)
             # save hashcodes in base_update_path/hash_bits
@@ -290,6 +293,7 @@ class HBaseIndexer(GenericIndexer):
 
     def merge_refresh_batch(self,refresh_batch):
         if refresh_batch:
+            print "[HBaseIndexer.merge_refresh_batch: log] We have a batch of {} images from {}.".format(len(refresh_batch),refresh_batch[0][0])
             # [Create a temporary HasherCmdLine] have a temporary "master_update" file for that batch
             from ..hasher.hasher_cmdline import HasherCmdLine
             tmp_hasher = HasherCmdLine(self.global_conf_filename)
