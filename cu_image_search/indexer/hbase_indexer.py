@@ -101,6 +101,14 @@ class HBaseIndexer(GenericIndexer):
         return rows
 
     def get_precomp_from_sha1(self,list_sha1s,list_type):
+        """ Retrieves the 'list_type' extractions results from HBase for the image in 'list_sha1s'.
+
+        :param list_sha1s: list of sha1s of the images for which the extractions are requested.
+        :type list_sha1s: list
+        :param list_type: list of the extractions requested. They have to be a subset of *self.extractions_types*
+        :type list_sha1s: list
+        :returns res,ok_ids: *res* contains the extractions, *ok_ids* the ids of the 'list_sha1s' for which we retrieved something.
+        """
         res = []
         ok_ids = []
         rows = self.get_full_sha1_rows(list_sha1s)
@@ -116,7 +124,7 @@ class HBaseIndexer(GenericIndexer):
                     raise ValueError("[HBaseIndexer.get_precomp_from_sha1: error] Unknown extraction type \"{}\".".format(extr))
                 extr_column = self.extractions_columns[self.extractions_types.index(extr)]
                 if extr_column in rows[i][1]:
-                    print "[get_precomp_from_sha1] {} {} {} {}.".format(i,sha1,e,extr)
+                    #print "[get_precomp_from_sha1] {} {} {} {}.".format(i,sha1,e,extr)
                     ok_ids[e].append(list_sha1s.index(sha1))
                     res[e].append(rows[i][1][extr_column])
         return res,ok_ids

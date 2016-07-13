@@ -14,6 +14,8 @@ class HasherCmdLine():
         self.base_update_path = os.path.dirname(__file__)
         if 'LI_base_update_path' in self.global_conf:
             self.base_update_path = self.global_conf['LI_base_update_path']
+        if 'HA_base_update_path' in self.global_conf:
+            self.base_update_path = self.global_conf['HA_base_update_path']
         self.features_dim = self.global_conf['FE_features_dim']
         self.bits_num = self.global_conf['HA_bits_num']
         self.hashing_execpath = os.path.join(os.path.dirname(__file__),'../hashing/')
@@ -21,6 +23,14 @@ class HasherCmdLine():
         mkpath(self.hashing_outpath)
 
     def compute_hashcodes(self,features_filename,ins_num,startid):
+        """ Compute ITQ hashcodes for the features in 'features_filename'
+
+        :param features_filename: filepath for the binary file containing the features
+        :type features_filename: string
+        :param ins_num: number of features in 'features_filename'
+        :type ins_num: integer
+        :returns hashbits_filepath: filepath for the binary file containing the hashcodes
+        """
         feature_filepath = features_filename[:-4]+'_norm'
         # we could be passing additional arguments here
         command = self.hashing_execpath+'hashing_update '+features_filename+' '+str(ins_num)+' '+self.hashing_execpath
@@ -34,6 +44,8 @@ class HasherCmdLine():
         return hashbits_filepath
 
     def compress_feats(self):
+        """ Compress the features with zlib.
+        """
         mkpath(os.path.join(self.base_update_path,'comp_features'))
         mkpath(os.path.join(self.base_update_path,'comp_idx'))
         # we could be passing additional arguments here
@@ -42,6 +54,7 @@ class HasherCmdLine():
         print command
         os.system(command)
 
+    # deprecated, now in memex_tools/binary_file.py
     # def read_binary_file(self,X_fn,str_precomp,list_feats_id,read_dim,read_type):
     #     X = []
     #     ok_ids = []
@@ -74,12 +87,24 @@ class HasherCmdLine():
         return X,ok_ids
 
     def get_precomp_feats(self,list_feats_id):
+        """ Get precomputed features from 'list_feats_id'
+        """
         return self.get_precomp_X(list_feats_id,"feats",self.features_dim*4,np.float32)
 
     def get_precomp_hashcodes(self,list_feats_id):
+        """ Get precomputed hashcodes from 'list_feats_id'
+        """
         return self.get_precomp_X(list_feats_id,"hashcodes",self.bits_num/8,np.uint8)
 
     def get_similar_images_from_featuresfile(self,featurefilename,ratio):
+        """ Get similar images of the images with features in 'featurefilename'.
+
+        :param featurefilename: features of the query images.
+        :type featurefilename: string
+        :param ratio: ratio of images retrieved with hashing that will be reranked.
+        :type ratio: float
+        :returns simname: filename of the simname text file.
+        """
         command = self.hashing_execpath+"hashing {} {} {} {} {}".format(featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio)
         #command = self.hashing_execpath+"hashing "+featurefilename+" "+str(self.bits_num)+" "+str(ratio)
         print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
