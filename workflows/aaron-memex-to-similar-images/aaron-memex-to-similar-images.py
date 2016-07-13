@@ -39,6 +39,7 @@ def fill_sim(sc, hbase_man_in, hbase_man_out):
     in_rdd = hbase_man_in.read_hbase_table()
     sim_images_hb_rdd = in_rdd.flatMap(lambda x: create_sim_images_tuple(x))
     hbase_man_out.rdd2hbase(sim_images_hb_rdd)
+    print "[fill_sim] Done."
 
 if __name__ == '__main__':
     job_conf = json.load(open("job_conf.json","rt"))
@@ -49,7 +50,7 @@ if __name__ == '__main__':
     sc = SparkContext(appName=tab_name_in+'_to_'+tab_name_out)
     sc.setLogLevel("ERROR")
     conf = SparkConf()
-    in_columns_list = 
+    in_columns_list = ["meta:sha1", "meta:columbia_near_dups_sha1", "meta:columbia_near_dups_sha1_dist"]
     hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_name_in, columns_list=in_columns_list)
     hbase_man_out = HbaseManager(sc, conf, hbase_host, tab_name_out)
     fill_sim(sc, hbase_man_in, hbase_man_out)
