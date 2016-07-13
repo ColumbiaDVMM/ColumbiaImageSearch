@@ -48,17 +48,20 @@ class HBaseIndexer(GenericIndexer):
         self.sha1_featid_mapping = []
         # read from self.sha1_featid_mapping_filename
         try:
+            print "Loading sha1_featid_mapping..."
             with open(self.sha1_featid_mapping_filename,'rt') as sha1_fid:
                 self.sha1_featid_mapping = [line.strip() for line in sha1_fid]
+            print "Done."
         except Exception as inst:
-            print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}.\n{}".format(sha1_featid_mapping_filename,inst)
+            print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}.\n{}".format(self.sha1_featid_mapping_filename,inst)
 
     def save_sha1_mapping(self):
-        with open(self.sha1_featid_mapping_filename,'wt') as sha1_fid:
-            for sha1 in self.sha1_featid_mapping:
-                sha1_fid.write(sha1.strip()+'\n')
+        try:
+            with open(self.sha1_featid_mapping_filename,'wt') as sha1_fid:
+                for sha1 in self.sha1_featid_mapping:
+                    sha1_fid.write(sha1.strip()+'\n')
         except Exception as inst:
-            print "[HBaseIndexer.save_sha1_mapping: error] Could not save sha1_featid_mapping to {}.\n{}".format(sha1_featid_mapping_filename,inst)
+            print "[HBaseIndexer.save_sha1_mapping: error] Could not save sha1_featid_mapping to {}.\n{}".format(self.sha1_featid_mapping_filename,inst)
 
 
     def initialize_indexer_backend(self):
@@ -338,7 +341,7 @@ class HBaseIndexer(GenericIndexer):
                 with open(out_comp_idx_fn,'wb') as out_comp_idx:
                     prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_itq_norm_'+str(self.bits_num))
                     new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',tmp_udpate_id+'_itq_norm_'+str(self.bits_num))
-                    with open(prev_comp_idx_fn),'rb') as prev_hash:
+                    with open(prev_comp_idx_fn,'rb') as prev_hash:
                             shutil.copyfileobj(prev_hash, out_hash)
                     arr = np.fromfile(new_comp_idx_fn, dtype=np.uint64)
                     arr += comp_idx_shift
