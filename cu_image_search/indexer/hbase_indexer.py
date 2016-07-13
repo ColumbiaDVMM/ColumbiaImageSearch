@@ -110,11 +110,11 @@ class HBaseIndexer(GenericIndexer):
         ok_ids = [[]]*len(list_type)
         res = [[]]*len(list_type)
         for i,sha1 in enumerate(retrieved_sha1s):
-            for e,extr in enumerate(self.extractions_types):
-                #print i,sha1,e,extr
+            for e,extr in enumerate(list_type):
                 #print len(ok_ids)
                 extr_column = self.extractions_columns[self.extractions_types.index(extr)]
                 if extr_column in rows[i][1]:
+                    print "[get_precomp_from_sha1] {} {} {} {}.".format(i,sha1,e,extr)
                     ok_ids[e].append(list_sha1s.index(sha1))
                     res[e].append(rows[i][1][extr_column])
         return res,ok_ids
