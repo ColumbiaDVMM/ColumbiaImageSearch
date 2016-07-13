@@ -107,11 +107,13 @@ class HBaseIndexer(GenericIndexer):
         # check if we have retrieved rows and extractions for each sha1
         retrieved_sha1s = [row[0] for row in rows]
         # building a list of ok_ids and res for each extraction type
-        ok_ids = [[]]*len(list_type)
-        res = [[]]*len(list_type)
+        ok_ids = [[] for i in range(len(list_type))]
+        res = [[] for i in range(len(list_type))]
         for i,sha1 in enumerate(retrieved_sha1s):
             for e,extr in enumerate(list_type):
                 #print len(ok_ids)
+                if extr not in self.extractions_types:
+                    raise ValueError("[HBaseIndexer.get_precomp_from_sha1: error] Unknown extraction type \"{}\".".format(extr))
                 extr_column = self.extractions_columns[self.extractions_types.index(extr)]
                 if extr_column in rows[i][1]:
                     print "[get_precomp_from_sha1] {} {} {} {}.".format(i,sha1,e,extr)

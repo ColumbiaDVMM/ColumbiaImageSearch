@@ -20,7 +20,7 @@ if __name__=="__main__":
     sha1_to_check = ['007C9627D0A22E9EFE5B1343850264DEA6B2440C', '0014CCAF145012270059A8A0CCE95C67C29499A3', '0182FEFCA7153EE50F6EE4A63F587A27D508CBE4']
 
     # precomputed
-    res,ok_ids = HBI.get_precomp_from_sha1(sha1_to_check,["feats","hashcodes"])
+    res,ok_ids = HBI.get_precomp_from_sha1(sha1_to_check,["sentibank","hashcode"])
     print len(ok_ids)
     print len(res)
     print len(res[0])
