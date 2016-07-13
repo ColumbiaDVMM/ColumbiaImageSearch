@@ -28,6 +28,9 @@ class HBaseIngester(GenericIngester):
         if 'HBI_pool_thread' in self.global_conf:
             self.nb_threads = self.global_conf['HBI_pool_thread']
         self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
+        # should be use when runnig full first check only
+        self.start_row = None
+        self.total_rows_ingested = 0
 
     def get_cdr_ids_from_tscdrids(self,ts_cdr_ids):
         """ Get list of cdr_ids from list of ts_cdr_ids.  
@@ -125,7 +128,6 @@ class HBaseIngester(GenericIngester):
         # other_data should actually contain what has to be computed (features, hashcodes, ocr, exif)
         images_infos = []
         last_added = None
-        start_row = None
         scanned_rows = True
         # while we don't have enough images or did not reach end.
         while scanned_rows and len(images_infos)<self.batch_size:
@@ -135,7 +137,7 @@ class HBaseIngester(GenericIngester):
                 # get self.batch_size rows up to self.start
                 # self.start should be the last row-key that was indexed previously
                 scanned_rows = False
-                for row in table_timestamp.scan(row_start=start_row,row_stop=str(self.start),batch_size=self.batch_size):
+                for row in table_timestamp.scan(row_start=self.start_row,row_stop=str(self.start),batch_size=self.batch_size):
                     #print row[0]
                     scanned_rows = True
                     rk = row[0]
@@ -146,7 +148,8 @@ class HBaseIngester(GenericIngester):
                         break
             #print "[HBaseIngester.get_batch: log] got {} rows.".format(len(rows)) 
             if rows:
-                start_row = rows[-1][0]
+                self.start_row = rows[-1][0]
+                self.total_rows_ingested += len(rows)
             ts_cdr_ids = [row[0] for row in rows]
             #print ts_cdr_ids
             # look if cdr infos exist in 'table_cdrinfos_name'
@@ -170,12 +173,12 @@ class HBaseIngester(GenericIngester):
             # everything below should run mostly for first check but not incremental update.
             # if exist, checks if sha1 is extracted.
             if pos_indexed:    
-                sha1s_indexed = [sha1s[pos] for pos in pos_indexed]
-                print "[HBaseIngester.get_batch: log] We have {} images already indexed. {}".format(len(pos_indexed),sha1s_indexed) 
-                sha1s_extracted_pos_tmp = [i for i,sha1 in enumerate(sha1s_indexed) if sha1]
+                sha1s_indexed = list(set([sha1s[pos] for pos in pos_indexed if sha1s[pos]]))
+                #print "[HBaseIngester.get_batch: log] We have {} images already indexed. {}".format(len(pos_indexed),sha1s_indexed) 
+                print "[HBaseIngester.get_batch: log] We have {} images already indexed, {} unique.".format(len(pos_indexed),len(sha1s_indexed)) 
+                sha1s_extracted_pos = [sha1s.index(sha1) for sha1 in sha1s_indexed]
                 # if not probably failed sha1 just skip [or maybe push to missing sha1s... Think of another process that checks these missings sha1s?]
                 # if sha1 extracted, check if extractions columns are present. If so skip.
-                sha1s_extracted_pos = [pos_indexed[sha1_ept] for sha1_ept in sha1s_extracted_pos_tmp]
                 candidate_rows = [rows[sha1_ep] for sha1_ep in sha1s_extracted_pos]
                 candidate_cdr_ids = [cdr_ids[sha1_ep] for sha1_ep in sha1s_extracted_pos]
                 candidate_sha1s = [sha1s[sha1_ep] for sha1_ep in sha1s_extracted_pos]
@@ -183,7 +186,9 @@ class HBaseIngester(GenericIngester):
                 new_rows_ids = [i for i,row in enumerate(candidate_rows) if row in new_rows]
                 new_cdr_ids = [ccdr for i,ccdr in enumerate(candidate_cdr_ids) if i in new_rows_ids]
                 # otherwise push to images_infos with informations about which extractions should be run
-                print "[HBaseIngester.get_batch: log] We have {} images missing some extractions. {}".format(len(new_rows_ids),[candidate_sha1s[row_id] for row_id in new_rows_ids]) 
+                #print "[HBaseIngester.get_batch: log] We have {} images missing some extractions. {}".format(len(new_rows_ids),[candidate_sha1s[row_id] for row_id in new_rows_ids]) 
+                #print "[HBaseIngester.get_batch: log] We have {} images missing some extractions.".format(len(new_rows_ids))
+                print "[HBaseIngester.get_batch: log] Filling images from {} new_rows, {} new_cdr_ids, {} new_extractions out of {} candidate rows and {} candidate cdr ids".format(len(new_rows),len(new_cdr_ids),len(new_extractions),len(candidate_rows),len(candidate_cdr_ids))
                 images_infos = self.fill_images_infos(new_rows,new_cdr_ids,new_extractions,images_infos)
             #print "[HBaseIngester.get_batch: log] scanned_rows {} and len(images_infos) {}.".format(scanned_rows, len(images_infos))
             # stop scanning if we have a full batch
@@ -195,5 +200,7 @@ class HBaseIngester(GenericIngester):
         if len(images_infos)<self.batch_size and self.fail_less_than_batch:
             print "[HBaseIngester.get_batch: error] Not enough images ("+str(len(images_infos))+")"
             return None
+        else:
+            print "[HBaseIngester.get_batch: log] Batch of {} images. Ingested {} rows up to now.".format(len(images_infos),self.total_rows_ingested)
         return images_infos
         
