@@ -49,12 +49,15 @@ class HasherCmdLine():
     def get_max_feat_id(self):
         """ Returns number of images indexed based on the size of hashcodes files.
         """
-        with open(os.path.join(self.base_update_path,self.master_update_file),'rt') as master_file:
-            total_nb = 0
-            # sum up sizes of files in master_file
-            for line in master_file:
-                statinfo = os.stat(os.path.join(self.hashing_outpath,line.strip()))
-                total_nb += statinfo.st_size*8/self.bits_num
+        total_nb = 0
+        try:
+            with open(os.path.join(self.base_update_path,self.master_update_file),'rt') as master_file:
+                # sum up sizes of files in master_file
+                for line in master_file:
+                    statinfo = os.stat(os.path.join(self.hashing_outpath,line.strip()+'_itq_norm_'+str(self.bits_num)))
+                    total_nb += statinfo.st_size*8/self.bits_num
+        except Exception as inst:
+            print "[HasherCmdline.get_max_feat_id: error] {}".format(inst)
         return total_nb
 
     def compress_feats(self):
