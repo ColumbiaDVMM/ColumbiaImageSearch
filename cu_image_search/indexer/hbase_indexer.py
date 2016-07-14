@@ -112,9 +112,15 @@ class HBaseIndexer(GenericIndexer):
                 return row[0]
 
     def get_ids_from_sha1s(self,list_sha1s):
-        # we should have a list of all indexed sha1, 
-        # where the index corresponds to position of the hashcode and features in the binary file.
-        pass
+        found_ids = []
+        for sha1 in list_sha1s:
+            pos = None
+            try:
+                pos = self.sha1_featid_mapping.index(sha1)
+            except:
+                pass
+            found_ids.append((pos,sha1))
+        return found_ids
 
     def get_full_sha1_rows(self,list_sha1s):
         rows = None
