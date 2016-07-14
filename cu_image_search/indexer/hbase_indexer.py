@@ -388,12 +388,12 @@ class HBaseIndexer(GenericIndexer):
                 # all files have been merged in out_update_id now,
                 # we can delete files created by tmp_udpate_id and previous_files
                 self.cleanup_update(previous_files,tmp_udpate_id)
-                # cleanup temporary master file
-                os.remove(tm_uf_fn)
             else: # first batch, just copy
                 # double check that shift_id and nb_indexed == 0?
                 with open(m_uf_fn, 'wt') as m_uf:
                     m_uf.write(tmp_udpate_id+'\n')
+            # cleanup temporary master file
+            os.remove(tm_uf_fn)
             # update and save sha1 mapping
             self.sha1_featid_mapping.extend(tmp_sha1_featid_mapping)
             self.save_sha1_mapping()
