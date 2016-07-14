@@ -49,10 +49,11 @@ class HBaseIndexer(GenericIndexer):
         self.sha1_featid_mapping = []
         # read from self.sha1_featid_mapping_filename
         try:
-            print "Loading sha1_featid_mapping..."
+            print "[HBaseIndexer.initialize_sha1_mapping: log] Loading sha1_featid_mapping...",
             with open(self.sha1_featid_mapping_filename,'rt') as sha1_fid:
                 self.sha1_featid_mapping = [line.strip() for line in sha1_fid]
             print "Done."
+            sys.stdout.flush()
         except Exception as inst:
             print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}.\n{}".format(self.sha1_featid_mapping_filename,inst)
 
@@ -415,6 +416,8 @@ class HBaseIndexer(GenericIndexer):
         list_columns = self.get_columns_name(list_type)
         refresh_batch = []
         done = False
+        scanned_rows = 0
+        refresh_start = time.time()
         while not done:
             try:    
                 with self.pool.connection() as connection:
@@ -426,6 +429,11 @@ class HBaseIndexer(GenericIndexer):
                         # and create a new table escorts_images_cu_featid_sha1 ?
                         # list is good to get total number of features for sanity check, 
                         # because we cannot get that from the hbase table...
+                        scanned_rows += 1
+                        if scanned_rows % self.refresh_batch_size == 0:
+                            elapsed_refresh = time.time() - refresh_start
+                            print "[HBaseIndexer.refresh_hash_index: log] Scanned {} rows so far. Total refresh time: {}. Average per row: {}.".format(scanned_rows,elapsed_refresh,elapsed_refresh/scanned_rows)
+                            sys.stdout.flush()
                         if row[0] not in self.sha1_featid_mapping: # new sha1
                             found_columns = [column for column in list_columns if column in row[1]]
                             if len(found_columns)==len(list_type): # we have features and hashcodes
