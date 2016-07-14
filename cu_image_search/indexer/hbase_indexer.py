@@ -414,6 +414,7 @@ class HBaseIndexer(GenericIndexer):
         start_row = None
         list_type = ["sentibank","hashcode"]
         list_columns = self.get_columns_name(list_type)
+        all_needed_columns = [list_columns]+["info:all_cdr_ids","info:all_parent_ids"]
         refresh_batch = []
         done = False
         scanned_rows = 0
@@ -435,8 +436,8 @@ class HBaseIndexer(GenericIndexer):
                             print "[HBaseIndexer.refresh_hash_index: log] Scanned {} rows so far. Total refresh time: {}. Average per row: {}.".format(scanned_rows,elapsed_refresh,elapsed_refresh/scanned_rows)
                             sys.stdout.flush()
                         if row[0] not in self.sha1_featid_mapping: # new sha1
-                            found_columns = [column for column in list_columns if column in row[1]]
-                            if len(found_columns)==len(list_type): # we have features and hashcodes
+                            found_columns = [column for column in all_needed_columns if column in row[1]]
+                            if len(found_columns)==len(all_needed_columns): # we have features and hashcodes
                                 refresh_batch.append((row[0],row[1][list_columns[0]],row[1][list_columns[1]]))
                         # merge if we have a complete batch
                         if len(refresh_batch)>=self.refresh_batch_size:
