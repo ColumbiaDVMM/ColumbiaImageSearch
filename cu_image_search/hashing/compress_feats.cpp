@@ -21,14 +21,14 @@ int main(int argc, char** argv){
     // hardcoded default value. Maybe read that from JSON conf
     int feature_dim = 4096;
     int norm = true;
+    if (argc>1)
+        base_updatepath = argv[1];
     if (argc>2)
-        base_updatepath = argv[2];
+        feature_dim = atoi(argv[2]);
     if (argc>3)
-        feature_dim = atoi(argv[3]);
+        norm = atoi(argv[3]);
     if (argc>4)
-        norm = atoi(argv[4]);
-    if (argc>5)
-        update_files_listname = std::string(argv[5]);
+        update_files_listname = std::string(argv[4]);
     set_paths();
 
     string str_norm = "";
