@@ -130,6 +130,10 @@ class HBaseIndexer(GenericIndexer):
                 rows = table_sha1infos.rows(list_sha1s)
         return rows
 
+    def get_sim_infos(self,list_ids):
+        list_sha1s = [self.sha1_featid_mapping[i] for i in list_ids]
+        return self.get_full_sha1_rows(list_sha1s)
+
     def get_precomp_from_sha1(self,list_sha1s,list_type):
         """ Retrieves the 'list_type' extractions results from HBase for the image in 'list_sha1s'.
 
@@ -410,29 +414,36 @@ class HBaseIndexer(GenericIndexer):
         list_type = ["sentibank","hashcode"]
         list_columns = self.get_columns_name(list_type)
         refresh_batch = []
-        with self.pool.connection() as connection:
-            table_sha1infos = connection.table(self.table_sha1infos_name)
-            batch_start = time.time()
-            for row in table_sha1infos.scan(row_start=start_row,batch_size=self.refresh_batch_size):
-                # this could be slow, we could rely on the hbase table with timestamp maybe?
-                # or add column 'cu_featid' to hbase table escorts_images_sha1_infos, 
-                # and create a new table escorts_images_cu_featid_sha1 ?
-                # list is good to get total number of features for sanity check, 
-                # because we cannot get that from the hbase table...
-                if row[0] not in self.sha1_featid_mapping: # new sha1
-                    found_columns = [column for column in list_columns if column in row[1]]
-                    if len(found_columns)==len(list_type): # we have features and hashcodes
-                        refresh_batch.append((row[0],row[1][list_columns[0]],row[1][list_columns[1]]))
-                # merge if we have a complete batch
-                if len(refresh_batch)>=self.refresh_batch_size:
-                    print "[HBaseIndexer.refresh_hash_index: log] Pushing batch built in {}s.".format(time.time()-batch_start)
-                    self.merge_refresh_batch(refresh_batch)
-                    refresh_batch = []
+        done = False
+        while not done:
+            try:    
+                with self.pool.connection() as connection:
+                    table_sha1infos = connection.table(self.table_sha1infos_name)
                     batch_start = time.time()
-                start_row = row[0]
-            # last batch
-            if refresh_batch:
-                self.merge_refresh_batch(refresh_batch)
+                    for row in table_sha1infos.scan(row_start=start_row,batch_size=self.refresh_batch_size):
+                        # this could be slow, we could rely on the hbase table with timestamp maybe?
+                        # or add column 'cu_featid' to hbase table escorts_images_sha1_infos, 
+                        # and create a new table escorts_images_cu_featid_sha1 ?
+                        # list is good to get total number of features for sanity check, 
+                        # because we cannot get that from the hbase table...
+                        if row[0] not in self.sha1_featid_mapping: # new sha1
+                            found_columns = [column for column in list_columns if column in row[1]]
+                            if len(found_columns)==len(list_type): # we have features and hashcodes
+                                refresh_batch.append((row[0],row[1][list_columns[0]],row[1][list_columns[1]]))
+                        # merge if we have a complete batch
+                        if len(refresh_batch)>=self.refresh_batch_size:
+                            print "[HBaseIndexer.refresh_hash_index: log] Pushing batch built in {}s.".format(time.time()-batch_start)
+                            self.merge_refresh_batch(refresh_batch)
+                            refresh_batch = []
+                            batch_start = time.time()
+                        start_row = row[0]
+                    # last batch
+                    if refresh_batch:
+                        self.merge_refresh_batch(refresh_batch)
+                    done = True
+            except Exception as inst:
+                print "[HBaseIndexer.refresh_hash_index: log] Caught Exception: {}.".format(inst)
+                time.sleep(5)
         
 
     def index_batch(self,batch):

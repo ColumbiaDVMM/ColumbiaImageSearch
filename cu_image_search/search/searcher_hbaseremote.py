@@ -83,16 +83,6 @@ class Searcher():
         #print "[Searcher.filter_near_dup: log] temp_nums {}".format(temp_nums)
         return temp_nums
 
-    def expand_metadata(self,sim):
-        for i in range(0,len(sim)):    
-            if not sim[i]: # empty
-                continue
-            #print "[Searcher.expand_metadata: log] sim[i] before expansion {}".format(sim[i])
-            sim[i] = self.ingester.expand_metadata(sim[i])
-            #print "[Searcher.expand_metadata: log] sim[i] after expansion {}".format(sim[i])
-        return sim
-
-
     def read_sim(self,simname,nb_query):
     	# intialization
         sim = []
@@ -114,6 +104,7 @@ class Searcher():
                 sim.append(())
                 sim_score.append([])
                 continue
+            # just get the sha1 at this point
             sim.append(self.indexer.get_sim_infos(nums[0:n]))
             sim_score.append(nums[onum:onum+n])
             count = count + 1
@@ -126,7 +117,7 @@ class Searcher():
     	# read hashing similarity results
         sim,sim_score = self.read_sim(simname,nb_query)
         
-        # expand metadata
+        # expand metadata i.e. get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
         sim = self.expand_metadata(sim)
         
         # build final output
@@ -135,15 +126,16 @@ class Searcher():
         for i in range(0,nb_query):    
             output.append(dict())
             if i in corrupted:
-                output[i]['similar_images']= OrderedDict([['number',0],['cached_image_urls',[]],['sha1s',[]],['cdr_ids',[]],['distance',[]]])
+                output[i]['similar_images']= OrderedDict([['number',0],['sha1s',[]],['cached_image_urls',[]],['cdr_ids',[]],['ads_cdr_ids',[]],['distance',[]]])
                 dec += 1
                 continue
             ii = i - dec
-            output[i]['similar_images']= OrderedDict([['number',len(sim[ii])],['cached_image_urls',[]],['sha1s',[]],['cdr_ids',[]],['distance',[]]])
+            output[i]['similar_images']= OrderedDict([['number',len(sim[ii])],['sha1s',[]],['cached_image_urls',[]],['cdr_ids',[]],['ads_cdr_ids',[]],['distance',[]]])
             for simj in sim[ii]:
-                output[i]['similar_images']['cached_image_urls'].append(simj[0])
-                output[i]['similar_images']['sha1'].append(simj[1])
-                output[i]['similar_images']['cdr_ids'].append(simj[2])
+                output[i]['similar_images']['sha1'].append(simj[0].strip())
+                output[i]['similar_images']['cached_image_urls'].append(simj[1]['info:s3_url'])
+                output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'])
+                output[i]['similar_images']['ads_cdr_ids'].append(simj[1]['info:all_parents_ids'])
             output[i]['similar_images']['distance']=sim_score[ii]
         #print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([['number',nb_query],['images',output]])
