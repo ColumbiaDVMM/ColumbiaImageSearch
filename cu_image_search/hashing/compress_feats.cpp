@@ -28,7 +28,7 @@ int main(int argc, char** argv){
     if (argc>4)
         norm = atoi(argv[4]);
     if (argc>5)
-        update_files_listname = argv[5];
+        update_files_listname = std::string(argv[5]);
     set_paths();
 
     string str_norm = "";
