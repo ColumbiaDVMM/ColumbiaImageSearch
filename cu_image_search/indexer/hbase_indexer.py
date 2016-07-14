@@ -34,7 +34,7 @@ class HBaseIndexer(GenericIndexer):
         self.bits_num = self.global_conf['HA_bits_num']
         self.sha1_featid_mapping_filename = self.global_conf['HBI_sha1_featid_mapping_filename']
         self.initialize_sha1_mapping()
-        self.refresh_batch_size = 1000
+        self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
             raise ValueError("[HBaseIngester.initialize_source: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
         self.nb_threads = 2
@@ -114,6 +114,7 @@ class HBaseIndexer(GenericIndexer):
     def get_ids_from_sha1s(self,list_sha1s):
         # we should have a list of all indexed sha1, 
         # where the index corresponds to position of the hashcode and features in the binary file.
+        # maybe use hbase table here?
         pass
 
     def get_full_sha1_rows(self,list_sha1s):
