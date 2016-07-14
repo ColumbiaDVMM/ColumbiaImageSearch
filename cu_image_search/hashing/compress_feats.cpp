@@ -14,13 +14,14 @@ int main(int argc, char** argv){
     double t[2]; // timing
     t[0] = get_wall_time(); // Start Time
     if (argc < 1){
-        cout << "Usage: compress_feat [base_updatepath feature_dim normalize_features master_file]" << std::endl;
+        cout << "Usage: compress_feat [base_updatepath feature_dim normalize_features master_file num_bits]" << std::endl;
         return -1;
     }
 
     // hardcoded default value. Maybe read that from JSON conf
     int feature_dim = 4096;
     int norm = true;
+    int bit_num = 256;
     if (argc>1)
         base_updatepath = argv[1];
     if (argc>2)
@@ -29,6 +30,8 @@ int main(int argc, char** argv){
         norm = atoi(argv[3]);
     if (argc>4)
         update_files_listname = std::string(argv[4]);
+    if (argc>5)
+        bit_num = atoi(argv[5]);
     set_paths();
 
     string str_norm = "";
@@ -47,6 +50,9 @@ int main(int argc, char** argv){
     string update_feature_suffix = "" + str_norm;
     string update_comp_feature_suffix = "_comp" + str_norm;
     string update_compidx_suffix = "_compidx" + str_norm;
+    string bit_string = to_string((long long)bit_num);
+    string update_hash_suffix = "_itq" + str_norm + "_" + bit_string;
+
 
     ifstream fu(update_files_list,ios::in);
     if (!fu.is_open())
@@ -57,6 +63,7 @@ int main(int argc, char** argv){
     else
     {
         while (getline(fu, line)) {
+            update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
             update_feature_files.push_back(update_feature_prefix+line+update_feature_suffix);
             update_comp_feature_files.push_back(update_compfeature_prefix+line+update_comp_feature_suffix);
             update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);
@@ -78,11 +85,13 @@ int main(int argc, char** argv){
             need_comp.push_back(i);
             continue;
         }
-        data_num=filesize(update_feature_files[i])/(sizeof(float)*feature_dim);
+        // Use hashcodes here so we can delete initial features.
+        //data_num=filesize(update_feature_files[i])/(sizeof(float)*feature_dim);
+        data_num=filesize(update_hash_files[i])/(bit_num/sizeof(char));
         idx_num=filesize(update_compidx_files[i])/sizeof(unsigned long long int);
         if (idx_num-1!=data_num) {
             // We have a mismatch indices vs features
-            std::cout << "Curr feat size: " << data_num << " (feat file size: " << filesize(update_feature_files[i]) << "), curr idx size: " << idx_num  << " (compidx file size: " << filesize(update_compidx_files[i]) << ")" << endl;
+            std::cout << "Curr hashcodes size: " << data_num << " (hashcodes file size: " << filesize(update_hash_files[i]) << "), curr idx size: " << idx_num  << " (compidx file size: " << filesize(update_compidx_files[i]) << ")" << endl;
             need_comp.push_back(i);
         }
     }

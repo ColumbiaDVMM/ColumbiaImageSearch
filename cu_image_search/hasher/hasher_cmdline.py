@@ -66,12 +66,13 @@ class HasherCmdLine():
         mkpath(os.path.join(self.base_update_path,'comp_features'))
         mkpath(os.path.join(self.base_update_path,'comp_idx'))
         # we could be passing additional arguments here
-        command = self.hashing_execpath+'compress_feats '+self.base_update_path+'/ '+str(self.features_dim)+' 1 '+self.master_update_file
-        # this will work only if all features are present in self.base_update_path/features
+        command = self.hashing_execpath+'compress_feats '+self.base_update_path+'/ '+str(self.features_dim)+' 1 '+self.master_update_file+' '+str(self.bits_num)
+        # this will work only if features to be compressed are present in self.base_update_path/features
         print command
         os.system(command)
 
     # we would need to be able to compress just one update file and merge with previous update.
+    # see refresh indexer
 
     # deprecated, now in memex_tools/binary_file.py
     # def read_binary_file(self,X_fn,str_precomp,list_feats_id,read_dim,read_type):

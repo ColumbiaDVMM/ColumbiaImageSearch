@@ -331,6 +331,9 @@ class HBaseIndexer(GenericIndexer):
         return m_uf_fn
 
     def cleanup_update(self,previous_files,tmp_udpate_id):
+        # cleanup features
+        new_feat_fn = os.path.join(self.hasher.base_update_path,'features',tmp_udpate_id+'_norm')
+        os.remove(new_feat_fn)
         # cleanup comp features
         prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
         new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
@@ -344,7 +347,9 @@ class HBaseIndexer(GenericIndexer):
         # cleanup comp_idx
         prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
         new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',tmp_udpate_id+'_compidx_norm')
-
+        os.remove(prev_comp_idx_fn)
+        os.remove(new_comp_idx_fn)
+        
     def merge_refresh_batch(self,refresh_batch):
         if refresh_batch:
             print "[HBaseIndexer.merge_refresh_batch: log] We have a batch of {} images from {}.".format(len(refresh_batch),refresh_batch[0][0])
