@@ -23,7 +23,6 @@ int main(int argc, char** argv){
     int norm = true;
     if (argc>2)
         base_updatepath = argv[2];
-    set_paths();
     if (argc>3)
         feature_dim = atoi(argv[3]);
     if (argc>4)
@@ -52,7 +51,7 @@ int main(int argc, char** argv){
     ifstream fu(update_files_list,ios::in);
     if (!fu.is_open())
     {
-        std::cout << "No update!" << std::endl;
+        std::cout << "No update!\nbase_updatepath is: " << base_updatepath << "\nMaster is: " << update_files_list << std::endl;
         return 0;
     }
     else

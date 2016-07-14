@@ -12,10 +12,10 @@ def read_binary_file(X_fn,str_precomp,list_feats_id,read_dim,read_type):
     return X,ok_ids
 
 def write_binary_file(X_fn,list_feats):
-    import struct
+    import numpy as np
     with  open(X_fn,"wb") as f_preout:
         for i in range(len(list_feats)):
             try:
-                f_preout.write(struct.pack('i',list_feats[i]))
+                list_feats[i].tofile(f_preout)
             except Exception as inst:
-                print "[write_binary_file: error] Could write element {} to file {}. {}".format(i,X_fn,inst)
+                print "[write_binary_file: error] Could not write element {} to file {}. {}".format(i,X_fn,inst)

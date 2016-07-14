@@ -274,22 +274,27 @@ class HBaseIndexer(GenericIndexer):
 
     def save_refresh_batch(self,refresh_batch,base_update_path,tmp_udpate_id):
         import base64
+        import numpy as np
         tmp_sha1_featid_mapping = []
+        features_fn = None
+        hashcodes_fn = None
         if refresh_batch:
             list_feats = []
             list_hashcodes = []
             for row in refresh_batch:
                 tmp_sha1_featid_mapping.append(row[0].strip())
-                list_feats.append(base64.b64decode(row[1]))
-                list_hashcodes.append(base64.b64decode(row[2]))
-            mkpath(os.path.join(base_update_path,'features'))
-            mkpath(os.path.join(base_update_path,'hash_bits'))
+                list_feats.append(np.frombuffer(base64.b64decode(row[1]),np.float32))
+                list_hashcodes.append(np.frombuffer(base64.b64decode(row[2]),np.uint8))
+            mkpath(os.path.join(base_update_path,'features/'))
+            mkpath(os.path.join(base_update_path,'hash_bits/'))
             # save features in base_update_path/features
-            write_binary_file(os.path.join(base_update_path,'features',tmp_udpate_id+'_norm'),list_feats)
+            features_fn = os.path.join(base_update_path,'features',tmp_udpate_id+'_norm')
+            write_binary_file(features_fn,list_feats)
             # save hashcodes in base_update_path/hash_bits
-            write_binary_file(os.path.join(base_update_path,'hash_bits',tmp_udpate_id+'_itq_norm_'+str(self.bits_num)),list_hashcodes)
+            hashcodes_fn = os.path.join(base_update_path,'hash_bits',tmp_udpate_id+'_itq_norm_'+str(self.bits_num))
+            write_binary_file(hashcodes_fn,list_hashcodes)
         # returns tmp_sha1_featid_mapping
-        return tmp_sha1_featid_mapping
+        return tmp_sha1_featid_mapping, features_fn, hashcodes_fn
 
     def merge_refresh_batch(self,refresh_batch):
         if refresh_batch:
@@ -299,10 +304,11 @@ class HBaseIndexer(GenericIndexer):
             tmp_hasher = HasherCmdLine(self.global_conf_filename)
             tmp_udpate_id = str(time.time())+'_'+refresh_batch[0][0]
             tmp_hasher.master_update_file = "update_"+tmp_udpate_id
-            with open(os.path.join(self.hasher.base_update_path,tmp_hasher.master_update_file),'wt') as tm_uf:
+            tm_uf_fn = os.path.join(self.hasher.base_update_path,tmp_hasher.master_update_file)
+            with open(tm_uf_fn,'wt') as tm_uf:
                 tm_uf.write(tmp_udpate_id+'\n')
             # save features (and hashcodes) and compress features, have a temporary mapping sha1 - feat_id. 
-            tmp_sha1_featid_mapping = self.save_refresh_batch(refresh_batch,self.hasher.base_update_path,tmp_udpate_id)
+            tmp_sha1_featid_mapping, tmp_features_fn, tmp_hashcodes_fn = self.save_refresh_batch(refresh_batch,self.hasher.base_update_path,tmp_udpate_id)
             tmp_hasher.compress_feats()
             # - For idx files and mapping sha1 - feat_id need to shift by last compressed feats end idx in self.hasher
             max_id = self.hasher.get_max_feat_id()

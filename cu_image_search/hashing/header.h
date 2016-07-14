@@ -16,7 +16,7 @@ std::string update_compfeature_folder = "comp_features/";
 std::string update_compidx_folder = "comp_idx/";
 
 // Initialize
-std::string update_files_list = base_updatepath+update_files_list_name;
+std::string update_files_list = base_updatepath+update_files_listname;
 std::string update_hash_prefix = base_updatepath+update_hash_folder;
 std::string update_feature_prefix = base_updatepath+update_feature_folder;
 std::string update_compfeature_prefix = base_updatepath+update_compfeature_folder;
@@ -24,7 +24,7 @@ std::string update_compidx_prefix = base_updatepath+update_compidx_folder;
 
 // To be called when set from command line calls
 void set_paths() {
-    update_files_list = base_updatepath+update_files_list_name;
+    update_files_list = base_updatepath+update_files_listname;
     update_hash_prefix = base_updatepath+update_hash_folder;
     update_feature_prefix = base_updatepath+update_feature_folder;
     update_compfeature_prefix = base_updatepath+update_compfeature_folder;
