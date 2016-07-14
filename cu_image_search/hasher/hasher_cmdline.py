@@ -88,6 +88,7 @@ class HasherCmdLine():
     #     return X,ok_ids
 
     def get_precomp_X(self,list_feats_id,str_precomp,read_dim,read_type):
+        import struct
         query_time = time.time()
         # save queries id in binary file
         query_precomp_fn = "{}_query_{}".format(str_precomp,query_time)

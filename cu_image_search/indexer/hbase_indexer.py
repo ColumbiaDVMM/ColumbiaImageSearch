@@ -132,7 +132,8 @@ class HBaseIndexer(GenericIndexer):
         return rows
 
     def get_sim_infos(self,list_ids):
-        list_sha1s = [self.sha1_featid_mapping[i] for i in list_ids]
+        print "[HBaseIndexer.get_sim_infos: log] list_ids: {}".format(list_ids)
+        list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
         return self.get_full_sha1_rows(list_sha1s)
 
     def get_precomp_from_sha1(self,list_sha1s,list_type):

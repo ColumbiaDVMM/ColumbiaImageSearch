@@ -114,15 +114,15 @@ class Searcher():
         return sim,sim_score
 
     def format_output(self, simname, nb_query, corrupted, outputname):
-    	# read hashing similarity results
+    	# read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
         sim,sim_score = self.read_sim(simname,nb_query)
-        
-        # expand metadata i.e. get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
-        sim = self.expand_metadata(sim)
+
+        #print "[Searcher.format_output: log] sim: {}".format(sim)
         
         # build final output
         output = []
         dec = 0
+        needed_columns = ['info:s3_url', 'info:all_cdr_ids', 'info:all_parent_ids']
         for i in range(0,nb_query):    
             output.append(dict())
             if i in corrupted:
@@ -131,12 +131,18 @@ class Searcher():
                 continue
             ii = i - dec
             output[i]['similar_images']= OrderedDict([['number',len(sim[ii])],['sha1s',[]],['cached_image_urls',[]],['cdr_ids',[]],['ads_cdr_ids',[]],['distance',[]]])
-            for simj in sim[ii]:
-                output[i]['similar_images']['sha1'].append(simj[0].strip())
-                output[i]['similar_images']['cached_image_urls'].append(simj[1]['info:s3_url'])
-                output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'])
-                output[i]['similar_images']['ads_cdr_ids'].append(simj[1]['info:all_parents_ids'])
-            output[i]['similar_images']['distance']=sim_score[ii]
+            ok_sims = []
+            for jj,simj in enumerate(sim[ii]):
+                found_columns = [c in simj[1] for c in needed_columns]
+                if found_columns.count(True) == len(needed_columns):
+                    output[i]['similar_images']['sha1s'].append(simj[0].strip())
+                    output[i]['similar_images']['cached_image_urls'].append(simj[1]['info:s3_url'])
+                    output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'])
+                    output[i]['similar_images']['ads_cdr_ids'].append(simj[1]['info:all_parent_ids'])
+                    ok_sims.append(jj)
+                else:
+                    print "[Searcher.format_output: log] Found invalid image: {}. found_columns: {}".format(simj[0],found_columns)
+            output[i]['similar_images']['distance']=[sim_score[ii][jj] for jj in ok_sims]
         #print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([['number',nb_query],['images',output]])
         #print "[Searcher.format_output: log] outp {}".format(outp)
@@ -197,14 +203,15 @@ class Searcher():
         #print "[Searcher.search_from_image_filenames: log] valid_images {}".format(valid_images)
         # get indexed images
         list_ids_sha1_found = self.indexer.get_ids_from_sha1s(list_sha1_id)
-        tmp_list_ids_found = [x[0] for x in list_ids_sha1_found]
-        list_sha1_found = [x[1] for x in list_ids_sha1_found]
+        print "[Searcher.search_from_image_filenames: log] list_ids_sha1_found {}".format(list_ids_sha1_found)
+        tmp_list_ids_found = [x[0] for x in list_ids_sha1_found if x[0] is not None]
+        list_sha1_found = [x[1] for x in list_ids_sha1_found if x[0] is not None]
         #print "[Searcher.search_from_image_filenames: log] list_sha1_id {}".format(list_sha1_id)
         #print "[Searcher.search_from_image_filenames: log] list_sha1_found {}".format(list_sha1_found)
         # this is to keep proper ordering
         list_ids_found = [tmp_list_ids_found[list_sha1_found.index(sha1)] for sha1 in list_sha1_id if sha1 in list_sha1_found]
         #print "[Searcher.search_from_image_filenames: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
-        #print "[Searcher.search_from_image_filenames: log] list_ids_found {}".format(list_ids_found)
+        print "[Searcher.search_from_image_filenames: log] list_ids_found {}".format(list_ids_found)
         # get there features
         feats,ok_ids = self.indexer.hasher.get_precomp_feats(list_ids_found)
         if len(ok_ids)!=len(list_ids_found):
