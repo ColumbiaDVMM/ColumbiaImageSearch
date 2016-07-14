@@ -40,6 +40,7 @@ int main(int argc, char** argv){
 
     // File names vectors, prefix and suffix.
     string line;
+    vector<string> update_hash_files;
     vector<string> update_feature_files;
     vector<string> update_comp_feature_files;
     vector<string> update_compidx_files;
