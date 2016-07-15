@@ -33,6 +33,7 @@ class HBaseIndexer(GenericIndexer):
         self.features_dim = self.global_conf["FE_features_dim"]
         self.bits_num = self.global_conf['HA_bits_num']
         self.sha1_featid_mapping_filename = self.global_conf['HBI_sha1_featid_mapping_filename']
+        self.cu_feat_id_column = "info:cu_feat_id"
         self.initialize_sha1_mapping()
         self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
@@ -361,6 +362,15 @@ class HBaseIndexer(GenericIndexer):
         new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',tmp_udpate_id+'_compidx_norm')
         os.remove(prev_comp_idx_fn)
         os.remove(new_comp_idx_fn)
+
+    def push_cu_feats_id(self,rows_update,cu_feat_ids):
+        if len(rows_update)!=len(cu_feat_ids):
+            raise ValueError("[HBaseIndexer.push_cu_feats_id: error] dimensions mismatch rows_update ({}) vs. cu_feat_ids ({})".format(len(rows_update),len(cu_feat_ids)))
+        with self.pool.connection() as connection:
+            table_sha1infos = connection.table(self.table_sha1infos_name)
+            with table_sha1infos.batch() as b:
+                for i,sha1 in enumerate(rows_update):
+                    b.put(sha1, {self.cu_feat_id_column: str(cu_feat_ids[i])})
         
     def merge_refresh_batch(self,refresh_batch):
         if refresh_batch:
@@ -406,6 +416,10 @@ class HBaseIndexer(GenericIndexer):
                     m_uf.write(tmp_udpate_id+'\n')
             # cleanup temporary master file
             os.remove(tm_uf_fn)
+            # push cu_feat_id to hbase
+            rows_update = [x[0] for x in refresh_batch]
+            cu_feat_ids = [nb_indexed+i for i in range(len(tmp_sha1_featid_mapping))]
+            self.push_cu_feats_id(rows_update,cu_feat_ids)
             # update and save sha1 mapping
             self.sha1_featid_mapping.extend(tmp_sha1_featid_mapping)
             self.save_sha1_mapping()
@@ -426,17 +440,16 @@ class HBaseIndexer(GenericIndexer):
                     table_sha1infos = connection.table(self.table_sha1infos_name)
                     batch_start = time.time()
                     for row in table_sha1infos.scan(row_start=start_row,batch_size=self.refresh_batch_size):
-                        # this could be slow, we could rely on the hbase table with timestamp maybe?
-                        # or add column 'cu_featid' to hbase table escorts_images_sha1_infos, 
-                        # and create a new table escorts_images_cu_featid_sha1 ?
-                        # list is good to get total number of features for sanity check, 
-                        # because we cannot get that from the hbase table...
                         scanned_rows += 1
                         if scanned_rows % self.refresh_batch_size == 0:
                             elapsed_refresh = time.time() - refresh_start
                             print "[HBaseIndexer.refresh_hash_index: log] Scanned {} rows so far. Total refresh time: {}. Average per row: {}.".format(scanned_rows,elapsed_refresh,elapsed_refresh/scanned_rows)
                             sys.stdout.flush()
-                        if row[0] not in self.sha1_featid_mapping: # new sha1
+                        #if row[0] not in self.sha1_featid_mapping: # new sha1
+                        # this could be slow, add column 'cu_featid' to hbase table escorts_images_sha1_infos, 
+                        # and use list to get total number of features for sanity check, 
+                        # because we cannot get that from the hbase table easily...
+                        if self.cu_feat_id_column not in row[1]:
                             found_columns = [column for column in all_needed_columns if column in row[1]]
                             if len(found_columns)==len(all_needed_columns): # we have features and hashcodes
                                 refresh_batch.append((row[0],row[1][list_columns[0]],row[1][list_columns[1]]))
