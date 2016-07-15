@@ -19,7 +19,7 @@ class SentiBankCmdLine():
         # create file listing images to be processed
         img_filename = os.path.join(self.features_path,str(startid)+'.txt')
         featurename = img_filename[:-4] + '-features'
-        featurefilename = featurename+'_fc7.dat'
+        featurefilename = featurename + '_fc7.dat'
         if new_files:
             f = open(img_filename,'w')
             #print new_files
