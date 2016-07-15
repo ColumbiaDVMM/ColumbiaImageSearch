@@ -212,8 +212,8 @@ class Searcher():
         list_ids_found = [tmp_list_ids_found[list_sha1_found.index(sha1)] for sha1 in list_sha1_id if sha1 in list_sha1_found]
         #print "[Searcher.search_from_image_filenames: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
         print "[Searcher.search_from_image_filenames: log] list_ids_found {}".format(list_ids_found)
-        # get there features
-        feats,ok_ids = self.indexer.hasher.get_precomp_feats(list_ids_found)
+        # get the features, hasher starts to count at 1
+        feats,ok_ids = self.indexer.hasher.get_precomp_feats([x+1 for x in list_ids_found])
         if len(ok_ids)!=len(list_ids_found):
             raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
         # compute new images features
