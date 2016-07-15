@@ -140,8 +140,8 @@ class Searcher():
                     output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'])
                     output[i]['similar_images']['ads_cdr_ids'].append(simj[1]['info:all_parent_ids'])
                     ok_sims.append(jj)
-                else:
-                    print "[Searcher.format_output: log] Found invalid image: {}. found_columns: {}".format(simj[0],found_columns)
+                #else:
+                #    print "[Searcher.format_output: log] Found invalid image: {}. found_columns: {}".format(simj[0],found_columns)
             output[i]['similar_images']['distance']=[sim_score[ii][jj] for jj in ok_sims]
         #print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([['number',nb_query],['images',output]])
@@ -228,6 +228,7 @@ class Searcher():
             else:
                 new_files.append(image_name)
             all_valid_images.append(all_img_filenames[i])
+        # check images are jpeg (and convert them here?)
         print "[Searcher.search_from_image_filenames: log] all_valid_images {}".format(all_valid_images)
         print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
         features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
@@ -249,6 +250,7 @@ class Searcher():
                 else:
                     # read from new feats
                     tmp_feat = np.frombuffer(new_feats.read(read_dim),dtype=read_type)
+                print "[Searcher.search_from_image_filenames: log] tmp_feat for image {} has norm {} and is: {}".format(image_name,np.linalg.norm(tmp_feat),tmp_feat)
                 out.write(tmp_feat)
         # query with merged features_filename
         simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile,self.ratio)
