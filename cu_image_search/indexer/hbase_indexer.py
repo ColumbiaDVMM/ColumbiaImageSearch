@@ -415,7 +415,7 @@ class HBaseIndexer(GenericIndexer):
         start_row = None
         list_type = ["sentibank","hashcode"]
         list_columns = self.get_columns_name(list_type)
-        all_needed_columns = [list_columns]+["info:all_cdr_ids","info:all_parent_ids"]
+        all_needed_columns = list_columns+["info:all_cdr_ids","info:all_parent_ids"]
         refresh_batch = []
         done = False
         scanned_rows = 0
