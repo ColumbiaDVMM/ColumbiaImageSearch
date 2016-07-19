@@ -440,7 +440,7 @@ class HBaseIndexer(GenericIndexer):
     def refresh_hash_index(self,skip=False):
         start_row = None
         if skip:
-            start_row = sha1_featid_mapping[-1]
+            start_row = self.sha1_featid_mapping[-1]
         list_type = ["sentibank","hashcode"]
         list_columns = self.get_columns_name(list_type)
         all_needed_columns = list_columns+["info:all_cdr_ids","info:all_parent_ids"]
