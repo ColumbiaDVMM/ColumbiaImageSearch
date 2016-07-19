@@ -453,7 +453,7 @@ class HBaseIndexer(GenericIndexer):
                 with self.pool.connection() as connection:
                     table_sha1infos = connection.table(self.table_sha1infos_name)
                     batch_start = time.time()
-                    for row in table_sha1infos.scan(row_start=start_row,batch_size=self.refresh_batch_size,columns=all_needed_columns):
+                    for row in table_sha1infos.scan(row_start=start_row,batch_size=self.refresh_batch_size):
                         scanned_rows += 1
                         if scanned_rows % self.refresh_batch_size == 0:
                             elapsed_refresh = time.time() - refresh_start
