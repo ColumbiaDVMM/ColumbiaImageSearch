@@ -437,8 +437,10 @@ class HBaseIndexer(GenericIndexer):
             self.save_sha1_mapping()
             
 
-    def refresh_hash_index(self):
+    def refresh_hash_index(self,skip=False):
         start_row = None
+        if skip:
+            start_row = sha1_featid_mapping[-1]
         list_type = ["sentibank","hashcode"]
         list_columns = self.get_columns_name(list_type)
         all_needed_columns = list_columns+["info:all_cdr_ids","info:all_parent_ids"]
@@ -451,7 +453,7 @@ class HBaseIndexer(GenericIndexer):
                 with self.pool.connection() as connection:
                     table_sha1infos = connection.table(self.table_sha1infos_name)
                     batch_start = time.time()
-                    for row in table_sha1infos.scan(row_start=start_row,batch_size=self.refresh_batch_size):
+                    for row in table_sha1infos.scan(row_start=start_row,batch_size=self.refresh_batch_size,columns=all_needed_columns):
                         scanned_rows += 1
                         if scanned_rows % self.refresh_batch_size == 0:
                             elapsed_refresh = time.time() - refresh_start
