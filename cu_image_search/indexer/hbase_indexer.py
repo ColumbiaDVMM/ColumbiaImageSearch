@@ -311,15 +311,25 @@ class HBaseIndexer(GenericIndexer):
         return tmp_sha1_featid_mapping, features_fn, hashcodes_fn
 
     def merge_update_files(self,previous_files,tmp_udpate_id,out_update_id,m_uf_fn):
+        start_merge = time.time()
         # use shutil.copyfileobj for comp features
         out_comp_fn = os.path.join(self.hasher.base_update_path,'comp_features',out_update_id+'_comp_norm')
-        with open(out_comp_fn,'wb') as out_comp:
-            prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
-            new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
-            comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
-            with open(prev_comp_feat_fn,'rb') as prev_comp, open(new_comp_feat_fn,'rb') as new_comp:
-                    shutil.copyfileobj(prev_comp, out_comp)
-                    shutil.copyfileobj(new_comp, out_comp)
+        prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
+        new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
+        comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
+        shutil.move(prev_comp_feat_fn,out_comp_fn)
+        with open(out_comp_fn,'ab') as out_comp, open(new_comp_feat_fn,'rb') as new_comp:
+                shutil.copyfileobj(new_comp, out_comp)
+        #with open(out_comp_fn,'wb') as out_comp:
+        #    prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
+        #    new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
+        #    comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
+        #    #with open(prev_comp_feat_fn,'rb') as prev_comp, open(new_comp_feat_fn,'rb') as new_comp:
+        #    #        ## this can get very slow as prev_comp gets bigger and bigger...
+        #    #        ## sacrifice safety for speed, move and just append.
+        #    #        ## do the same thing for hashcodes / comp_idx?
+        #    #        shutil.copyfileobj(prev_comp, out_comp)
+        #    #        shutil.copyfileobj(new_comp, out_comp)
         # use shutil.copyfileobj for and hashcodes
         out_hash_fn = os.path.join(self.hasher.base_update_path,'hash_bits',out_update_id+'_itq_norm_'+str(self.bits_num))
         with open(out_hash_fn,'wb') as out_hash:
@@ -341,6 +351,7 @@ class HBaseIndexer(GenericIndexer):
         # update master file
         with open(m_uf_fn, 'wt') as m_uf:
             m_uf.write(out_update_id+'\n')
+        print("[HBaseIndexer.merge_update_files: log] Merge update files took {}s.".format(time.time()-start_merge))
         return m_uf_fn
 
     def cleanup_update(self,previous_files,tmp_udpate_id):
