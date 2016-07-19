@@ -361,7 +361,8 @@ class HBaseIndexer(GenericIndexer):
         # cleanup comp features
         prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
         new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
-        os.remove(prev_comp_feat_fn)
+        # new procedure moves this file
+        #os.remove(prev_comp_feat_fn)
         os.remove(new_comp_feat_fn)
         # cleanup hashcodes
         prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
