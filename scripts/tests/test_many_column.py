@@ -9,4 +9,4 @@ if __name__=="__main__":
     for cq in range(1000):
     	table.put(row_key, {'c:{}'.format(cq): cq})
     	row = table.row(row_key)
-        print cq,len(row.keys())
+        print cq+1,len(row.keys())
