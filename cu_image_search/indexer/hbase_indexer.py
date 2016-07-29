@@ -45,6 +45,7 @@ class HBaseIndexer(GenericIndexer):
         # How to deal with additionals extractions?
         # Where should we store the update infos? 
         # Start of batch being indexed should be end criterion for next batch.
+        self.FORCE_REFRESH = False # only use once to fix indexing issue
 
     def initialize_sha1_mapping(self):
         self.sha1_featid_mapping = []
@@ -338,7 +339,7 @@ class HBaseIndexer(GenericIndexer):
             with open(prev_hashcode_fn,'rb') as prev_hash, open(new_hashcode_fn,'rb') as new_hash:
                     shutil.copyfileobj(prev_hash, out_hash)
                     shutil.copyfileobj(new_hash, out_hash)
-        # but need to read and shift tmp_udpate comp_idx using what?
+        # need to read and shift tmp_udpate comp_idx
         out_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',out_update_id+'_compidx_norm')
         with open(out_comp_idx_fn,'wb') as out_comp_idx:
             prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
@@ -347,7 +348,8 @@ class HBaseIndexer(GenericIndexer):
                     shutil.copyfileobj(prev_hash, out_comp_idx)
             arr = np.fromfile(new_comp_idx_fn, dtype=np.uint64)
             arr += comp_idx_shift
-            arr.tofile(out_comp_idx)
+            # discarding the first value as it would be equal to the last one of 'prev_hash'
+            arr[1:].tofile(out_comp_idx)
         # update master file
         with open(m_uf_fn, 'wt') as m_uf:
             m_uf.write(out_update_id+'\n')
@@ -439,7 +441,7 @@ class HBaseIndexer(GenericIndexer):
 
     def refresh_hash_index(self,skip=False):
         start_row = None
-        if skip:
+        if skip and self.sha1_featid_mapping:
             start_row = self.sha1_featid_mapping[-1]
         list_type = ["sentibank","hashcode"]
         list_columns = self.get_columns_name(list_type)
@@ -463,7 +465,7 @@ class HBaseIndexer(GenericIndexer):
                         # this could be slow, add column 'cu_featid' to hbase table escorts_images_sha1_infos, 
                         # and use list to get total number of features for sanity check, 
                         # because we cannot get that from the hbase table easily...
-                        if self.cu_feat_id_column not in row[1]:
+                        if self.cu_feat_id_column not in row[1] or self.FORCE_REFRESH:
                             found_columns = [column for column in all_needed_columns if column in row[1]]
                             if len(found_columns)==len(all_needed_columns): # we have features and hashcodes
                                 refresh_batch.append((row[0],row[1][list_columns[0]],row[1][list_columns[1]]))
