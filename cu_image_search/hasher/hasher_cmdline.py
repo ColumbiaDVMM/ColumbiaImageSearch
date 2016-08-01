@@ -2,6 +2,7 @@ import os
 import time
 import json
 import shutil
+import subprocess
 import numpy as np
 from ..memex_tools.image_dl import mkpath
 from ..memex_tools.binary_file import read_binary_file
@@ -101,7 +102,7 @@ class HasherCmdLine():
         print "[HasherCmdLine.get_precomp_X: log] running command: {}".format(command)
         os.system(command)
         # read features/hashcodes
-        X, ok_ids = read_binary_file(X_fn,str_precomp,list_feats_id,read_dim,read_type)
+        X, ok_ids =       (X_fn,str_precomp,list_feats_id,read_dim,read_type)
         print X,X[0].shape
         # cleanup
         os.remove(query_precomp_fn)
@@ -128,9 +129,14 @@ class HasherCmdLine():
         :returns simname: filename of the simname text file.
         """
         command = self.hashing_execpath+"hashing {} {} {} {} {}".format(featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio)
+        args = ["{}".format(x) for x in [featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio]]
         #command = self.hashing_execpath+"hashing "+featurefilename+" "+str(self.bits_num)+" "+str(ratio)
         print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
-        os.system(command)
+        proc = subprocess.Popen([self.hashing_execpath+"hashing", args], stdout=subprocess.PIPE, shell=True)
+        (out, err) = proc.communicate()
+        print "program output:", out
+        print "program error:", err
+        #os.system(command)
         initname = featurefilename[:-4] + '-sim.txt'
         simname = featurefilename[:-4] + '-sim_'+str(ratio)+'.txt'
         print "[HasherCmdLine.get_similar_images: log] try to rename {} to {}".format(initname,simname)
