@@ -146,7 +146,7 @@ class Searcher():
             output[i]['similar_images']['distance']=[sim_score[ii][jj] for jj in ok_sims]
         #print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([['number',nb_query],['images',output]])
-        #print "[Searcher.format_output: log] outp {}".format(outp)
+        print "[Searcher.format_output: log] saving output to {}".format(outputname)
         json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
 
     def search_one_imagepath(self,image_path):

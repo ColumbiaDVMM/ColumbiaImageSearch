@@ -1,5 +1,6 @@
 <?php
-error_reporting(E_ALL | E_STRICT);
+ini_set('display_errors', 1);
+error_reporting(E_ALL | E_NOTICE);
 
 //$conf_file = "/home/ubuntu/memex/conf/global_var_all.json";
 
@@ -174,40 +175,43 @@ $fullnamet = substr_replace($fullname, "_" . Rand(), $pos, 0);
 downloadFile($image_url,$fullnamet);
 
 //$output = shell_exec("md5sum " . $fullnamet );
-$output = shell_exec("sha1sum " . $fullnamet );
+/*$output = shell_exec("sha1sum " . $fullnamet );
 
 //list($md5, $tmp) = split(" ", $output);
 list($sha1, $tmp) = split(" ", $output);
 //$fullname = substr_replace($fullname, "_" . $md5, $pos, 0);
 $fullname = substr_replace($fullname, "_" . $sha1, $pos, 0);
 
-if (file_exists($fullname)) {
+ if (file_exists($fullname)) {
     //echo "The file $filename exists";
 	unlink($fullnamet);
 } else {
     //echo "The file $filename does not exist";
 	rename($fullnamet, $fullname);
 
-}
+} */
 
-$query_file = fopen("query_img_list.txt", "w");
-fwrite($query_file, $fullname);
+$query_file_path = $mainpath . "query_img_list.txt";
+
+$query_file = fopen($query_file_path, "w");
+fwrite($query_file, $fullnamet);
 fclose($query_file);
 
 $start_time = time();
 //$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr."_".date('Y-m-d_H').".json", -4, 4); // Date is for one hour caching.
-$outname = substr_replace($fullname, "-sim_".$query_num."_".$ratio.$dupstr.$neardupstr.".json", -4, 4); // Date is for one hour caching.
-if ($nocache==1) {
+$outname = substr_replace($fullnamet, "-sim_".$query_num."_".$ratio.$dupstr.$neardupstr.".json", -4, 4); 
+
+/*if ($nocache==1) {
   unlink($outname);
-}
+}*/
 //echo "cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python getSimilarNew.py " . $fullname . " " . $query_num . " " . $ratio . " " . $dup . " " . $neardup . " " . $neardup_th;
 if ($verbose) {
-   echo "cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python ../../scripts/search.py " . $conf_file . " query_img_list.txt " . $outname;
+   echo "cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python ../../scripts/search.py " . $conf_file . " " . $query_file_path . " " . $outname;
 }
-shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python ../../scripts/search.py " . $conf_file . " query_img_list.txt ". $outname);
+shell_exec("cd " . $mainpath . " && export LD_LIBRARY_PATH=/usr/local/cuda/lib64 && python ../../scripts/search.py " . $conf_file . " " . $query_file_path . " " . $outname);
 
-$fout = fopen ($outname, "rb");
- if ($fout) {
+$fout = fopen($outname, "rb");
+if ($fout) {
 	$json = fread($fout,filesize($outname));
 	if ($vis==0){
 		echo $json;
