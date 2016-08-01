@@ -1,13 +1,15 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL | E_NOTICE);
 
 //$conf_file = "/home/ubuntu/memex/conf/global_var_all.json";
 
 $conf_file = "/home/ubuntu/memex/DeepSentiBank_memex/conf/global_var_remotehbase.json";
 $mainpath = "/home/ubuntu/memex/DeepSentiBank_memex/cu_image_search/www_old/";
 
-$verbose = 1;
+$verbose = 0;
+if ($verbose) {
+  ini_set('display_errors', 1);
+  error_reporting(E_ALL | E_NOTICE);
+}
 
 function downloadFile ($url, $path) {
   $newfname = $path;
@@ -233,7 +235,7 @@ if ($fout) {
 		$imglist = $obj->{'images'}[0]->{'similar_images'}->{'cached_image_urls'};
 		//$orilist = $obj->{'images'}[0]->{'similar_images'}->{'page_urls'};
 		//$uidlist = $obj->{'images'}[0]->{'similar_images'}->{'ht_images_id'};
-		$sha1list = $obj->{'images'}[0]->{'similar_images'}->{'sha1'};
+		$sha1list = $obj->{'images'}[0]->{'similar_images'}->{'sha1s'};
 		$distlist = $obj->{'images'}[0]->{'similar_images'}->{'distance'};
 
 		for ($i=0; $i<sizeof($imglist); $i++) {
