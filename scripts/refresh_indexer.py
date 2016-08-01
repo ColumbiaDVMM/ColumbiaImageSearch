@@ -18,5 +18,5 @@ if __name__=="__main__":
     if len(sys.argv)>2:
     	skip = int(sys.argv[2])
     HBI = HBaseIndexer(global_conf_file)
-    HBI.FORCE_REFRESH = True
+    HBI.FORCE_REFRESH = False
     HBI.refresh_hash_index(skip)
