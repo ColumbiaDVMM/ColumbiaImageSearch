@@ -1,5 +1,7 @@
 import os
 import sys
+import grp
+import pwd
 import time
 import shutil
 import datetime
@@ -11,6 +13,8 @@ from cu_image_search.search import searcher_mysqllocal, searcher_hbaseremote
 if __name__=="__main__":
     """ Run search based on `conf_file` and `image_list` given as parameter
     """
+    sys.stdout = open('tmp_log_search.txt', 'w')
+    sys.stderr = sys.stdout
     if len(sys.argv)<3:
         print "python search.py global_conf_file image_list [outputname]"
         exit(-1)
@@ -24,9 +28,11 @@ if __name__=="__main__":
     start_time = time.time()
     outputname = search_obj.search_image_list(image_list)
     if final_outputname:
-        shutil.move(outputname,final_outputname)
+        print '[search] Moving {} to {}.'.format(outputname, final_outputname)
+        shutil.move(outputname, final_outputname)
+        os.chown(final_outputname, pwd.getpwnam("www-data").pw_uid, grp.getgrnam("www-data").gr_gid)
     else:
         final_outputname = outputname
-    print '[search] outputname is {}'.format(final_outputname)
+    print '[search] final_outputname is {}'.format(final_outputname)
     print '[search] Query time: ', time.time() - start_time
-
+    sys.stdout.close()
