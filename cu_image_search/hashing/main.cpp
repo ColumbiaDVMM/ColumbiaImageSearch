@@ -101,7 +101,7 @@ int main(int argc, char** argv){
     if (!fu.is_open())
     {
         std::cout << "No update! Was looking for " << update_files_list << std::endl;
-        perror();
+        perror("");
         return -1;
     }
     else
