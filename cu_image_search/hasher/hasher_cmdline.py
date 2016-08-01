@@ -119,6 +119,15 @@ class HasherCmdLine():
         """
         return self.get_precomp_X(list_feats_id,"hashcodes",self.bits_num/8,np.uint8)
 
+    def demote(user_uid, user_gid):
+        def result():
+            report_ids('starting demotion')
+            os.setgid(user_gid)
+            os.setuid(user_uid)
+            report_ids('finished demotion')
+        return result
+
+
     def get_similar_images_from_featuresfile(self,featurefilename,ratio):
         """ Get similar images of the images with features in 'featurefilename'.
 
@@ -133,8 +142,11 @@ class HasherCmdLine():
         #print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
         args = [str(x) for x in [featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio]]
         subprocess_command = [self.hashing_execpath+"hashing"] + args
+        pw_record = pwd.getpwnam("www-data")
+        user_uid = pw_record.pw_uid
+        user_gid = pw_record.pw_gid
         print "[HasherCmdLine.get_similar_images: log] running command: {}".format(subprocess_command)
-        proc = subprocess.Popen(subprocess_command, stdout=subprocess.PIPE)
+        proc = subprocess.Popen(subprocess_command, preexec_fn=demote(user_uid, user_gid), stdout=subprocess.PIPE)
         (out, err) = proc.communicate()
         print "program output:", out
         print "program error:", err
