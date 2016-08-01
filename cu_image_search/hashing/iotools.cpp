@@ -176,7 +176,7 @@ int get_n_features(string update_fn, int* query_ids, int query_num, int norm, in
     if (!fu.is_open())
     {
         std::cout << "No update! Was looking for " << update_fn << std::endl;
-    return -1;
+        return -1;
     }
     else
     {

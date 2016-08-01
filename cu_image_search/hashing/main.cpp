@@ -99,7 +99,8 @@ int main(int argc, char** argv){
     ifstream fu(update_files_list.c_str(),ios::in);
     if (!fu.is_open())
     {
-        std::cout << "no update" << std::endl;
+        std::cout << "No update! Was looking for " << update_files_list << std::endl;
+        return -1;
     }
     else
     {
