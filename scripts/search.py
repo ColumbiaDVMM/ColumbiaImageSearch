@@ -4,6 +4,7 @@ import time
 import shutil
 import datetime
 sys.path.append('..')
+sys.path.append('../..')
 import cu_image_search
 from cu_image_search.search import searcher_mysqllocal, searcher_hbaseremote
 
