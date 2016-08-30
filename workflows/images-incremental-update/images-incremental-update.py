@@ -174,10 +174,10 @@ def ts_to_cdr_id(data):
 
 def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos, nb_partitions):
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}}"
-    query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ \"_timestamp\": { \"order\": \"asc\" ] }"
+    query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     print query
-    es_rdd = es_man.es2rdd(query).partitionBy(nb_partitions)
-    images_hb_rdd = es_rdd.flatMap(lambda x: create_images_tuple(x))
+    es_rdd = es_man.es2rdd(query)
+    images_hb_rdd = es_rdd.partitionBy(nb_partitions).flatMap(lambda x: create_images_tuple(x))
     hbase_man_ts.rdd2hbase(images_hb_rdd)
     cdr_ids_infos_rdd = images_hb_rdd.flatMap(lambda x: ts_to_cdr_id(x))
     hbase_man_cdrinfos.rdd2hbase(cdr_ids_infos_rdd)
@@ -194,8 +194,13 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hb
 
 if __name__ == '__main__':
     # Read job_conf
-    job_conf = json.load(open("job_conf.json","rt"))
+    job_conf = json.load(open("job_conf_notcommited.json","rt"))
     print job_conf
+    sc = SparkContext(appName='images_incremental_update')
+    conf = SparkConf()
+    log4j = sc._jvm.org.apache.log4j
+    log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
+    #log4j.LogManager.getRootLogger().setLevel(log4j.Level.ALL)
     # Set parameters job_conf
     nb_partitions = job_conf["nb_partitions"]
     # HBase Conf
@@ -215,19 +220,20 @@ if __name__ == '__main__':
     es_ts_start = job_conf["query_timestamp_start"]
     # query for first row of `tab_ts_name`
     ts_rdd = hbase_man_ts.read_hbase_table()
-    hbase_table_fr = ts_rdd.first()
+    hbase_table_fr = 0
+    try:
+        hbase_table_fr = ts_rdd.first()
+    except: # table empty
+        pass
     if es_ts_start==0 and hbase_table_fr!=0:
         es_ts_start = max_ts-hbase_table_fr
         print "Setting start timestamp to: {}".format(es_ts_start)
     # Start job
-    sc = SparkContext(appName='images_incremental_update')
-    conf = SparkConf()
     es_man = ES(sc, conf, es_index, es_domain, es_host, es_port, es_user, es_pass)
     es_man.set_output_json()
     es_man.set_read_metadata()
-    
     join_columns_list = [':'.join(x) for x in fields_list]
-    hbase_man_cdrinfos = HbaseManager(sc, conf, hbase_host, tab_cdrid_infos_name, columns_list=in_columns_list)
+    hbase_man_cdrinfos = HbaseManager(sc, conf, hbase_host, tab_cdrid_infos_name, columns_list=infos_columns_list)
     hbase_man_sha1infos = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=join_columns_list)
     incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos, nb_partitions)
 
