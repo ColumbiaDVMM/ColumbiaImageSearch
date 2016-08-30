@@ -1,0 +1,18 @@
+{
+    "hbase_host": "zk04.xdata.data-tactics-corp.com:2181",
+    "tab_ts_name": "escorts_images_ts_incup",
+    "tab_cdrid_infos_name": "escorts_images_cdrid_infos_incup",
+    "tab_sha1_infos_name": "escorts_images_sha1_infos_incup",
+    "nb_partitions": 80,
+    "es_index": "memex-domains",
+    "es_domain": "escorts",
+    "es_host": ,
+    "es_port": ,
+    "es_user": ,
+    "es_pass": ,
+    "query_timestamp_start": 1472598935000,
+    "max_images": 20000
+}
+
+
+
