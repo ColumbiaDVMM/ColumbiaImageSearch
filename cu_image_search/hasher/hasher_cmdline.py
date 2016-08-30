@@ -1,4 +1,5 @@
 import os
+import pwd
 import time
 import json
 import shutil
@@ -102,7 +103,7 @@ class HasherCmdLine():
         print "[HasherCmdLine.get_precomp_X: log] running command: {}".format(command)
         os.system(command)
         # read features/hashcodes
-        X, ok_ids =       (X_fn,str_precomp,list_feats_id,read_dim,read_type)
+        X, ok_ids = read_binary_file(X_fn,str_precomp,list_feats_id,read_dim,read_type)
         print X,X[0].shape
         # cleanup
         os.remove(query_precomp_fn)
@@ -119,12 +120,11 @@ class HasherCmdLine():
         """
         return self.get_precomp_X(list_feats_id,"hashcodes",self.bits_num/8,np.uint8)
 
+    @staticmethod
     def demote(user_uid, user_gid):
         def result():
-            report_ids('starting demotion')
             os.setgid(user_gid)
             os.setuid(user_uid)
-            report_ids('finished demotion')
         return result
 
 
@@ -143,10 +143,11 @@ class HasherCmdLine():
         args = [str(x) for x in [featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio]]
         subprocess_command = [self.hashing_execpath+"hashing"] + args
         pw_record = pwd.getpwnam("www-data")
+        #pw_record = pwd.getpwnam("root")
         user_uid = pw_record.pw_uid
         user_gid = pw_record.pw_gid
         print "[HasherCmdLine.get_similar_images: log] running command: {}".format(subprocess_command)
-        proc = subprocess.Popen(subprocess_command, preexec_fn=demote(user_uid, user_gid), stdout=subprocess.PIPE)
+        proc = subprocess.Popen(subprocess_command, preexec_fn=HasherCmdLine.demote(user_uid, user_gid), stdout=subprocess.PIPE)
         (out, err) = proc.communicate()
         print "program output:", out
         print "program error:", err

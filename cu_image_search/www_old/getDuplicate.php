@@ -1,22 +1,20 @@
 <?php
 if (PHP_SAPI === 'cli') {
-$htid = $argv[1];
+$sha1 = $argv[1];
 $vis = $argv[2];
 $img_style = $argv[3];
 $url = $argv[4];
-$sha1 = $argv[5];
 } else {
-$htid = $_GET["htid"];
+$sha1 = $_GET['sha1'];
 $vis = $_GET['visualize'];
 $img_style = $_GET['style'];
 $url = $_GET['url'];
-$sha1 = $_GET['sha1'];
 }
 $fast=0;
 if ($url && $sha1){
 //	echo 'fast';
 	$fast=1;
-	$unique_idx = $htid;
+	$unique_idx = $sha1;
 }
 
 
