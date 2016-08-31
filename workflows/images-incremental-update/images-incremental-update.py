@@ -4,6 +4,10 @@ from pyspark import SparkContext, SparkConf
 from elastic_manager import ES
 from hbase_manager import HbaseManager
 
+# debugging
+debug = True
+ts_gap = 200
+
 # default settings
 fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
 # use key as str(max_ts-ts)+"_"+doc_id so that first rows are the newest
@@ -29,10 +33,12 @@ def get_row_sha1(URL_S3,verbose=False):
 
 
 def check_get_sha1(data):
-    json_x = [json.loads(x) for x in data[1].split("\n")]
+    #print("[check_get_sha1] {}".format(data))
+    #json_x = [json.loads(x) for x in data[1].split("\n")]
+    json_x = data[1]
     # First check if sha1 is not already there...
     try:
-        row_sha1 = get_list_value(json_x,("info","sha1"))[0].strip()
+        row_sha1 = json_x["info:sha1"].strip()
         # Check for None here just to be safe
         if row_sha1 is None or row_sha1 == u'None':
             raise ValueError('sha1 is None.')
@@ -41,15 +47,27 @@ def check_get_sha1(data):
         URL_S3 = None
         key = data[0]
         try:
-            URL_S3 = get_list_value(json_x,("info","obj_stored_url"))[0].strip()
+            URL_S3 = json_x["info:obj_stored_url"].strip()
             #print key,URL_S3,type(URL_S3)
         except Exception as inst2:
             print "[Error] for row {}. {}".format(key,inst2)
             return []
-        row_sha1 = get_row_sha1(URL_S3,1)
+        row_sha1 = get_row_sha1(unicode(URL_S3),1)
+        #print("[check_get_sha1.row_sha1] {}".format(row_sha1))
         if row_sha1:
-            return [(key, [key, "info", "sha1", row_sha1.upper()])]
+            json_x["info:sha1"] = row_sha1
+            return [(key, json_x)]
     return []
+
+
+def expand_cdr_info(data):
+    json_x = data[1]
+    key = data[0]
+    out = []
+    for field in json_x:
+        fs = field.split(':')
+        out.append((key, [key, fs[0], fs[1], json_x[field]]))
+    return out
 
 
 def create_images_tuple(data):
@@ -70,7 +88,8 @@ def create_images_tuple(data):
             #print field,field_value
             tup_list.append( (key, [key, "info", field, str(field_value)]) )
         except Exception as inst:
-            print "[Error] Could not get field {} value for document {}. {}".format(field,doc_id,inst)
+            pass
+            #print "[Error] Could not get field {} value for document {}. {}".format(field,doc_id,inst)
     return tup_list
 
 
@@ -79,15 +98,16 @@ def get_list_value(json_x,field_tuple):
 
 
 def to_sha1_key(data):
+    print("[to_sha1_key] {}".format(data))
     cdr_id = data[0]
-    json_x = [json.loads(x) for x in data[1].split("\n")]
+    json_x = data[1]
     sha1 = None
     obj_stored_url = None
     obj_parent = None
     try:
-        sha1 = get_list_value(json_x,("info","sha1"))[0].strip()
-        obj_stored_url = get_list_value(json_x,("info","obj_stored_url"))[0].strip()
-        obj_parent = get_list_value(json_x,("info","obj_parent"))[0].strip()
+        sha1 = json_x["info:sha1"].strip()
+        obj_stored_url = json_x["info:obj_stored_url"].strip()
+        obj_parent = json_x["info:obj_parent"].strip()
         #print key,URL_S3,type(URL_S3)
     except Exception as inst2:
         pass
@@ -117,7 +137,26 @@ def reduce_sha1_infos(a,b):
     return c
 
 
-def reduce_sha1_infos_unique(a,b):
+def copy_dict(d_in,d_out):
+    for k in d_in:
+        d_out[k] = d_in[k]
+    return d_out
+
+def reduce_cdrid_infos(a,b):
+    c = dict()
+    if type(a)==dict:
+        c = copy_dict(a,c)
+    else:
+        c[a[1]+':'+a[2]] = a[3]
+    if type(b)==dict:
+        c = copy_dict(b,c)
+    else:
+        c[b[1]+':'+b[2]] = b[3]
+    #print("[reduce_cdrid_infos] {}".format(c))
+    return c
+
+
+def reduce_sha1_infos_unique_list(a,b):
     # to be used with cogroup, deals with emtpy and potentially redundant dictionnary
     c = dict()
     if b: # we only care about update images
@@ -132,6 +171,25 @@ def reduce_sha1_infos_unique(a,b):
             c["info:all_cdr_ids"] = b[0]["info:all_cdr_ids"]
             c["info:all_parent_ids"] = b[0]["info:all_parent_ids"]
             c["info:s3_url"] = b[0]["info:s3_url"]
+    return c
+
+
+def reduce_sha1_infos_unique(a,b):
+    # to be used with right join, deals with emtpy and potentially redundant dictionnary
+    c = dict()
+    if b: # we only care about update images
+        if a: # merge case
+            c["info:all_cdr_ids"] = list(set(a["info:all_cdr_ids"]+b["info:all_cdr_ids"]))
+            c["info:all_parent_ids"] = list(set(a["info:all_parent_ids"]+b["info:all_parent_ids"]))
+            if a["info:s3_url"] and a["info:s3_url"]!=u'None':
+                c["info:s3_url"] = a["info:s3_url"]
+            else:
+                c["info:s3_url"] = b["info:s3_url"]
+        else: # new image case
+            c["info:all_cdr_ids"] = b["info:all_cdr_ids"]
+            c["info:all_parent_ids"] = b["info:all_parent_ids"]
+            c["info:s3_url"] = b["info:s3_url"]
+    print("[reduce_sha1_infos_unique] {}, {}, {}".format(a, b, c))
     return c
 
 
@@ -152,7 +210,26 @@ def split_sha1_kv_filter_max_images(x):
 def flatten_cogroup(x):
     out = []
     # at this point value is a tuple of two lists with a single or empty dictionary
+    c = reduce_sha1_infos_unique_list(x[1][0],x[1][1])
+    # check that result is a new or updated image
+    if len(c.keys()) == len(fields_list):
+        out.append((x[0], c))
+    return out
+
+
+def flatten_rightjoin(x):
+    out = []
+    # at this point value is a tuple of two lists with a single or empty dictionary
     c = reduce_sha1_infos_unique(x[1][0],x[1][1])
+    # check that result is a new or updated image
+    if len(c.keys()) == len(fields_list):
+        out.append((x[0], c))
+    return out
+
+def flatten_leftjoin(x):
+    out = []
+    # at this point value is a tuple of two lists with a single or empty dictionary
+    c = reduce_sha1_infos_unique(x[1][1],x[1][0])
     # check that result is a new or updated image
     if len(c.keys()) == len(fields_list):
         out.append((x[0], c))
@@ -163,18 +240,22 @@ def ts_to_cdr_id(data):
     list_ts_doc_id = ts_doc_id.split("_")
     ts = list_ts_doc_id[0]
     doc_id = list_ts_doc_id[1]
-    #print ts_doc_id,ts,doc_id
-    json_x = [json.loads(x) for x in data[1].split("\n")]
-    tup_list = [ (doc_id, [doc_id, "info", "insert_ts", str(max_ts-int(ts))]) ]
-    # do we want to keep info:doc_id ?
-    for x in json_x:
-        tup_list.append( (doc_id, [doc_id, x["columnFamily"], x["qualifier"], x["value"]]) )
+    #print ts_doc_id,ts,doc_id,len(data),data[1]
+    if data[1][2]=='doc_id': # create insert_ts only once
+        tup_list = [ (doc_id, [doc_id, "info", "insert_ts", str(max_ts-int(ts))]) ]
+    else:
+        tup_list = []
+    tup_list.append( (doc_id, [doc_id, data[1][1], data[1][2], data[1][3]]) )
     return tup_list
 
 
 def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos, nb_partitions):
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}}"
-    query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+    #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+    if debug:
+        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+", \"lt\": "+str(es_ts_start+ts_gap)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+    else:
+        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     print query
     es_rdd = es_man.es2rdd(query)
     images_hb_rdd = es_rdd.partitionBy(nb_partitions).flatMap(lambda x: create_images_tuple(x))
@@ -183,12 +264,11 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hb
     hbase_man_cdrinfos.rdd2hbase(cdr_ids_infos_rdd)
     # Anyway to get sha1 here without downloading images? 
     # If same obj_original_url that another cdr_id?
-    cdr_ids_infos_rdd_with_sha1 = cdr_ids_infos_rdd.flatMap(lambda x: check_get_sha1(x))
-    update_rdd = cdr_ids_infos_rdd_with_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos)
-    join_rdd = hbase_man_sha1infos.read_hbase_table().flatMap(lambda x: sha1_key_json(x))
-    cogroup_rdd = join_rdd.cogroup(update_rdd)
-    tmp_rdd = cogroup_rdd.flatMap(lambda x: flatten_cogroup(x))
-    out_rdd = tmp_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images(x))
+    cdr_ids_infos_rdd_with_sha1 = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos).flatMap(lambda x: check_get_sha1(x))
+    hbase_man_cdrinfos.rdd2hbase(cdr_ids_infos_rdd_with_sha1.flatMap(lambda x: expand_cdr_info(x)))
+    update_rdd = cdr_ids_infos_rdd_with_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_unique)
+    join_rdd = update_rdd.leftOuterJoin(hbase_man_sha1infos.read_hbase_table().flatMap(lambda x: sha1_key_json(x))).flatMap(lambda x: flatten_leftjoin(x))
+    out_rdd = join_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images(x))
     hbase_man_sha1infos.rdd2hbase(out_rdd)
 
 
