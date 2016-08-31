@@ -6,7 +6,7 @@ from hbase_manager import HbaseManager
 
 # debugging
 debug = True
-ts_gap = 100
+ts_gap = 2000
 
 # default settings
 fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
@@ -123,7 +123,7 @@ def sha1_key_json(data):
     json_x = [json.loads(x) for x in data[1].split("\n")]
     v = dict()
     for field in fields_list:
-        v[':'.join(field)] = get_list_value(json_x,field)[0].strip()
+        v[':'.join(field)] = [get_list_value(json_x,field)[0].strip()]
     print("[sha1_key_json] {}, {}, {}".format(data, sha1, v))
     return [(sha1, v)]
 
@@ -178,6 +178,7 @@ def reduce_sha1_infos_unique_list(a,b):
 
 def reduce_sha1_infos_unique(a, b):
     # to be used with right join, deals with emtpy and potentially redundant dictionnary
+    print("[reduce_sha1_infos_unique] {}, {}".format(a, b))
     c = dict()
     if b: # we only care about update images
         if a: # merge case
@@ -191,7 +192,7 @@ def reduce_sha1_infos_unique(a, b):
             c["info:all_cdr_ids"] = b["info:all_cdr_ids"]
             c["info:all_parent_ids"] = b["info:all_parent_ids"]
             c["info:s3_url"] = b["info:s3_url"]
-    print("[reduce_sha1_infos_unique] {}, {}, {}".format(a, b, c))
+    #print("[reduce_sha1_infos_unique] {}, {}, {}".format(a, b, c))
     return c
 
 
@@ -274,7 +275,9 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hb
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
     if not sha1_infos_rdd.isEmpty(): # we need to merge the 'all_cdr_ids' and 'all_parent_ids'
         # spark job seems to get stuck here...
-        sha1_infos_rdd_json = sha1_infos_rdd.flatMap(lambda x: sha1_key_json(x))
+        sha1_infos_rdd_json = sha1_infos_rdd.partitionBy(nb_partitions).flatMap(lambda x: sha1_key_json(x))
+        #sha1_count = sha1_infos_rdd_json.count()
+        #print("[incremental_update] sha1_count: {}".format(sha1_count))
         join_rdd = update_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x))
         out_rdd = join_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images(x))
     else: # first update
