@@ -6,7 +6,7 @@ from hbase_manager import HbaseManager
 
 # debugging
 debug = True
-ts_gap = 200
+ts_gap = 100
 
 # default settings
 fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
@@ -67,6 +67,7 @@ def expand_cdr_info(data):
     for field in json_x:
         fs = field.split(':')
         out.append((key, [key, fs[0], fs[1], json_x[field]]))
+    #print("[expand_cdr_info] {}, {}".format(data, out))
     return out
 
 
@@ -98,7 +99,6 @@ def get_list_value(json_x,field_tuple):
 
 
 def to_sha1_key(data):
-    print("[to_sha1_key] {}".format(data))
     cdr_id = data[0]
     json_x = data[1]
     sha1 = None
@@ -112,6 +112,7 @@ def to_sha1_key(data):
     except Exception as inst2:
         pass
         #print "[Error] could not get SHA1, obj_stored_url or obj_parent for row {}. {}".format(cdr_id,inst2)
+    #print("[to_sha1_key] {}, {}, {}, {}, {}".format(data, cdr_id, sha1, obj_stored_url, obj_parent))
     if cdr_id and sha1 and obj_stored_url and obj_parent:
         return [(sha1, {"info:all_cdr_ids": [cdr_id], "info:s3_url": [obj_stored_url], "info:all_parent_ids": [obj_parent]})]
     return []
@@ -123,6 +124,7 @@ def sha1_key_json(data):
     v = dict()
     for field in fields_list:
         v[':'.join(field)] = get_list_value(json_x,field)[0].strip()
+    print("[sha1_key_json] {}, {}, {}".format(data, sha1, v))
     return [(sha1, v)]
 
 
@@ -174,7 +176,7 @@ def reduce_sha1_infos_unique_list(a,b):
     return c
 
 
-def reduce_sha1_infos_unique(a,b):
+def reduce_sha1_infos_unique(a, b):
     # to be used with right join, deals with emtpy and potentially redundant dictionnary
     c = dict()
     if b: # we only care about update images
@@ -204,6 +206,7 @@ def split_sha1_kv_filter_max_images(x):
         else:
             out.append((x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]))
     #out = [(x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]) for field in fields_list]
+    #print("[split_sha1_kv_filter_max_images] {}, {}".format(x, out))
     return out
 
 
@@ -233,6 +236,7 @@ def flatten_leftjoin(x):
     # check that result is a new or updated image
     if len(c.keys()) == len(fields_list):
         out.append((x[0], c))
+    print("[flatten_leftjoin] {}, {}".format(x, out))
     return out
 
 def ts_to_cdr_id(data):
@@ -249,7 +253,7 @@ def ts_to_cdr_id(data):
     return tup_list
 
 
-def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos, nb_partitions):
+def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos_join, hbase_man_sha1infos_out, nb_partitions):
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}}"
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     if debug:
@@ -267,9 +271,15 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hb
     cdr_ids_infos_rdd_with_sha1 = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos).flatMap(lambda x: check_get_sha1(x))
     hbase_man_cdrinfos.rdd2hbase(cdr_ids_infos_rdd_with_sha1.flatMap(lambda x: expand_cdr_info(x)))
     update_rdd = cdr_ids_infos_rdd_with_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_unique)
-    join_rdd = update_rdd.leftOuterJoin(hbase_man_sha1infos.read_hbase_table().flatMap(lambda x: sha1_key_json(x))).flatMap(lambda x: flatten_leftjoin(x))
-    out_rdd = join_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images(x))
-    hbase_man_sha1infos.rdd2hbase(out_rdd)
+    sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
+    if not sha1_infos_rdd.isEmpty(): # we need to merge the 'all_cdr_ids' and 'all_parent_ids'
+        # spark job seems to get stuck here...
+        sha1_infos_rdd_json = sha1_infos_rdd.flatMap(lambda x: sha1_key_json(x))
+        join_rdd = update_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x))
+        out_rdd = join_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images(x))
+    else: # first update
+        out_rdd = update_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images(x))
+    hbase_man_sha1infos_out.rdd2hbase(out_rdd)
 
 
 if __name__ == '__main__':
@@ -302,7 +312,9 @@ if __name__ == '__main__':
     ts_rdd = hbase_man_ts.read_hbase_table()
     hbase_table_fr = 0
     try:
-        hbase_table_fr = ts_rdd.first()
+        hbase_table_fr_row = ts_rdd.first()
+        hbase_table_fr = long(hbase_table_fr_row[0].split('_')[0])
+        print("hbase_table_fr = {}".format(hbase_table_fr)) 
     except: # table empty
         pass
     if es_ts_start==0 and hbase_table_fr!=0:
@@ -314,6 +326,7 @@ if __name__ == '__main__':
     es_man.set_read_metadata()
     join_columns_list = [':'.join(x) for x in fields_list]
     hbase_man_cdrinfos = HbaseManager(sc, conf, hbase_host, tab_cdrid_infos_name, columns_list=infos_columns_list)
-    hbase_man_sha1infos = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=join_columns_list)
-    incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos, nb_partitions)
+    hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=join_columns_list)
+    hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
+    incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos_join, hbase_man_sha1infos_out, nb_partitions)
 
