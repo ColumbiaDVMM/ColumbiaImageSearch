@@ -113,9 +113,44 @@ class Searcher():
         f.close()
         return sim,sim_score
 
-    def format_output(self, simname, nb_query, corrupted, list_sha1_id):
+
+    def read_sim_sha1(self, simname, nb_query):
+        # intialization
+        sim = []
+        sim_score = []
+        
+        # read similar images
+        count = 0
+        f = open(simname);
+        for line in f:
+            #sim_index.append([])
+            nums = line.replace('\n','').split(' ')
+            if self.near_dup: #filter near duplicate here
+                nums=self.filter_near_dup(nums)
+            #print nums
+            onum = len(nums)/2
+            n = min(self.sim_limit,onum)
+            #print n
+            if n==0: # no returned images, e.g. no near duplicate
+                sim.append(())
+                sim_score.append([])
+                continue
+            # just get the sha1 at this point
+            sim.append(self.indexer.get_full_sha1_rows(nums[0:n]))
+            sim_score.append(nums[onum:onum+n])
+            count = count + 1
+            if count == nb_query:
+                break
+        f.close()
+        return sim,sim_score
+
+
+    def format_output(self, simname, nb_query, corrupted, list_sha1_id, sha1sim=False):
     	# read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
-        sim,sim_score = self.read_sim(simname,nb_query)
+        if sha1sim:
+            sim,sim_score = self.read_sim_sha1(simname, nb_query)
+        else:
+            sim,sim_score = self.read_sim(simname, nb_query)
 
         #print "[Searcher.format_output: log] sim: {}".format(sim)
         
@@ -137,9 +172,9 @@ class Searcher():
                 found_columns = [c in simj[1] for c in needed_columns]
                 if found_columns.count(True) == len(needed_columns):
                     output[i]['similar_images']['sha1s'].append(simj[0].strip())
-                    output[i]['similar_images']['cached_image_urls'].append(simj[1]['info:s3_url'])
-                    output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'])
-                    output[i]['similar_images']['ads_cdr_ids'].append(simj[1]['info:all_parent_ids'])
+                    output[i]['similar_images']['cached_image_urls'].append(simj[1]['info:s3_url'].strip())
+                    output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'].strip())
+                    output[i]['similar_images']['ads_cdr_ids'].append(simj[1]['info:all_parent_ids'].strip())
                     ok_sims.append(jj)
                 #else:
                 #    print "[Searcher.format_output: log] Found invalid image: {}. found_columns: {}".format(simj[0],found_columns)

@@ -1,0 +1,14 @@
+<html>
+  <head>
+    <title>Images viewer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+  	{% for similar_images in get_flashed_messages() %}
+    {% for images in similar_images %}
+    {{ images|safe }}
+    {% endfor %}
+    <br/>
+    {% endfor %}
+  </body>
+</html>

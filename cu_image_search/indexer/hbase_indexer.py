@@ -26,6 +26,7 @@ class HBaseIndexer(GenericIndexer):
         self.table_cdrinfos_name = self.global_conf['HBI_table_cdrinfos']
         self.table_sha1infos_name = self.global_conf['HBI_table_sha1infos']
         self.table_updateinfos_name = self.global_conf['HBI_table_updatesinfos']
+        self.table_sim_name = self.global_conf['HBI_table_sim']
         self.extractions_types = self.global_conf['HBI_extractions_types']
         self.extractions_columns = self.global_conf['HBI_extractions_columns']
         self.in_url_column = self.global_conf['HBI_in_url_column']
@@ -46,6 +47,7 @@ class HBaseIndexer(GenericIndexer):
         # Where should we store the update infos? 
         # Start of batch being indexed should be end criterion for next batch.
         self.FORCE_REFRESH = False # only use once to fix indexing issue
+        self.merging = False
 
     def initialize_sha1_mapping(self):
         self.sha1_featid_mapping = []
@@ -125,12 +127,42 @@ class HBaseIndexer(GenericIndexer):
             found_ids.append((pos,sha1))
         return found_ids
 
+
+    def get_ids_from_sha1s_hbase(self, list_sha1s):
+        found_ids = []
+        if list_sha1s:
+            with self.pool.connection() as connection:
+                table_sha1infos = connection.table(self.table_sha1infos_name)
+                rows = table_sha1infos.rows(list_sha1s)
+                for row in rows:
+                    if "info:cu_feat_id" in row[1]:
+                        found_ids.append((long(row[1]["info:cu_feat_id" ]),str(row[0])))
+        return found_ids
+
     def get_full_sha1_rows(self,list_sha1s):
         rows = None
         if list_sha1s:
             with self.pool.connection() as connection:
                 table_sha1infos = connection.table(self.table_sha1infos_name)
                 rows = table_sha1infos.rows(list_sha1s)
+        return rows
+
+
+    def get_columns_from_sha1_rows(self,list_sha1s, columns):
+        rows = None
+        if list_sha1s:
+            with self.pool.connection() as connection:
+                table_sha1infos = connection.table(self.table_sha1infos_name)
+                rows = table_sha1infos.rows(list_sha1s, columns=columns)
+        return rows
+
+    def get_similar_images_from_sha1(self, list_sha1s):
+        rows = None
+        print "[HBaseIndexer.get_similar_images_from_sha1: log] list_sha1s: {}".format(list_sha1s)
+        if list_sha1s:
+            with self.pool.connection() as connection:
+                table_sha1_sim = connection.table(self.table_sim_name)
+                rows = table_sha1_sim.rows(list_sha1s)
         return rows
 
     def get_sim_infos(self,list_ids):
