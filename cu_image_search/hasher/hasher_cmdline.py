@@ -129,7 +129,7 @@ class HasherCmdLine():
         return result
 
 
-    def get_similar_images_from_featuresfile(self,featurefilename,ratio):
+    def get_similar_images_from_featuresfile(self, featurefilename, ratio, demote=False):
         """ Get similar images of the images with features in 'featurefilename'.
 
         :param featurefilename: features of the query images.
@@ -144,12 +144,14 @@ class HasherCmdLine():
         #print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
         args = [str(x) for x in [featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio]]
         subprocess_command = [self.hashing_execpath+"hashing"] + args
-        pw_record = pwd.getpwnam("www-data")
-        #pw_record = pwd.getpwnam("root")
-        user_uid = pw_record.pw_uid
-        user_gid = pw_record.pw_gid
+        if demote:
+            pw_record = pwd.getpwnam("www-data")
+            user_uid = pw_record.pw_uid
+            user_gid = pw_record.pw_gid
+            proc = subprocess.Popen(subprocess_command, preexec_fn=HasherCmdLine.demote(user_uid, user_gid), stdout=subprocess.PIPE)
+        else:
+            proc = subprocess.Popen(subprocess_command, stdout=subprocess.PIPE)
         print "[HasherCmdLine.get_similar_images: log] running command: {}".format(subprocess_command)
-        proc = subprocess.Popen(subprocess_command, preexec_fn=HasherCmdLine.demote(user_uid, user_gid), stdout=subprocess.PIPE)
         (out, err) = proc.communicate()
         print "program output:", out
         print "program error:", err
