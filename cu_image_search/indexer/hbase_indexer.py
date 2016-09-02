@@ -441,6 +441,7 @@ class HBaseIndexer(GenericIndexer):
 
     def refresh_hash_index(self,skip=False):
         start_row = None
+        # when running in batch mode, to restart from failure point
         if skip and self.sha1_featid_mapping:
             start_row = self.sha1_featid_mapping[-1]
         list_type = ["sentibank","hashcode"]

@@ -1,12 +1,14 @@
-import json
 import os
+import json
+import time
+
 from pyspark import SparkContext, SparkConf
 from elastic_manager import ES
 from hbase_manager import HbaseManager
 
 # debugging
 debug = True
-ts_gap = 2000
+ts_gap = 20000
 
 # default settings
 fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
@@ -52,22 +54,22 @@ def check_get_sha1(data):
         except Exception as inst2:
             print "[Error] for row {}. {}".format(key,inst2)
             return []
-        row_sha1 = get_row_sha1(unicode(URL_S3),1)
-        #print("[check_get_sha1.row_sha1] {}".format(row_sha1))
+        row_sha1 = get_row_sha1(unicode(URL_S3),0)
         if row_sha1:
+            #print("[check_get_sha1.row_sha1] sha1 for crd_id {}: {} (from URL: {})".format(key, row_sha1, URL_S3))
             json_x["info:sha1"] = row_sha1
             return [(key, json_x)]
     return []
 
 
-def expand_cdr_info(data):
+def expand_info(data):
     json_x = data[1]
     key = data[0]
     out = []
     for field in json_x:
         fs = field.split(':')
         out.append((key, [key, fs[0], fs[1], json_x[field]]))
-    #print("[expand_cdr_info] {}, {}".format(data, out))
+    #print("[expand_info] {}, {}".format(data, out))
     return out
 
 
@@ -123,8 +125,11 @@ def sha1_key_json(data):
     json_x = [json.loads(x) for x in data[1].split("\n")]
     v = dict()
     for field in fields_list:
-        v[':'.join(field)] = [get_list_value(json_x,field)[0].strip()]
-    print("[sha1_key_json] {}, {}, {}".format(data, sha1, v))
+        if field[1]!='s3_url':
+            v[':'.join(field)] = list(set([x for x in get_list_value(json_x,field)[0].strip().split(',')]))
+        else:
+            v[':'.join(field)] = [get_list_value(json_x,field)[0].strip()]
+    #print("[sha1_key_json] {}, {}, {}".format(data, sha1, v))
     return [(sha1, v)]
 
 
@@ -144,17 +149,14 @@ def copy_dict(d_in,d_out):
         d_out[k] = d_in[k]
     return d_out
 
+
 def reduce_cdrid_infos(a,b):
     c = dict()
-    if type(a)==dict:
-        c = copy_dict(a,c)
+    if a["info:insert_ts"] > b["info:insert_ts"]:
+        c = a
     else:
-        c[a[1]+':'+a[2]] = a[3]
-    if type(b)==dict:
-        c = copy_dict(b,c)
-    else:
-        c[b[1]+':'+b[2]] = b[3]
-    #print("[reduce_cdrid_infos] {}".format(c))
+        c = b
+    print("[reduce_cdrid_infos] {}".format(c))
     return c
 
 
@@ -178,7 +180,7 @@ def reduce_sha1_infos_unique_list(a,b):
 
 def reduce_sha1_infos_unique(a, b):
     # to be used with right join, deals with emtpy and potentially redundant dictionnary
-    print("[reduce_sha1_infos_unique] {}, {}".format(a, b))
+    #print("[reduce_sha1_infos_unique] {}, {}".format(a, b))
     c = dict()
     if b: # we only care about update images
         if a: # merge case
@@ -189,8 +191,8 @@ def reduce_sha1_infos_unique(a, b):
             else:
                 c["info:s3_url"] = b["info:s3_url"]
         else: # new image case
-            c["info:all_cdr_ids"] = b["info:all_cdr_ids"]
-            c["info:all_parent_ids"] = b["info:all_parent_ids"]
+            c["info:all_cdr_ids"] = list(set(b["info:all_cdr_ids"]))
+            c["info:all_parent_ids"] = list(set(b["info:all_parent_ids"]))
             c["info:s3_url"] = b["info:s3_url"]
     #print("[reduce_sha1_infos_unique] {}, {}, {}".format(a, b, c))
     return c
@@ -237,7 +239,7 @@ def flatten_leftjoin(x):
     # check that result is a new or updated image
     if len(c.keys()) == len(fields_list):
         out.append((x[0], c))
-    print("[flatten_leftjoin] {}, {}".format(x, out))
+    #print("[flatten_leftjoin] {}, {}".format(x, out))
     return out
 
 def ts_to_cdr_id(data):
@@ -254,7 +256,22 @@ def ts_to_cdr_id(data):
     return tup_list
 
 
-def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos_join, hbase_man_sha1infos_out, nb_partitions):
+def to_cdr_id_dict(data):
+    doc_id = data[0]
+    v = dict()
+    json_x = json.loads(data[1])
+    insert_ts = str(json_x["_metadata"]["_timestamp"])
+    v["info:insert_ts"] = insert_ts
+    v["info:doc_id"] = doc_id
+    del json_x["_metadata"]
+    for field in json_x:
+        v["info:"+field] = str(json_x[field][0])
+    tup_list = [(doc_id, v)]
+    #print("[to_cdr_id_dict] {}".format(tup_list))
+    return tup_list
+
+
+def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, nb_partitions):
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}}"
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     if debug:
@@ -263,29 +280,39 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hb
         query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     print query
     es_rdd = es_man.es2rdd(query)
-    images_hb_rdd = es_rdd.partitionBy(nb_partitions).flatMap(lambda x: create_images_tuple(x))
-    hbase_man_ts.rdd2hbase(images_hb_rdd)
-    cdr_ids_infos_rdd = images_hb_rdd.flatMap(lambda x: ts_to_cdr_id(x))
-    hbase_man_cdrinfos.rdd2hbase(cdr_ids_infos_rdd)
+    images_hb_rdd = es_rdd.partitionBy(nb_partitions)
+    cdr_ids_infos_rdd = images_hb_rdd.flatMap(lambda x: to_cdr_id_dict(x))
+    # there could be duplicates cdr_id near indices boundary...
+    cdr_ids_infos_rdd_red = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos)
+    cdr_ids_infos_rdd_with_sha1 = cdr_ids_infos_rdd_red.flatMap(lambda x: check_get_sha1(x))
     # Anyway to get sha1 here without downloading images? 
-    # If same obj_original_url that another cdr_id?
-    cdr_ids_infos_rdd_with_sha1 = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos).flatMap(lambda x: check_get_sha1(x))
-    hbase_man_cdrinfos.rdd2hbase(cdr_ids_infos_rdd_with_sha1.flatMap(lambda x: expand_cdr_info(x)))
+    #cdr_ids_infos_rdd_with_sha1 = cdr_ids_infos_rdd_red.flatMap(lambda x: check_get_sha1(x))
+    # If same obj_original_url/obj_stored_url that another cdr_id?
+    # read s3url_sha1 table into s3url_sha1
+    #s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table()
+    # invert cdr_ids_infos_rdd (k,v) into s3url_infos_rdd (v[s3_url],v)
+    # do a s3url_infos_rdd.leftOuterJoin(s3url_sha1) s3url_infos_rdd_with_sha1
+    # invert s3url_infos_rdd_with_sha1 (s3_url, (v,sha1)) into cdr_ids_infos_rdd_join_sha1 (k, v) adding info:sha1 in v
+    #cdr_ids_infos_rdd_with_sha1 = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: check_get_sha1(x))
     update_rdd = cdr_ids_infos_rdd_with_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_unique)
+    print("[incremental_update] update_rdd_count: {}".format(update_rdd.count()))
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
-    if not sha1_infos_rdd.isEmpty(): # we need to merge the 'all_cdr_ids' and 'all_parent_ids'
-        # spark job seems to get stuck here...
+    if not sha1_infos_rdd.isEmpty(): # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
         sha1_infos_rdd_json = sha1_infos_rdd.partitionBy(nb_partitions).flatMap(lambda x: sha1_key_json(x))
-        #sha1_count = sha1_infos_rdd_json.count()
-        #print("[incremental_update] sha1_count: {}".format(sha1_count))
+        print("[incremental_update] sha1_infos_rdd_json_count: {}".format(sha1_infos_rdd_json.count()))
         join_rdd = update_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x))
         out_rdd = join_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images(x))
     else: # first update
         out_rdd = update_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images(x))
+    # write out all rdd when update complete
     hbase_man_sha1infos_out.rdd2hbase(out_rdd)
-
+    hbase_man_cdrinfos.rdd2hbase(cdr_ids_infos_rdd_with_sha1.flatMap(lambda x: expand_info(x)))
+    hbase_man_ts.rdd2hbase(images_hb_rdd.flatMap(lambda x: create_images_tuple(x)))
+    # save out newly computed sha1
+    #hbase_man_s3url_sha1_out()
 
 if __name__ == '__main__':
+    start_time = time.time()
     # Read job_conf
     job_conf = json.load(open("job_conf_notcommited.json","rt"))
     print job_conf
@@ -302,6 +329,7 @@ if __name__ == '__main__':
     hbase_man_ts = HbaseManager(sc, conf, hbase_host, tab_ts_name)
     tab_cdrid_infos_name = job_conf["tab_cdrid_infos_name"]
     tab_sha1_infos_name = job_conf["tab_sha1_infos_name"]
+    tab_s3url_sha1_name = job_conf["tab_s3url_sha1_name"]
     max_images = job_conf["max_images"]
     # ES conf
     es_index = job_conf["es_index"]
@@ -331,5 +359,9 @@ if __name__ == '__main__':
     hbase_man_cdrinfos = HbaseManager(sc, conf, hbase_host, tab_cdrid_infos_name, columns_list=infos_columns_list)
     hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=join_columns_list)
     hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
-    incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos_join, hbase_man_sha1infos_out, nb_partitions)
+    hbase_man_s3url_sha1_in = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
+    hbase_man_s3url_sha1_out = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
+    incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, nb_partitions)
+    print("[DONE] Update from ts {} done in {}s.".format(es_ts_start, time.time() - start_time))
+    
 

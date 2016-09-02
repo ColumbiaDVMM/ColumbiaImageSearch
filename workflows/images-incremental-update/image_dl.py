@@ -47,23 +47,24 @@ def get_SHA1_from_data(data):
     return sha1hash
 
 def get_SHA1_from_URL_StringIO(url,verbose=0):
-    from StringIO import StringIO
+    from cStringIO import StringIO
+    import sys
     if verbose>1:
         print "Downloading image from {}.".format(url)
     try:
         r = requests.get(url, timeout=imagedltimeout)
         if r.status_code == 200:
             r_sio = StringIO(r.content)
-            data = r_sio.read()
-            sha1hash = get_SHA1_from_data(data)
-            return sha1hash
+            if int(r.headers['content-length']) == 0:
+                raise ValueError("Empty image.")
+            else:
+                data = r_sio.read()
+                sha1hash = get_SHA1_from_data(data)
+                return sha1hash
         else:
-            if verbose>0:
-                print "Incorrect status_code {} for url {}".format(r.status_code,url)
+            raise ValueError("Incorrect status_code: {}.".format(r.status_code))
     except Exception as inst:
-        if verbose>0:
-            print "Download failed from url {}.".format(url)
-            print inst 
+        print "Download failed from url {}. [{}]".format(url, inst)
     return None
 
 def get_SHA1_from_URL(url,verbose=False):

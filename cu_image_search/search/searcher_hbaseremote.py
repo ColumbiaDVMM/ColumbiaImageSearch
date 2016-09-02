@@ -9,7 +9,7 @@ from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
 class Searcher():
 
-    def __init__(self,global_conf_filename):
+    def __init__(self, global_conf_filename):
         self.global_conf_filename = global_conf_filename
         self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.read_conf()
@@ -113,7 +113,7 @@ class Searcher():
         f.close()
         return sim,sim_score
 
-    def format_output(self, simname, nb_query, corrupted, outputname, list_sha1_id):
+    def format_output(self, simname, nb_query, corrupted, list_sha1_id):
     	# read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
         sim,sim_score = self.read_sim(simname,nb_query)
 
@@ -146,16 +146,16 @@ class Searcher():
             output[i]['similar_images']['distance']=[sim_score[ii][jj] for jj in ok_sims]
         #print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([['number',nb_query],['images',output]])
-        print "[Searcher.format_output: log] saving output to {}".format(outputname)
-        json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
+        return outp
 
     def search_one_imagepath(self,image_path):
     	# initilization
         search_id = str(time.time())
         all_img_filenames = [image_path]
         return self.search_from_image_filenames(all_img_filenames,search_id)
-        
-    def search_image_list(self,image_list):
+
+
+    def search_image_filelist(self, image_list):
         # initilization
         search_id = str(time.time())
         i = 0
@@ -176,13 +176,46 @@ class Searcher():
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
         # download the images we need
         if batch:
-            readable_images = self.indexer.image_downloader.download_images(batch,search_id)
+            readable_images = self.indexer.image_downloader.download_images(batch, search_id)
             for i,img_tup in enumerate(readable_images):
                 #print "[Searcher.search_image_list: log] {} readable image tuple {}.".format(i,img_tup)
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        return self.search_from_image_filenames(all_img_filenames,search_id)
+        return self.search_from_image_filenames(all_img_filenames, search_id)
+
+        
+    def search_image_list(self, image_list):
+        # initilization
+        search_id = str(time.time())
+        i = 0
+        # read all images
+        dl_images = []
+        batch = []
+        all_img_filenames = []
+        for line in image_list:
+            image_line = line.replace('\n','')
+            if len(image_line)>2:
+                # Check if image or web address
+                if image_line[0:4]=="http":
+                    # Push image to be downloaded image
+                    batch.append((i,image_line,None))
+                    dl_images.append(i)
+                all_img_filenames.append(image_line)
+                i+=1
+        #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
+        # download the images we need
+        if batch:
+            readable_images = self.indexer.image_downloader.download_images(batch, search_id)
+            if not readable_images:
+                return {'error': 'could not download any image.'}
+            for i,img_tup in enumerate(readable_images):
+                #print "[Searcher.search_image_list: log] {} readable image tuple {}.".format(i,img_tup)
+                dl_pos = dl_images.index(img_tup[0])
+                all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
+        #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
+        return self.search_from_image_filenames(all_img_filenames, search_id)
+
 
     def search_from_image_filenames(self,all_img_filenames,search_id):
         # compute all sha1s
@@ -256,5 +289,7 @@ class Searcher():
         # query with merged features_filename
         simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile,self.ratio)
         outputname = simname[:-4]+".json"
-        self.format_output(simname, len(all_img_filenames), corrupted, outputname, list_sha1_id)
-        return outputname
+        outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id)
+        print "[Searcher.search_from_image_filenames: log] saving output to {}".format(outputname)
+        json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
+        return outp
