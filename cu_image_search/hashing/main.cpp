@@ -224,6 +224,7 @@ int main(int argc, char** argv){
     outname.resize(outname.size()-4);
     string outname_sim = outname+"-sim.txt";
     ofstream outputfile;
+    std::cout <<  "Will write results to " << outname_sim << std::endl;
     outputfile.open(outname_sim,ios::out);
     ofstream outputfile_hamming;
     if (DEMO==0) {
