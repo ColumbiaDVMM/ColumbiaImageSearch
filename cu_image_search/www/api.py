@@ -39,7 +39,18 @@ class Searcher(Resource):
         return self.searcher.search_image_list(query_urls)
 
     def search_bySHA1(self, query):
-        return {'query_by_sha1': str(query)}
+        query_sha1s = query.split(',')
+        feats,ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
+        corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
+        # featuresfile may require a full path
+        featuresfile = "tmp"+str(time.time())
+        with open(featuresfile,'wb') as out:
+            for i,_ in enumerate(feats):
+                tmp_feat = feats[i]
+                out.write(tmp_feat)
+        simname = self.searcher.indexer.hasher.get_similar_images_from_featuresfile(featuresfile, self.searcher.ratio)
+        return self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s)
+        
 
     def search_byB64(self, query):
         return {'query_by_b64': str(query)}
