@@ -13,11 +13,11 @@ from cu_image_search.search import searcher_mysqllocal, searcher_hbaseremote
 if __name__=="__main__":
     """ Run search based on `conf_file` and `image_list` given as parameter
     """
-    sys.stdout = open('tmp_log_search.txt', 'w')
-    sys.stderr = sys.stdout
     if len(sys.argv)<3:
         print "python search.py global_conf_file image_list [outputname]"
         exit(-1)
+    sys.stdout = open('tmp_log_search.txt', 'w')
+    sys.stderr = sys.stdout
     global_conf_file = sys.argv[1]
     image_list = sys.argv[2]
     final_outputname = None
@@ -26,7 +26,7 @@ if __name__=="__main__":
     #search_obj = searcher_mysqllocal.Searcher(global_conf_file)
     search_obj = searcher_hbaseremote.Searcher(global_conf_file)
     start_time = time.time()
-    outputname = search_obj.search_image_list(image_list)
+    outputname = search_obj.search_image_filelist(image_list)
     if final_outputname:
         print '[search] Moving {} to {}.'.format(outputname, final_outputname)
         shutil.move(outputname, final_outputname)

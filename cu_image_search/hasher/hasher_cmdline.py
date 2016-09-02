@@ -1,5 +1,6 @@
 import os
 import pwd
+import sys
 import time
 import json
 import shutil
@@ -137,6 +138,7 @@ class HasherCmdLine():
         :type ratio: float
         :returns simname: filename of the simname text file.
         """
+        sys.stdout = sys.stderr
         #command = self.hashing_execpath+"hashing {} {} {} {} {}".format(featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio)
         #command = self.hashing_execpath+"hashing "+featurefilename+" "+str(self.bits_num)+" "+str(ratio)
         #print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
