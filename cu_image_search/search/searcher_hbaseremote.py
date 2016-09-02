@@ -182,7 +182,8 @@ class Searcher():
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        return self.search_from_image_filenames(all_img_filenames, search_id)
+        outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id)
+        return outputname
 
         
     def search_image_list(self, image_list):
@@ -214,7 +215,8 @@ class Searcher():
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        return self.search_from_image_filenames(all_img_filenames, search_id)
+        outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id)
+        return outp
 
 
     def search_from_image_filenames(self,all_img_filenames,search_id):
@@ -287,9 +289,9 @@ class Searcher():
                 print "[Searcher.search_from_image_filenames: log] tmp_feat for image {} has norm {} and is: {}".format(image_name,np.linalg.norm(tmp_feat),tmp_feat)
                 out.write(tmp_feat)
         # query with merged features_filename
-        simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile,self.ratio)
+        simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
         outputname = simname[:-4]+".json"
         outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id)
         print "[Searcher.search_from_image_filenames: log] saving output to {}".format(outputname)
-        json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
-        return outp
+        json.dump(outp, open(outputname,'w'), indent=4, sort_keys=False)    
+        return outp, outputname
