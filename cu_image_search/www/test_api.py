@@ -29,4 +29,5 @@ if __name__ == "__main__":
     #print query_b64
     res = requests.post(apiURL, data={"data":','.join(query_b64)})
     print res
+    print res.json()
     print res.content
