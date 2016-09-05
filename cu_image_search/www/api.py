@@ -15,13 +15,14 @@ app.secret_key = "secret_key"
 api = Api(app)
 
 global_conf_file = '../../conf/global_var_remotehbase.json'
-
+global_searcher = None
 
 class Searcher(Resource):
 
 
     def __init__(self):
-        self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
+        #self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
+        self.searcher = global_searcher
 
 
     def get(self, mode):
@@ -204,5 +205,5 @@ api.add_resource(Searcher, '/cu_image_search/<string:mode>')
 
 if __name__ == '__main__':
     app.config['SESSION_TYPE'] = 'filesystem'
-
+    global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
     app.run(debug=True, host='0.0.0.0')
