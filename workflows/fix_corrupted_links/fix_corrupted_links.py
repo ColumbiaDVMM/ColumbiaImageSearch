@@ -41,7 +41,7 @@ def to_sim_sha1_key(data):
 
 
 def fix_link(data):
-    print("[fix_link] {}".format(data))
+    #print("[fix_link] {}".format(data))
     sim_sha1 = data[0]
     im_sha1, htid, dist = data[1][0]
     filter_me = data[1][1]
@@ -49,23 +49,24 @@ def fix_link(data):
     if not filter_me:
         tup_list.append( (htid, ([sim_sha1], [dist])) )
     else:
-        print "Discarding corrupted link between image {} and image {}.".format(im_sha1, sim_sha1)
+        print "Discarding potentially corrupted link between image {} and image {}.".format(im_sha1, sim_sha1)
     return tup_list
 
 
 def reduce_fixed(a, b):
-    print("[reduce_fixed] {}, {}".format(a, b))
+    #print("[reduce_fixed] {}, {}".format(a, b))
     c = (a[0]+b[0], a[1]+b[1])
     return c
 
 
 def back_to_list(data):
+    #print("[back_to_list] {}".format(data))
     tup_list = []
     htid = data[0]
     sim_im_sha1_list_fix = data[1][0]
     dist_list_fix = data[1][1]
     tup_list.append( (htid, [htid, "meta", "columbia_near_dups_sha1", str(','.join(sim_im_sha1_list_fix))]) )
-    tup_list.append( (htid, [htid, "meta", "columbia_near_dups_sha1_dist", str(','.join(dist_list_fix))]) )
+    tup_list.append( (htid, [htid, "meta", "columbia_near_dups_sha1_dist", str(','.join([str(x) for x in dist_list_fix]))]) )
     return tup_list
 
 
@@ -84,7 +85,7 @@ if __name__ == '__main__':
     hbase_host = job_conf["hbase_host"]
     max_htid = 111630546
     nb_partitions = job_conf["nb_partitions"]
-    row_start = '52000000'
+    row_start = '52010000'
     row_stop = '52020000'
     sc = SparkContext(appName='fix_corrupted_links_'+tab_images_name)
     sc.setLogLevel("ERROR")

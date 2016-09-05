@@ -180,7 +180,11 @@ class Searcher(Resource):
             with open(img_fn, 'wb') as f:
                 f.write(base64.b64decode(one_b64))
             list_imgs.append(img_fn)
-        return self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
+        outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
+        # cleanup
+        for f in list_imgs:
+            os.remove(f)
+        return outp
 
 
     def refresh(self):
