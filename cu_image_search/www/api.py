@@ -45,14 +45,16 @@ class Searcher(Resource):
     def process_query(self, mode, query):
         if mode == "byURL":
             return self.search_byURL(query)
+        elif mode == "byURL_nocache":
+            return self.search_byURL_nocache(query)
         elif mode == "bySHA1":
             return self.search_bySHA1(query)
         elif mode == "bySHA1_nocache":
             return self.search_bySHA1_nocache(query)
-        elif mode == "byURL_nocache":
-            return self.search_byURL_nocache(query)
         elif mode == "byB64":
             return self.search_byB64(query)
+        elif mode == "byB64_nocache":
+            return self.search_byB64_nocache(query)
         elif mode == "view_image_sha1":
             return self.view_image_sha1(query)
         elif mode == "view_similar_images_sha1":
@@ -82,7 +84,10 @@ class Searcher(Resource):
 
     def search_byURL(self, query):
         query_urls = query.split(',')
-        # look for s3url in s3url sha1 mapping? 
+        # look for s3url in s3url sha1 mapping?
+        # if not present, download and compute sha1
+        # search for similar images by sha1 for those we could retrieve
+        # search with 'search_image_list' for other images
         return self.searcher.search_image_list(query_urls)
 
 
@@ -147,7 +152,7 @@ class Searcher(Resource):
                 print("[search_bySHA1] sim_row for {}: {}".format(sha1, sim_row))
                 sim_rows.append(sim_row)
             else:
-                corrupted.append(i)
+                sim_rows.append("")
                 dec += 1
         simname = "sim"+str(time.time())
         with open(simname,'wb') as outsim:
@@ -159,8 +164,22 @@ class Searcher(Resource):
         return out
     
 
+    def search_byB64(self, query):
+        return {'query_by_b64': str(query)}
+
+
     def search_byB64_nocache(self, query):
-        return {'query_by_b64_nocache': str(query)}
+        query_b64s = [str(x) for x in query.split(',')]
+        import shutil
+        import base64
+        search_id = "tmp"+str(time.time())
+        list_imgs = []
+        for i,one_b64 in enumerate(query_b64s):
+            img_fn = search_id+'_'+str(i)
+            with open(img_fn, 'wb') as f:
+                f.write(base64.b64decode(one_b64))
+            list_imgs.append(img_fn)
+        return self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
 
 
     def refresh(self):

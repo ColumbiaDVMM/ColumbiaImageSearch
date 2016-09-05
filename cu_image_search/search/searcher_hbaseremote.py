@@ -253,6 +253,31 @@ class Searcher():
         outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id)
         return outp
 
+    def search_from_image_filenames_nocache(self, all_img_filenames, search_id):
+        corrupted = []
+        valid_img_filenames = []
+        valid_img = []
+        list_sha1_id = []
+        for i, image_name in enumerate(all_img_filenames):
+            if image_name[0:4]!="http":
+                sha1 = get_SHA1_from_file(image_name)
+                if sha1:
+                    list_sha1_id.append(sha1)
+                    valid_img.append((i,sha1,image_name))
+                    valid_img_filenames.append(image_name)
+                else:
+                    corrupted.append(i)
+            else: # we did not manage to download image
+                # need to deal with that in output formatting too
+                corrupted.append(i)
+        features_filename, ins_num = self.indexer.feature_extractor.compute_features(valid_img_filenames, search_id)
+        if ins_num!=len(valid_img_filenames):
+            raise ValueError("[Searcher.search_from_image_filenames_nocache: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
+        # query with features_filename
+        simname = self.indexer.hasher.get_similar_images_from_featuresfile(features_filename, self.ratio)
+        outputname = simname[:-4]+".json"
+        outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id)
+
 
     def search_from_image_filenames(self,all_img_filenames,search_id):
         # compute all sha1s
