@@ -29,3 +29,4 @@ if __name__ == "__main__":
     #print query_b64
     res = requests.post(apiURL, data={"data":query_b64})
     print res
+    print res.content
