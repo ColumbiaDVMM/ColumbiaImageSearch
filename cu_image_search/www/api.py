@@ -83,6 +83,7 @@ class Searcher(Resource):
         else:
             return self.process_query(mode, query)
 
+
     def search_byURL(self, query):
         query_urls = query.split(',')
         # look for s3url in s3url sha1 mapping?
@@ -96,9 +97,10 @@ class Searcher(Resource):
         query_urls = query.split(',')
         return self.searcher.search_image_list(query_urls)
 
+
     def search_bySHA1_nocache(self, query):
         query_sha1s = query.split(',')
-        feats,ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
+        feats, ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
         corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
         # featuresfile may require a full path
         featuresfile = "tmp"+str(time.time())
@@ -115,18 +117,17 @@ class Searcher(Resource):
         
 
     def search_bySHA1(self, query):
-        import numpy as np
-        out = {}
-        dec = 0
         # cached sha1 search
         query_sha1s = [str(x) for x in query.split(',')]
         print("[search_bySHA1] query_sha1s {}".format(query_sha1s))
-        # retrieve similar images from hbase table 'escorts_images_similar_row'
+        # retrieve similar images from hbase table 'escorts_images_similar_row_from_ts'
+        import numpy as np
         corrupted = []
         sim_rows = []
+        dec = 0
         rows_sim = self.searcher.indexer.get_similar_images_from_sha1(query_sha1s)
         retrieved_sha1s = [x[0] for x in rows_sim]
-        print("[search_bySHA1] retrieved {}".format(retrieved_sha1s))
+        print("[search_bySHA1_cache] retrieved {}".format(retrieved_sha1s))
         for i,sha1 in enumerate(query_sha1s):
             if sha1 in retrieved_sha1s:
                 tmp_row = rows_sim[i-dec]
@@ -135,22 +136,22 @@ class Searcher(Resource):
                 # we should sort by distances
                 sorted_pos = np.argsort(dists_sim)
                 ids_sim = self.searcher.indexer.get_ids_from_sha1s_hbase(sha1s_sim)
-                print("[search_bySHA1] found similar images {} with distances {} and ids {} for {}.".format(sha1s_sim, dists_sim, ids_sim, sha1))
-                dict_ids = {}
-                for t_id in ids_sim:
-                    dict_ids[t_id[1]] = t_id[0]
+                print("[search_bySHA1_cache] found similar images {} with distances {} and ids {} for {}.".format(sha1s_sim, dists_sim, ids_sim, sha1))
+                #dict_ids = {}
+                #for t_id in ids_sim:
+                #    dict_ids[t_id[1]] = t_id[0]
                 pos_ok = []
                 sim_row = ""
                 for pos in sorted_pos:
-                    if sha1s_sim[pos] in dict_ids:
-                        pos_ok.append(pos)
-                        if not sim_row:
-                            sim_row += str(sha1s_sim[pos])
-                        else:
-                            sim_row += " "+str(sha1s_sim[pos])
+                    #if sha1s_sim[pos] in dict_ids:
+                    pos_ok.append(pos)
+                    if not sim_row:
+                        sim_row += str(sha1s_sim[pos])
+                    else:
+                        sim_row += " "+str(sha1s_sim[pos])
                 for pos in pos_ok:
                     sim_row += " "+str(dists_sim[pos])
-                print("[search_bySHA1] sim_row for {}: {}".format(sha1, sim_row))
+                print("[search_bySHA1_cache] sim_row for {}: {}".format(sha1, sim_row))
                 sim_rows.append(sim_row)
             else:
                 sim_rows.append("")

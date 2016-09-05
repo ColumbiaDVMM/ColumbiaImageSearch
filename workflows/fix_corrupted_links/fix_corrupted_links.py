@@ -85,15 +85,15 @@ if __name__ == '__main__':
     hbase_host = job_conf["hbase_host"]
     max_htid = 111630546
     nb_partitions = job_conf["nb_partitions"]
-    row_start = '52010000'
-    row_stop = '52020000'
+    #row_start = '52010000'
+    #row_stop = '52020000'
     sc = SparkContext(appName='fix_corrupted_links_'+tab_images_name)
     sc.setLogLevel("ERROR")
     ct_rdd = sc.textFile('corrupted_targets.csv').map(lambda x: (x.strip()[1:-1],x.strip()[1:-1])).partitionBy(nb_partitions)
     cs_rdd = sc.textFile('corrupted_sources.csv').map(lambda x: (x.strip()[1:-1],x.strip()[1:-1])).partitionBy(nb_partitions)
     conf = SparkConf()
     in_columns_list = ["meta:sha1", "meta:columbia_near_dups_sha1", "meta:columbia_near_dups_sha1_dist"]
-    hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_images_name, columns_list=in_columns_list, row_start=row_start, row_stop=row_stop)
-    #hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_images_name, columns_list=in_columns_list)
+    #hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_images_name, columns_list=in_columns_list, row_start=row_start, row_stop=row_stop)
+    hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_images_name, columns_list=in_columns_list)
     hbase_man_out = HbaseManager(sc, conf, hbase_host, tab_images_name)
     fix_corrupted_links(sc, hbase_man_in, hbase_man_out, cs_rdd, ct_rdd, nb_partitions, max_htid)
