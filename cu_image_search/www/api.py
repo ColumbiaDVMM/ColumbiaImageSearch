@@ -12,6 +12,7 @@ from cu_image_search.search import searcher_hbaseremote
 
 app = Flask(__name__)
 app.secret_key = "secret_key"
+app.config['SESSION_TYPE'] = 'filesystem'
 api = Api(app)
 
 global_conf_file = '../../conf/global_var_remotehbase.json'
@@ -203,6 +204,4 @@ class Searcher(Resource):
 api.add_resource(Searcher, '/cu_image_search/<string:mode>')
 
 if __name__ == '__main__':
-    app.config['SESSION_TYPE'] = 'filesystem'
-
     app.run(debug=True, host='0.0.0.0')
