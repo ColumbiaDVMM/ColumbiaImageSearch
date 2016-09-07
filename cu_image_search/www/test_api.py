@@ -1,10 +1,8 @@
-import base64
-from cStringIO import StringIO
-import requests
+def get_b64(url, imagedltimeout = 2):
+    import base64
+    from cStringIO import StringIO
+    import requests
 
-imagedltimeout = 2
-
-def get_b64(url):
     r = requests.get(url, timeout=imagedltimeout)
     b64_from_data= None
     if r.status_code == 200:
@@ -22,6 +20,7 @@ def get_b64(url):
     return b64_from_data
 
 if __name__ == "__main__":
+    import requests
     sampleURLs = ['https://s3.amazonaws.com/roxyimages/939446e1543d2a7ebf73b438f6f21dbb6e71f04a.jpg','https://s3.amazonaws.com/roxyimages/f99f89526bdf335483c9776c73a059ead1f16d27.jpg']
     #sampleURLs = ['https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png']
     apiURL = "http://127.0.0.1:5000/cu_image_search/byB64_nocache"

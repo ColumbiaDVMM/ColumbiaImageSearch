@@ -34,7 +34,27 @@ class Searcher(Resource):
             return self.process_query(mode, query)
         else:
             return self.process_mode(mode)
-    
+ 
+
+    def put(self, mode):
+        print("[put] received parameters: {}".format(request.form.keys()))
+        query = request.form['data']
+        print("[put] received data: {}".format(query))
+        if not query:
+            return {'error': 'no data received'}
+        else:
+            return self.process_query(mode, query)
+
+
+    def post(self, mode):
+        print("[post] received parameters: {}".format(request.form.keys()))
+        query = request.form['data']
+        print("[post] received data: {}".format(query))
+        if not query:
+            return {'error': 'no data received'}
+        else:
+            return self.process_query(mode, query)
+
 
     def process_mode(self, mode):
         if mode == "refresh":
@@ -62,26 +82,6 @@ class Searcher(Resource):
             return self.view_similar_images_sha1(query)
         else:
             return {'error': 'unknown_mode: '+str(mode)}
-
-
-    def put(self, mode):
-        print("[put] received parameters: {}".format(request.form.keys()))
-        query = request.form['data']
-        print("[put] received data: {}".format(query))
-        if not query:
-            return {'error': 'no data received'}
-        else:
-            return self.process_query(mode, query)
-
-
-    def post(self, mode):
-        print("[post] received parameters: {}".format(request.form.keys()))
-        query = request.form['data']
-        print("[post] received data: {}".format(query))
-        if not query:
-            return {'error': 'no data received'}
-        else:
-            return self.process_query(mode, query)
 
 
     def search_byURL(self, query):
