@@ -166,8 +166,15 @@ class HBaseIndexer(GenericIndexer):
         return rows
 
     def get_sim_infos(self,list_ids):
-        print "[HBaseIndexer.get_sim_infos: log] list_ids: {}".format(list_ids)
-        list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
+        print("[HBaseIndexer.get_sim_infos: log] list_ids: {}".format(list_ids))
+        try:
+            list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
+        except Exception as inst:
+            # if this fails, it should mean a refresh happened and we need to refresh too 'sha1_featid_mapping'
+            print("[HBaseIndexer.get_sim_infos: log] caugh error: {}. Trying to refresh 'sha1_featid_mapping'".format(inst))
+            self.initialize_sha1_mapping()
+            # something else (bad) is happening if this fails again
+            list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
         return self.get_full_sha1_rows(list_sha1s)
 
     def get_precomp_from_sha1(self,list_sha1s,list_type):
