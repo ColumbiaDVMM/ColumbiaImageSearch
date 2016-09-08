@@ -6,6 +6,7 @@ import shutil
 import happybase
 import numpy as np
 from generic_indexer import GenericIndexer
+from socket import timeout
 from ..memex_tools.image_dl import mkpath
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 from ..memex_tools.binary_file import read_binary_file, write_binary_file
@@ -39,7 +40,7 @@ class HBaseIndexer(GenericIndexer):
         self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
             raise ValueError("[HBaseIngester.initialize_source: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
-        self.nb_threads = 2
+        self.nb_threads = 4
         if 'HBI_pool_thread' in self.global_conf:
             self.nb_threads = self.global_conf['HBI_pool_thread']
         self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
@@ -151,18 +152,30 @@ class HBaseIndexer(GenericIndexer):
     def get_columns_from_sha1_rows(self,list_sha1s, columns):
         rows = None
         if list_sha1s:
-            with self.pool.connection() as connection:
-                table_sha1infos = connection.table(self.table_sha1infos_name)
-                rows = table_sha1infos.rows(list_sha1s, columns=columns)
+            try:
+                with self.pool.connection() as connection:
+                    table_sha1infos = connection.table(self.table_sha1infos_name)
+                    # this throws a socket timeout?...
+                    rows = table_sha1infos.rows(list_sha1s, columns=columns)
+            except timeout:
+                print("[HBaseIndexer.get_columns_from_sha1_rows] caught timeout error. Trying to refresh connection pool.")
+                self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
+                return self.get_columns_from_sha1_rows(list_sha1s, columns)
         return rows
 
     def get_similar_images_from_sha1(self, list_sha1s):
         rows = None
         print "[HBaseIndexer.get_similar_images_from_sha1: log] list_sha1s: {}".format(list_sha1s)
         if list_sha1s:
-            with self.pool.connection() as connection:
-                table_sha1_sim = connection.table(self.table_sim_name)
-                rows = table_sha1_sim.rows(list_sha1s)
+            try:
+                with self.pool.connection() as connection:
+                    table_sha1_sim = connection.table(self.table_sim_name)
+                    rows = table_sha1_sim.rows(list_sha1s)
+            except timeout:
+                print("[HBaseIndexer.get_similar_images_from_sha1] caught timeout error. Trying to refresh connection pool.")
+                self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
+                return self.get_similar_images_from_sha1(list_sha1s)
+                
         return rows
 
     def get_sim_infos(self,list_ids):
@@ -171,8 +184,10 @@ class HBaseIndexer(GenericIndexer):
             list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
         except Exception as inst:
             # if this fails, it should mean a refresh happened and we need to refresh too 'sha1_featid_mapping'
-            print("[HBaseIndexer.get_sim_infos: log] caugh error: {}. Trying to refresh 'sha1_featid_mapping'".format(inst))
-            self.initialize_sha1_mapping()
+            print("[HBaseIndexer.get_sim_infos: log] caugh error: {}. The index might be refreshing and 'sha1_featid_mapping' is out of date.".format(inst))
+            while self.merging:
+                print("[HBaseIndexer.get_sim_infos: log] Waiting for 'sha1_featid_mapping' to be upated.")
+                time.sleep(1)
             # something else (bad) is happening if this fails again
             list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
         return self.get_full_sha1_rows(list_sha1s)
@@ -357,6 +372,7 @@ class HBaseIndexer(GenericIndexer):
         prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
         new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
         comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
+        self.merging = True
         shutil.move(prev_comp_feat_fn,out_comp_fn)
         with open(out_comp_fn,'ab') as out_comp, open(new_comp_feat_fn,'rb') as new_comp:
                 shutil.copyfileobj(new_comp, out_comp)
@@ -459,23 +475,26 @@ class HBaseIndexer(GenericIndexer):
                 print "[HBaseIndexer.merge_refresh_batch: log] Should merge file listed in {} to new file listed in {}.".format(self.hasher.master_update_file,tmp_hasher.master_update_file)
                 # actually do a merge, i.e. concatenate hashcodes and compressed features. 
                 out_update_id = str(time.time())+'_'+refresh_batch[0][0]
-                self.merge_update_files(previous_files,tmp_udpate_id,out_update_id,m_uf_fn)
+                self.merge_update_files(previous_files, tmp_udpate_id, out_update_id, m_uf_fn)
                 # all files have been merged in out_update_id now,
                 # we can delete files created by tmp_udpate_id and previous_files
-                self.cleanup_update(previous_files,tmp_udpate_id)
+                self.cleanup_update(previous_files, tmp_udpate_id)
             else: # first batch, just copy
                 # double check that shift_id and nb_indexed == 0?
                 with open(m_uf_fn, 'wt') as m_uf:
                     m_uf.write(tmp_udpate_id+'\n')
             # cleanup temporary master file
             os.remove(tm_uf_fn)
+            # update and save sha1 mapping
+            self.sha1_featid_mapping.extend(tmp_sha1_featid_mapping)
+            self.save_sha1_mapping()
+            if previous_files:
+                self.merging = False
             # push cu_feat_id to hbase
             rows_update = [x[0] for x in refresh_batch]
             cu_feat_ids = [nb_indexed+i for i in range(len(tmp_sha1_featid_mapping))]
             self.push_cu_feats_id(rows_update,cu_feat_ids)
-            # update and save sha1 mapping
-            self.sha1_featid_mapping.extend(tmp_sha1_featid_mapping)
-            self.save_sha1_mapping()
+            
             
 
     def refresh_hash_index(self,skip=False):

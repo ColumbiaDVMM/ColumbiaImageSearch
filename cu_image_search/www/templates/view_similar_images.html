@@ -5,11 +5,13 @@
     <link rel="stylesheet" href="../static/style.css">
   </head>
   <body>
-  	{% for similar_images in get_flashed_messages() %}
-    {% for images in similar_images %}
-    {{ images|safe }}
+  	{% for similar_images_response in get_flashed_messages() %}
+    {% for query_image,similar_images in similar_images_response %}
+    <h2>Query image:</h2>
+    <img src="{{query_image[0]}}" title="{{query_image[1]}}" class="img_blur">
+    <h2>Query results:</h2>
+    {% for url,sha1 in similar_images %}<img src="{{url}}" title="{{sha1}}" class="img_blur"> {% endfor %}
     {% endfor %}
-    <br/>
     {% endfor %}
   </body>
 </html>

@@ -212,24 +212,30 @@ class Searcher(Resource):
         print("[view_similar_images_sha1] querying with {} sha1s: {}".format(len(query_sha1s), query_sha1s))
         sys.stdout.flush()
         rows_sim = self.searcher.indexer.get_similar_images_from_sha1(query_sha1s)
-        similar_images = []
+        similar_images_response = []
         print("[view_similar_images_sha1] found similar images for {} sha1s out of {}.".format(len(rows_sim), len(query_sha1s)))
         sys.stdout.flush()
         for i in range(len(rows_sim)):
             query_image_row = self.searcher.indexer.get_columns_from_sha1_rows([str(rows_sim[i][0])], ["info:s3_url"])
             print("[view_similar_images_sha1] query_image_row: {}".format(query_image_row))
             sys.stdout.flush()
-            similar_images.append("<h2>Query image:</h2>"+self.get_image_str(query_image_row[0])+"<h2>Query results:</h2>")
+            one_res = [(query_image_row[0][1]["info:s3_url"], query_image_row[0][0])]
+            #similar_images.append("<h2>Query image:</h2>"+self.get_image_str(query_image_row[0])+"<h2>Query results:</h2>")
             sim_sha1s = [x.split(':')[1] for x in rows_sim[i][1]]
             sim_rows = self.searcher.indexer.get_columns_from_sha1_rows(sim_sha1s, ["info:s3_url"])
             print("[view_similar_images_sha1] found {} sim_rows.".format(len(sim_rows)))
             sys.stdout.flush()
+            one_sims = []
             for row in sim_rows:
-                similar_images[i] += self.get_image_str(row)
-            similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
-        if not similar_images:
-            similar_images.append(['No results'])
-        flash(similar_images)
+                one_sims += ((row[1]["info:s3_url"], row[0]),)
+            one_res.append(one_sims)
+            print("[view_similar_images_sha1] one_res: {}.".format(one_res))
+            sys.stdout.flush()
+            #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
+            similar_images_response.append(one_res)
+        if not similar_images_response:
+            similar_images_response.append([('#','No results'),('#','')])
+        flash(similar_images_response)
         headers = {'Content-Type': 'text/html'}
         sys.stdout.flush()
         return make_response(render_template('view_similar_images.html'),200,headers)
@@ -239,5 +245,5 @@ api.add_resource(Searcher, '/cu_image_search/<string:mode>')
 
 if __name__ == '__main__':
     global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
-    #app.run(debug=True, host='0.0.0.0')
-    app.run(debug=False, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0')
+    #app.run(debug=False, host='0.0.0.0')
