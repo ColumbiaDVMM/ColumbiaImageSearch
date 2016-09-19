@@ -7,7 +7,7 @@ from elastic_manager import ES
 from hbase_manager import HbaseManager
 
 # debugging
-debug = True
+debug = False
 ts_gap = 500000
 
 # default settings
@@ -267,6 +267,18 @@ def s3url_to_cdr_id_wsha1(data):
     return tup_list
 
 
+def s3url_to_cdr_id_nosha1(data):
+    print("[s3url_to_cdr_id_wsha1] data: {}".format(data))
+    if len(data[1]) == 2 and data[1][1] is not None and data[1][1] != 'None' and data[1][1] != u'None':
+        print("[s3url_to_cdr_id_nosha1] beware: incorrect data, s3 url has a sha1: {}".format(data))
+    s3_url = data[0]
+    v = data[1][0]
+    doc_id = v["info:doc_id"]
+    tup_list = [(doc_id, v)]
+    print("[s3url_to_cdr_id_nosha1] {}".format(tup_list))
+    return tup_list
+
+
 def get_existing_joined_sha1(data):
     print("[get_existing_joined_sha1] data: {}".format(data))
     if len(data[1]) == 2 and data[1][1] is not None and data[1][1] != 'None' and data[1][1] != u'None':
@@ -308,6 +320,14 @@ def get_s3url_sha1(data):
     return []
 
 
+def save_count_info_incremental_update(hbase_man_update_out, incr_update_id, count_value, count_name):
+    print("[incremental_update] {}: {}".format(count_name, count_value))
+    incr_update_infos_list = []
+    incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", count_name, str(count_value)]))
+    incr_update_infos_rdd = sc.parallelize(incr_update_infos_list)
+    hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
+
+
 def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_out, nb_partitions):
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}}"
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
@@ -346,47 +366,24 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     cdr_ids_infos_rdd_red = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos)
     # invert cdr_ids_infos_rdd (k,v) into s3url_infos_rdd (v[s3_url],[v,v['cdr_id']=k])
     s3url_infos_rdd = cdr_ids_infos_rdd_red.flatMap(lambda x: to_s3_url_key(x))
-    
-    # ### for debugging
-    # samples_s3url_infos_rdd = s3url_infos_rdd.collect()
-    # for ss3 in samples_s3url_infos_rdd:
-    #     print("sample s3url_infos: {}".format(ss3))
-
     # read s3url_sha1 table into s3url_sha1 to get sha1 here without downloading images
     s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().map(clean_up_s3url_sha1)
-    # ### for debugging
-    # samples_s3url_sha1_rdd = s3url_sha1_rdd.collect()
-    # for ss3 in samples_s3url_sha1_rdd:
-    #     print("sample s3url_sha1: {}".format(ss3))
-    
     # do a s3url_infos_rdd.leftOuterJoin(s3url_sha1) s3url_infos_rdd_with_sha1
     s3url_infos_rdd_join = s3url_infos_rdd.leftOuterJoin(s3url_sha1_rdd)
 
-    # ### for matching s3url 
-    # samples_s3url_infos_rdd_join = s3url_infos_rdd_join.collect()
-    # for ss3 in samples_s3url_infos_rdd_join:
-    #     print("sample s3url join: {}".format(ss3))
-
-    # invert s3url_infos_rdd_join (s3_url, (v,sha1)) into cdr_ids_infos_rdd_join_sha1 (k, v) adding info:sha1 in v
+    ## invert s3url_infos_rdd_join (s3_url, (v,sha1)) into cdr_ids_infos_rdd_join_sha1 (k, v) adding info:sha1 in v
     s3url_infos_rdd_with_sha1 = s3url_infos_rdd_join.filter(get_existing_joined_sha1)
     cdr_ids_infos_rdd_join_sha1 = s3url_infos_rdd_with_sha1.flatMap(lambda x: s3url_to_cdr_id_wsha1(x))
     cdr_ids_infos_rdd_join_sha1_count = cdr_ids_infos_rdd_join_sha1.count()
-    print("[incremental_update] cdr_ids_infos_rdd_join_sha1 count: {}".format(cdr_ids_infos_rdd_join_sha1_count))
-    incr_update_infos_list = []
-    incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "cdr_ids_infos_rdd_join_sha1_count", str(cdr_ids_infos_rdd_join_sha1_count)]))
-    incr_update_infos_rdd = sc.parallelize(incr_update_infos_list)
-    hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
+    save_count_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_count, "cdr_ids_infos_rdd_join_sha1_count")
     # save it to hbase
     hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: expand_info(x)))
     # to sha1 key and save number of joined by s3 url images
     update_join_rdd = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_discarding)
     update_join_rdd_count = update_join_rdd.count()
-    print("[incremental_update] update_join_rdd count: {}".format(update_join_rdd_count))
-    incr_update_infos_list = []
-    incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "update_join_rdd_count", str(update_join_rdd_count)]))
-    incr_update_infos_rdd = sc.parallelize(incr_update_infos_list)
-    hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
-    # update cdr_ids, and parents cdr_ids for these existing sha1s
+    save_count_info_incremental_update(hbase_man_update_out, incr_update_id, update_join_rdd_count, "update_join_rdd_count")
+
+    ## update cdr_ids, and parents cdr_ids for these existing sha1s
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
     # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
@@ -401,17 +398,16 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 
     ## for not matching s3url i.e. missing sha1
     # filter on second value member being empty in s3url_infos_rdd_join, and get sha1
-    cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_join.filter(lambda x: not get_existing_joined_sha1(x)).flatMap(lambda x: check_get_sha1(x))
+    #cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_join.filter(lambda x: not get_existing_joined_sha1(x)).flatMap(lambda x: check_get_sha1(x))
+    cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_join.subtractByKey(s3url_infos_rdd_with_sha1).flatMap(lambda x: s3url_to_cdr_id_nosha1(x)).flatMap(lambda x: check_get_sha1(x))
+    cdr_ids_infos_rdd_new_sha1_count = cdr_ids_infos_rdd_new_sha1.count()
+    save_count_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_new_sha1_count, "cdr_ids_infos_rdd_new_sha1_count")
     # here new sha1s means we did not see the corresponding s3url before, but the sha1 may still be in the sha1_infos table
     # so we still need to merge potentially
     update_rdd = cdr_ids_infos_rdd_new_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_discarding)
     update_rdd_count = update_rdd.count()
-    print("[incremental_update] update_rdd count: {}".format(update_rdd_count))
-    incr_update_infos_list = []
-    incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "update_rdd_count", str(update_rdd_count)]))
-    incr_update_infos_rdd = sc.parallelize(incr_update_infos_list)
-    hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
-    # update cdr_ids, and parents cdr_ids for these new sha1s
+    save_count_info_incremental_update(hbase_man_update_out, incr_update_id, update_rdd_count, "update_rdd_count")
+    ## update cdr_ids, and parents cdr_ids for these new sha1s
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
     # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
@@ -422,15 +418,15 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     else: # first update
         out_rdd = update_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x))
     
-    # write out rdd of new images 
+    ## write out rdd of new images 
     hbase_man_sha1infos_out.rdd2hbase(out_rdd)
     hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_new_sha1.flatMap(lambda x: expand_info(x)))
 
-    # save out newly computed sha1
+    ## save out newly computed sha1
     new_s3url_sha1_rdd = out_rdd.flatMap(lambda x: get_new_s3url_sha1(x))
     hbase_man_s3url_sha1_out.rdd2hbase(new_s3url_sha1_rdd)
 
-    # save new images update infos
+    ## save new images update infos
     new_s3url_sha1_rdd_count = new_s3url_sha1_rdd.count()
     print("[incremental_update] new_s3url_sha1_rdd_count count: {}".format(new_s3url_sha1_rdd_count))
     incr_update_infos_list = []
@@ -447,7 +443,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 if __name__ == '__main__':
     start_time = time.time()
     # Read job_conf
-    job_conf = json.load(open("job_conf_notcommited.json","rt"))
+    job_conf = json.load(open("job_conf_notcommited_release.json","rt"))
     print job_conf
     sc = SparkContext(appName='images_incremental_update')
     conf = SparkConf()
@@ -498,5 +494,3 @@ if __name__ == '__main__':
     hbase_man_update_out = HbaseManager(sc, conf, hbase_host, tab_update_name)
     incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_out, nb_partitions)
     print("[DONE] Update from ts {} done in {}s.".format(es_ts_start, time.time() - start_time))
-    
-
