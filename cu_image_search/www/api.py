@@ -14,14 +14,14 @@ app = Flask(__name__)
 app.secret_key = "secret_key"
 app.config['SESSION_TYPE'] = 'filesystem'
 
+api = Api(app)
+
 @app.after_request
 def after_request(response):
   response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5009')
   response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
   response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
   return response
-
-api = Api(app)
 
 global_conf_file = '../../conf/global_var_remotehbase.json'
 global_searcher = None
