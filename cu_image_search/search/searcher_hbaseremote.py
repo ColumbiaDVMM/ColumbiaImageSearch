@@ -258,6 +258,7 @@ class Searcher():
         valid_img_filenames = []
         valid_img = []
         list_sha1_id = []
+        outp = []
         for i, image_name in enumerate(all_img_filenames):
             if image_name[0:4]!="http":
                 sha1 = get_SHA1_from_file(image_name)
@@ -270,14 +271,15 @@ class Searcher():
             else: # we did not manage to download image
                 # need to deal with that in output formatting too
                 corrupted.append(i)
-        features_filename, ins_num = self.indexer.feature_extractor.compute_features(valid_img_filenames, search_id)
-        if ins_num!=len(valid_img_filenames):
-            raise ValueError("[Searcher.search_from_image_filenames_nocache: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
-        # query with features_filename
-        simname = self.indexer.hasher.get_similar_images_from_featuresfile(features_filename, self.ratio)
-        outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id)
-        # cleanup
-        os.remove(simname)
+        if valid_img_filenames:
+            features_filename, ins_num = self.indexer.feature_extractor.compute_features(valid_img_filenames, search_id)
+            if ins_num!=len(valid_img_filenames):
+                raise ValueError("[Searcher.search_from_image_filenames_nocache: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
+            # query with features_filename
+            simname = self.indexer.hasher.get_similar_images_from_featuresfile(features_filename, self.ratio)
+            outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id)
+            # cleanup
+            os.remove(simname)
         return outp
 
 
@@ -293,6 +295,7 @@ class Searcher():
                     list_sha1_id.append(sha1)
                     valid_images.append((i,sha1,image_name))
                 else:
+                    print("[Searcher.search_from_image_filenames: log] image {} is corrupted.".format(image_name))
                     corrupted.append(i)
             else: # we did not manage to download image
                 # need to deal with that in output formatting too
@@ -336,6 +339,7 @@ class Searcher():
         final_featuresfile = search_id+'.dat'
         read_dim = self.features_dim*4
         read_type = np.float32
+        features_wrote = 0
         #print "[Searcher.search_from_image_filenames: log] feats {}".format(feats)
         with open(features_filename,'rb') as new_feats, open(final_featuresfile,'wb') as out:
             for image_name in all_valid_images:
@@ -350,8 +354,10 @@ class Searcher():
                     tmp_feat = np.frombuffer(new_feats.read(read_dim),dtype=read_type)
                 print "[Searcher.search_from_image_filenames: log] tmp_feat for image {} has norm {} and is: {}".format(image_name,np.linalg.norm(tmp_feat),tmp_feat)
                 out.write(tmp_feat)
-        # query with merged features_filename
-        simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+                features_wrote += 1
+        if features_wrote:
+            # query with merged features_filename
+            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
         outputname = simname[:-4]+".json"
         outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id)
         print "[Searcher.search_from_image_filenames: log] saving output to {}".format(outputname)

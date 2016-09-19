@@ -4,6 +4,11 @@ from flask_restful import Resource, Api
 import os
 import sys
 import time
+import imghdr
+from PIL import Image, ImageFile
+#Image.LOAD_TRUNCATED_IMAGES = True
+#ImageFile.LOAD_TRUNCATED_IMAGES = True
+from StringIO import StringIO
 import happybase
 sys.path.append('../..')
 
@@ -15,6 +20,7 @@ app.secret_key = "secret_key"
 app.config['SESSION_TYPE'] = 'filesystem'
 
 api = Api(app)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 @app.after_request
 def after_request(response):
@@ -182,17 +188,40 @@ class Searcher(Resource):
         query_b64s = [str(x) for x in query.split(',')]
         import shutil
         import base64
+        errors = []
         search_id = "tmp"+str(time.time())
         list_imgs = []
         for i,one_b64 in enumerate(query_b64s):
-            img_fn = search_id+'_'+str(i)
+            img_fn = search_id+'_'+str(i)+'.jpg'
             with open(img_fn, 'wb') as f:
-                f.write(base64.b64decode(one_b64))
+                print("[search_byB64_nocache] Processing base64 encoded image of length {} ending with: {}".format(len(one_b64), one_b64[-20:]))
+                img_byte = base64.b64decode(one_b64)
+                img_type = imghdr.what('', img_byte)
+                if img_type != 'jpeg':
+                    #f = StringIO("data:image/png;base64,"+img_byte)
+                    f = StringIO(img_byte)
+                    try:
+                        im = Image.open(f)
+                        im.save(img_fn,"JPEG")
+                    except IOError:
+                        print("[search_byB64_nocache] Error when loading non-jpeg image. Trying to continue.")
+                        errors.append("[search_byB64_nocache] Error when loading non-jpeg image with length {} and ending with: {}".format(len(one_b64), one_b64[-20:]))
+                        os.remove(img_fn)
+                else:
+                    f.write(img_byte)
             list_imgs.append(img_fn)
         outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
+        if errors:
+            for e in errors:
+                e_d = dict()
+                e_d['error'] = e
+                outp.append(e_d)
         # cleanup
         for f in list_imgs:
-            os.remove(f)
+            try:
+                os.remove(f)
+            except:
+                pass
         return outp
 
 
