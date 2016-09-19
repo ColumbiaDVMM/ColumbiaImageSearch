@@ -13,6 +13,14 @@ from cu_image_search.search import searcher_hbaseremote
 app = Flask(__name__)
 app.secret_key = "secret_key"
 app.config['SESSION_TYPE'] = 'filesystem'
+
+@app.after_request
+def after_request(response):
+  response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5009')
+  response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+  return response
+
 api = Api(app)
 
 global_conf_file = '../../conf/global_var_remotehbase.json'
@@ -190,7 +198,7 @@ class Searcher(Resource):
 
     def refresh(self):
         if not self.searcher.indexer.refreshing:
-
+            
             return {'refresh': 'run a new refresh'}
         else:
             self.searcher.indexer.refresh_inqueue = True
