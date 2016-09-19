@@ -189,7 +189,13 @@ class Searcher(Resource):
 
 
     def refresh(self):
-        return {'refresh': 'should_refresh'}
+        if not self.searcher.indexer.refreshing:
+
+            return {'refresh': 'run a new refresh'}
+        else:
+            self.searcher.indexer.refresh_inqueue = True
+            return {'refresh': 'pushed a refresh in queue.'}
+            
 
 
     def get_image_str(self, row):
@@ -199,6 +205,7 @@ class Searcher(Resource):
         query_sha1s = [str(x) for x in query.split(',')]
         rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, ["info:s3_url"])
         images_str = ""
+        # TODO: change this to actually just produce a list of images to fill a new template
         for row in rows:
             images_str += self.get_image_str(row)
         images = Markup(images_str)
@@ -234,7 +241,7 @@ class Searcher(Resource):
             #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
             similar_images_response.append(one_res)
         if not similar_images_response:
-            similar_images_response.append([('#','No results'),('#','')])
+            similar_images_response.append([('','No results'),[('','')]])
         flash(similar_images_response)
         headers = {'Content-Type': 'text/html'}
         sys.stdout.flush()

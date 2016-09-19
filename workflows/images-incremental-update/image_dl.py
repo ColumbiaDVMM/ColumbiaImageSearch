@@ -67,6 +67,7 @@ def get_SHA1_from_URL_StringIO(url,verbose=0):
         print "Download failed from url {}. [{}]".format(url, inst)
     return None
 
+
 def get_SHA1_from_URL(url,verbose=False):
     if verbose:
         print "Downloading image from {}.".format(url)

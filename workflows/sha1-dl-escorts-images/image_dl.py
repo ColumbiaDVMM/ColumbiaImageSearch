@@ -46,6 +46,7 @@ def get_SHA1_from_data(data):
         print "Could not read data to compute SHA1."
     return sha1hash
 
+
 def get_SHA1_from_URL_StringIO(url,verbose=0):
     from StringIO import StringIO
     if verbose>1:
@@ -67,6 +68,7 @@ def get_SHA1_from_URL_StringIO(url,verbose=0):
             print "Download failed from url {}.".format(url)
             print inst 
     return None
+
 
 def get_SHA1_from_URL(url,verbose=False):
     if verbose:

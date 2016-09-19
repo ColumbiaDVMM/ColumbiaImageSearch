@@ -35,7 +35,8 @@ class HBaseIndexer(GenericIndexer):
         self.features_dim = self.global_conf["FE_features_dim"]
         self.bits_num = self.global_conf['HA_bits_num']
         self.sha1_featid_mapping_filename = self.global_conf['HBI_sha1_featid_mapping_filename']
-        self.cu_feat_id_column = "info:cu_feat_id"
+        self.cu_feat_id_column = "info:cu_feat_id" # could be loaded from conf
+        self.discarded_column = "image_discarded" # could be loaded from conf
         self.initialize_sha1_mapping()
         self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
@@ -49,6 +50,8 @@ class HBaseIndexer(GenericIndexer):
         # Start of batch being indexed should be end criterion for next batch.
         self.FORCE_REFRESH = False # only use once to fix indexing issue
         self.merging = False
+        self.refreshing = False
+        self.refresh_inqueue = False
 
     def initialize_sha1_mapping(self):
         self.sha1_featid_mapping = []
@@ -321,6 +324,7 @@ class HBaseIndexer(GenericIndexer):
                 # update
                 out[pos] = new_row
         return out
+
         
     def write_batch(self,batch,tab_out_name):
         with self.pool.connection() as connection:
@@ -331,6 +335,7 @@ class HBaseIndexer(GenericIndexer):
                 #print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
                 batch_write.put(row[0],row[1])
             batch_write.send()
+
 
     def get_columns_name(self,list_type):
         list_columns = []
@@ -499,6 +504,7 @@ class HBaseIndexer(GenericIndexer):
 
     def refresh_hash_index(self,skip=False):
         start_row = None
+        self.refreshing = True
         # when running in batch mode, to restart from failure point
         if skip and self.sha1_featid_mapping:
             start_row = self.sha1_featid_mapping[-1]
@@ -520,11 +526,10 @@ class HBaseIndexer(GenericIndexer):
                             elapsed_refresh = time.time() - refresh_start
                             print "[HBaseIndexer.refresh_hash_index: log] Scanned {} rows so far. Total refresh time: {}. Average per row: {}.".format(scanned_rows,elapsed_refresh,elapsed_refresh/scanned_rows)
                             sys.stdout.flush()
-                        #if row[0] not in self.sha1_featid_mapping: # new sha1
-                        # this could be slow, add column 'cu_featid' to hbase table escorts_images_sha1_infos, 
+                        # use column 'cu_featid' in hbase table escorts_images_sha1_infos to check if already indexed 
                         # and use list to get total number of features for sanity check, 
                         # because we cannot get that from the hbase table easily...
-                        if self.cu_feat_id_column not in row[1] or self.FORCE_REFRESH:
+                        if (self.cu_feat_id_column not in row[1] or self.FORCE_REFRESH) and (self.discarded_column not in row[1]):
                             found_columns = [column for column in all_needed_columns if column in row[1]]
                             if len(found_columns)==len(all_needed_columns): # we have features and hashcodes
                                 refresh_batch.append((row[0],row[1][list_columns[0]],row[1][list_columns[1]]))
@@ -542,8 +547,13 @@ class HBaseIndexer(GenericIndexer):
             except Exception as inst:
                 print "[HBaseIndexer.refresh_hash_index: log] Caught Exception: {}.".format(inst)
                 time.sleep(5)
-        
+        self.refreshing = False
+        if self.refresh_inqueue:
+            self.refresh_inqueue = False
+            return self.refresh_hash_index()
 
+
+    # Deprecated. Was used when ingesting form CDR was done in a python script and not with a Spark job.
     def index_batch(self,batch):
         """ Index a batch in the form of a list of (cdr_id,url,[extractions,ts_cdrid,other_data])
         """

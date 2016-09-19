@@ -84,8 +84,8 @@ if __name__ == '__main__':
     print job_conf
     tab_images_name = job_conf["tab_name_in"]
     hbase_host = job_conf["hbase_host"]
-    min_htid = 143409237
-    max_htid = 153934312
+    #min_htid = 143409237
+    #max_htid = 153934312
     nb_partitions = job_conf["nb_partitions"]
     #row_start = '52010000'
     #row_stop = '52020000'
