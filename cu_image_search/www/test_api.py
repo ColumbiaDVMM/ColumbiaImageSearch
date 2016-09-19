@@ -23,8 +23,8 @@ if __name__ == "__main__":
     import requests
     #sampleURLs = ['https://s3.amazonaws.com/roxyimages/939446e1543d2a7ebf73b438f6f21dbb6e71f04a.jpg','https://s3.amazonaws.com/roxyimages/f99f89526bdf335483c9776c73a059ead1f16d27.jpg']
     #sampleURLs = ['https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png']
-    apiURL = "http://127.0.0.1:5000/cu_image_search/byB64_nocache"
-    #apiURL = "https://isi.memexproxy.com/ESCORTS/cu_image_search/byB64_nocache" # would need auth?
+    #apiURL = "http://127.0.0.1:5000/cu_image_search/byB64_nocache"
+    apiURL = "https://isi.memexproxy.com/ESCORTS/cu_image_search/byB64_nocache" # would need auth?
     with open('bikini-001_png.b64','rt') as f:
         query_b64 = [line for line in f]   
     #query_b64 = [get_b64(sampleURL) for sampleURL in sampleURLs]

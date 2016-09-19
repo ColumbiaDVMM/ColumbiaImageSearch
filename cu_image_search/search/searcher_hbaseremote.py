@@ -157,7 +157,8 @@ class Searcher():
         # build final output
         output = []
         dec = 0
-        needed_columns = ['info:s3_url', 'info:all_cdr_ids', 'info:all_parent_ids']
+        #needed_columns = ['info:s3_url', 'info:all_cdr_ids', 'info:all_parent_ids']
+        needed_columns = ['info:s3_url']
         for i in range(0,nb_query):    
             output.append(dict())
             if i in corrupted:
@@ -171,10 +172,10 @@ class Searcher():
             for jj,simj in enumerate(sim[ii]):
                 found_columns = [c in simj[1] for c in needed_columns]
                 if found_columns.count(True) == len(needed_columns):
-                    output[i]['similar_images']['sha1s'].append(simj[0].strip())
+                    output[i]['similar_images']['sha1'].append(simj[0].strip())
                     output[i]['similar_images']['cached_image_urls'].append(simj[1]['info:s3_url'].strip())
-                    output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'].strip())
-                    output[i]['similar_images']['ads_cdr_ids'].append(simj[1]['info:all_parent_ids'].strip())
+                    #output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'].strip())
+                    #output[i]['similar_images']['ads_cdr_ids'].append(simj[1]['info:all_parent_ids'].strip())
                     ok_sims.append(jj)
                 #else:
                 #    print "[Searcher.format_output: log] Found invalid image: {}. found_columns: {}".format(simj[0],found_columns)
