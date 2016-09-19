@@ -162,11 +162,11 @@ class Searcher():
         for i in range(0,nb_query):    
             output.append(dict())
             if i in corrupted:
-                output[i]['similar_images'] = OrderedDict([['number',0],['sha1s',[]],['cached_image_urls',[]],['cdr_ids',[]],['ads_cdr_ids',[]],['distance',[]]])
+                output[i]['similar_images'] = OrderedDict([['number',0],['sha1',[]],['cached_image_urls',[]],['cdr_ids',[]],['ads_cdr_ids',[]],['distance',[]]])
                 dec += 1
                 continue
             ii = i - dec
-            output[i]['similar_images'] = OrderedDict([['number',len(sim[ii])],['sha1s',[]],['cached_image_urls',[]],['cdr_ids',[]],['ads_cdr_ids',[]],['distance',[]]])
+            output[i]['similar_images'] = OrderedDict([['number',len(sim[ii])],['sha1',[]],['cached_image_urls',[]],['cdr_ids',[]],['ads_cdr_ids',[]],['distance',[]]])
             output[i]['query_sha1'] = list_sha1_id[ii]
             ok_sims = []
             for jj,simj in enumerate(sim[ii]):

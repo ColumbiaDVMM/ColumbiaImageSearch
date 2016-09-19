@@ -8,7 +8,7 @@ from hbase_manager import HbaseManager
 
 # debugging
 debug = False
-ts_gap = 500000
+ts_gap = 100000000
 
 # default settings
 fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
@@ -17,6 +17,7 @@ max_ts = 9999999999999
 # how to deal with info:image_discarded?
 fields_list = [("info","all_cdr_ids"), ("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded")]
 infos_columns_list = ["info:sha1", "info:obj_stored_url", "info:obj_parent"]
+compression = "org.apache.hadoop.io.compress.GzipCodec"
 
 
 def get_list_value(json_x,field_tuple):
@@ -367,6 +368,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 
     ## start processing incremental update
     cdr_ids_infos_rdd = images_hb_rdd.flatMap(lambda x: to_cdr_id_dict(x)).persist(StorageLevel.MEMORY_AND_DISK)
+    #cdr_ids_infos_rdd.saveAsSequenceFile(out_filename + "/cdr_ids_infos_rdd", compressionCodecClass=compression)
     images_hb_rdd.unpersist()
     # there could be duplicates cdr_id near indices boundary or corrections might have been applied...
     cdr_ids_infos_rdd_red = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos).persist(StorageLevel.MEMORY_AND_DISK)
@@ -458,6 +460,14 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 
 if __name__ == '__main__':
     start_time = time.time()
+    # parse options
+    parser = OptionParser()
+    parser.add_option("-r", "--restart", dest="restart", default=False, action="store_true")
+    parser.add_option("-s", "--save", dest="save_inter_rdd", default=False, action="store_true")
+    (c_options, args) = parser.parse_args()
+    print "Got options:", c_options
+    restart = c_options.restart
+    save_inter_rdd = c_options.save_inter_rdd
     # Read job_conf
     job_conf = json.load(open("job_conf_notcommited_release.json","rt"))
     print job_conf
