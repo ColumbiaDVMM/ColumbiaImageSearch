@@ -4,6 +4,7 @@ from flask_restful import Resource, Api
 import os
 import sys
 import time
+from datetime import datetime
 import imghdr
 from PIL import Image, ImageFile
 #Image.LOAD_TRUNCATED_IMAGES = True
@@ -31,6 +32,7 @@ def after_request(response):
 
 global_conf_file = '../../conf/global_var_remotehbase.json'
 global_searcher = None
+global_start_time = None
 
 class Searcher(Resource):
 
@@ -38,6 +40,7 @@ class Searcher(Resource):
     def __init__(self):
         #self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
         self.searcher = global_searcher
+        self.start_time = global_start_time
 
 
     def get(self, mode):
@@ -71,7 +74,9 @@ class Searcher(Resource):
 
 
     def process_mode(self, mode):
-        if mode == "refresh":
+        if mode == "status":
+            return self.status()
+        elif mode == "refresh":
             return self.refresh()
         else:
             return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give data parameter?'}
@@ -227,12 +232,19 @@ class Searcher(Resource):
 
     def refresh(self):
         if not self.searcher.indexer.refreshing:
-            
             return {'refresh': 'run a new refresh'}
         else:
             self.searcher.indexer.refresh_inqueue = True
             return {'refresh': 'pushed a refresh in queue.'}
-            
+
+
+    def status(self):
+        status_dict = {'status': 'OK'}
+        status_dict['last_refresh'] = self.searcher.indexer.last_refresh
+        status_dict['indexed_images'] = len(self.searcher.indexer.sha1_featid_mapping)
+        status_dict['API_start_time'] = self.start_time.isoformat(' ')
+        status_dict['API_uptime'] = str(datetime.now()-self.start_time)
+        return status_dict
 
 
     def get_image_str(self, row):
@@ -289,5 +301,6 @@ api.add_resource(Searcher, '/cu_image_search/<string:mode>')
 
 if __name__ == '__main__':
     global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
+    global_start_time = datetime.now()
     app.run(debug=True, host='0.0.0.0')
     #app.run(debug=False, host='0.0.0.0')

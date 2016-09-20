@@ -51,6 +51,7 @@ class HBaseIndexer(GenericIndexer):
         self.FORCE_REFRESH = False # only use once to fix indexing issue
         self.merging = False
         self.refreshing = False
+        self.last_refresh = None
         self.refresh_inqueue = False
 
     def initialize_sha1_mapping(self):
