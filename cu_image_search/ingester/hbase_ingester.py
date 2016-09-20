@@ -32,6 +32,7 @@ class HBaseIngester(GenericIngester):
         self.start_row = None
         self.total_rows_ingested = 0
 
+
     def get_cdr_ids_from_tscdrids(self,ts_cdr_ids):
         """ Get list of cdr_ids from list of ts_cdr_ids.  
 
@@ -41,6 +42,7 @@ class HBaseIngester(GenericIngester):
         :rtype: list
         """
         return [ts_cdr_id.split("_")[1] for ts_cdr_id in ts_cdr_ids]
+
 
     def get_cdr_ids_indexed(self,cdr_ids):
         """ Look for cdr_ids in 'table_cdrinfos_name'.
@@ -90,6 +92,7 @@ class HBaseIngester(GenericIngester):
         #print images_infos
         return images_infos
 
+
     def check_extractions_rows(self,candidate_rows,sha1s):
         """ Check if all extractions have been applied to candidate_rows.
         Returns the rows and corresponding extractions that were not yet applied.
@@ -114,6 +117,7 @@ class HBaseIngester(GenericIngester):
                 new_rows.append(candidate_rows[found_candidates[i]])
                 new_extractions.append(tmp_new_extractions)
         return new_rows, new_extractions
+
 
     def get_batch(self):
         """ Should return a list of (id,url,other_data) querying for `batch_size` samples from `self.source` from `start`

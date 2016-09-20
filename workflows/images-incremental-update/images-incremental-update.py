@@ -7,7 +7,7 @@ from elastic_manager import ES
 from hbase_manager import HbaseManager
 
 # debugging
-debug = False
+debug = True
 ts_gap = 100000000
 
 # default settings
@@ -368,7 +368,9 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 
     ## start processing incremental update
     cdr_ids_infos_rdd = images_hb_rdd.flatMap(lambda x: to_cdr_id_dict(x)).persist(StorageLevel.MEMORY_AND_DISK)
-    #cdr_ids_infos_rdd.saveAsSequenceFile(out_filename + "/cdr_ids_infos_rdd", compressionCodecClass=compression)
+    # save/load here?
+    #cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(out_filename + "/cdr_ids_infos_rdd", compressionCodecClass=compression)
+    #cdr_ids_infos_rdd = sc.sequenceFile(out_filename + "/cdr_ids_infos_rdd").mapValues(json.loads)
     images_hb_rdd.unpersist()
     # there could be duplicates cdr_id near indices boundary or corrections might have been applied...
     cdr_ids_infos_rdd_red = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos).persist(StorageLevel.MEMORY_AND_DISK)

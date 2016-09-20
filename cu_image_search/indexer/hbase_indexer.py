@@ -110,6 +110,7 @@ class HBaseIndexer(GenericIndexer):
         else:
             raise ValueError("[HBaseIndexer.initialize_hasher: error] Unknown hasher_type: {}.".format(self.hasher_type))
 
+
     def get_next_batch_start(self):
         """ Get start value for next update batch. 
 
@@ -119,6 +120,7 @@ class HBaseIndexer(GenericIndexer):
             table_updateinfos = connection.table(self.table_updateinfos_name)
             for row in table_updateinfos.scan():
                 return row[0]
+
 
     def get_ids_from_sha1s(self,list_sha1s):
         found_ids = []
@@ -143,6 +145,7 @@ class HBaseIndexer(GenericIndexer):
                         found_ids.append((long(row[1]["info:cu_feat_id" ]),str(row[0])))
         return found_ids
 
+
     def get_full_sha1_rows(self,list_sha1s):
         rows = None
         if list_sha1s:
@@ -166,6 +169,7 @@ class HBaseIndexer(GenericIndexer):
                 return self.get_columns_from_sha1_rows(list_sha1s, columns)
         return rows
 
+
     def get_similar_images_from_sha1(self, list_sha1s):
         rows = None
         print "[HBaseIndexer.get_similar_images_from_sha1: log] list_sha1s: {}".format(list_sha1s)
@@ -181,6 +185,7 @@ class HBaseIndexer(GenericIndexer):
                 
         return rows
 
+
     def get_sim_infos(self,list_ids):
         print("[HBaseIndexer.get_sim_infos: log] list_ids: {}".format(list_ids))
         try:
@@ -194,6 +199,7 @@ class HBaseIndexer(GenericIndexer):
             # something else (bad) is happening if this fails again
             list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
         return self.get_full_sha1_rows(list_sha1s)
+
 
     def get_precomp_from_sha1(self,list_sha1s,list_type):
         """ Retrieves the 'list_type' extractions results from HBase for the image in 'list_sha1s'.
@@ -221,12 +227,14 @@ class HBaseIndexer(GenericIndexer):
                     res[e].append(rows[i][1][list_columns[e]])
         return res,ok_ids
 
-    def get_new_unique_images(self,sha1_images):
+
+    def get_new_unique_images(self, sha1_images):
+        # get sha1 list
+        sha1_list = [img_item[-1] for img_item in sha1_images]
+        # get new files and new_fulls
         new_files = []
         new_fulls = []
         old_to_be_merged = []
-        # get unique images 
-        sha1_list = [img_item[-1] for img_item in sha1_images]
         unique_sha1 = sorted(set(sha1_list))
         print "[HBaseIndexer.get_new_unique_images: log] We have {} unique images.".format(len(unique_sha1))
         unique_idx = [sha1_list.index(sha1) for sha1 in unique_sha1]
@@ -252,7 +260,8 @@ class HBaseIndexer(GenericIndexer):
                 new_fulls.append([sha1_images[k] for k in all_orig_ids])
         return new_files, new_fulls, old_to_be_merged
 
-    def format_for_sha1_infos(self,list_images):
+
+    def format_for_sha1_infos(self, list_images):
         sha1_infos = []
         unique_sha1 = set()
         # keys are "info:all_cdr_ids", "info:all_parent_ids", "info:all_htids", "info:featnorm_cu", "info:s3_url", "info:hash256_cu"
@@ -270,7 +279,8 @@ class HBaseIndexer(GenericIndexer):
             tmp["info:s3_url"] = image[1]
             sha1_infos.append((sha1,tmp))
         return sha1_infos,unique_sha1
-            
+   
+
     def add_extractions_to_row(self,row,extractions):
         """ Add newly extracted columns to row.
 
@@ -284,6 +294,7 @@ class HBaseIndexer(GenericIndexer):
         for extr in extractions.keys():
             out_values[extr] = extractions[extr]
         return (row[0],out_values)
+
 
     def merge_two_rows(self,row,tmp):
         if row[0]!=tmp[0]:
@@ -303,6 +314,7 @@ class HBaseIndexer(GenericIndexer):
                     out[key] = tmp[1][key]       
         out_row = (row[0],out)
         return out_row
+
 
     def group_by_sha1(self,list_images,extractions=None):
         out = []
@@ -346,7 +358,20 @@ class HBaseIndexer(GenericIndexer):
             list_columns.append(self.extractions_columns[pos])
         return list_columns
 
-    def save_refresh_batch(self,refresh_batch,base_update_path,tmp_udpate_id):
+
+    def save_refresh_batch(self, refresh_batch, base_update_path, tmp_udpate_id):
+        ''' Save features and hashcodes of refresh_batch to files in base_update_path folder
+        and list corresponding sha1s.
+
+        :param refresh_batch: batch as list of (sha1, base64feat, base64hash)
+        :param base_update_path: where to save features and hashcodes files
+        :param tmp_udpate_id: identifier of current update
+
+        :returns tmp_sha1_featid_mapping, features_fn, hashcodes_fn: 
+            tmp_sha1_featid_mapping: the list of new sha1s
+            features_fn: filename with new features
+            features_fn: filename with new hash codes
+        '''
         import base64
         import numpy as np
         tmp_sha1_featid_mapping = []
@@ -370,7 +395,8 @@ class HBaseIndexer(GenericIndexer):
         # returns tmp_sha1_featid_mapping
         return tmp_sha1_featid_mapping, features_fn, hashcodes_fn
 
-    def merge_update_files(self,previous_files,tmp_udpate_id,out_update_id,m_uf_fn):
+
+    def merge_update_files(self, previous_files, tmp_udpate_id, out_update_id, m_uf_fn):
         start_merge = time.time()
         # use shutil.copyfileobj for comp features
         out_comp_fn = os.path.join(self.hasher.base_update_path,'comp_features',out_update_id+'_comp_norm')
@@ -416,6 +442,7 @@ class HBaseIndexer(GenericIndexer):
         print("[HBaseIndexer.merge_update_files: log] Merge update files took {}s.".format(time.time()-start_merge))
         return m_uf_fn
 
+
     def cleanup_update(self,previous_files,tmp_udpate_id):
         # cleanup features
         new_feat_fn = os.path.join(self.hasher.base_update_path,'features',tmp_udpate_id+'_norm')
@@ -437,7 +464,8 @@ class HBaseIndexer(GenericIndexer):
         os.remove(prev_comp_idx_fn)
         os.remove(new_comp_idx_fn)
 
-    def push_cu_feats_id(self,rows_update,cu_feat_ids):
+
+    def push_cu_feats_id(self, rows_update, cu_feat_ids):
         if len(rows_update)!=len(cu_feat_ids):
             raise ValueError("[HBaseIndexer.push_cu_feats_id: error] dimensions mismatch rows_update ({}) vs. cu_feat_ids ({})".format(len(rows_update),len(cu_feat_ids)))
         with self.pool.connection() as connection:
@@ -445,8 +473,9 @@ class HBaseIndexer(GenericIndexer):
             with table_sha1infos.batch() as b:
                 for i,sha1 in enumerate(rows_update):
                     b.put(sha1, {self.cu_feat_id_column: str(cu_feat_ids[i])})
-        
-    def merge_refresh_batch(self,refresh_batch):
+
+   
+    def merge_refresh_batch(self, refresh_batch):
         if refresh_batch:
             print "[HBaseIndexer.merge_refresh_batch: log] We have a batch of {} images from {}.".format(len(refresh_batch),refresh_batch[0][0])
             # [Create a temporary HasherCmdLine] have a temporary "master_update" file for that batch
@@ -454,11 +483,11 @@ class HBaseIndexer(GenericIndexer):
             tmp_hasher = HasherCmdLine(self.global_conf_filename)
             tmp_udpate_id = str(time.time())+'_'+refresh_batch[0][0]
             tmp_hasher.master_update_file = "update_"+tmp_udpate_id
-            tm_uf_fn = os.path.join(self.hasher.base_update_path,tmp_hasher.master_update_file)
+            tm_uf_fn = os.path.join(self.hasher.base_update_path, tmp_hasher.master_update_file)
             with open(tm_uf_fn,'wt') as tm_uf:
                 tm_uf.write(tmp_udpate_id+'\n')
             # save features (and hashcodes) and compress features, and get temporary mapping sha1 - feat_id. 
-            tmp_sha1_featid_mapping, tmp_features_fn, tmp_hashcodes_fn = self.save_refresh_batch(refresh_batch,self.hasher.base_update_path,tmp_udpate_id)
+            tmp_sha1_featid_mapping, tmp_features_fn, tmp_hashcodes_fn = self.save_refresh_batch(refresh_batch, self.hasher.base_update_path, tmp_udpate_id)
             tmp_hasher.compress_feats()
             # check alignment
             max_id = self.hasher.get_max_feat_id()
@@ -502,15 +531,15 @@ class HBaseIndexer(GenericIndexer):
             
             
 
-    def refresh_hash_index(self,skip=False):
+    def refresh_hash_index(self, skip=False):
         start_row = None
         self.refreshing = True
         # when running in batch mode, to restart from failure point
         if skip and self.sha1_featid_mapping:
             start_row = self.sha1_featid_mapping[-1]
-        list_type = ["sentibank","hashcode"]
+        list_type = ["sentibank", "hashcode"]
         list_columns = self.get_columns_name(list_type)
-        all_needed_columns = list_columns+["info:all_cdr_ids","info:all_parent_ids"]
+        all_needed_columns = list_columns+["info:all_cdr_ids", "info:all_parent_ids"]
         refresh_batch = []
         done = False
         scanned_rows = 0
@@ -529,6 +558,7 @@ class HBaseIndexer(GenericIndexer):
                         # use column 'cu_featid' in hbase table escorts_images_sha1_infos to check if already indexed 
                         # and use list to get total number of features for sanity check, 
                         # because we cannot get that from the hbase table easily...
+                        # too popular images have been discarded and marked with 'discarded_column', never index them
                         if (self.cu_feat_id_column not in row[1] or self.FORCE_REFRESH) and (self.discarded_column not in row[1]):
                             found_columns = [column for column in all_needed_columns if column in row[1]]
                             if len(found_columns)==len(all_needed_columns): # we have features and hashcodes
@@ -553,27 +583,21 @@ class HBaseIndexer(GenericIndexer):
             return self.refresh_hash_index()
 
 
-    # Deprecated. Was used when ingesting form CDR was done in a python script and not with a Spark job.
-    def index_batch(self,batch):
-        """ Index a batch in the form of a list of (cdr_id,url,[extractions,ts_cdrid,other_data])
+    def index_batch_sha1(self,batch):
+        """ Index a batch in the form of a list of (sha1,url,[extractions,ts_cdrid,other_data])
         """
         # Download images
         start_time = time.time() 
         timestr = time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(start_time))
-        #startid = str(batch[0][0])
-        #lastid = str(batch[-1][0])
-        #update_id = timestr+'_'+startid+'_'+lastid
         update_id = timestr
         print "[HBaseIndexer.index_batch: log] Starting udpate {}".format(update_id)
-        readable_images = self.image_downloader.download_images(batch,update_id)
+        readable_images = self.image_downloader.download_images(batch, update_id)
         #print readable_images
         if not readable_images:
             print "[HBaseIndexer.index_batch: log] No readable images!"
             return None
-        # Compute sha1
-        sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
-        # Now that we have sha1s, check if we actually don't already have all extractions
-        new_files, new_fulls, old_to_be_merged = self.get_new_unique_images(sha1_images)
+        # Now that we have downloaded the images, check if we actually don't already have all extractions
+        new_files, new_fulls, old_to_be_merged = self.get_new_unique_images(readable_images)
         #print "[HBaseIndexer.index_batch: log] new_files: {}".format(new_files)
         #print "[HBaseIndexer.index_batch: log] new_fulls: {}".format(new_fulls)
         #print "[HBaseIndexer.index_batch: log] old_to_be_merged: {}".format(old_to_be_merged)
@@ -673,6 +697,128 @@ class HBaseIndexer(GenericIndexer):
                 print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
                 self.write_batch(new_sha1_rows_merged,self.table_sha1infos_name) 
         print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
+
+
+    ### Deprecated. Was used when ingesting form CDR was done in a python script and not with a Spark job.
+    # def index_batch(self,batch):
+    #     """ Index a batch in the form of a list of (cdr_id,url,[extractions,ts_cdrid,other_data])
+    #     """
+    #     # Download images
+    #     start_time = time.time() 
+    #     timestr = time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(start_time))
+    #     #startid = str(batch[0][0])
+    #     #lastid = str(batch[-1][0])
+    #     #update_id = timestr+'_'+startid+'_'+lastid
+    #     update_id = timestr
+    #     print "[HBaseIndexer.index_batch: log] Starting udpate {}".format(update_id)
+    #     readable_images = self.image_downloader.download_images(batch,update_id)
+    #     #print readable_images
+    #     if not readable_images:
+    #         print "[HBaseIndexer.index_batch: log] No readable images!"
+    #         return None
+    #     # Compute sha1
+    #     sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
+    #     # Now that we have sha1s, check if we actually don't already have all extractions
+    #     new_files, new_fulls, old_to_be_merged = self.get_new_unique_images(sha1_images)
+    #     #print "[HBaseIndexer.index_batch: log] new_files: {}".format(new_files)
+    #     #print "[HBaseIndexer.index_batch: log] new_fulls: {}".format(new_fulls)
+    #     #print "[HBaseIndexer.index_batch: log] old_to_be_merged: {}".format(old_to_be_merged)
+    #     # Compute missing extractions 
+    #     new_sb_files = []
+    #     new_files_id = []
+    #     for i,nf_extr in enumerate(new_files):
+    #         nf,extr = nf_extr
+    #         if "sentibank" in extr and new_fulls[i][0][-1] not in new_files_id:
+    #             new_sb_files.append(nf)
+    #             new_files_id.append(new_fulls[i][0][-1])
+    #     extractions = dict()
+    #     if new_sb_files:
+    #         #print "[HBaseIndexer.index_batch: log] new_sb_files: {}".format(new_sb_files)
+    #         #print "[HBaseIndexer.index_batch: log] new_files_id: {}".format(new_files_id)
+    #         # Compute features
+    #         features_filename, ins_num = self.feature_extractor.compute_features(new_sb_files, update_id)
+    #         # Compute hashcodes
+    #         hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
+    #         norm_features_filename = features_filename[:-4]+"_norm"
+    #         # read features and hashcodes and pushback for insertion
+    #         #print "Initial features at {}, normalized features {} and hashcodes at {}.".format(features_filename,norm_features_filename,hashbits_filepath)
+    #         feats,feats_ok_ids = read_binary_file(norm_features_filename,"feats",new_files_id,self.features_dim*4,np.float32)
+    #         hashcodes,hash_ok_ids = read_binary_file(hashbits_filepath,"hashcodes",new_files_id,self.bits_num/8,np.uint8)
+    #         #print "Norm features {}\n Hashcodes {}".format(feats,hashcodes)
+    #         # should we update local hasher here?
+    #         # cleanup
+    #         os.remove(norm_features_filename)
+    #         os.remove(hashbits_filepath)
+    #         for new_file in new_sb_files:
+    #             os.remove(new_file)
+    #         # need to cleanup images too
+    #         if len(feats_ok_ids)!=len(new_files_id) or len(hash_ok_ids)!=len(new_files_id):
+    #             print "[HBaseIndexer.index_batch: error] Dimensions mismatch. Are we missing features {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id))
+    #             return False
+    #         for i,sha1 in enumerate(new_files_id):
+    #             extractions[sha1] = dict()
+    #             sb_col_name = self.extractions_columns[self.extractions_types.index("sentibank")]
+    #             hash_col_name = self.extractions_columns[self.extractions_types.index("hashcode")]
+    #             extractions[sha1][sb_col_name] = base64.b64encode(feats[i])
+    #             extractions[sha1][hash_col_name] = base64.b64encode(hashcodes[i])
+    #     # Need to update self.table_cdrinfos_name and self.table_sha1infos_name
+    #     # in self.table_sha1infos_name, 
+    #     # merge "info:crawl_data.image_id", "info:doc_id", "info:obj_parent"
+    #     # into "info:all_htids", "info:all_cdr_ids", "info:all_parent_ids"
+    #     # merge old_to_be_merged, no new extractions just push back cdr ids
+    #     if old_to_be_merged:
+    #         insert_cdrid_sha1 = []
+    #         for one_full in old_to_be_merged:
+    #             one_val = {self.sha1_column: one_full[-1]}
+    #             for tmpk in ["info:obj_parent","info:obj_stored_url"]: 
+    #                 if tmpk in one_full[2][2]:
+    #                     one_val[tmpk] = one_full[2][2][tmpk]
+    #             insert_cdrid_sha1.append((one_full[0],one_val))
+    #         if insert_cdrid_sha1:
+    #             # First, insert sha1 in self.table_cdrinfos_name
+    #             print "[HBaseIndexer.index_batch: log] writing batch from cdr id {} to table {}.".format(insert_cdrid_sha1[0][0],self.table_cdrinfos_name)
+    #             self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
+    #         old_sha1_format, unique_sha1 = self.format_for_sha1_infos(old_to_be_merged)
+    #         #print "[HBaseIndexer.index_batch: log] old_sha1_format: {}".format(old_sha1_format)
+    #         #print "[HBaseIndexer.index_batch: log] unique_sha1: {}".format(unique_sha1)
+    #         # get corresponding rows
+    #         sha1_rows = self.get_full_sha1_rows(unique_sha1)
+    #         #print "[HBaseIndexer.index_batch: log] sha1_rows: {}".format(sha1_rows)
+    #         # merge
+    #         old_sha1_format.extend(sha1_rows)
+    #         sha1_rows_merged = self.group_by_sha1(old_sha1_format)
+    #         # push merged old images infos
+    #         #print "[HBaseIndexer.index_batch: log] sha1_rows_merged: {}".format(sha1_rows_merged)
+    #         if sha1_rows_merged:
+    #             print "[HBaseIndexer.index_batch: log] writing batch to update old images from {} to table {}.".format(sha1_rows_merged[0][0],self.table_sha1infos_name)
+    #             self.write_batch(sha1_rows_merged,self.table_sha1infos_name) 
+    #     if new_fulls:
+    #         # new_fulls is a list of list
+    #         flatten_fulls = []
+    #         insert_cdrid_sha1 = []
+    #         for one_full_list in new_fulls:
+    #             for one_full in one_full_list:
+    #                 #print "[HBaseIndexer.index_batch: log] flattening row {} with sha1 {}.".format(one_full[0],one_full[-1])
+    #                 flatten_fulls.extend((one_full,))
+    #                 one_val = {self.sha1_column: one_full[-1]}
+    #                 for tmpk in ["info:obj_parent","info:obj_stored_url"]: 
+    #                     if tmpk in one_full[2][2]:
+    #                         one_val[tmpk] = one_full[2][2][tmpk]
+    #                 insert_cdrid_sha1.append((one_full[0],one_val))
+    #         if insert_cdrid_sha1:
+    #             # First, insert sha1 in self.table_cdrinfos_name
+    #             print "[HBaseIndexer.index_batch: log] writing batch from cdr id {} to table {}.".format(insert_cdrid_sha1[0][0],self.table_cdrinfos_name)
+    #             self.write_batch(insert_cdrid_sha1,self.table_cdrinfos_name)
+    #         # Then insert sha1 row.
+    #         #print "[HBaseIndexer.index_batch: log] flatten_fulls: {}".format(flatten_fulls)
+    #         new_sha1_format, unique_sha1 = self.format_for_sha1_infos(flatten_fulls)
+    #         new_sha1_rows_merged = self.group_by_sha1(new_sha1_format,extractions)
+    #         if new_sha1_rows_merged:
+    #             # Finally udpate self.table_updateinfos_name
+    #             #print "[HBaseIndexer.index_batch: log] new_sha1_rows_merged: {}".format(new_sha1_rows_merged)
+    #             print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
+    #             self.write_batch(new_sha1_rows_merged,self.table_sha1infos_name) 
+    #     print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
                 
         
 
