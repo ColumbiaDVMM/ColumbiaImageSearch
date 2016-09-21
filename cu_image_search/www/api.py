@@ -186,7 +186,11 @@ class Searcher(Resource):
     
 
     def search_byB64(self, query):
-        return {'query_by_b64': str(query)}
+        # we can implement a version that computes the sha1
+        # and query for percomputed similar images using 
+        # self.searcher.indexer.get_similar_images_from_sha1(query_sha1s)
+        # left for later as we consider queries with b64 are for out of index images
+        return self.search_byB64_nocache(query)
 
 
     def search_byB64_nocache(self, query):

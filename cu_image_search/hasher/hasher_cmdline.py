@@ -28,6 +28,7 @@ class HasherCmdLine():
         if 'HA_master_update_file' in self.global_conf:
             self.master_update_file = self.global_conf['HA_master_update_file']
 
+
     def compute_hashcodes(self,features_filename,ins_num,startid):
         """ Compute ITQ hashcodes for the features in 'features_filename'
 
@@ -48,6 +49,7 @@ class HasherCmdLine():
         shutil.move(itq_output_path, hashbits_filepath)
         os.remove(features_filename)
         return hashbits_filepath
+
 
     def get_max_feat_id(self):
         """ Returns number of images indexed based on the size of hashcodes files.
