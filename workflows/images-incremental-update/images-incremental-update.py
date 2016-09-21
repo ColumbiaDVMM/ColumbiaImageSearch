@@ -2,6 +2,7 @@ import os
 import json
 import time
 
+from optparse import OptionParser
 from pyspark import SparkContext, SparkConf, StorageLevel
 from elastic_manager import ES
 from hbase_manager import HbaseManager
@@ -151,6 +152,32 @@ def reduce_cdrid_infos(a,b):
     return c
 
 
+def safe_reduce_infos(a, b, c, field):
+    try:
+        c[field] = list(set(a[field]+b[field]))
+    except Exception as inst:
+        try:
+            c[field] = a[field]
+            print("[safe_reduce_infos: error] key error for '{}' for b".format(field))
+        except Exception as inst2:
+            try:
+                c[field] = b[field]
+                print("[safe_reduce_infos: error] key error for '{}' for a".format(field))
+            except Exception as inst3:
+                c[field] = []
+                print("[safe_reduce_infos: error] key error for '{}' for both a and b".format(field))
+    return c
+
+
+def safe_assign(a, c, field, fallback):
+    if field in a:
+        c[field] = a[field]
+    else:
+        print("[safe_assign: error] we have no {}.".format(field))
+        c[field] = fallback
+    return c
+
+
 def reduce_sha1_infos_discarding(a,b):
     c = dict()
     if b:  # sha1 already existed
@@ -159,16 +186,21 @@ def reduce_sha1_infos_discarding(a,b):
             c["info:all_parent_ids"] = []
             c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images)
         else:
-            c["info:all_cdr_ids"] = list(set(a["info:all_cdr_ids"]+b["info:all_cdr_ids"]))
-            c["info:all_parent_ids"] = list(set(a["info:all_parent_ids"]+b["info:all_parent_ids"]))
-        if a["info:s3_url"] and a["info:s3_url"][0] and a["info:s3_url"][0]!=u'None':
+            # KeyError: 'info:all_cdr_ids'. How could an image not have this field?
+            c = safe_reduce_infos(a, b, c, "info:all_cdr_ids")
+            c = safe_reduce_infos(a, b, c, "info:all_parent_ids")
+        if "info:s3_url" in a and a["info:s3_url"] and a["info:s3_url"][0] and a["info:s3_url"][0]!=u'None':
             c["info:s3_url"] = a["info:s3_url"]
         else:
-            c["info:s3_url"] = b["info:s3_url"]
+            if "info:s3_url" in b:
+                c["info:s3_url"] = b["info:s3_url"]
+            else:
+                print("[reduce_sha1_infos_discarding: error] both a and b have no s3 url.")
+                c["info:s3_url"] = [None]
     else: # brand new image
-        c["info:all_cdr_ids"] = a["info:all_cdr_ids"]
-        c["info:all_parent_ids"] = a["info:all_parent_ids"]
-        c["info:s3_url"] = a["info:s3_url"]
+        c = safe_assign(a, c, "info:s3_url", [None])
+        c = safe_assign(a, c, "info:all_cdr_ids", [])
+        c = safe_assign(a, c, "info:all_parent_ids", [])
     if len(c["info:all_cdr_ids"])>max_images or len(c["info:all_parent_ids"])>max_images:
         print("Discarding image with URL: {}".format(c["info:s3_url"][0]))
         c["info:all_cdr_ids"] = []
@@ -329,7 +361,12 @@ def save_count_info_incremental_update(hbase_man_update_out, incr_update_id, cou
     hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
 
 
-def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_out, nb_partitions):
+def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_in, hbase_man_update_out, nb_partitions, c_options):
+
+    restart = c_options.restart
+    identifier = c_options.identifier
+    save_inter_rdd = c_options.save_inter_rdd
+
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}}"
     #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     if debug:
@@ -339,6 +376,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     print query
     start_time = time.time()
     incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
+    basepath_save = '/user/skaraman/data/'+incr_update_id
     
     ## get incremental update
     es_rdd = es_man.es2rdd(query)
@@ -369,8 +407,8 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     ## start processing incremental update
     cdr_ids_infos_rdd = images_hb_rdd.flatMap(lambda x: to_cdr_id_dict(x)).persist(StorageLevel.MEMORY_AND_DISK)
     # save/load here?
-    #cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(out_filename + "/cdr_ids_infos_rdd", compressionCodecClass=compression)
-    #cdr_ids_infos_rdd = sc.sequenceFile(out_filename + "/cdr_ids_infos_rdd").mapValues(json.loads)
+    #cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(basepath_save + "/cdr_ids_infos_rdd", compressionCodecClass=compression)
+    #cdr_ids_infos_rdd = sc.sequenceFile(basepath_save + "/cdr_ids_infos_rdd").mapValues(json.loads)
     images_hb_rdd.unpersist()
     # there could be duplicates cdr_id near indices boundary or corrections might have been applied...
     cdr_ids_infos_rdd_red = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos).persist(StorageLevel.MEMORY_AND_DISK)
@@ -381,6 +419,9 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().map(clean_up_s3url_sha1).persist(StorageLevel.MEMORY_AND_DISK)
     # do a s3url_infos_rdd.leftOuterJoin(s3url_sha1) s3url_infos_rdd_with_sha1
     s3url_infos_rdd_join = s3url_infos_rdd.leftOuterJoin(s3url_sha1_rdd).persist(StorageLevel.MEMORY_AND_DISK)
+    # save/load here?
+    #s3url_infos_rdd_join.saveAsSequenceFile(basepath_save + "/s3url_infos_rdd_join", compressionCodecClass=compression)
+    #s3url_infos_rdd_join = sc.sequenceFile(basepath_save + "/s3url_infos_rdd_join")
     s3url_sha1_rdd.unpersist()
     s3url_infos_rdd.unpersist()
 
@@ -389,6 +430,10 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     cdr_ids_infos_rdd_join_sha1 = s3url_infos_rdd_with_sha1.flatMap(lambda x: s3url_to_cdr_id_wsha1(x)).persist(StorageLevel.MEMORY_AND_DISK)
     cdr_ids_infos_rdd_join_sha1_count = cdr_ids_infos_rdd_join_sha1.count()
     save_count_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_count, "cdr_ids_infos_rdd_join_sha1_count")
+    # save/load here?
+    #cdr_ids_infos_rdd_join_sha1.saveAsSequenceFile(basepath_save + "/cdr_ids_infos_rdd_join_sha1", compressionCodecClass=compression)
+    #cdr_ids_infos_rdd_join_sha1 = sc.sequenceFile(basepath_save + "/cdr_ids_infos_rdd_join_sha1")
+    
     # save it to hbase
     hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: expand_info(x)))
     # to sha1 key and save number of joined by s3 url images
@@ -417,6 +462,10 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     # filter on second value member being empty in s3url_infos_rdd_join, and get sha1
     #cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_join.filter(lambda x: not get_existing_joined_sha1(x)).flatMap(lambda x: check_get_sha1(x))
     cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_join.subtractByKey(s3url_infos_rdd_with_sha1).flatMap(lambda x: s3url_to_cdr_id_nosha1(x)).flatMap(lambda x: check_get_sha1(x)).persist(StorageLevel.MEMORY_AND_DISK)
+    # save/load here?
+    #cdr_ids_infos_rdd_new_sha1.saveAsSequenceFile(basepath_save + "/cdr_ids_infos_rdd_new_sha1", compressionCodecClass=compression)
+    #cdr_ids_infos_rdd_new_sha1 = sc.sequenceFile(basepath_save + "/cdr_ids_infos_rdd_new_sha1")
+    s3url_infos_rdd_join.unpersist()
     cdr_ids_infos_rdd_new_sha1_count = cdr_ids_infos_rdd_new_sha1.count()
     save_count_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_new_sha1_count, "cdr_ids_infos_rdd_new_sha1_count")
     # here new sha1s means we did not see the corresponding s3url before, but the sha1 may still be in the sha1_infos table
@@ -465,11 +514,10 @@ if __name__ == '__main__':
     # parse options
     parser = OptionParser()
     parser.add_option("-r", "--restart", dest="restart", default=False, action="store_true")
+    parser.add_option("-i", "--identifier", dest="identifier", default=False, action="store_true")
     parser.add_option("-s", "--save", dest="save_inter_rdd", default=False, action="store_true")
     (c_options, args) = parser.parse_args()
     print "Got options:", c_options
-    restart = c_options.restart
-    save_inter_rdd = c_options.save_inter_rdd
     # Read job_conf
     job_conf = json.load(open("job_conf_notcommited_release.json","rt"))
     print job_conf
@@ -519,6 +567,7 @@ if __name__ == '__main__':
     hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
     hbase_man_cdrinfos_out = HbaseManager(sc, conf, hbase_host, tab_cdrid_infos_name)
     hbase_man_s3url_sha1_out = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
+    hbase_man_update_in = HbaseManager(sc, conf, hbase_host, tab_update_name)
     hbase_man_update_out = HbaseManager(sc, conf, hbase_host, tab_update_name)
-    incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_out, nb_partitions)
+    incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_in, hbase_man_update_out, nb_partitions, c_options)
     print("[DONE] Update from ts {} done in {}s.".format(es_ts_start, time.time() - start_time))
