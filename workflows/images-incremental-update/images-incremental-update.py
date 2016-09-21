@@ -8,7 +8,7 @@ from elastic_manager import ES
 from hbase_manager import HbaseManager
 
 # debugging
-debug = True
+debug = False
 ts_gap = 100000000
 
 # default settings
@@ -95,8 +95,15 @@ def create_images_tuple(data):
     for field in fields_cdr:
         try:
             field_value = json_x[field][0]
-            #print field,field_value
-            tup_list.append( (key, [key, "info", field, str(field_value)]) )
+            str_field_value = None
+            try:
+                str_field_value = str(field_value)
+            # str(field_value) could fail for unicode strings...
+            except Exception as inst:
+                print("[create_images_tuple: error] {}. Assuming it is an encoding issue.".format(inst))
+                str_field_value = field_value.encode('utf-8')
+            if str_field_value:
+                tup_list.append( (key, [key, "info", field, str_field_value]) )
         except Exception as inst:
             pass
             #print "[Error] Could not get field {} value for document {}. {}".format(field,doc_id,inst)
@@ -214,7 +221,19 @@ def split_sha1_kv_filter_max_images_discarded(x):
     out = []
     if "info:image_discarded" in x[1]:
         out.append((x[0], [x[0], "info", "image_discarded", x[1]["info:image_discarded"]]))
-        out.append((x[0], [x[0], "info", "s3_url", str(x[1]["info:s3_url"][0])]))
+        str_s3url_value = None
+        s3url_value = x[1]["info:s3_url"][0]
+        try:
+            str_s3url_value = str(s3url_value)
+        # str(field_value) could fail for unicode strings...
+        except Exception as inst:
+            print("[create_images_tuple: error] {}. Assuming it is an encoding issue.".format(inst))
+            try:
+                str_s3url_value = s3url_value.encode('utf-8')
+            except:
+                pass
+        if str_s3url_value:
+            out.append((x[0], [x[0], "info", "s3_url", field_value]))
         out.append((x[0], [x[0], "info", "all_cdr_ids", x[1]["info:image_discarded"]]))
         out.append((x[0], [x[0], "info", "all_parent_ids", x[1]["info:image_discarded"]]))
     else:
@@ -227,8 +246,8 @@ def get_new_s3url_sha1(x):
     value = x[1]
     out = []
     if value[2] == "s3_url":
-        sha1 = x[0].rstrip()
-        s3_url = value[3].rstrip()
+        sha1 = x[0].strip()
+        s3_url = value[3].strip()
         out.append((s3_url, [s3_url, "info", "sha1", sha1]))
     return out
 
@@ -240,6 +259,7 @@ def flatten_leftjoin(x):
     out.append((x[0], c))
     #print("[flatten_leftjoin] {}, {}".format(x, out))
     return out
+
 
 def ts_to_cdr_id(data):
     ts_doc_id = data[0]
@@ -265,7 +285,15 @@ def to_cdr_id_dict(data):
     v["info:doc_id"] = doc_id
     del json_x["_metadata"]
     for field in json_x:
-        v["info:"+field] = str(json_x[field][0])
+        try:
+            v["info:"+field] = str(json_x[field][0])
+        except Exception as inst:
+            print("[to_cdr_id_dict: error] {} for doc: {}. Assuming it is an encoding issue.".format(inst, doc_id))
+            try:
+                v["info:"+field] = json_x[field][0].encode('utf-8')
+            except Exception as inst2:
+                print("[to_cdr_id_dict: error] failed again ({}) for doc: {}.".format(inst2, doc_id))
+                pass
     tup_list = [(doc_id, v)]
     print("[to_cdr_id_dict] {}".format(tup_list))
     return tup_list
@@ -321,9 +349,9 @@ def get_existing_joined_sha1(data):
 
 def clean_up_s3url_sha1(data):
     #print("[clean_up_s3url_sha1] data: {}".format(data))
-    s3url = data[0].rstrip()
+    s3url = data[0].strip()
     json_x = [json.loads(x) for x in data[1].split("\n")]
-    sha1 = get_list_value(json_x,("info","sha1"))[0].rstrip()
+    sha1 = get_list_value(json_x,("info","sha1"))[0].strip()
     print("[clean_up_s3url_sha1] out: {}".format((s3url,sha1)))
     return (s3url,sha1)
 
@@ -395,8 +423,8 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     # save incremental update data infos
     images_ts_cdrid_rdd = images_hb_rdd.flatMap(lambda x: create_images_tuple(x))
     hbase_man_ts.rdd2hbase(images_ts_cdrid_rdd)
-    min_ts_cdrid = images_ts_cdrid_rdd.min()[0].rstrip()
-    max_ts_cdrid = images_ts_cdrid_rdd.max()[0].rstrip()
+    min_ts_cdrid = images_ts_cdrid_rdd.min()[0].strip()
+    max_ts_cdrid = images_ts_cdrid_rdd.max()[0].strip()
     incr_update_infos_list = []
     incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "min_ts_cdrid", min_ts_cdrid]))
     incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "max_ts_cdrid", max_ts_cdrid]))
