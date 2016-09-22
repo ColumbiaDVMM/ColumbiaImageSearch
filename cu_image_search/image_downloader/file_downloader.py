@@ -17,7 +17,7 @@ class FileDownloader():
         self.verbose = 0
         mkpath(self.dl_image_path)
 
-    def download_images(self,batch,startid):
+    def download_images(self, batch, startid):
         ''' Download and add image_filename at the end of each item in the batch.
         '''
         if not batch:

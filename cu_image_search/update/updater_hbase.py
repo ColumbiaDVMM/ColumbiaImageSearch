@@ -36,19 +36,20 @@ class Updater():
         """
         try:
             # needs to read table 'escorts_images_updates', rows starting with 'index_update_' and not marked as indexed.
-            update_id, list_sha1s = self.indexer.get_next_batch()
-            print("Update {} has {} images.".format(update_id, len(list_sha1s)))
+            update_id, str_list_sha1s = self.indexer.get_next_batch()
+            list_sha1s = str_list_sha1s.split(',')
+            print("[Updater.run_update: log] Update {} has {} images.".format(update_id, len(list_sha1s)))
             if update_id:
-                rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s.split(','), columns=["info:s3_url"])
+                rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:s3_url"])
                 if rows_batch:
                     # who marks the update as started?
                     #print rows_batch
                     clean_batch = [(row[0], row[1]["info:s3_url"]) for row in rows_batch]
                     self.indexer.index_batch_sha1(clean_batch, update_id)
                 else:
-                    print("Did not get any urls for this update ({}) images.".format(update_id))
+                    print("[Updater.run_update: log] Did not get any urls for this update ({}) images.".format(update_id))
             else:
-                print("Nothing to update!")
+                print("[Updater.run_update: log] Nothing to update!")
             # when done mark update_id as processed.
         except Exception as inst:
             print "[Updater.run_udpate: error] {}".format(inst)

@@ -467,7 +467,7 @@ class HBaseIndexer(GenericIndexer):
         new_sb_files = []
         new_files_id = []
         for i, image in enumerate(readable_images):
-            if "sentibank" in extr:
+            if "sentibank" in self.extractions_types:
                 # check that this image is not already indexed
                 if image[0].rstrip() not in self.sha1_featid_mapping:
                     new_sb_files.append(image[-1])
