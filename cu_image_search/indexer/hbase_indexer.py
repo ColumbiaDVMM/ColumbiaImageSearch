@@ -257,13 +257,13 @@ class HBaseIndexer(GenericIndexer):
         return list_columns
 
 
-    def save_refresh_batch(self, refresh_batch, base_update_path, tmp_udpate_id):
+    def save_refresh_batch(self, refresh_batch, base_update_path, update_id):
         ''' Save features and hashcodes of refresh_batch to files in base_update_path folder
         and list corresponding sha1s.
 
         :param refresh_batch: batch as list of (sha1, base64feat, base64hash)
         :param base_update_path: where to save features and hashcodes files
-        :param tmp_udpate_id: identifier of current update
+        :param update_id: identifier of current update
 
         :returns tmp_sha1_featid_mapping, features_fn, hashcodes_fn: 
             tmp_sha1_featid_mapping: the list of new sha1s
@@ -285,49 +285,38 @@ class HBaseIndexer(GenericIndexer):
             mkpath(os.path.join(base_update_path,'features/'))
             mkpath(os.path.join(base_update_path,'hash_bits/'))
             # save features in base_update_path/features
-            features_fn = os.path.join(base_update_path,'features',tmp_udpate_id+'_norm')
+            features_fn = os.path.join(base_update_path,'features', update_id+'_norm')
             write_binary_file(features_fn,list_feats)
             # save hashcodes in base_update_path/hash_bits
-            hashcodes_fn = os.path.join(base_update_path,'hash_bits',tmp_udpate_id+'_itq_norm_'+str(self.bits_num))
+            hashcodes_fn = os.path.join(base_update_path,'hash_bits', update_id+'_itq_norm_'+str(self.bits_num))
             write_binary_file(hashcodes_fn,list_hashcodes)
         # returns tmp_sha1_featid_mapping
         return tmp_sha1_featid_mapping, features_fn, hashcodes_fn
 
 
-    def merge_update_files(self, previous_files, tmp_udpate_id, out_update_id, m_uf_fn):
+    def merge_update_files(self, previous_files, tmp_update_id, out_update_id, m_uf_fn):
         start_merge = time.time()
         # use shutil.copyfileobj for comp features
         out_comp_fn = os.path.join(self.hasher.base_update_path,'comp_features',out_update_id+'_comp_norm')
         prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
-        new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
+        new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_update_id+'_comp_norm')
         comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
         self.merging = True
         shutil.move(prev_comp_feat_fn,out_comp_fn)
         with open(out_comp_fn,'ab') as out_comp, open(new_comp_feat_fn,'rb') as new_comp:
                 shutil.copyfileobj(new_comp, out_comp)
-        #with open(out_comp_fn,'wb') as out_comp:
-        #    prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
-        #    new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
-        #    comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
-        #    #with open(prev_comp_feat_fn,'rb') as prev_comp, open(new_comp_feat_fn,'rb') as new_comp:
-        #    #        ## this can get very slow as prev_comp gets bigger and bigger...
-        #    #        ## sacrifice safety for speed, move and just append.
-        #    #        ## do the same thing for hashcodes / comp_idx?
-        #    #        shutil.copyfileobj(prev_comp, out_comp)
-        #    #        shutil.copyfileobj(new_comp, out_comp)
-        # use shutil.copyfileobj for and hashcodes
         out_hash_fn = os.path.join(self.hasher.base_update_path,'hash_bits',out_update_id+'_itq_norm_'+str(self.bits_num))
         with open(out_hash_fn,'wb') as out_hash:
             prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
-            new_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',tmp_udpate_id+'_itq_norm_'+str(self.bits_num))
+            new_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',tmp_update_id+'_itq_norm_'+str(self.bits_num))
             with open(prev_hashcode_fn,'rb') as prev_hash, open(new_hashcode_fn,'rb') as new_hash:
                     shutil.copyfileobj(prev_hash, out_hash)
                     shutil.copyfileobj(new_hash, out_hash)
-        # need to read and shift tmp_udpate comp_idx
+        # need to read and shift tmp_update_id comp_idx
         out_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',out_update_id+'_compidx_norm')
         with open(out_comp_idx_fn,'wb') as out_comp_idx:
             prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
-            new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',tmp_udpate_id+'_compidx_norm')
+            new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',tmp_update_id+'_compidx_norm')
             with open(prev_comp_idx_fn,'rb') as prev_hash:
                     shutil.copyfileobj(prev_hash, out_comp_idx)
             arr = np.fromfile(new_comp_idx_fn, dtype=np.uint64)
@@ -341,24 +330,24 @@ class HBaseIndexer(GenericIndexer):
         return m_uf_fn
 
 
-    def cleanup_update(self, previous_files, tmp_udpate_id):
+    def cleanup_update(self, previous_files, update_id):
         # cleanup features
-        new_feat_fn = os.path.join(self.hasher.base_update_path,'features',tmp_udpate_id+'_norm')
+        new_feat_fn = os.path.join(self.hasher.base_update_path,'features',update_id+'_norm')
         os.remove(new_feat_fn)
         # cleanup comp features
         prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
-        new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
+        new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',update_id+'_comp_norm')
         # new procedure moves this file
         #os.remove(prev_comp_feat_fn)
         os.remove(new_comp_feat_fn)
         # cleanup hashcodes
         prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
-        new_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',tmp_udpate_id+'_itq_norm_'+str(self.bits_num))
+        new_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',update_id+'_itq_norm_'+str(self.bits_num))
         os.remove(prev_hashcode_fn)
         os.remove(new_hashcode_fn)
         # cleanup comp_idx
         prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
-        new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',tmp_udpate_id+'_compidx_norm')
+        new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',update_id+'_compidx_norm')
         os.remove(prev_comp_idx_fn)
         os.remove(new_comp_idx_fn)
 
@@ -379,25 +368,25 @@ class HBaseIndexer(GenericIndexer):
             # [Create a temporary HasherCmdLine] have a temporary "master_update" file for that batch
             from ..hasher.hasher_cmdline import HasherCmdLine
             tmp_hasher = HasherCmdLine(self.global_conf_filename)
-            tmp_udpate_id = str(time.time())+'_'+refresh_batch[0][0]
-            tmp_hasher.master_update_file = "update_"+tmp_udpate_id
+            tmp_update_id = str(time.time())+'_'+refresh_batch[0][0]
+            tmp_hasher.master_update_file = "update_"+tmp_update_id
             tm_uf_fn = os.path.join(self.hasher.base_update_path, tmp_hasher.master_update_file)
             with open(tm_uf_fn,'wt') as tm_uf:
-                tm_uf.write(tmp_udpate_id+'\n')
+                tm_uf.write(tmp_update_id+'\n')
             # save features (and hashcodes) and compress features, and get temporary mapping sha1 - feat_id. 
             # refresh_batch: batch as list of (sha1, base64feat, base64hash)
-            tmp_sha1_featid_mapping, tmp_features_fn, tmp_hashcodes_fn = self.save_refresh_batch(refresh_batch, self.hasher.base_update_path, tmp_udpate_id)
+            tmp_sha1_featid_mapping, tmp_features_fn, tmp_hashcodes_fn = self.save_refresh_batch(refresh_batch, self.hasher.base_update_path, tmp_update_id)
             tmp_hasher.compress_feats()
-            self.finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_udpate_id)
+            self.finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id)
 
 
-    def finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_udpate_id):
+    def finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id):
         # check alignment 
         max_id = self.hasher.get_max_feat_id()
         nb_indexed = len(self.sha1_featid_mapping)
-        print "[HBaseIndexer.finalize_batch_indexing: log] We have {} features, {} listed in sha1_featid_mapping.".format(max_id,nb_indexed)
+        print "[HBaseIndexer.finalize_batch_indexing: log] We have {} features, {} listed in sha1_featid_mapping.".format(max_id, nb_indexed)
         if max_id != nb_indexed:
-            raise ValueError("[HBaseIndexer.finalize_batch_indexing:error] max_id!=nb_indexed: {} vs. {}.".format(max_id,nb_indexed))
+            raise ValueError("[HBaseIndexer.finalize_batch_indexing:error] max_id!=nb_indexed: {} vs. {}.".format(max_id, nb_indexed))
         # Look for previous updates
         previous_files = []
         m_uf_fn = os.path.join(self.hasher.base_update_path,self.hasher.master_update_file)
@@ -412,14 +401,14 @@ class HBaseIndexer(GenericIndexer):
             print "[HBaseIndexer.finalize_batch_indexing: log] Should merge file listed in {} to new file listed in {}.".format(self.hasher.master_update_file,tmp_hasher.master_update_file)
             # actually do a merge, i.e. concatenate hashcodes and compressed features. 
             out_update_id = str(time.time())+'_'+tmp_sha1_featid_mapping[0]
-            self.merge_update_files(previous_files, tmp_udpate_id, out_update_id, m_uf_fn)
+            self.merge_update_files(previous_files, tmp_update_id, out_update_id, m_uf_fn)
             # all files have been merged in out_update_id now,
-            # we can delete files created by tmp_udpate_id and previous_files
-            self.cleanup_update(previous_files, tmp_udpate_id)
+            # we can delete files created by tmp_update_id and previous_files
+            self.cleanup_update(previous_files, tmp_update_id)
         else: # first batch, just copy
             # double check that shift_id and nb_indexed == 0?
             with open(m_uf_fn, 'wt') as m_uf:
-                m_uf.write(tmp_udpate_id+'\n')
+                m_uf.write(tmp_update_id+'\n')
         # cleanup temporary master file
         os.remove(tm_uf_fn)
         # update and save sha1 mapping
@@ -463,12 +452,11 @@ class HBaseIndexer(GenericIndexer):
             os.remove(image[-1])
 
 
-    def index_batch_sha1(self, batch):
-        """ Index a batch in the form of a list of (sha1, url)
+    def index_batch_sha1(self, batch, update_id):
+        """ Index an update batch in the form of a list of (sha1, url)
         """
         # Download images
         start_time = time.time() 
-        tmp_udpate_id = str(start_time)+'_'+batch[0][0]
         print "[HBaseIndexer.index_batch_sha1: log] Starting udpate {}".format(update_id)
         readable_images = self.image_downloader.download_images(batch, update_id)
         # now each batch sample is (sha1,url,filename)
@@ -491,14 +479,14 @@ class HBaseIndexer(GenericIndexer):
             # [Create a temporary HasherCmdLine] have a temporary "master_update" file for that batch
             from ..hasher.hasher_cmdline import HasherCmdLine
             tmp_hasher = HasherCmdLine(self.global_conf_filename)
-            tmp_hasher.master_update_file = "update_"+tmp_udpate_id
+            tmp_hasher.master_update_file = "update_"+update_id
             tm_uf_fn = os.path.join(self.hasher.base_update_path, tmp_hasher.master_update_file)
             with open(tm_uf_fn,'wt') as tm_uf:
-                tm_uf.write(tmp_udpate_id+'\n')
+                tm_uf.write(update_id+'\n')
             # Compute features
-            features_filename, ins_num = self.feature_extractor.compute_features(new_sb_files, tmp_udpate_id)
+            features_filename, ins_num = self.feature_extractor.compute_features(new_sb_files, update_id)
             # Compute hashcodes
-            hashbits_filepath = tmp_hasher.compute_hashcodes(features_filename, ins_num, tmp_udpate_id)
+            hashbits_filepath = tmp_hasher.compute_hashcodes(features_filename, ins_num, update_id)
             norm_features_filename = features_filename[:-4]+"_norm"
             # read features and hashcodes and pushback for insertion
             feats, feats_ok_ids = read_binary_file(norm_features_filename, "feats", new_files_id, self.features_dim*4, np.float32)
@@ -511,64 +499,12 @@ class HBaseIndexer(GenericIndexer):
             print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
             self.write_batch(new_sha1_rows, self.table_sha1infos_name) 
             tmp_hasher.compress_feats()
-            self.finalize_batch_indexing(new_files_id, tmp_udpate_id)
+            self.finalize_batch_indexing(new_files_id, update_id)
             print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
         else:
             print("[HBaseIndexer.index_batch_sha1: log] No new/readable images to index for batch starting with row {}!".format(batch[0]))
         self.cleanup_images(readable_images)
         return True
-
-
-    def refresh_hash_index(self, skip=False):
-        start_row = None
-        self.refreshing = True
-        # when running in batch mode, to restart from failure point
-        if skip and self.sha1_featid_mapping:
-            start_row = self.sha1_featid_mapping[-1]
-        list_type = ["sentibank", "hashcode"]
-        list_columns = self.get_columns_name(list_type)
-        all_needed_columns = list_columns+["info:all_cdr_ids", "info:all_parent_ids"]
-        refresh_batch = []
-        done = False
-        scanned_rows = 0
-        refresh_start = time.time()
-        while not done:
-            try:    
-                with self.pool.connection() as connection:
-                    table_sha1infos = connection.table(self.table_sha1infos_name)
-                    batch_start = time.time()
-                    for row in table_sha1infos.scan(row_start=start_row,batch_size=self.refresh_batch_size,columns=all_needed_columns+[self.cu_feat_id_column]):
-                        scanned_rows += 1
-                        if scanned_rows % self.refresh_batch_size == 0:
-                            elapsed_refresh = time.time() - refresh_start
-                            print "[HBaseIndexer.refresh_hash_index: log] Scanned {} rows so far. Total refresh time: {}. Average per row: {}.".format(scanned_rows,elapsed_refresh,elapsed_refresh/scanned_rows)
-                            sys.stdout.flush()
-                        # use column 'cu_featid' in hbase table escorts_images_sha1_infos to check if already indexed 
-                        # and use list to get total number of features for sanity check, 
-                        # because we cannot get that from the hbase table easily...
-                        # too popular images have been discarded and marked with 'discarded_column', never index them
-                        if (self.cu_feat_id_column not in row[1] or self.FORCE_REFRESH) and (self.discarded_column not in row[1]):
-                            found_columns = [column for column in all_needed_columns if column in row[1]]
-                            if len(found_columns)==len(all_needed_columns): # we have features and hashcodes
-                                refresh_batch.append((row[0],row[1][list_columns[0]],row[1][list_columns[1]]))
-                        # merge if we have a complete batch
-                        if len(refresh_batch)>=self.refresh_batch_size:
-                            print "[HBaseIndexer.refresh_hash_index: log] Pushing batch built in {}s.".format(time.time()-batch_start)
-                            self.merge_refresh_batch(refresh_batch)
-                            refresh_batch = []
-                            batch_start = time.time()
-                        start_row = row[0]
-                    # last batch
-                    if refresh_batch:
-                        self.merge_refresh_batch(refresh_batch)
-                    done = True
-            except Exception as inst:
-                print "[HBaseIndexer.refresh_hash_index: log] Caught Exception: {}.".format(inst)
-                time.sleep(5)
-        self.refreshing = False
-        if self.refresh_inqueue:
-            self.refresh_inqueue = False
-            return self.refresh_hash_index()
 
 
     def get_next_batch(self):
@@ -609,6 +545,58 @@ class HBaseIndexer(GenericIndexer):
     #         tmp["info:s3_url"] = image[1]
     #         sha1_infos.append((sha1,tmp))
     #     return sha1_infos,unique_sha1
+
+    # ## Deprecated
+    # def refresh_hash_index(self, skip=False):
+    #     start_row = None
+    #     self.refreshing = True
+    #     # when running in batch mode, to restart from failure point
+    #     if skip and self.sha1_featid_mapping:
+    #         start_row = self.sha1_featid_mapping[-1]
+    #     list_type = ["sentibank", "hashcode"]
+    #     list_columns = self.get_columns_name(list_type)
+    #     all_needed_columns = list_columns+["info:all_cdr_ids", "info:all_parent_ids"]
+    #     refresh_batch = []
+    #     done = False
+    #     scanned_rows = 0
+    #     refresh_start = time.time()
+    #     while not done:
+    #         try:    
+    #             with self.pool.connection() as connection:
+    #                 table_sha1infos = connection.table(self.table_sha1infos_name)
+    #                 batch_start = time.time()
+    #                 for row in table_sha1infos.scan(row_start=start_row,batch_size=self.refresh_batch_size,columns=all_needed_columns+[self.cu_feat_id_column]):
+    #                     scanned_rows += 1
+    #                     if scanned_rows % self.refresh_batch_size == 0:
+    #                         elapsed_refresh = time.time() - refresh_start
+    #                         print "[HBaseIndexer.refresh_hash_index: log] Scanned {} rows so far. Total refresh time: {}. Average per row: {}.".format(scanned_rows,elapsed_refresh,elapsed_refresh/scanned_rows)
+    #                         sys.stdout.flush()
+    #                     # use column 'cu_featid' in hbase table escorts_images_sha1_infos to check if already indexed 
+    #                     # and use list to get total number of features for sanity check, 
+    #                     # because we cannot get that from the hbase table easily...
+    #                     # too popular images have been discarded and marked with 'discarded_column', never index them
+    #                     if (self.cu_feat_id_column not in row[1] or self.FORCE_REFRESH) and (self.discarded_column not in row[1]):
+    #                         found_columns = [column for column in all_needed_columns if column in row[1]]
+    #                         if len(found_columns)==len(all_needed_columns): # we have features and hashcodes
+    #                             refresh_batch.append((row[0],row[1][list_columns[0]],row[1][list_columns[1]]))
+    #                     # merge if we have a complete batch
+    #                     if len(refresh_batch)>=self.refresh_batch_size:
+    #                         print "[HBaseIndexer.refresh_hash_index: log] Pushing batch built in {}s.".format(time.time()-batch_start)
+    #                         self.merge_refresh_batch(refresh_batch)
+    #                         refresh_batch = []
+    #                         batch_start = time.time()
+    #                     start_row = row[0]
+    #                 # last batch
+    #                 if refresh_batch:
+    #                     self.merge_refresh_batch(refresh_batch)
+    #                 done = True
+    #         except Exception as inst:
+    #             print "[HBaseIndexer.refresh_hash_index: log] Caught Exception: {}.".format(inst)
+    #             time.sleep(5)
+    #     self.refreshing = False
+    #     if self.refresh_inqueue:
+    #         self.refresh_inqueue = False
+    #         return self.refresh_hash_index()
 
 
     # ## Deprecated

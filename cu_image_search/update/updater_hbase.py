@@ -42,7 +42,7 @@ class Updater():
                 rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s.split(','), columns=["info:s3_url"])
                 if rows_batch:
                     # who marks the update as started?
-                    print rows_batch
+                    #print rows_batch
                     clean_batch = [(row[0], row[1]["info:s3_url"]) for row in rows_batch]
                     self.indexer.index_batch_sha1(clean_batch)
                 else:
