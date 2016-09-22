@@ -441,7 +441,7 @@ class HBaseIndexer(GenericIndexer):
         for i, sha1 in enumerate(new_files_id):
             row_data = dict()
             for j, extr in enumerate(extractions_names):
-                row_data[extractions_columns_names[j]] = base64.b64encode(extractions_vals[i][j,:])
+                row_data[extractions_columns_names[j]] = base64.b64encode(extractions_vals[j][i])
             batch_output.append((sha1, row_data))
         return batch_output
 
@@ -491,7 +491,7 @@ class HBaseIndexer(GenericIndexer):
                 self.cleanup_images(readable_images)
                 return False
             new_sha1_rows = self.build_extractions_rows(new_files_id, ["sentibank", "hashcode"], [feats, hashcodes])
-            print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
+            print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows[0][0], self.table_sha1infos_name)
             self.write_batch(new_sha1_rows, self.table_sha1infos_name) 
             tmp_hasher.compress_feats()
             self.finalize_batch_indexing(new_files_id, update_id)
