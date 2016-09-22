@@ -388,6 +388,12 @@ class HBaseIndexer(GenericIndexer):
         nb_indexed = len(self.sha1_featid_mapping)
         if max_id != nb_indexed:
             print "[HBaseIndexer.check_alignment: error] We have {} features, {} listed in sha1_featid_mapping.".format(max_id, nb_indexed)
+            # we could try to recover 
+            # if max_id > nb_indexed (an update crashed after merging files but before updating and saving sha1_featid_mapping): 
+            # - cut hasbits based at nb_indexed hashcodes
+            # - cut comp_features based on comp_idx for nb_indexed [may not be needed if it is this step which failed]
+            # if nb_indexed > max_id (unlikely, file have been tampered manually?):
+            # - self.sha1_featid_mapping at max_id
             raise ValueError("[HBaseIndexer.finalize_batch_indexing:error] max_id!=nb_indexed: {} vs. {}.".format(max_id, nb_indexed))
         
 
@@ -487,7 +493,9 @@ class HBaseIndexer(GenericIndexer):
             features_filename, ins_num = self.feature_extractor.compute_features(new_sb_files, update_id)
             # Compute hashcodes
             hashbits_filepath = tmp_hasher.compute_hashcodes(features_filename, ins_num, update_id)
-            norm_features_filename = features_filename[:-4]+"_norm"
+            # need to move features file
+            norm_features_filename = os.path.join(tmp_hasher.base_update_path,'features',update_id+'_norm')
+            shutil.move(features_filename[:-4]+"_norm", norm_features_filename)
             # read features and hashcodes and pushback for insertion
             feats, feats_ok_ids = read_binary_file(norm_features_filename, "feats", new_files_id, self.features_dim*4, np.float32)
             hashcodes, hash_ok_ids = read_binary_file(hashbits_filepath, "hashcode", new_files_id, self.bits_num/8, np.uint8)
