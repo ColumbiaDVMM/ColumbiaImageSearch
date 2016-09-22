@@ -65,6 +65,7 @@ class HasherCmdLine():
             print "[HasherCmdline.get_max_feat_id: error] {}".format(inst)
         return total_nb
 
+
     def compress_feats(self):
         """ Compress the features with zlib.
         """

@@ -64,7 +64,7 @@ class Updater():
         """ Runs an update.
         """
         try:
-            start = self.indexer.get_next_batch_start()
+            #start = self.indexer.get_next_batch_start()
             self.ingester.set_start(start)
             self.ingester.set_fail_less_than_batch(False)
             batch = self.ingester.get_batch()
