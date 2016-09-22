@@ -398,8 +398,7 @@ class HBaseIndexer(GenericIndexer):
         if len(previous_files)>1:
             raise ValueError("[HBaseIndexer.finalize_batch_indexing:error] was expecting a single file, found {}.".format(len(previous_files)))
         if previous_files:
-            print "[HBaseIndexer.finalize_batch_indexing: log] Should merge file listed in {} to new file listed in {}.".format(self.hasher.master_update_file,tmp_hasher.master_update_file)
-            # actually do a merge, i.e. concatenate hashcodes and compressed features. 
+            # do a merge, i.e. concatenate hashcodes and compressed features. 
             out_update_id = str(time.time())+'_'+tmp_sha1_featid_mapping[0]
             self.merge_update_files(previous_files, tmp_update_id, out_update_id, m_uf_fn)
             # all files have been merged in out_update_id now,
