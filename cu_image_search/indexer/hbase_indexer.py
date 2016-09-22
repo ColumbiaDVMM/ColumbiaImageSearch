@@ -69,7 +69,6 @@ class HBaseIndexer(GenericIndexer):
             self.initializing = False
         except Exception as inst:
             print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}.\n{}".format(self.sha1_featid_mapping_filename,inst)
-        self.check_alignment()
 
     def save_sha1_mapping(self):
         try:
@@ -92,6 +91,7 @@ class HBaseIndexer(GenericIndexer):
         self.initialize_image_downloader()
         self.initialize_feature_extractor()
         self.initialize_hasher()
+        self.check_alignment()
         self.db = None
 
 
