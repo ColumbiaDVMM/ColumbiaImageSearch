@@ -458,6 +458,11 @@ class HBaseIndexer(GenericIndexer):
         return batch_output
 
 
+    def cleanup_images(self, readable_images):
+        for image in readable_images:
+            os.remove(image[-1])
+
+
     def index_batch_sha1(self, batch):
         """ Index a batch in the form of a list of (sha1, url)
         """
@@ -469,11 +474,13 @@ class HBaseIndexer(GenericIndexer):
         # now each batch sample is (sha1,url,filename)
         #print readable_images
         if not readable_images:
-            return None
+            print("[HBaseIndexer.index_batch_sha1: log] No readable images for batch starting with row {}!".format(batch[0]))
+            return False
         new_sb_files = []
         new_files_id = []
         for i, image in enumerate(readable_images):
             if "sentibank" in extr:
+                # check that this image is not already indexed
                 if image[0].rstrip() not in self.sha1_featid_mapping:
                     new_sb_files.append(image[-1])
                     new_files_id.append(image[0].rstrip())
@@ -498,6 +505,7 @@ class HBaseIndexer(GenericIndexer):
             hashcodes, hash_ok_ids = read_binary_file(hashbits_filepath, "hashcodes", new_files_id, self.bits_num/8, np.uint8)
             if len(feats_ok_ids)!=len(new_files_id) or len(hash_ok_ids)!=len(new_files_id):
                 print("[HBaseIndexer.index_batch_sha1: error] Dimensions mismatch. Are we missing features? {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id)))
+                self.cleanup_images(readable_images)
                 return False
             new_sha1_rows = self.build_extractions_rows(new_files_id, ["sentibank", "hashcodes"], [feats, hashcodes])
             print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
@@ -507,10 +515,8 @@ class HBaseIndexer(GenericIndexer):
             print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
         else:
             print("[HBaseIndexer.index_batch_sha1: log] No new/readable images to index for batch starting with row {}!".format(batch[0]))
-        # cleanup images 
-        for image in readable_images:
-            os.remove(image[-1])
-            
+        self.cleanup_images(readable_images)
+        return True
 
 
     def refresh_hash_index(self, skip=False):
