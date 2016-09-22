@@ -44,7 +44,7 @@ class Updater():
                     # who marks the update as started?
                     #print rows_batch
                     clean_batch = [(row[0], row[1]["info:s3_url"]) for row in rows_batch]
-                    self.indexer.index_batch_sha1(clean_batch)
+                    self.indexer.index_batch_sha1(clean_batch, update_id)
                 else:
                     print("Did not get any urls for this update ({}) images.".format(update_id))
             else:
