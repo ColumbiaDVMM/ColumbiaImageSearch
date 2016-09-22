@@ -17,7 +17,7 @@ class HBaseIndexer(GenericIndexer):
         """ Reads configuration parameters.
 
         Will read parameters 'HBI_image_downloader', 'HBI_hasher', 
-        'HBI_feature_extractor', 'LI_master_update_filepath' and 'LI_base_update_path'
+        'HBI_feature_extractor', 'LI_master_update_filepath' and 'LI_base_update_path'...
         from self.global_conf.
         """
         self.image_downloader_type = self.global_conf['HBI_image_downloader']
@@ -40,7 +40,7 @@ class HBaseIndexer(GenericIndexer):
         self.initialize_sha1_mapping()
         self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
-            raise ValueError("[HBaseIngester.initialize_source: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
+            raise ValueError("[HBaseIngester.read_conf: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
         self.nb_threads = 4
         if 'HBI_pool_thread' in self.global_conf:
             self.nb_threads = self.global_conf['HBI_pool_thread']
@@ -486,12 +486,12 @@ class HBaseIndexer(GenericIndexer):
             norm_features_filename = features_filename[:-4]+"_norm"
             # read features and hashcodes and pushback for insertion
             feats, feats_ok_ids = read_binary_file(norm_features_filename, "feats", new_files_id, self.features_dim*4, np.float32)
-            hashcodes, hash_ok_ids = read_binary_file(hashbits_filepath, "hashcodes", new_files_id, self.bits_num/8, np.uint8)
+            hashcodes, hash_ok_ids = read_binary_file(hashbits_filepath, "hashcode", new_files_id, self.bits_num/8, np.uint8)
             if len(feats_ok_ids)!=len(new_files_id) or len(hash_ok_ids)!=len(new_files_id):
                 print("[HBaseIndexer.index_batch_sha1: error] Dimensions mismatch. Are we missing features? {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id)))
                 self.cleanup_images(readable_images)
                 return False
-            new_sha1_rows = self.build_extractions_rows(new_files_id, ["sentibank", "hashcodes"], [feats, hashcodes])
+            new_sha1_rows = self.build_extractions_rows(new_files_id, ["sentibank", "hashcode"], [feats, hashcodes])
             print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
             self.write_batch(new_sha1_rows, self.table_sha1infos_name) 
             tmp_hasher.compress_feats()
