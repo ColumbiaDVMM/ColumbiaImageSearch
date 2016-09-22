@@ -397,7 +397,8 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 
     start_time = time.time()
     
-    # if we restart we should actually look for the most advanced saved rdd and restart from there...
+    # if we restart we should actually look for the most advanced saved rdd and restart from there.
+    # we could read the corresponding update row in table_updates to understand where we need to restart from.
     if restart:
         incr_update_id = identifier
     else:
@@ -479,7 +480,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         s3url_infos_rdd = cdr_ids_infos_rdd_red.flatMap(lambda x: to_s3_url_key(x)).persist(StorageLevel.MEMORY_AND_DISK)
         # read s3url_sha1 table into s3url_sha1 to get sha1 here without downloading images
         s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().map(clean_up_s3url_sha1).persist(StorageLevel.MEMORY_AND_DISK)
-        # do a s3url_infos_rdd.leftOuterJoin(s3url_sha1) s3url_infos_rdd_with_sha1
+        # do a s3url_infos_rdd.leftOuterJoin(s3url_sha1) s3url_sha1_rdd
         s3url_infos_rdd_join = s3url_infos_rdd.leftOuterJoin(s3url_sha1_rdd).persist(StorageLevel.MEMORY_AND_DISK)
         # save rdd
         if save_inter_rdd:
@@ -505,9 +506,10 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         except Exception as inst:
             print("Could not load rdd at {}. Error was {}.".format(cdr_ids_infos_rdd_join_sha1_path, inst))
 
+    ## invert s3url_infos_rdd_join (s3_url, (v,sha1)) into cdr_ids_infos_rdd_join_sha1 (k, v) adding info:sha1 in v
+    s3url_infos_rdd_with_sha1 = s3url_infos_rdd_join.filter(get_existing_joined_sha1).persist(StorageLevel.MEMORY_AND_DISK)
+
     if cdr_ids_infos_rdd_join_sha1_not_loaded:
-        ## invert s3url_infos_rdd_join (s3_url, (v,sha1)) into cdr_ids_infos_rdd_join_sha1 (k, v) adding info:sha1 in v
-        s3url_infos_rdd_with_sha1 = s3url_infos_rdd_join.filter(get_existing_joined_sha1).persist(StorageLevel.MEMORY_AND_DISK)
         cdr_ids_infos_rdd_join_sha1 = s3url_infos_rdd_with_sha1.flatMap(lambda x: s3url_to_cdr_id_wsha1(x)).persist(StorageLevel.MEMORY_AND_DISK)
         s_rdd_join_sha1 = sc.sequenceFile(cdr_ids_infos_rdd_join_sha1_path).mapValues(json.loads)
         cdr_ids_infos_rdd_join_sha1_count = cdr_ids_infos_rdd_join_sha1.count()
@@ -528,6 +530,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     # to sha1 key and save number of joined by s3 url images
     update_join_rdd = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_discarding).persist(StorageLevel.MEMORY_AND_DISK)
     cdr_ids_infos_rdd_join_sha1.unpersist()
+    # 0 when loading but 3320468 originally...
     update_join_rdd_count = update_join_rdd.count()
     save_info_incremental_update(hbase_man_update_out, incr_update_id, update_join_rdd_count, "update_join_rdd_count")
     ## update cdr_ids, and parents cdr_ids for these existing sha1s
@@ -548,7 +551,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         out_join_rdd_path = basepath_save + "/out_join_rdd"
         try:
             # check if file exists, delete before trying to write?
-            out_join_rdd.saveAsSequenceFile(out_join_rdd, compressionCodecClass=compression)
+            out_join_rdd.saveAsSequenceFile(out_join_rdd_path, compressionCodecClass=compression)
             save_info_incremental_update(hbase_man_update_out, incr_update_id, out_join_rdd_path, "out_join_rdd_path")
             # to be loaded with
             #out_join_rdd = sc.sequenceFile(out_join_rdd)
