@@ -227,7 +227,7 @@ def split_sha1_kv_filter_max_images_discarded(x):
             str_s3url_value = str(s3url_value)
         # str(field_value) could fail for unicode strings...
         except Exception as inst:
-            print("[create_images_tuple: error] {}. Assuming it is an encoding issue.".format(inst))
+            print("[split_sha1_kv_filter_max_images_discarded: error] {}. Assuming it is an encoding issue.".format(inst))
             try:
                 str_s3url_value = s3url_value.encode('utf-8')
             except:
