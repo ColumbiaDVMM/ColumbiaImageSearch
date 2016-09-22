@@ -46,6 +46,7 @@ class FileDownloader():
                 downloaded.append(img_item+(download_indicator[i],))
         print "[FileDownloader.download_images: log] Downloaded {} images in {:.2f}s.".format(len(downloaded),time.time()-start_dl)
         pool.close()
+        pool.join()
         if not downloaded:
             return None
         # Image integrity check

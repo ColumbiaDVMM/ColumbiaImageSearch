@@ -460,10 +460,6 @@ class HBaseIndexer(GenericIndexer):
         print "[HBaseIndexer.index_batch_sha1: log] Starting udpate {}".format(update_id)
         readable_images = self.image_downloader.download_images(batch, update_id)
         # now each batch sample is (sha1,url,filename)
-        #print readable_images
-        if not readable_images:
-            print("[HBaseIndexer.index_batch_sha1: log] No readable images for batch starting with row {}!".format(batch[0]))
-            return False
         new_sb_files = []
         new_files_id = []
         for i, image in enumerate(readable_images):
