@@ -310,7 +310,7 @@ class HBaseIndexer(GenericIndexer):
             # refresh_batch: batch as list of (sha1, base64feat, base64hash)
             tmp_sha1_featid_mapping, tmp_features_fn, tmp_hashcodes_fn = self.save_refresh_batch(refresh_batch, self.hasher.base_update_path, tmp_update_id)
             tmp_hasher.compress_feats()
-            self.finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id)
+            self.finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id, tm_uf_fn)
     ##--
 
 
@@ -397,7 +397,7 @@ class HBaseIndexer(GenericIndexer):
             raise ValueError("[HBaseIndexer.finalize_batch_indexing:error] max_id!=nb_indexed: {} vs. {}.".format(max_id, nb_indexed))
         
 
-    def finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id):
+    def finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id, tm_uf_fn):
         self.check_alignment()
         # Look for previous updates
         previous_files = []
@@ -507,7 +507,7 @@ class HBaseIndexer(GenericIndexer):
             print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows[0][0], self.table_sha1infos_name)
             self.write_batch(new_sha1_rows, self.table_sha1infos_name) 
             tmp_hasher.compress_feats()
-            self.finalize_batch_indexing(new_files_id, update_id)
+            self.finalize_batch_indexing(new_files_id, update_id, tm_uf_fn)
             print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
         else:
             print("[HBaseIndexer.index_batch_sha1: log] No new/readable images to index for batch starting with row {}!".format(batch[0]))
