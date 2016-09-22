@@ -49,7 +49,8 @@ class FileDownloader():
         pool.join()
         if not downloaded:
             return None
-        # Image integrity check
+        # Image integrity check, this is slow... 
+        # And also does not deal with types other than JPEG...
         readable_images = []
         integrity_path = os.path.join(basepath,'integrity_check')
         if not os.path.exists(integrity_path):

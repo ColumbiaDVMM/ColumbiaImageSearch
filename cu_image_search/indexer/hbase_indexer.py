@@ -69,6 +69,7 @@ class HBaseIndexer(GenericIndexer):
             self.initializing = False
         except Exception as inst:
             print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}.\n{}".format(self.sha1_featid_mapping_filename,inst)
+        self.check_alignment()
 
     def save_sha1_mapping(self):
         try:
@@ -129,7 +130,6 @@ class HBaseIndexer(GenericIndexer):
                 pass
             found_ids.append((pos,sha1))
         return found_ids
-
 
 
     def get_ids_from_sha1s_hbase(self, list_sha1s):
@@ -257,6 +257,7 @@ class HBaseIndexer(GenericIndexer):
         return list_columns
 
 
+    ##-- When reading FROM hbase to save locally
     def save_refresh_batch(self, refresh_batch, base_update_path, update_id):
         ''' Save features and hashcodes of refresh_batch to files in base_update_path folder
         and list corresponding sha1s.
@@ -292,6 +293,25 @@ class HBaseIndexer(GenericIndexer):
             write_binary_file(hashcodes_fn,list_hashcodes)
         # returns tmp_sha1_featid_mapping
         return tmp_sha1_featid_mapping, features_fn, hashcodes_fn
+
+
+    def merge_refresh_batch(self, refresh_batch):
+        if refresh_batch:
+            print "[HBaseIndexer.merge_refresh_batch: log] We have a batch of {} images from {}.".format(len(refresh_batch),refresh_batch[0][0])
+            # [Create a temporary HasherCmdLine] have a temporary "master_update" file for that batch
+            from ..hasher.hasher_cmdline import HasherCmdLine
+            tmp_hasher = HasherCmdLine(self.global_conf_filename)
+            tmp_update_id = str(time.time())+'_'+refresh_batch[0][0]
+            tmp_hasher.master_update_file = "update_"+tmp_update_id
+            tm_uf_fn = os.path.join(self.hasher.base_update_path, tmp_hasher.master_update_file)
+            with open(tm_uf_fn,'wt') as tm_uf:
+                tm_uf.write(tmp_update_id+'\n')
+            # save features (and hashcodes) and compress features, and get temporary mapping sha1 - feat_id. 
+            # refresh_batch: batch as list of (sha1, base64feat, base64hash)
+            tmp_sha1_featid_mapping, tmp_features_fn, tmp_hashcodes_fn = self.save_refresh_batch(refresh_batch, self.hasher.base_update_path, tmp_update_id)
+            tmp_hasher.compress_feats()
+            self.finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id)
+    ##--
 
 
     def merge_update_files(self, previous_files, tmp_update_id, out_update_id, m_uf_fn):
@@ -361,32 +381,18 @@ class HBaseIndexer(GenericIndexer):
                 for i, sha1 in enumerate(rows_update):
                     b.put(sha1, {self.cu_feat_id_column: str(cu_feat_ids[i])})
 
-   
-    def merge_refresh_batch(self, refresh_batch):
-        if refresh_batch:
-            print "[HBaseIndexer.merge_refresh_batch: log] We have a batch of {} images from {}.".format(len(refresh_batch),refresh_batch[0][0])
-            # [Create a temporary HasherCmdLine] have a temporary "master_update" file for that batch
-            from ..hasher.hasher_cmdline import HasherCmdLine
-            tmp_hasher = HasherCmdLine(self.global_conf_filename)
-            tmp_update_id = str(time.time())+'_'+refresh_batch[0][0]
-            tmp_hasher.master_update_file = "update_"+tmp_update_id
-            tm_uf_fn = os.path.join(self.hasher.base_update_path, tmp_hasher.master_update_file)
-            with open(tm_uf_fn,'wt') as tm_uf:
-                tm_uf.write(tmp_update_id+'\n')
-            # save features (and hashcodes) and compress features, and get temporary mapping sha1 - feat_id. 
-            # refresh_batch: batch as list of (sha1, base64feat, base64hash)
-            tmp_sha1_featid_mapping, tmp_features_fn, tmp_hashcodes_fn = self.save_refresh_batch(refresh_batch, self.hasher.base_update_path, tmp_update_id)
-            tmp_hasher.compress_feats()
-            self.finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id)
 
-
-    def finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id):
+    def check_alignment(self):
         # check alignment 
         max_id = self.hasher.get_max_feat_id()
         nb_indexed = len(self.sha1_featid_mapping)
-        print "[HBaseIndexer.finalize_batch_indexing: log] We have {} features, {} listed in sha1_featid_mapping.".format(max_id, nb_indexed)
         if max_id != nb_indexed:
+            print "[HBaseIndexer.check_alignment: error] We have {} features, {} listed in sha1_featid_mapping.".format(max_id, nb_indexed)
             raise ValueError("[HBaseIndexer.finalize_batch_indexing:error] max_id!=nb_indexed: {} vs. {}.".format(max_id, nb_indexed))
+        
+
+    def finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id):
+        self.check_alignment()
         # Look for previous updates
         previous_files = []
         m_uf_fn = os.path.join(self.hasher.base_update_path,self.hasher.master_update_file)
