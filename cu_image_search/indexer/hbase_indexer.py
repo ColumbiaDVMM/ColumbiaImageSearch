@@ -441,8 +441,7 @@ class HBaseIndexer(GenericIndexer):
         for i, sha1 in enumerate(new_files_id):
             row_data = dict()
             for i, extr in enumerate(extractions_names):
-                row_data[extractions_columns_names[i]] = base64.b64encode(feats[i])
-                row_data[extractions_columns_names[i]] = base64.b64encode(hashcodes[i])
+                row_data[extractions_columns_names[i]] = base64.b64encode(extractions_vals[i])
             batch_output.append((sha1, row_data))
         return batch_output
 
