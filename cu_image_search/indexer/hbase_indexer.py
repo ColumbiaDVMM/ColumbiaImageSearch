@@ -257,13 +257,13 @@ class HBaseIndexer(GenericIndexer):
         return list_columns
 
 
-    def save_refresh_batch(self, refresh_batch, base_update_path, tmp_udpate_id):
+    def save_refresh_batch(self, refresh_batch, base_update_path, update_id):
         ''' Save features and hashcodes of refresh_batch to files in base_update_path folder
         and list corresponding sha1s.
 
         :param refresh_batch: batch as list of (sha1, base64feat, base64hash)
         :param base_update_path: where to save features and hashcodes files
-        :param tmp_udpate_id: identifier of current update
+        :param update_id: identifier of current update
 
         :returns tmp_sha1_featid_mapping, features_fn, hashcodes_fn: 
             tmp_sha1_featid_mapping: the list of new sha1s
@@ -285,21 +285,21 @@ class HBaseIndexer(GenericIndexer):
             mkpath(os.path.join(base_update_path,'features/'))
             mkpath(os.path.join(base_update_path,'hash_bits/'))
             # save features in base_update_path/features
-            features_fn = os.path.join(base_update_path,'features',tmp_udpate_id+'_norm')
+            features_fn = os.path.join(base_update_path,'features', update_id+'_norm')
             write_binary_file(features_fn,list_feats)
             # save hashcodes in base_update_path/hash_bits
-            hashcodes_fn = os.path.join(base_update_path,'hash_bits',tmp_udpate_id+'_itq_norm_'+str(self.bits_num))
+            hashcodes_fn = os.path.join(base_update_path,'hash_bits', update_id+'_itq_norm_'+str(self.bits_num))
             write_binary_file(hashcodes_fn,list_hashcodes)
         # returns tmp_sha1_featid_mapping
         return tmp_sha1_featid_mapping, features_fn, hashcodes_fn
 
 
-    def merge_update_files(self, previous_files, tmp_udpate_id, out_update_id, m_uf_fn):
+    def merge_update_files(self, previous_files, update_id, out_update_id, m_uf_fn):
         start_merge = time.time()
         # use shutil.copyfileobj for comp features
         out_comp_fn = os.path.join(self.hasher.base_update_path,'comp_features',out_update_id+'_comp_norm')
         prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
-        new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
+        new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',update_id+'_comp_norm')
         comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
         self.merging = True
         shutil.move(prev_comp_feat_fn,out_comp_fn)
@@ -327,7 +327,7 @@ class HBaseIndexer(GenericIndexer):
         out_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',out_update_id+'_compidx_norm')
         with open(out_comp_idx_fn,'wb') as out_comp_idx:
             prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
-            new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',tmp_udpate_id+'_compidx_norm')
+            new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',update_id+'_compidx_norm')
             with open(prev_comp_idx_fn,'rb') as prev_hash:
                     shutil.copyfileobj(prev_hash, out_comp_idx)
             arr = np.fromfile(new_comp_idx_fn, dtype=np.uint64)
@@ -341,24 +341,24 @@ class HBaseIndexer(GenericIndexer):
         return m_uf_fn
 
 
-    def cleanup_update(self, previous_files, tmp_udpate_id):
+    def cleanup_update(self, previous_files, update_id):
         # cleanup features
-        new_feat_fn = os.path.join(self.hasher.base_update_path,'features',tmp_udpate_id+'_norm')
+        new_feat_fn = os.path.join(self.hasher.base_update_path,'features',update_id+'_norm')
         os.remove(new_feat_fn)
         # cleanup comp features
         prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
-        new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',tmp_udpate_id+'_comp_norm')
+        new_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',update_id+'_comp_norm')
         # new procedure moves this file
         #os.remove(prev_comp_feat_fn)
         os.remove(new_comp_feat_fn)
         # cleanup hashcodes
         prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
-        new_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',tmp_udpate_id+'_itq_norm_'+str(self.bits_num))
+        new_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',update_id+'_itq_norm_'+str(self.bits_num))
         os.remove(prev_hashcode_fn)
         os.remove(new_hashcode_fn)
         # cleanup comp_idx
         prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
-        new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',tmp_udpate_id+'_compidx_norm')
+        new_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',update_id+'_compidx_norm')
         os.remove(prev_comp_idx_fn)
         os.remove(new_comp_idx_fn)
 
@@ -458,12 +458,11 @@ class HBaseIndexer(GenericIndexer):
         return batch_output
 
 
-    def index_batch_sha1(self, batch):
+    def index_batch_sha1(self, batch, update_id):
         """ Index a batch in the form of a list of (sha1, url)
         """
         # Download images
         start_time = time.time() 
-        tmp_udpate_id = str(start_time)+'_'+batch[0][0]
         print "[HBaseIndexer.index_batch_sha1: log] Starting udpate {}".format(update_id)
         readable_images = self.image_downloader.download_images(batch, update_id)
         # now each batch sample is (sha1,url,filename)
@@ -484,14 +483,14 @@ class HBaseIndexer(GenericIndexer):
             # [Create a temporary HasherCmdLine] have a temporary "master_update" file for that batch
             from ..hasher.hasher_cmdline import HasherCmdLine
             tmp_hasher = HasherCmdLine(self.global_conf_filename)
-            tmp_hasher.master_update_file = "update_"+tmp_udpate_id
+            tmp_hasher.master_update_file = "update_"+update_id
             tm_uf_fn = os.path.join(self.hasher.base_update_path, tmp_hasher.master_update_file)
             with open(tm_uf_fn,'wt') as tm_uf:
-                tm_uf.write(tmp_udpate_id+'\n')
+                tm_uf.write(update_id+'\n')
             # Compute features
-            features_filename, ins_num = self.feature_extractor.compute_features(new_sb_files, tmp_udpate_id)
+            features_filename, ins_num = self.feature_extractor.compute_features(new_sb_files, update_id)
             # Compute hashcodes
-            hashbits_filepath = tmp_hasher.compute_hashcodes(features_filename, ins_num, tmp_udpate_id)
+            hashbits_filepath = tmp_hasher.compute_hashcodes(features_filename, ins_num, update_id)
             norm_features_filename = features_filename[:-4]+"_norm"
             # read features and hashcodes and pushback for insertion
             feats, feats_ok_ids = read_binary_file(norm_features_filename, "feats", new_files_id, self.features_dim*4, np.float32)
@@ -503,7 +502,7 @@ class HBaseIndexer(GenericIndexer):
             print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
             self.write_batch(new_sha1_rows, self.table_sha1infos_name) 
             tmp_hasher.compress_feats()
-            self.finalize_batch_indexing(new_files_id, tmp_udpate_id)
+            self.finalize_batch_indexing(new_files_id, update_id)
             print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
         else:
             print("[HBaseIndexer.index_batch_sha1: log] No new/readable images to index for batch starting with row {}!".format(batch[0]))
