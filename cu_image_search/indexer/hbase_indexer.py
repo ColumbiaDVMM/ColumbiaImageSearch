@@ -54,6 +54,7 @@ class HBaseIndexer(GenericIndexer):
         self.initializing = False
         self.last_refresh = None
         self.refresh_inqueue = False
+        self.index_batches = []
 
     def initialize_sha1_mapping(self):
         self.initializing = True
@@ -562,6 +563,25 @@ class HBaseIndexer(GenericIndexer):
         if self.refresh_inqueue:
             self.refresh_inqueue = False
             return self.refresh_hash_index()
+
+
+    def get_next_batch(self):
+        """ Get next update batch. 
+
+        :returns (update_id, list_sha1s): returns a batch to be indexed.
+        """
+        if not self.index_batches:
+            with self.pool.connection() as connection:
+                table_updateinfos = connection.table(self.table_updateinfos_name)
+                for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~'):
+                    if "info:indexed" not in row[1]:
+                        self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
+        if self.index_batches:
+            batch = self.index_batches.pop()
+        else:
+            batch = (None, None)
+        # mark start processing here?
+        return batch
 
 
     ### Deprecated. Was used when ingesting form CDR was done in a python script and not with a Spark job.

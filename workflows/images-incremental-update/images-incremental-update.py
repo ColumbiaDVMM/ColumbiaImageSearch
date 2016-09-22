@@ -405,6 +405,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     # need to use pydoop.hdfs to create the directory?
     basepath_save = '/user/skaraman/data/'+incr_update_id
     
+    ##-- get cdr_ids_infos_rdd
     cdr_ids_infos_rdd_not_loaded = True
     cdr_ids_infos_rdd_path = basepath_save + "/cdr_ids_infos_rdd"
     if restart:
@@ -458,8 +459,9 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
             # to be loaded with:
             # cdr_ids_infos_rdd = sc.sequenceFile(cdr_ids_infos_rdd_path).mapValues(json.loads)
         images_hb_rdd.unpersist()
+    ##-- end get cdr_ids_infos_rdd
 
-
+    ##-- get s3url_infos_rdd_join
     s3url_infos_rdd_join_path = basepath_save + "/s3url_infos_rdd_join"
     s3url_infos_rdd_join_not_loaded = True
     if restart:
@@ -491,8 +493,9 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
                 print("Could not save rdd at {}, error was {}.".format(s3url_infos_rdd_join_path, inst))
         s3url_sha1_rdd.unpersist()
         s3url_infos_rdd.unpersist()
+    ##-- end get s3url_infos_rdd_join
 
-
+    ##-- get cdr_ids_infos_rdd_join_sha1
     cdr_ids_infos_rdd_join_sha1_path = basepath_save + "/cdr_ids_infos_rdd_join_sha1"
     cdr_ids_infos_rdd_join_sha1_not_loaded = True
     if restart:
@@ -519,8 +522,9 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
                 save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_path, "cdr_ids_infos_rdd_join_sha1_path")
             except Exception as inst:
                 print("Could not save rdd at {}, error was {}.".format(cdr_ids_infos_rdd_join_sha1_path, inst))
+    ##-- end get cdr_ids_infos_rdd_join_sha1
 
-
+    ##-- build out_join_rdd
     # to sha1 key and save number of joined by s3 url images
     update_join_rdd = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_discarding).persist(StorageLevel.MEMORY_AND_DISK)
     cdr_ids_infos_rdd_join_sha1.unpersist()
@@ -552,6 +556,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
             print("Could not save rdd at {}, error was {}.".format(out_join_rdd_path, inst))
     out_join_rdd.unpersist()
     sha1_infos_rdd.unpersist()
+    ##-- end build out_join_rdd
 
     ## for not matching s3url i.e. missing sha1
     # filter on second value member being empty in s3url_infos_rdd_join, and get sha1
