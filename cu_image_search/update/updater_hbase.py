@@ -46,7 +46,7 @@ class Updater():
                     batch_indexed = self.indexer.index_batch_sha1(clean_batch, update_id)
                 else:
                     print("[Updater.run_update: log] Did not get any urls for this update ({}) images.".format(update_id))
-                    print("[Updater.run_update: log] We were looking for the images urls in table {}.".format(self.indexer..table_sha1infos_name))
+                    print("[Updater.run_update: log] We were looking for the images urls in table {}.".format(self.indexer.table_sha1infos_name))
             else:
                 print("[Updater.run_update: log] Nothing to update!")
             # when done mark update_id as processed.
