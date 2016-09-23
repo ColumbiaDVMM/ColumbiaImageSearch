@@ -79,7 +79,7 @@ class Searcher(Resource):
         elif mode == "refresh":
             return self.refresh()
         else:
-            return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give data parameter?'}
+            return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give \'data\' parameter?'}
 
 
     def process_query(self, mode, query):
@@ -222,7 +222,10 @@ class Searcher(Resource):
                 print("[search_byB64_nocache] Error when decoding image.")
                 errors.append("[search_byB64_nocache] Error when decoding image with length {}.".format(len(one_b64)))
             list_imgs.append(img_fn)
-        outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
+        if list_imgs:
+            outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
+        else:
+            outp = OrderedDict()
         if errors:
             outp['errors'] = []
             for e in errors:
