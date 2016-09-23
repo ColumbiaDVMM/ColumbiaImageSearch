@@ -218,10 +218,10 @@ class Searcher(Resource):
                             os.remove(img_fn)
                     else:
                         f.write(img_byte)
+                list_imgs.append(img_fn)
             except:
                 print("[search_byB64_nocache] Error when decoding image.")
                 errors.append("[search_byB64_nocache] Error when decoding image with length {}.".format(len(one_b64)))
-            list_imgs.append(img_fn)
         if list_imgs:
             outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
         else:
