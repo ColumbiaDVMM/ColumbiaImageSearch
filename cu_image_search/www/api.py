@@ -5,6 +5,7 @@ import os
 import sys
 import time
 from datetime import datetime
+from collections import OrderedDict
 import imghdr
 from PIL import Image, ImageFile
 #Image.LOAD_TRUNCATED_IMAGES = True
