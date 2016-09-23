@@ -467,7 +467,8 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     s3url_infos_rdd_join_not_loaded = True
     if restart:
         try:
-            s3url_infos_rdd_join = sc.sequenceFile(s3url_infos_rdd_join_path)
+            #s3url_infos_rdd_join = sc.sequenceFile(s3url_infos_rdd_join_path)
+            s3url_infos_rdd_join = sc.textFile(s3url_infos_rdd_join_path)
             s3url_infos_rdd_join_not_loaded = False
         except Exception as inst:
             print("Could not load rdd at {}. Error was {}.".format(s3url_infos_rdd_join_path, inst))
@@ -485,8 +486,9 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         # save rdd
         if save_inter_rdd:
             try:
-                # check if file exists, delete before trying to write? 
-                s3url_infos_rdd_join.saveAsSequenceFile(s3url_infos_rdd_join_path, compressionCodecClass=compression)
+                # check if file exists, delete before trying to write? fails with ArrayWritable error...
+                #s3url_infos_rdd_join.saveAsSequenceFile(s3url_infos_rdd_join_path, compressionCodecClass=compression)
+                s3url_infos_rdd_join.saveAsTextFile(s3url_infos_rdd_join_path, compressionCodecClass=compression)
                 # to be loaded with
                 # s3url_infos_rdd_join = sc.sequenceFile(s3url_infos_rdd_join_path)
                 save_info_incremental_update(hbase_man_update_out, incr_update_id, s3url_infos_rdd_join_path, "s3url_infos_rdd_join_path")
