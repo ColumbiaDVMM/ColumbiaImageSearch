@@ -395,10 +395,11 @@ class HBaseIndexer(GenericIndexer):
             # if nb_indexed > max_id (unlikely, file have been tampered manually?):
             # - self.sha1_featid_mapping at max_id
             raise ValueError("[HBaseIndexer.finalize_batch_indexing:error] max_id!=nb_indexed: {} vs. {}.".format(max_id, nb_indexed))
+        return nb_indexed
         
 
     def finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id, tm_uf_fn):
-        self.check_alignment()
+        nb_indexed = self.check_alignment()
         # Look for previous updates
         previous_files = []
         m_uf_fn = os.path.join(self.hasher.base_update_path,self.hasher.master_update_file)
