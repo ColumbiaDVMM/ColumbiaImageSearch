@@ -476,7 +476,7 @@ class HBaseIndexer(GenericIndexer):
         new_sb_files = []
         new_files_id = []
         existing_cu_feat_ids = []
-        existings_sha1 = []
+        existing_sha1 = []
         for i, image in enumerate(readable_images):
             if "sentibank" in self.extractions_types:
                 # check that this image is not already indexed
@@ -487,7 +487,7 @@ class HBaseIndexer(GenericIndexer):
                     print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}".format(image[0].rstrip())
                     # will call push_cu_feats_id for these images to make sure they are marked as indexed.
                     existing_cu_feat_ids.append(self.sha1_featid_mapping.index(image[0].rstrip()))
-                    existings_sha1.append(image[0].rstrip())
+                    existing_sha1.append(image[0].rstrip())
         if existing_sha1 and existing_cu_feat_ids:
             self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
         if new_sb_files:
@@ -543,8 +543,9 @@ class HBaseIndexer(GenericIndexer):
         if self.index_batches:
             batch = self.index_batches.pop()
         else:
+            # we could look at the one marked as 'info:started' if they are not finished
+            # but started from a long time ago in this case.
             batch = (None, None)
-        # mark start processing here?
         return batch
 
 

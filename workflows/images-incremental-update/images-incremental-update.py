@@ -56,7 +56,7 @@ def check_get_sha1(data):
         URL_S3 = None
         key = data[0]
         try:
-            URL_S3 = json_x["info:obj_stored_url"].strip()
+            URL_S3 = unicode(json_x["info:obj_stored_url"].strip())
             #print key,URL_S3,type(URL_S3)
         except Exception as inst2:
             print "[Error] for row {}. {}".format(key,inst2)
@@ -95,15 +95,8 @@ def create_images_tuple(data):
     for field in fields_cdr:
         try:
             field_value = json_x[field][0]
-            str_field_value = None
-            try:
-                str_field_value = str(field_value)
-            # str(field_value) could fail for unicode strings...
-            except Exception as inst:
-                print("[create_images_tuple: error] {}. Assuming it is an encoding issue.".format(inst))
-                str_field_value = field_value.encode('utf-8')
-            if str_field_value:
-                tup_list.append( (key, [key, "info", field, str_field_value]) )
+            str_field_value = unicode(field_value)
+            tup_list.append( (key, [key, "info", field, str_field_value]) )
         except Exception as inst:
             pass
             #print "[Error] Could not get field {} value for document {}. {}".format(field,doc_id,inst)
@@ -118,7 +111,7 @@ def to_sha1_key(data):
     obj_parent = None
     try:
         sha1 = json_x["info:sha1"].strip()
-        obj_stored_url = json_x["info:obj_stored_url"].strip()
+        obj_stored_url = unicode(json_x["info:obj_stored_url"].strip())
         obj_parent = json_x["info:obj_parent"].strip()
         #print key,URL_S3,type(URL_S3)
     except Exception as inst2:
@@ -139,7 +132,7 @@ def sha1_key_json(data):
             if field[1]!='s3_url':
                 v[':'.join(field)] = list(set([x for x in get_list_value(json_x,field)[0].strip().split(',')]))
             else:
-                v[':'.join(field)] = [get_list_value(json_x,field)[0].strip()]
+                v[':'.join(field)] = [unicode(get_list_value(json_x,field)[0].strip())]
         except: # field not in row
             pass
     #print("[sha1_key_json] {}, {}, {}".format(data, sha1, v))
