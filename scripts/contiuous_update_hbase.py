@@ -22,7 +22,7 @@ if __name__=="__main__":
             ctime = time.time()
             time_lapse = ctime - lasttime
             if time_lapse < interval:
-                print('[continuous_update_hbase] sleeping for',interval-time_lapse, 'seconds...')
+                print('[continuous_update_hbase] sleeping for {} seconds...'.format(interval-time_lapse))
                 sys.stdout.flush()
                 time.sleep(interval-time_lapse)
             lasttime = time.time()
