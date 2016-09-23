@@ -13,16 +13,17 @@ if __name__=="__main__":
     """ Run updater based on `conf_file` given as parameter
     """
     if len(sys.argv)<2:
-        print "python update.py conf_file"
+        print "python continuous_update_hbase.py conf_file"
         exit(-1)
     global_conf_file = sys.argv[1]
     up_obj = updater_hbase.Updater(global_conf_file)
     while True:
         try:
             ctime = time.time()
-            time_lapse = ctime-lasttime
+            time_lapse = ctime - lasttime
             if time_lapse < interval:
-                print 'sleep for',interval-time_lapse, 'seconds...'
+                print('[continuous_update_hbase] sleeping for',interval-time_lapse, 'seconds...')
+                sys.stdout.flush()
                 time.sleep(interval-time_lapse)
             lasttime = time.time()
             up_obj.run_update()

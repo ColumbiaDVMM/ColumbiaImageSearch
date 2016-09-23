@@ -236,14 +236,16 @@ class HBaseIndexer(GenericIndexer):
         return res,ok_ids
    
         
-    def write_batch(self,batch,tab_out_name):
+    def write_batch(self, batch, tab_out_name):
+        # batch is composed of tuples (row_key, dict())
+        # where entries in the dict are key-value pairs as {'column_name': column_value}
         with self.pool.connection() as connection:
             tab_out = connection.table(tab_out_name)
             batch_write = tab_out.batch()
             #print "Pushing batch from {}.".format(batch[0][0])
             for row in batch:
                 #print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
-                batch_write.put(row[0],row[1])
+                batch_write.put(row[0], row[1])
             batch_write.send()
 
 
@@ -467,11 +469,14 @@ class HBaseIndexer(GenericIndexer):
         """
         # Download images
         start_time = time.time() 
+        self.write_batch([(update_id, {'info:started': 'True'})], self.table_updateinfos_name)
         print "[HBaseIndexer.index_batch_sha1: log] Starting udpate {}".format(update_id)
         readable_images = self.image_downloader.download_images(batch, update_id)
         # now each batch sample is (sha1,url,filename)
         new_sb_files = []
         new_files_id = []
+        existing_cu_feat_ids = []
+        existings_sha1 = []
         for i, image in enumerate(readable_images):
             if "sentibank" in self.extractions_types:
                 # check that this image is not already indexed
@@ -480,6 +485,11 @@ class HBaseIndexer(GenericIndexer):
                     new_files_id.append(image[0].rstrip())
                 else:
                     print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}".format(image[0].rstrip())
+                    # will call push_cu_feats_id for these images to make sure they are marked as indexed.
+                    existing_cu_feat_ids.append(self.sha1_featid_mapping.index(image[0].rstrip()))
+                    existings_sha1.append(image[0].rstrip())
+        if existing_sha1 and existing_cu_feat_ids:
+            self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
         if new_sb_files:
             print "[HBaseIndexer.index_batch_sha1: log] will extract features for {} images out of the {} of this batch.".format(len(new_files_id), len(batch))
             # [Create a temporary HasherCmdLine] have a temporary "master_update" file for that batch
@@ -502,6 +512,8 @@ class HBaseIndexer(GenericIndexer):
             if len(feats_ok_ids)!=len(new_files_id) or len(hash_ok_ids)!=len(new_files_id):
                 print("[HBaseIndexer.index_batch_sha1: error] Dimensions mismatch. Are we missing features? {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id)))
                 self.cleanup_images(readable_images)
+                # mark update as corrupted?
+                self.write_batch([(update_id, {'info:corrupted': 'True'})], self.table_updateinfos_name)
                 return False
             new_sha1_rows = self.build_extractions_rows(new_files_id, ["sentibank", "hashcode"], [feats, hashcodes])
             print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows[0][0], self.table_sha1infos_name)
@@ -512,6 +524,8 @@ class HBaseIndexer(GenericIndexer):
         else:
             print("[HBaseIndexer.index_batch_sha1: log] No new/readable images to index for batch starting with row {}!".format(batch[0]))
         self.cleanup_images(readable_images)
+        # mark update has completed
+        self.write_batch([(update_id, {'info:indexed': 'True'})], self.table_updateinfos_name)
         return True
 
 
@@ -524,7 +538,7 @@ class HBaseIndexer(GenericIndexer):
             with self.pool.connection() as connection:
                 table_updateinfos = connection.table(self.table_updateinfos_name)
                 for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~'):
-                    if "info:indexed" not in row[1]:
+                    if "info:indexed" not in row[1] and 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
                         self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
         if self.index_batches:
             batch = self.index_batches.pop()
