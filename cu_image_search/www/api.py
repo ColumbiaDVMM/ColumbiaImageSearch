@@ -198,22 +198,29 @@ class Searcher(Resource):
         list_imgs = []
         for i,one_b64 in enumerate(query_b64s):
             img_fn = search_id+'_'+str(i)+'.jpg'
-            with open(img_fn, 'wb') as f:
-                print("[search_byB64_nocache] Processing base64 encoded image of length {} ending with: {}".format(len(one_b64), one_b64[-20:]))
-                img_byte = base64.b64decode(one_b64)
-                img_type = imghdr.what('', img_byte)
-                if img_type != 'jpeg':
-                    #f = StringIO("data:image/png;base64,"+img_byte)
-                    f = StringIO(img_byte)
-                    try:
-                        im = Image.open(f)
-                        im.save(img_fn,"JPEG")
-                    except IOError:
-                        print("[search_byB64_nocache] Error when loading non-jpeg image. Trying to continue.")
-                        errors.append("[search_byB64_nocache] Error when loading non-jpeg image with length {} and ending with: {}".format(len(one_b64), one_b64[-20:]))
-                        os.remove(img_fn)
-                else:
-                    f.write(img_byte)
+            if one_b64.startswith('data:'):
+                # this is the image header
+                continue
+            try:
+                with open(img_fn, 'wb') as f:
+                    print("[search_byB64_nocache] Processing base64 encoded image of length {} ending with: {}".format(len(one_b64), one_b64[-20:]))
+                    img_byte = base64.b64decode(one_b64)
+                    img_type = imghdr.what('', img_byte)
+                    if img_type != 'jpeg':
+                        #f = StringIO("data:image/png;base64,"+img_byte)
+                        f = StringIO(img_byte)
+                        try:
+                            im = Image.open(f)
+                            im.save(img_fn,"JPEG")
+                        except IOError:
+                            print("[search_byB64_nocache] Error when loading non-jpeg image. Trying to continue.")
+                            errors.append("[search_byB64_nocache] Error when loading non-jpeg image with length {} and ending with: {}".format(len(one_b64), one_b64[-20:]))
+                            os.remove(img_fn)
+                    else:
+                        f.write(img_byte)
+            except:
+                print("[search_byB64_nocache] Error when decoding image.")
+                errors.append("[search_byB64_nocache] Error when decoding image with length {}.".format(len(one_b64)))
             list_imgs.append(img_fn)
         outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
         if errors:
