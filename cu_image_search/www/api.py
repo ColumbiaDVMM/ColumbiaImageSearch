@@ -217,10 +217,11 @@ class Searcher(Resource):
             list_imgs.append(img_fn)
         outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
         if errors:
+            outp['errors'] = []
             for e in errors:
                 e_d = dict()
                 e_d['error'] = e
-                outp.append(e_d)
+                outp['errors'].append(e_d)
         # cleanup
         for f in list_imgs:
             try:
