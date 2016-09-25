@@ -382,11 +382,37 @@ def save_info_incremental_update(hbase_man_update_out, incr_update_id, info_valu
     hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
 
 
+def build_batch_rdd(batch_udpate):
+    # batch_rdd should be created to be stored in hbase table update_infos
+    update_id = "index_update_"+str(max_ts-int(time.time()*1000))+'_'+str(np.int32(np.random.random()*(10e6)))
+    list_key = []
+    for x in batch_udpate:
+        list_key.append(x)
+    batch_out = [(update_id, [update_id, "info", "list_sha1s", ','.join(list_key)])]
+    return sc.parallelize(batch_out)
+
+
+def save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_update_size):
+    iterator = new_sha1s_rdd.toLocalIterator()
+    batch_udpate = []
+    for x in iterator:
+        batch_udpate.append(x)
+        if len(batch_udpate)==batch_update_size:
+            batch_rdd = build_batch_rdd(batch_udpate)
+            hbase_man_update_out.rdd2hbase(batch_rdd)
+            batch_udpate = []
+    # last batch
+    if batch_udpate:
+        batch_rdd = build_batch_rdd(batch_udpate)
+        hbase_man_update_out.rdd2hbase(batch_rdd)
+
+
 def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_in, hbase_man_update_out, nb_partitions, c_options):
 
     restart = c_options.restart
     identifier = c_options.identifier
     save_inter_rdd = c_options.save_inter_rdd
+    batch_update_size = c_options.batch_update_size
 
     start_time = time.time()
     
@@ -612,6 +638,10 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     new_s3url_sha1_rdd = out_rdd.flatMap(lambda x: get_new_s3url_sha1(x))
     hbase_man_s3url_sha1_out.rdd2hbase(new_s3url_sha1_rdd)
     
+    ## save out_rdd by batch of 1000 to be indexed?
+    new_sha1s_rdd = out_rdd.keys()
+    save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_update_size)
+
     ## save new images update infos
     new_s3url_sha1_rdd_count = new_s3url_sha1_rdd.count()
     print("[incremental_update] new_s3url_sha1_rdd_count count: {}".format(new_s3url_sha1_rdd_count))
@@ -622,9 +652,8 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     incr_update_infos_rdd = sc.parallelize(incr_update_infos_list)
     hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
 
-    # # TODO save out_rdd by batch of 1000 to be indexed?
     out_rdd.unpersist()
-    
+
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -633,6 +662,7 @@ if __name__ == '__main__':
     parser.add_option("-r", "--restart", dest="restart", default=False, action="store_true")
     parser.add_option("-i", "--identifier", dest="identifier")
     parser.add_option("-s", "--save", dest="save_inter_rdd", default=False, action="store_true")
+    parser.add_option("-b", "--batch_update_size", dest="batch_update_size", default=10000)
     (c_options, args) = parser.parse_args()
     print "Got options:", c_options
     # Read job_conf
