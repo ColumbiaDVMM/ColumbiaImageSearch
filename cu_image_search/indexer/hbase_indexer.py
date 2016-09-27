@@ -325,9 +325,11 @@ class HBaseIndexer(GenericIndexer):
         new_comp_feat_fn = os.path.join(tmp_hasher.base_update_path,'comp_features',tmp_update_id+'_comp_norm')
         comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
         self.merging = True
+        mkpath(out_comp_fn)
         shutil.move(prev_comp_feat_fn,out_comp_fn)
         with open(out_comp_fn,'ab') as out_comp, open(new_comp_feat_fn,'rb') as new_comp:
                 shutil.copyfileobj(new_comp, out_comp)
+        mkpath(out_hash_fn)
         out_hash_fn = os.path.join(self.hasher.base_update_path,'hash_bits',out_update_id+'_itq_norm_'+str(self.bits_num))
         with open(out_hash_fn,'wb') as out_hash:
             prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
@@ -336,6 +338,7 @@ class HBaseIndexer(GenericIndexer):
                     shutil.copyfileobj(prev_hash, out_hash)
                     shutil.copyfileobj(new_hash, out_hash)
         # need to read and shift tmp_update_id comp_idx
+        mkpath(out_comp_idx_fn)
         out_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',out_update_id+'_compidx_norm')
         with open(out_comp_idx_fn,'wb') as out_comp_idx:
             prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
@@ -347,6 +350,7 @@ class HBaseIndexer(GenericIndexer):
             # discarding the first value as it would be equal to the last one of 'prev_hash'
             arr[1:].tofile(out_comp_idx)
         # update master file
+        mkpath(m_uf_fn)
         with open(m_uf_fn, 'wt') as m_uf:
             m_uf.write(out_update_id+'\n')
         print("[HBaseIndexer.merge_update_files: log] Merge update files took {}s.".format(time.time()-start_merge))
