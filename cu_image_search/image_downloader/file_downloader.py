@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import json
 import shutil
@@ -106,4 +107,5 @@ class FileDownloader():
         pool.close()
         pool.join()
         print "[FileDownloader.download_images_parallel_integritycheck: log] Downloaded {} images in {:.2f}s.".format(len(downloaded),time.time()-start_dl)
+        sys.stdout.flush()
         return downloaded
