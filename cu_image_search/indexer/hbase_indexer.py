@@ -116,7 +116,7 @@ class HBaseIndexer(GenericIndexer):
         if self.hasher_type=="hasher_cmdline":
             from ..hasher.hasher_cmdline import HasherCmdLine
             self.hasher = HasherCmdLine(self.global_conf_filename)
-            self.init_master_uf_fn = os.path.join(self.hasher.base_update_path,self.hasher.master_update_file)
+            self.init_master_uf_fn = os.path.join(self.hasher.base_update_path, self.hasher.master_update_file)
         else:
             raise ValueError("[HBaseIndexer.initialize_hasher: error] Unknown hasher_type: {}.".format(self.hasher_type))
 
@@ -398,9 +398,16 @@ class HBaseIndexer(GenericIndexer):
 
 
     def check_alignment(self):
-        # check alignment 
-        max_id = self.hasher.get_max_feat_id()
+        # check alignment
         nb_indexed = len(self.sha1_featid_mapping)
+        try:
+            max_id = self.hasher.get_max_feat_id()
+        except Exception as inst:
+            # first batch
+            if nb_indexed == 0:
+                return nb_indexed
+            else:
+                raise ValueError("[HBaseIndexer.check_alignment: error] Could not retrieve max_id from hasher. Error was: {}".format(inst))
         if max_id != nb_indexed:
             print "[HBaseIndexer.check_alignment: error] We have {} features, {} listed in sha1_featid_mapping.".format(max_id, nb_indexed)
             # we could try to recover 
