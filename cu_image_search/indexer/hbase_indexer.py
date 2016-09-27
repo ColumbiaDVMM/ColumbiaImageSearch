@@ -64,6 +64,7 @@ class HBaseIndexer(GenericIndexer):
             print "[HBaseIndexer.initialize_sha1_mapping: log] Loading sha1_featid_mapping...",
             with open(self.sha1_featid_mapping_filename,'rt') as sha1_fid:
                 self.sha1_featid_mapping = [line.strip() for line in sha1_fid]
+            self.set_sha1_indexed = set(self.sha1_featid_mapping)
             print "Done."
             sys.stdout.flush()
             self.initializing = False
@@ -450,6 +451,7 @@ class HBaseIndexer(GenericIndexer):
         self.cleanup_update(previous_files, tmp_update_id, tmp_hasher)
         # update and save sha1 mapping
         self.sha1_featid_mapping.extend(tmp_sha1_featid_mapping)
+        self.set_sha1_indexed = set(self.sha1_featid_mapping)
         self.save_sha1_mapping()
         if previous_files:
             self.merging = False
@@ -497,27 +499,45 @@ class HBaseIndexer(GenericIndexer):
         print "[HBaseIndexer.index_batch_sha1: log] Starting udpate {}".format(update_id)
         #readable_images = self.image_downloader.download_images(batch, update_id)
         readable_images = self.image_downloader.download_images_parallel_integritycheck(batch, update_id)
-        # now each batch sample is (sha1,url,filename)
+        # now each batch sample is (sha1, url, filename)
         new_sb_files = []
         new_files_id = []
         existing_cu_feat_ids = []
         existing_sha1 = []
         start_check_new_time = time.time()
-        for i, image in enumerate(readable_images):
-            if "sentibank" in self.extractions_types:
-                # check that this image is not already indexed
-                if image[0].rstrip() not in self.sha1_featid_mapping:
-                    new_sb_files.append(image[-1])
-                    new_files_id.append(image[0].rstrip())
+        # # v2.0
+        # if "sentibank" in self.extractions_types:
+        #     check_images_sha1 = [image[0].rstrip() for image in readable_images]
+        #     already_indexed_sha1 = []
+        #     for i, indexed_image_sha1 in enumerate(self.sha1_featid_mapping):
+        #         if indexed_image_sha1 in check_images_sha1:
+        #             print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}".format(indexed_image_sha1)
+        #             # will call push_cu_feats_id for these images to make sure they are marked as indexed.
+        #             existing_cu_feat_ids.append(i)
+        #             existing_sha1.append(indexed_image_sha1)
+        #             already_indexed_sha1.append(indexed_image_sha1)
+        #     for i, image_toindex_sha1 in enumerate(check_images_sha1):
+        #         if image_toindex_sha1 not in already_indexed_sha1:
+        #             new_sb_files.append(readable_images[i][-1])
+        #             new_files_id.append(image_toindex_sha1)
+        # v3.0
+        if "sentibank" in self.extractions_types:
+            check_images_sha1 = [image[0].rstrip() for image in readable_images]
+            set_check_images_sha1 = set(check_images_sha1)
+            set_new_sha1 = set_check_images_sha1 - self.set_sha1_indexed
+            for i,sha1 in check_images_sha1:
+                if sha1 in set_new_sha1:
+                    new_sb_files.append(readable_images[i][-1])
+                    new_files_id.append(sha1)
                 else:
-                    print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}".format(image[0].rstrip())
+                    print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}".format(sha1)
                     # will call push_cu_feats_id for these images to make sure they are marked as indexed.
-                    existing_cu_feat_ids.append(self.sha1_featid_mapping.index(image[0].rstrip()))
-                    existing_sha1.append(image[0].rstrip())
+                    existing_cu_feat_ids.append(self.sha1_featid_mapping.index(sha1))
+                    existing_sha1.append(sha1)
         if existing_sha1 and existing_cu_feat_ids:
             print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed.".format(len(existing_sha1)))
             self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
-        print("[HBaseIndexer.index_batch_sha1: log] Check existing images in {}s.".format(time.time()-start_check_new_time))
+        print("[HBaseIndexer.index_batch_sha1: log] Checked existing images in {}s.".format(time.time()-start_check_new_time))
         sys.stdout.flush()
         if new_sb_files:
             start_extract_time = time.time()
@@ -558,7 +578,7 @@ class HBaseIndexer(GenericIndexer):
             self.write_batch(new_sha1_rows, self.table_sha1infos_name) 
             tmp_hasher.compress_feats()
             self.finalize_batch_indexing(new_files_id, update_id, tmp_hasher)
-            print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
+            print "[HBaseIndexer.index_batch: log] Indexed batch in {}s.".format(time.time()-start_time)
         else:
             print("[HBaseIndexer.index_batch_sha1: log] No new/readable images to index for batch starting with row {}!".format(batch[0]))
         self.cleanup_images(readable_images)
