@@ -64,9 +64,11 @@ def dlimage_basepath_integritycheck(url, basepath, logf=None):
                 shutil.copyfileobj(r.raw, f)
             # integrity check here
             ok_tag = '[OK]'
+            error_tag = '[ERROR]'
             command = 'jpeginfo -c '+ outpath
             output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
-            if output.find(ok_tag)<0:
+            if output.find(ok_tag)<0 or output.find(error_tag)>=0:
+                # some images are not JPEG, either PNG or even HTML...
                 raise ValueError("Integrity check failed, output was: {}".format(output))
             return outpath
     except Exception as inst:

@@ -83,6 +83,7 @@ class FileDownloader():
             print "[FileDownloader.download_images_parallel_integritycheck: error] Empty batch: {}.".format(batch)
             return None
         print "[FileDownloader.download_images_parallel_integritycheck: log] Will download {} images with {} workers.".format(len(batch),self.dl_pool_size)
+        start_dl = time.time()
         pool = multiprocessing.Pool(self.dl_pool_size)
         basepath = os.path.join(self.dl_image_path, str(startid))
         if not os.path.isdir(basepath):
@@ -95,7 +96,6 @@ class FileDownloader():
             #filepath = os.path.join(update_image_cache,str(startid),name)
             download_arg.append([url, basepath])
         #print "[FileDownloader.download_images: log] download_arg {}.".format(download_arg)
-        start_dl = time.time()
         # dlimage_basepath returns outpath if download succeeded, None otherwise
         download_indicator = pool.map(dlimage_args_integritycheck, download_arg)
         # Gather results, integrity check run in dlimage_args_integritycheck
@@ -103,7 +103,7 @@ class FileDownloader():
         for i,img_item in enumerate(batch):
             if download_indicator[i]:
                 downloaded.append(img_item+(download_indicator[i],))
-        print "[FileDownloader.download_images_parallel_integritycheck: log] Downloaded {} images in {:.2f}s.".format(len(downloaded),time.time()-start_dl)
         pool.close()
         pool.join()
+        print "[FileDownloader.download_images_parallel_integritycheck: log] Downloaded {} images in {:.2f}s.".format(len(downloaded),time.time()-start_dl)
         return downloaded

@@ -479,6 +479,7 @@ class HBaseIndexer(GenericIndexer):
         new_files_id = []
         existing_cu_feat_ids = []
         existing_sha1 = []
+        start_check_new_time = time.time()
         for i, image in enumerate(readable_images):
             if "sentibank" in self.extractions_types:
                 # check that this image is not already indexed
@@ -491,9 +492,12 @@ class HBaseIndexer(GenericIndexer):
                     existing_cu_feat_ids.append(self.sha1_featid_mapping.index(image[0].rstrip()))
                     existing_sha1.append(image[0].rstrip())
         if existing_sha1 and existing_cu_feat_ids:
+            print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed.".format(len(existing_sha1)))
             self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
+        print("[HBaseIndexer.index_batch_sha1: log] Check existing images in {}s.".format(time.time()-start_check_new_time))
         if new_sb_files:
-            print "[HBaseIndexer.index_batch_sha1: log] will extract features for {} images out of the {} of this batch.".format(len(new_files_id), len(batch))
+            start_extract_time = time.time()
+            print "[HBaseIndexer.index_batch_sha1: log] Will extract features for {} images out of the {} of this batch.".format(len(new_files_id), len(batch))
             # [Create a temporary HasherCmdLine] have a temporary "master_update" file for that batch
             from ..hasher.hasher_cmdline import HasherCmdLine
             tmp_hasher = HasherCmdLine(self.global_conf_filename)
@@ -511,7 +515,8 @@ class HBaseIndexer(GenericIndexer):
             # read features and hashcodes and pushback for insertion
             feats, feats_ok_ids = read_binary_file(norm_features_filename, "feats", new_files_id, self.features_dim*4, np.float32)
             hashcodes, hash_ok_ids = read_binary_file(hashbits_filepath, "hashcode", new_files_id, self.bits_num/8, np.uint8)
-            if len(feats_ok_ids)!=len(new_files_id) or len(hash_ok_ids)!=len(new_files_id):
+            print("[HBaseIndexer.index_batch_sha1: log] Extracted features and hashcodes in {}s.".format(time.time()-start_extract_time))
+            if len(feats_ok_ids) != len(new_files_id) or len(hash_ok_ids) != len(new_files_id):
                 print("[HBaseIndexer.index_batch_sha1: error] Dimensions mismatch. Are we missing features? {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id)))
                 self.cleanup_images(readable_images)
                 # mark update as corrupted?
