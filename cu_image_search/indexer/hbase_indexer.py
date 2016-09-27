@@ -511,6 +511,7 @@ class HBaseIndexer(GenericIndexer):
             hashbits_filepath = tmp_hasher.compute_hashcodes(features_filename, ins_num, update_id)
             # need to move features file
             norm_features_filename = os.path.join(tmp_hasher.base_update_path,'features',update_id+'_norm')
+            mkpath(norm_features_filename)
             shutil.move(features_filename[:-4]+"_norm", norm_features_filename)
             # read features and hashcodes and pushback for insertion
             feats, feats_ok_ids = read_binary_file(norm_features_filename, "feats", new_files_id, self.features_dim*4, np.float32)
