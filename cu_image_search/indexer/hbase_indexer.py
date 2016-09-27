@@ -525,7 +525,7 @@ class HBaseIndexer(GenericIndexer):
             check_images_sha1 = [image[0].rstrip() for image in readable_images]
             set_check_images_sha1 = set(check_images_sha1)
             set_new_sha1 = set_check_images_sha1 - self.set_sha1_indexed
-            for i,sha1 in check_images_sha1:
+            for i,sha1 in enumerate(check_images_sha1):
                 if sha1 in set_new_sha1:
                     new_sb_files.append(readable_images[i][-1])
                     new_files_id.append(sha1)
