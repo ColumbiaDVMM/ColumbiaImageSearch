@@ -68,6 +68,7 @@ class HBaseIndexer(GenericIndexer):
             sys.stdout.flush()
             self.initializing = False
         except Exception as inst:
+            print "FAILED"
             print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}.\n{}".format(self.sha1_featid_mapping_filename,inst)
 
     def save_sha1_mapping(self):
