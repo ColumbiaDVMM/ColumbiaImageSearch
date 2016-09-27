@@ -319,6 +319,7 @@ class HBaseIndexer(GenericIndexer):
 
     def merge_update_files(self, previous_files, tmp_update_id, out_update_id, m_uf_fn, tmp_hasher):
         start_merge = time.time()
+        print("[HBaseIndexer.merge_update_files: log] merging files in folder {}".format(self.hasher.base_update_path))
         # use shutil.copyfileobj for comp features
         out_comp_fn = os.path.join(self.hasher.base_update_path,'comp_features',out_update_id+'_comp_norm')
         new_comp_feat_fn = os.path.join(tmp_hasher.base_update_path,'comp_features',tmp_update_id+'_comp_norm')
