@@ -321,30 +321,37 @@ class HBaseIndexer(GenericIndexer):
         start_merge = time.time()
         # use shutil.copyfileobj for comp features
         out_comp_fn = os.path.join(self.hasher.base_update_path,'comp_features',out_update_id+'_comp_norm')
-        prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
         new_comp_feat_fn = os.path.join(tmp_hasher.base_update_path,'comp_features',tmp_update_id+'_comp_norm')
-        comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
+        if previous_files:
+            prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
+            comp_idx_shift = os.stat(prev_comp_feat_fn).st_size
+        else:
+            comp_idx_shift = 0
         self.merging = True
         mkpath(out_comp_fn)
-        shutil.move(prev_comp_feat_fn,out_comp_fn)
+        if previous_files:
+            shutil.move(prev_comp_feat_fn,out_comp_fn)
         with open(out_comp_fn,'ab') as out_comp, open(new_comp_feat_fn,'rb') as new_comp:
                 shutil.copyfileobj(new_comp, out_comp)
         mkpath(out_hash_fn)
         out_hash_fn = os.path.join(self.hasher.base_update_path,'hash_bits',out_update_id+'_itq_norm_'+str(self.bits_num))
         with open(out_hash_fn,'wb') as out_hash:
-            prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
-            new_hashcode_fn = os.path.join(tmp_hasher.base_update_path,'hash_bits',tmp_update_id+'_itq_norm_'+str(self.bits_num))
-            with open(prev_hashcode_fn,'rb') as prev_hash, open(new_hashcode_fn,'rb') as new_hash:
+            if previous_files:
+                prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
+                with open(prev_hashcode_fn,'rb') as prev_hash:
                     shutil.copyfileobj(prev_hash, out_hash)
-                    shutil.copyfileobj(new_hash, out_hash)
+            new_hashcode_fn = os.path.join(tmp_hasher.base_update_path,'hash_bits',tmp_update_id+'_itq_norm_'+str(self.bits_num))
+            with open(new_hashcode_fn,'rb') as new_hash:
+                shutil.copyfileobj(new_hash, out_hash)
         # need to read and shift tmp_update_id comp_idx
         mkpath(out_comp_idx_fn)
         out_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',out_update_id+'_compidx_norm')
         with open(out_comp_idx_fn,'wb') as out_comp_idx:
-            prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
-            new_comp_idx_fn = os.path.join(tmp_hasher.base_update_path,'comp_idx',tmp_update_id+'_compidx_norm')
-            with open(prev_comp_idx_fn,'rb') as prev_hash:
+            if previous_files:
+                prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
+                with open(prev_comp_idx_fn,'rb') as prev_hash:
                     shutil.copyfileobj(prev_hash, out_comp_idx)
+            new_comp_idx_fn = os.path.join(tmp_hasher.base_update_path,'comp_idx',tmp_update_id+'_compidx_norm')
             arr = np.fromfile(new_comp_idx_fn, dtype=np.uint64)
             arr += comp_idx_shift
             # discarding the first value as it would be equal to the last one of 'prev_hash'
@@ -362,22 +369,24 @@ class HBaseIndexer(GenericIndexer):
         new_feat_fn = os.path.join(self.hasher.base_update_path,'features',update_id+'_norm')
         os.remove(new_feat_fn)
         # cleanup comp features
-        prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
-        new_comp_feat_fn = os.path.join(tmp_hasher.base_update_path,'comp_features',update_id+'_comp_norm')
         # new procedure moves this file
+        #prev_comp_feat_fn = os.path.join(self.hasher.base_update_path,'comp_features',previous_files[0]+'_comp_norm')
         #os.remove(prev_comp_feat_fn)
+        new_comp_feat_fn = os.path.join(tmp_hasher.base_update_path,'comp_features',update_id+'_comp_norm')
         os.remove(new_comp_feat_fn)
         shutil.rmtree(os.path.join(tmp_hasher.base_update_path,'comp_features'))
         # cleanup hashcodes
-        prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
+        if previous_files:
+            prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
+            os.remove(prev_hashcode_fn)
         new_hashcode_fn = os.path.join(tmp_hasher.base_update_path,'hash_bits',update_id+'_itq_norm_'+str(self.bits_num))
-        os.remove(prev_hashcode_fn)
         os.remove(new_hashcode_fn)
         shutil.rmtree(os.path.join(tmp_hasher.base_update_path,'hash_bits'))
         # cleanup comp_idx
-        prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
+        if previous_files:
+            prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
+            os.remove(prev_comp_idx_fn)
         new_comp_idx_fn = os.path.join(tmp_hasher.base_update_path,'comp_idx',update_id+'_compidx_norm')
-        os.remove(prev_comp_idx_fn)
         os.remove(new_comp_idx_fn)
         shutil.rmtree(os.path.join(tmp_hasher.base_update_path,'comp_idx'))
         # cleanup temporary master file
@@ -432,17 +441,12 @@ class HBaseIndexer(GenericIndexer):
         # should we actually impose a limit on the compress feature file dimension?
         if len(previous_files)>1:
             raise ValueError("[HBaseIndexer.finalize_batch_indexing:error] was expecting a single file, found {}.".format(len(previous_files)))
-        if previous_files:
-            # do a merge, i.e. concatenate hashcodes and compressed features. 
-            out_update_id = str(time.time())+'_'+tmp_sha1_featid_mapping[0]
-            self.merge_update_files(previous_files, tmp_update_id, out_update_id, m_uf_fn, tmp_hasher)
-            # all files have been merged in out_update_id now,
-            # we can delete files created by tmp_update_id and previous_files
-            self.cleanup_update(previous_files, tmp_update_id, tmp_hasher)
-        else: # first batch, just copy
-            # double check that shift_id and nb_indexed == 0?
-            with open(m_uf_fn, 'wt') as m_uf:
-                m_uf.write(tmp_update_id+'\n')
+        # do a merge, i.e. concatenate hashcodes and compressed features. 
+        out_update_id = str(time.time())+'_'+tmp_sha1_featid_mapping[0]
+        self.merge_update_files(previous_files, tmp_update_id, out_update_id, m_uf_fn, tmp_hasher)
+        # all files have been merged in out_update_id now,
+        # we can delete files created by tmp_update_id and previous_files
+        self.cleanup_update(previous_files, tmp_update_id, tmp_hasher)
         # update and save sha1 mapping
         self.sha1_featid_mapping.extend(tmp_sha1_featid_mapping)
         self.save_sha1_mapping()
@@ -534,9 +538,12 @@ class HBaseIndexer(GenericIndexer):
             norm_features_filename = os.path.join(tmp_hasher.base_update_path,'features',update_id+'_norm')
             mkpath(norm_features_filename)
             shutil.move(features_filename[:-4]+"_norm", norm_features_filename)
+            hashbits_filename = os.path.join(tmp_hasher.base_update_path,'hash_bits',update_id+'_itq_norm_'+str(self.hasher.bits_num))
+            mkpath(hashbits_filename)
+            shutil.move(hashbits_filepath, hashbits_filename)
             # read features and hashcodes and pushback for insertion
             feats, feats_ok_ids = read_binary_file(norm_features_filename, "feats", new_files_id, self.features_dim*4, np.float32)
-            hashcodes, hash_ok_ids = read_binary_file(hashbits_filepath, "hashcode", new_files_id, self.bits_num/8, np.uint8)
+            hashcodes, hash_ok_ids = read_binary_file(hashbits_filename, "hashcode", new_files_id, self.bits_num/8, np.uint8)
             print("[HBaseIndexer.index_batch_sha1: log] Extracted features and hashcodes in {}s.".format(time.time()-start_extract_time))
             if len(feats_ok_ids) != len(new_files_id) or len(hash_ok_ids) != len(new_files_id):
                 print("[HBaseIndexer.index_batch_sha1: error] Dimensions mismatch. Are we missing features? {} vs. {}, or hashcodes {} vs. {}.".format(len(feats_ok_ids),len(new_files_id),len(hash_ok_ids),len(new_files_id)))
