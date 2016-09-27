@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import json
 import math
@@ -67,9 +68,11 @@ class SentiBankCmdLine():
         f.close()
         command = self.sentibank_path+'extract_nfeatures_gpu '+self.sentibank_path+'caffe_sentibank_train_iter_250000 '+protoname+ ' fc7 '+featurename+'_fc7 '+str(iteration)+' '+device;
         print "[SentiBankCmdLine.compute_features: log] command {}.".format(command)
+        sys.stdout.flush()
         output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
         print "[SentiBankCmdLine.compute_features: log] output {}.".format(output) 
         print "[SentiBankCmdLine.compute_features: log] error {}.".format(error)
+        sys.stdout.flush()
         #os.system(command)
         os.remove(protoname)
         os.remove(testname)

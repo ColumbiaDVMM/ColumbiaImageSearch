@@ -43,9 +43,11 @@ class HasherCmdLine():
         command = self.hashing_execpath+'hashing_update '+features_filename+' '+str(ins_num)+' '+self.hashing_execpath
         proc = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
         print "[HasherCmdLine.compute_hashcodes: log] running command: {}".format(command)
+        sys.stdout.flush()
         (out, err) = proc.communicate()
         print "[HasherCmdLine.compute_hashcodes: log] program output:", out
         print "[HasherCmdLine.compute_hashcodes: log] program error:", err
+        sys.stdout.flush()
         #print command
         #os.system(command)        
         hashbits_filepath = os.path.join(self.hashing_outpath,str(startid)+'_itq_norm_'+str(self.bits_num))
