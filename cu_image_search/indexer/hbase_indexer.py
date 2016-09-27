@@ -510,8 +510,9 @@ class HBaseIndexer(GenericIndexer):
             tmp_hasher = HasherCmdLine(self.global_conf_filename)
             tmp_hasher.master_update_file = "update_"+update_id
             # avoid overwriting if retrying same update somehow...
-            tmp_hasher.base_update_path = self.hasher.base_update_path+"_"+str(time.time())
+            tmp_hasher.base_update_path = self.hasher.base_update_path+update_id+"_"+str(time.time())
             tm_uf_fn = os.path.join(tmp_hasher.base_update_path, tmp_hasher.master_update_file)
+            mkpath(tm_uf_fn)
             with open(tm_uf_fn,'wt') as tm_uf:
                 tm_uf.write(update_id+'\n')
             # Compute features
