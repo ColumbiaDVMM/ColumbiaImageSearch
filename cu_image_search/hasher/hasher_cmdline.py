@@ -41,8 +41,13 @@ class HasherCmdLine():
         feature_filepath = features_filename[:-4]+'_norm'
         # we could be passing additional arguments here
         command = self.hashing_execpath+'hashing_update '+features_filename+' '+str(ins_num)+' '+self.hashing_execpath
-        print command
-        os.system(command)        
+        proc = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
+        print "[HasherCmdLine.compute_hashcodes: log] running command: {}".format(command)
+        (out, err) = proc.communicate()
+        print "[HasherCmdLine.compute_hashcodes: log] program output:", out
+        print "[HasherCmdLine.compute_hashcodes: log] program error:", err
+        #print command
+        #os.system(command)        
         hashbits_filepath = os.path.join(self.hashing_outpath,str(startid)+'_itq_norm_'+str(self.bits_num))
         itq_output_path = features_filename[:-4] + '_itq_norm_'+str(self.bits_num)
         print "[HasherCmdLine.compute_hashcodes: log] Moving {} to {}.".format(itq_output_path,hashbits_filepath)
