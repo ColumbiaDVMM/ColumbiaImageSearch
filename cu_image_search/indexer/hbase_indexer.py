@@ -518,6 +518,7 @@ class HBaseIndexer(GenericIndexer):
             print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed.".format(len(existing_sha1)))
             self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
         print("[HBaseIndexer.index_batch_sha1: log] Check existing images in {}s.".format(time.time()-start_check_new_time))
+        sys.stdout.flush()
         if new_sb_files:
             start_extract_time = time.time()
             print "[HBaseIndexer.index_batch_sha1: log] Will extract features for {} images out of the {} of this batch.".format(len(new_files_id), len(batch))
