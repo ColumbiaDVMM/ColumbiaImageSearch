@@ -4,7 +4,7 @@ import shutil
 import time
 import numpy as np
 
-imagedltimeout=2
+imagedltimeout = 3
 
 def mkpath(outpath):
     pos_slash=[pos for pos,c in enumerate(outpath) if c=="/"]
