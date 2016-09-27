@@ -334,8 +334,8 @@ class HBaseIndexer(GenericIndexer):
             shutil.move(prev_comp_feat_fn,out_comp_fn)
         with open(out_comp_fn,'ab') as out_comp, open(new_comp_feat_fn,'rb') as new_comp:
                 shutil.copyfileobj(new_comp, out_comp)
-        mkpath(out_hash_fn)
         out_hash_fn = os.path.join(self.hasher.base_update_path,'hash_bits',out_update_id+'_itq_norm_'+str(self.bits_num))
+        mkpath(out_hash_fn)
         with open(out_hash_fn,'wb') as out_hash:
             if previous_files:
                 prev_hashcode_fn = os.path.join(self.hasher.base_update_path,'hash_bits',previous_files[0]+'_itq_norm_'+str(self.bits_num))
@@ -345,8 +345,8 @@ class HBaseIndexer(GenericIndexer):
             with open(new_hashcode_fn,'rb') as new_hash:
                 shutil.copyfileobj(new_hash, out_hash)
         # need to read and shift tmp_update_id comp_idx
-        mkpath(out_comp_idx_fn)
         out_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',out_update_id+'_compidx_norm')
+        mkpath(out_comp_idx_fn)
         with open(out_comp_idx_fn,'wb') as out_comp_idx:
             if previous_files:
                 prev_comp_idx_fn = os.path.join(self.hasher.base_update_path,'comp_idx',previous_files[0]+'_compidx_norm')
