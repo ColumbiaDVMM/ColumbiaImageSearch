@@ -367,7 +367,7 @@ class HBaseIndexer(GenericIndexer):
 
     def cleanup_update(self, previous_files, update_id, tmp_hasher):
         # cleanup features
-        new_feat_fn = os.path.join(self.hasher.base_update_path,'features',update_id+'_norm')
+        new_feat_fn = os.path.join(tmp_hasher.base_update_path,'features',update_id+'_norm')
         os.remove(new_feat_fn)
         # cleanup comp features
         # new procedure moves this file
