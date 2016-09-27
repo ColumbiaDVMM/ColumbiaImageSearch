@@ -37,9 +37,9 @@ class Updater():
         try:
             # needs to read table 'escorts_images_updates', rows starting with 'index_update_' and not marked as indexed.
             update_id, str_list_sha1s = self.indexer.get_next_batch()
-            list_sha1s = str_list_sha1s.split(',')
-            print("[Updater.run_update: log] Update {} has {} images.".format(update_id, len(list_sha1s)))
             if update_id:
+                list_sha1s = str_list_sha1s.split(',')
+                print("[Updater.run_update: log] Update {} has {} images.".format(update_id, len(list_sha1s)))
                 # also get 'info:image' 'info:featnorm_cu', and 'info:hash256_cu' or all self.extractions_columns
                 rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:s3_url"])
                 # deal with precomputed features (and hashcodes)
