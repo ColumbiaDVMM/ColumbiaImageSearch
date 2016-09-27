@@ -472,7 +472,8 @@ class HBaseIndexer(GenericIndexer):
         start_time = time.time() 
         self.write_batch([(update_id, {'info:started': 'True'})], self.table_updateinfos_name)
         print "[HBaseIndexer.index_batch_sha1: log] Starting udpate {}".format(update_id)
-        readable_images = self.image_downloader.download_images(batch, update_id)
+        #readable_images = self.image_downloader.download_images(batch, update_id)
+        readable_images = self.image_downloader.download_images_parallel_integritycheck(batch, update_id)
         # now each batch sample is (sha1,url,filename)
         new_sb_files = []
         new_files_id = []

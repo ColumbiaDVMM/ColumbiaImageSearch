@@ -40,7 +40,10 @@ class Updater():
             list_sha1s = str_list_sha1s.split(',')
             print("[Updater.run_update: log] Update {} has {} images.".format(update_id, len(list_sha1s)))
             if update_id:
+                # also get 'info:image' 'info:featnorm_cu', and 'info:hash256_cu' or all self.extractions_columns
                 rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:s3_url"])
+                # deal with precomputed features (and hashcodes)
+
                 if rows_batch:
                     clean_batch = [(row[0], row[1]["info:s3_url"]) for row in rows_batch]
                     batch_indexed = self.indexer.index_batch_sha1(clean_batch, update_id)

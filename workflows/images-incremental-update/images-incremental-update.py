@@ -18,7 +18,9 @@ max_ts = 9999999999999
 # how to deal with info:image_discarded?
 fields_list = [("info","all_cdr_ids"), ("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded")]
 infos_columns_list = ["info:sha1", "info:obj_stored_url", "info:obj_parent"]
-compression = "org.apache.hadoop.io.compress.GzipCodec"
+#compression = "org.apache.hadoop.io.compress.GzipCodec"
+# this seems to trigger a java.io.IOException: FAILED_TO_UNCOMPRESS(5)
+#  seems recommended to use org.apache.spark.io.LZFCompressionCodec: http://search-hadoop.com/m/q3RTtoCw3T14p5MD
 
 
 def get_list_value(json_x,field_tuple):
@@ -235,6 +237,20 @@ def split_sha1_kv_filter_max_images_discarded(x):
     return out
 
 
+def out_to_dict_str(x):
+    key = ":".join([x[1][1],x[1][2]])
+    out_dict = dict()
+    out_dict[key] = x[1][3]
+    return (x[0], json.dumps(out_dict))
+
+
+def out_from_dict_str(x):
+    out_dict = json.loads(x[1])
+    key = out_dict.keys()[0]
+    cf, cq = key.split(':')
+    return (x[0], [x[0], cf, cq, out_dict[key]])
+
+
 def get_new_s3url_sha1(x):
     value = x[1]
     out = []
@@ -383,6 +399,7 @@ def save_info_incremental_update(hbase_man_update_out, incr_update_id, info_valu
 
 
 def build_batch_rdd(batch_udpate):
+    import numpy as np
     # batch_rdd should be created to be stored in hbase table update_infos
     update_id = "index_update_"+str(max_ts-int(time.time()*1000))+'_'+str(np.int32(np.random.random()*(10e6)))
     list_key = []
@@ -474,7 +491,8 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         cdr_ids_infos_rdd = images_hb_rdd.flatMap(lambda x: to_cdr_id_dict(x)).persist(StorageLevel.MEMORY_AND_DISK)
         # save rdd
         if save_inter_rdd:
-            cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_path, compressionCodecClass=compression)
+            #cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_path, compressionCodecClass=compression)
+            cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_path)
             save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_path, "cdr_ids_infos_rdd_path")
             # to be loaded with:
             # cdr_ids_infos_rdd = sc.sequenceFile(cdr_ids_infos_rdd_path).mapValues(json.loads)
@@ -482,15 +500,15 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     ##-- end get cdr_ids_infos_rdd
 
     ##-- get s3url_infos_rdd_join
-    s3url_infos_rdd_join_path = basepath_save + "/s3url_infos_rdd_join"
     s3url_infos_rdd_join_not_loaded = True
-    if restart:
-        try:
-            #s3url_infos_rdd_join = sc.sequenceFile(s3url_infos_rdd_join_path)
-            s3url_infos_rdd_join = sc.textFile(s3url_infos_rdd_join_path)
-            s3url_infos_rdd_join_not_loaded = False
-        except Exception as inst:
-            print("Could not load rdd at {}. Error was {}.".format(s3url_infos_rdd_join_path, inst))
+    # s3url_infos_rdd_join_path = basepath_save + "/s3url_infos_rdd_join"
+    # if restart:
+    #     try:
+    #         #s3url_infos_rdd_join = sc.sequenceFile(s3url_infos_rdd_join_path)
+    #         s3url_infos_rdd_join = sc.textFile(s3url_infos_rdd_join_path)
+    #         s3url_infos_rdd_join_not_loaded = False
+    #     except Exception as inst:
+    #         print("Could not load rdd at {}. Error was {}.".format(s3url_infos_rdd_join_path, inst))
         
     if s3url_infos_rdd_join_not_loaded:
         # there could be duplicates cdr_id near indices boundary or corrections might have been applied...
@@ -503,16 +521,16 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         # do a s3url_infos_rdd.leftOuterJoin(s3url_sha1) s3url_sha1_rdd
         s3url_infos_rdd_join = s3url_infos_rdd.leftOuterJoin(s3url_sha1_rdd).persist(StorageLevel.MEMORY_AND_DISK)
         # save rdd
-        if save_inter_rdd:
-            try:
-                # check if file exists, delete before trying to write? fails with ArrayWritable error...
-                #s3url_infos_rdd_join.saveAsSequenceFile(s3url_infos_rdd_join_path, compressionCodecClass=compression)
-                s3url_infos_rdd_join.saveAsTextFile(s3url_infos_rdd_join_path, compressionCodecClass=compression)
-                # to be loaded with
-                # s3url_infos_rdd_join = sc.sequenceFile(s3url_infos_rdd_join_path)
-                save_info_incremental_update(hbase_man_update_out, incr_update_id, s3url_infos_rdd_join_path, "s3url_infos_rdd_join_path")
-            except Exception as inst:
-                print("Could not save rdd at {}, error was {}.".format(s3url_infos_rdd_join_path, inst))
+        # if save_inter_rdd:
+        #     try:
+        #         # check if file exists, delete before trying to write? fails with ArrayWritable error...
+        #         #s3url_infos_rdd_join.saveAsSequenceFile(s3url_infos_rdd_join_path, compressionCodecClass=compression)
+        #         s3url_infos_rdd_join.saveAsTextFile(s3url_infos_rdd_join_path, compressionCodecClass=compression)
+        #         # to be loaded with
+        #         # s3url_infos_rdd_join = sc.sequenceFile(s3url_infos_rdd_join_path)
+        #         save_info_incremental_update(hbase_man_update_out, incr_update_id, s3url_infos_rdd_join_path, "s3url_infos_rdd_join_path")
+        #     except Exception as inst:
+        #         print("Could not save rdd at {}, error was {}.".format(s3url_infos_rdd_join_path, inst))
         s3url_sha1_rdd.unpersist()
         s3url_infos_rdd.unpersist()
     ##-- end get s3url_infos_rdd_join
@@ -532,7 +550,6 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 
     if cdr_ids_infos_rdd_join_sha1_not_loaded:
         cdr_ids_infos_rdd_join_sha1 = s3url_infos_rdd_with_sha1.flatMap(lambda x: s3url_to_cdr_id_wsha1(x)).persist(StorageLevel.MEMORY_AND_DISK)
-        s_rdd_join_sha1 = sc.sequenceFile(cdr_ids_infos_rdd_join_sha1_path).mapValues(json.loads)
         cdr_ids_infos_rdd_join_sha1_count = cdr_ids_infos_rdd_join_sha1.count()
         save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_count, "cdr_ids_infos_rdd_join_sha1_count")
         # save it to hbase
@@ -541,7 +558,8 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         if save_inter_rdd:
             try:
                 # check if file exists, delete before trying to write? 
-                cdr_ids_infos_rdd_join_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_join_sha1_path, compressionCodecClass=compression)
+                #cdr_ids_infos_rdd_join_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_join_sha1_path, compressionCodecClass=compression)
+                cdr_ids_infos_rdd_join_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_join_sha1_path)
                 save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_path, "cdr_ids_infos_rdd_join_sha1_path")
             except Exception as inst:
                 print("Could not save rdd at {}, error was {}.".format(cdr_ids_infos_rdd_join_sha1_path, inst))
@@ -569,15 +587,19 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     hbase_man_sha1infos_out.rdd2hbase(out_join_rdd)
     # save rdd
     if save_inter_rdd: 
-        out_join_rdd_path = basepath_save + "/out_join_rdd"
-        try:
-            # check if file exists, delete before trying to write?
-            out_join_rdd.saveAsSequenceFile(out_join_rdd_path, compressionCodecClass=compression)
-            save_info_incremental_update(hbase_man_update_out, incr_update_id, out_join_rdd_path, "out_join_rdd_path")
-            # to be loaded with
-            #out_join_rdd = sc.sequenceFile(out_join_rdd)
-        except Exception as inst:
-            print("Could not save rdd at {}, error was {}.".format(out_join_rdd_path, inst))
+        if out_join_rdd.isEmpty(): 
+            save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", "out_join_rdd_path")
+        else:
+            out_join_rdd_path = basepath_save + "/out_join_rdd"
+            try:
+                # check if file exists, delete before trying to write?
+                #out_join_rdd.map(out_to_dict_str).saveAsSequenceFile(out_join_rdd_path, compressionCodecClass=compression)
+                out_join_rdd.map(out_to_dict_str).saveAsSequenceFile(out_join_rdd_path)
+                save_info_incremental_update(hbase_man_update_out, incr_update_id, out_join_rdd_path, "out_join_rdd_path")
+                # to be loaded with
+                #out_join_rdd = sc.sequenceFile(out_join_rdd_path).map(out_from_dict_str)
+            except Exception as inst:
+                print("Could not save rdd at {}, error was {}.".format(out_join_rdd_path, inst))
     out_join_rdd.unpersist()
     sha1_infos_rdd.unpersist()
     ##-- end build out_join_rdd
@@ -591,7 +613,8 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         cdr_ids_infos_rdd_new_sha1_path = basepath_save + "/cdr_ids_infos_rdd_new_sha1"
         try:
             # check if file exists, delete before trying to write? 
-            cdr_ids_infos_rdd_new_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_new_sha1_path, compressionCodecClass=compression)
+            #cdr_ids_infos_rdd_new_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_new_sha1_path, compressionCodecClass=compression)
+            cdr_ids_infos_rdd_new_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_new_sha1_path)
             save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_new_sha1_path, "cdr_ids_infos_rdd_new_sha1_path")
             # to be loaded with
             #cdr_ids_infos_rdd_new_sha1 = sc.sequenceFile(cdr_ids_infos_rdd_new_sha1_path).mapValues(json.loads)
@@ -625,10 +648,11 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         out_rdd_path = basepath_save + "/out_rdd"
         try:
             # check if file exists, delete before trying to write? 
-            out_rdd.saveAsSequenceFile(out_rdd_path, compressionCodecClass=compression)
+            #out_rdd.map(out_to_dict_str).saveAsSequenceFile(out_rdd_path, compressionCodecClass=compression)
+            out_rdd.map(out_to_dict_str).saveAsSequenceFile(out_rdd_path)
             save_info_incremental_update(hbase_man_update_out, incr_update_id, out_rdd_path, "out_rdd_path")
             # to be loaded with
-            #out_join_rdd = sc.sequenceFile(out_join_rdd)
+            #out_rdd = sc.sequenceFile(out_rdd_path).map(out_from_dict_str)
         except Exception as inst:
             print("Could not save rdd at {}, error was {}.".format(out_rdd_path, inst))
     ## write out rdd of new images 
@@ -638,7 +662,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     new_s3url_sha1_rdd = out_rdd.flatMap(lambda x: get_new_s3url_sha1(x))
     hbase_man_s3url_sha1_out.rdd2hbase(new_s3url_sha1_rdd)
     
-    ## save out_rdd by batch of 1000 to be indexed?
+    ## save out_rdd by batch of 10000 to be indexed?
     new_sha1s_rdd = out_rdd.keys()
     save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_update_size)
 
