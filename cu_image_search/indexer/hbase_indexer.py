@@ -58,6 +58,9 @@ class HBaseIndexer(GenericIndexer):
 
     def initialize_sha1_mapping(self):
         self.initializing = True
+        previous_count = 0
+        if self.sha1_featid_mapping:
+            previous_count = len(self.sha1_featid_mapping)
         self.sha1_featid_mapping = []
         # read from self.sha1_featid_mapping_filename
         try:

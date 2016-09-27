@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import datetime
 
 from optparse import OptionParser
 from pyspark import SparkContext, SparkConf, StorageLevel
@@ -9,7 +10,7 @@ from hbase_manager import HbaseManager
 
 # debugging
 debug = True
-ts_gap = 100000000
+ts_gap = 86400000 # One day
 
 # default settings
 fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
@@ -203,7 +204,7 @@ def reduce_sha1_infos_discarding(a,b):
         c = safe_assign(a, c, "info:s3_url", [None])
         c = safe_assign(a, c, "info:all_cdr_ids", [])
         c = safe_assign(a, c, "info:all_parent_ids", [])
-    if len(c["info:all_cdr_ids"])>max_images or len(c["info:all_parent_ids"])>max_images:
+    if len(c["info:all_cdr_ids"]) > max_images or len(c["info:all_parent_ids"]) > max_images:
         print("Discarding image with URL: {}".format(c["info:s3_url"][0]))
         c["info:all_cdr_ids"] = []
         c["info:all_parent_ids"] = []
@@ -218,22 +219,25 @@ def split_sha1_kv_filter_max_images_discarded(x):
         out.append((x[0], [x[0], "info", "image_discarded", x[1]["info:image_discarded"]]))
         str_s3url_value = None
         s3url_value = x[1]["info:s3_url"][0]
-        try:
-            str_s3url_value = str(s3url_value)
-        # str(field_value) could fail for unicode strings...
-        except Exception as inst:
-            print("[split_sha1_kv_filter_max_images_discarded: error] {}. Assuming it is an encoding issue.".format(inst))
-            try:
-                str_s3url_value = s3url_value.encode('utf-8')
-            except:
-                pass
-        if str_s3url_value:
-            out.append((x[0], [x[0], "info", "s3_url", str_s3url_value]))
+        str_s3url_value = unicode(s3url_value)
+        out.append((x[0], [x[0], "info", "s3_url", str_s3url_value]))
+        # # str(field_value) could fail for unicode strings...
+        # except Exception as inst:
+        #     print("[split_sha1_kv_filter_max_images_discarded: error] {}. Assuming it is an encoding issue.".format(inst))
+        #     try:
+        #         str_s3url_value = s3url_value.encode('utf-8')
+        #     except:
+        #         pass
+        # if str_s3url_value:
+        #     out.append((x[0], [x[0], "info", "s3_url", str_s3url_value]))
         out.append((x[0], [x[0], "info", "all_cdr_ids", x[1]["info:image_discarded"]]))
         out.append((x[0], [x[0], "info", "all_parent_ids", x[1]["info:image_discarded"]]))
     else:
         for field in tmp_fields_list:
-            out.append((x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]))
+            if field[1]=="s3_url":
+                out.append((x[0], [x[0], field[0], field[1], unicode(x[1][field[0]+":"+field[1]][0])]))
+            else:
+                out.append((x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]))
     return out
 
 
@@ -242,6 +246,16 @@ def out_to_dict_str(x):
     out_dict = dict()
     out_dict[key] = x[1][3]
     return (x[0], json.dumps(out_dict))
+
+
+def out_to_amandeep_dict_str(x):
+    sha1 = x[0]
+    # keys should be: "image_sha1", "all_parent_ids", "s3_url"
+    out_dict = dict()
+    out_dict["image_sha1"] = sha1
+    for field in ["all_parent_ids", "s3_url"]:
+        out_dict[field] = x[1]["info:"+field]
+    return (sha1, json.dumps(out_dict))
 
 
 def out_from_dict_str(x):
@@ -412,12 +426,15 @@ def build_batch_rdd(batch_udpate):
 def save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_update_size):
     iterator = new_sha1s_rdd.toLocalIterator()
     batch_udpate = []
+    batch_id = 0
     for x in iterator:
         batch_udpate.append(x)
         if len(batch_udpate)==batch_update_size:
+            # we should use the incremental update id and batch id as row key
             batch_rdd = build_batch_rdd(batch_udpate)
             hbase_man_update_out.rdd2hbase(batch_rdd)
             batch_udpate = []
+            batch_id += 1
     # last batch
     if batch_udpate:
         batch_rdd = build_batch_rdd(batch_udpate)
@@ -428,8 +445,10 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 
     restart = c_options.restart
     identifier = c_options.identifier
+    day_to_process = c_options.day_to_process
     save_inter_rdd = c_options.save_inter_rdd
     batch_update_size = c_options.batch_update_size
+
 
     start_time = time.time()
     
@@ -438,9 +457,10 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     if restart:
         incr_update_id = identifier
     else:
-        incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
+        #incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
+        incr_update_id = datetime.date.fromtimestamp((es_ts_start)/1000).isoformat()
     # need to use pydoop.hdfs to create the directory?
-    basepath_save = '/user/skaraman/data/'+incr_update_id
+    basepath_save = '/user/skaraman/data/images_incremental_update/'+incr_update_id
     
     ##-- get cdr_ids_infos_rdd
     cdr_ids_infos_rdd_not_loaded = True
@@ -525,6 +545,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         #     try:
         #         # check if file exists, delete before trying to write? fails with ArrayWritable error...
         #         #s3url_infos_rdd_join.saveAsSequenceFile(s3url_infos_rdd_join_path, compressionCodecClass=compression)
+        #         # this create some issues due to the compression?
         #         s3url_infos_rdd_join.saveAsTextFile(s3url_infos_rdd_join_path, compressionCodecClass=compression)
         #         # to be loaded with
         #         # s3url_infos_rdd_join = sc.sequenceFile(s3url_infos_rdd_join_path)
@@ -569,7 +590,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     # to sha1 key and save number of joined by s3 url images
     update_join_rdd = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_discarding).persist(StorageLevel.MEMORY_AND_DISK)
     cdr_ids_infos_rdd_join_sha1.unpersist()
-    # 0 when loading but 3320468 originally...
+    # 0 when loading but 3320468 originally?...
     update_join_rdd_count = update_join_rdd.count()
     save_info_incremental_update(hbase_man_update_out, incr_update_id, update_join_rdd_count, "update_join_rdd_count")
     ## update cdr_ids, and parents cdr_ids for these existing sha1s
@@ -580,26 +601,24 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         # check for info:image_discarded in flatten_leftjoin
         update_join_sha1_rdd = update_join_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x)).persist(StorageLevel.MEMORY_AND_DISK)
         sha1_infos_rdd_json.unpersist()
-        out_join_rdd = update_join_sha1_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x)).persist(StorageLevel.MEMORY_AND_DISK)
+        out_join_rdd_amandeep = update_join_sha1_rdd
     else: # first update
-        out_join_rdd = update_join_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x)).persist(StorageLevel.MEMORY_AND_DISK)
-    # save sha1 infos for these joined images
-    hbase_man_sha1infos_out.rdd2hbase(out_join_rdd)
+        out_join_rdd_amandeep = update_join_rdd
     # save rdd
     if save_inter_rdd: 
-        if out_join_rdd.isEmpty(): 
+        if out_join_rdd_amandeep.isEmpty(): 
             save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", "out_join_rdd_path")
         else:
             out_join_rdd_path = basepath_save + "/out_join_rdd"
             try:
-                # check if file exists, delete before trying to write?
-                #out_join_rdd.map(out_to_dict_str).saveAsSequenceFile(out_join_rdd_path, compressionCodecClass=compression)
-                out_join_rdd.map(out_to_dict_str).saveAsSequenceFile(out_join_rdd_path)
+                out_join_rdd_amandeep.map(out_to_amandeep_dict_str).saveAsSequenceFile(out_join_rdd_path)
                 save_info_incremental_update(hbase_man_update_out, incr_update_id, out_join_rdd_path, "out_join_rdd_path")
-                # to be loaded with
-                #out_join_rdd = sc.sequenceFile(out_join_rdd_path).map(out_from_dict_str)
             except Exception as inst:
                 print("Could not save rdd at {}, error was {}.".format(out_join_rdd_path, inst))
+    # save sha1 infos for these joined images
+    out_join_rdd = out_join_rdd_amandeep.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x)).persist(StorageLevel.MEMORY_AND_DISK)
+    hbase_man_sha1infos_out.rdd2hbase(out_join_rdd)
+    
     out_join_rdd.unpersist()
     sha1_infos_rdd.unpersist()
     ##-- end build out_join_rdd
@@ -639,24 +658,21 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         # check for info:image_discarded in flatten_leftjoin
         join_rdd = update_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x)).persist(StorageLevel.MEMORY_AND_DISK)
         sha1_infos_rdd_json.unpersist()
-        out_rdd = join_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x)).persist(StorageLevel.MEMORY_AND_DISK)
+        out_rdd_amandeep = join_rdd
     else: # first update
-        out_rdd = update_rdd.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x)).persist(StorageLevel.MEMORY_AND_DISK)
-    sha1_infos_rdd.unpersist()
+        out_rdd_amandeep = update_rdd
     # save rdd
     if save_inter_rdd:
         out_rdd_path = basepath_save + "/out_rdd"
         try:
-            # check if file exists, delete before trying to write? 
-            #out_rdd.map(out_to_dict_str).saveAsSequenceFile(out_rdd_path, compressionCodecClass=compression)
-            out_rdd.map(out_to_dict_str).saveAsSequenceFile(out_rdd_path)
+            out_rdd_amandeep.map(out_to_amandeep_dict_str).saveAsSequenceFile(out_rdd_path)
             save_info_incremental_update(hbase_man_update_out, incr_update_id, out_rdd_path, "out_rdd_path")
-            # to be loaded with
-            #out_rdd = sc.sequenceFile(out_rdd_path).map(out_from_dict_str)
         except Exception as inst:
             print("Could not save rdd at {}, error was {}.".format(out_rdd_path, inst))
     ## write out rdd of new images 
+    out_rdd = out_rdd_amandeep.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x)).persist(StorageLevel.MEMORY_AND_DISK)
     hbase_man_sha1infos_out.rdd2hbase(out_rdd)
+    sha1_infos_rdd.unpersist()
 
     ## save out newly computed sha1
     new_s3url_sha1_rdd = out_rdd.flatMap(lambda x: get_new_s3url_sha1(x))
@@ -685,6 +701,8 @@ if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("-r", "--restart", dest="restart", default=False, action="store_true")
     parser.add_option("-i", "--identifier", dest="identifier")
+    parser.add_option("-d", "--day_to_process", dest="day_to_process")
+    # should define the es_ts_start from day_to_process
     parser.add_option("-s", "--save", dest="save_inter_rdd", default=False, action="store_true")
     parser.add_option("-b", "--batch_update_size", dest="batch_update_size", default=10000)
     (c_options, args) = parser.parse_args()
