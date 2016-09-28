@@ -151,7 +151,7 @@ def reduce_cdrid_infos(a,b):
         c = a
     else:
         c = b
-    print("[reduce_cdrid_infos] {}".format(c))
+    #print("[reduce_cdrid_infos] {}".format(c))
     return c
 
 
@@ -299,7 +299,7 @@ def ts_to_cdr_id(data):
 
 
 def to_cdr_id_dict(data):
-    print("[to_cdr_id_dict] data: {}".format(data))
+    #print("[to_cdr_id_dict] data: {}".format(data))
     doc_id = data[0]
     v = dict()
     json_x = json.loads(data[1])
@@ -323,7 +323,7 @@ def to_cdr_id_dict(data):
 
 
 def to_s3_url_key(data):
-    print("[to_s3_url_key] data: {}".format(data))
+    #print("[to_s3_url_key] data: {}".format(data))
     doc_id = data[0]
     v = data[1]
     tup_list = []
@@ -332,12 +332,12 @@ def to_s3_url_key(data):
         if s3url.startswith('https://s3'):
             v["info:doc_id"] = doc_id
             tup_list = [(s3url, v)]
-    print("[to_s3_url_key] {}".format(tup_list))
+    #print("[to_s3_url_key] {}".format(tup_list))
     return tup_list
 
 
 def s3url_to_cdr_id_wsha1(data):
-    print("[s3url_to_cdr_id_wsha1] data: {}".format(data))
+    #print("[s3url_to_cdr_id_wsha1] data: {}".format(data))
     if len(data[1]) != 2 or data[1][1] is None or data[1][1] == 'None' or data[1][1] == u'None':
         print("[s3url_to_cdr_id_wsha1] incorrect data: {}".format(data))
         return []
@@ -347,24 +347,24 @@ def s3url_to_cdr_id_wsha1(data):
     doc_id = v["info:doc_id"]
     v["info:sha1"] = sha1
     tup_list = [(doc_id, v)]
-    print("[s3url_to_cdr_id_wsha1] {}".format(tup_list))
+    #print("[s3url_to_cdr_id_wsha1] {}".format(tup_list))
     return tup_list
 
 
 def s3url_to_cdr_id_nosha1(data):
-    print("[s3url_to_cdr_id_wsha1] data: {}".format(data))
+    #print("[s3url_to_cdr_id_wsha1] data: {}".format(data))
     if len(data[1]) == 2 and data[1][1] is not None and data[1][1] != 'None' and data[1][1] != u'None':
         print("[s3url_to_cdr_id_nosha1] beware: incorrect data, s3 url has a sha1: {}".format(data))
     s3_url = data[0]
     v = data[1][0]
     doc_id = v["info:doc_id"]
     tup_list = [(doc_id, v)]
-    print("[s3url_to_cdr_id_nosha1] {}".format(tup_list))
+    #print("[s3url_to_cdr_id_nosha1] {}".format(tup_list))
     return tup_list
 
 
 def get_existing_joined_sha1(data):
-    print("[get_existing_joined_sha1] data: {}".format(data))
+    #print("[get_existing_joined_sha1] data: {}".format(data))
     if len(data[1]) == 2 and data[1][1] is not None and data[1][1] != 'None' and data[1][1] != u'None':
         return True
     return False
@@ -375,7 +375,7 @@ def clean_up_s3url_sha1(data):
     s3url = data[0].strip()
     json_x = [json.loads(x) for x in data[1].split("\n")]
     sha1 = get_list_value(json_x,("info","sha1"))[0].strip()
-    print("[clean_up_s3url_sha1] out: {}".format((s3url,sha1)))
+    #print("[clean_up_s3url_sha1] out: {}".format((s3url,sha1)))
     return (s3url,sha1)
 
 
@@ -455,6 +455,8 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     # if we restart we should actually look for the most advanced saved rdd and restart from there.
     # we could read the corresponding update row in table_updates to understand where we need to restart from.
     if restart:
+        if not identifier:
+            raise ValueError('[incremental_update: error] Trying to restart without specifying update identifier.')
         incr_update_id = identifier
     else:
         #incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
@@ -512,8 +514,11 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         # save rdd
         if save_inter_rdd:
             #cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_path, compressionCodecClass=compression)
-            cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_path)
-            save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_path, "cdr_ids_infos_rdd_path")
+            try:
+                cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_path)
+                save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_path, "cdr_ids_infos_rdd_path")
+            except Exception as inst:
+                print("Could not save rdd at {}. Error was {}.".format(cdr_ids_infos_rdd_path, inst))
             # to be loaded with:
             # cdr_ids_infos_rdd = sc.sequenceFile(cdr_ids_infos_rdd_path).mapValues(json.loads)
         images_hb_rdd.unpersist()
@@ -611,7 +616,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         else:
             out_join_rdd_path = basepath_save + "/out_join_rdd"
             try:
-                out_join_rdd_amandeep.map(out_to_amandeep_dict_str).saveAsSequenceFile(out_join_rdd_path)
+                out_join_rdd_amandeep.filter(lambda x: "info:image_discarded" not in x[1]).map(out_to_amandeep_dict_str).saveAsSequenceFile(out_join_rdd_path)
                 save_info_incremental_update(hbase_man_update_out, incr_update_id, out_join_rdd_path, "out_join_rdd_path")
             except Exception as inst:
                 print("Could not save rdd at {}, error was {}.".format(out_join_rdd_path, inst))
@@ -665,7 +670,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     if save_inter_rdd:
         out_rdd_path = basepath_save + "/out_rdd"
         try:
-            out_rdd_amandeep.map(out_to_amandeep_dict_str).saveAsSequenceFile(out_rdd_path)
+            out_rdd_amandeep.filter(lambda x: "info:image_discarded" not in x[1]).map(out_to_amandeep_dict_str).saveAsSequenceFile(out_rdd_path)
             save_info_incremental_update(hbase_man_update_out, incr_update_id, out_rdd_path, "out_rdd_path")
         except Exception as inst:
             print("Could not save rdd at {}, error was {}.".format(out_rdd_path, inst))

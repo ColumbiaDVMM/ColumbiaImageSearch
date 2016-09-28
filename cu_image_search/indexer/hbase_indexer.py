@@ -3,6 +3,7 @@ import sys
 import time
 import base64
 import shutil
+import datetime
 import happybase
 import numpy as np
 from generic_indexer import GenericIndexer
@@ -57,6 +58,8 @@ class HBaseIndexer(GenericIndexer):
         self.index_batches = []
 
     def initialize_sha1_mapping(self):
+        if self.refresh_inqueue:
+            self.refresh_inqueue = False
         self.initializing = True
         previous_count = 0
         if self.sha1_featid_mapping:
@@ -67,10 +70,15 @@ class HBaseIndexer(GenericIndexer):
             print "[HBaseIndexer.initialize_sha1_mapping: log] Loading sha1_featid_mapping...",
             with open(self.sha1_featid_mapping_filename,'rt') as sha1_fid:
                 self.sha1_featid_mapping = [line.strip() for line in sha1_fid]
+            if len(self.sha1_featid_mapping) < previous_count:
+                print "[HBaseIndexer.initialize_sha1_mapping: warning] Initialized sha1_featid_mapping with less images than before. ({} vs.{})".format(previous_count, len(self.sha1_featid_mapping))
             self.set_sha1_indexed = set(self.sha1_featid_mapping)
             print "Done."
             sys.stdout.flush()
             self.initializing = False
+            self.last_refresh = datetime.now()
+            if self.refresh_inqueue:
+                return self.initialize_sha1_mapping()
         except Exception as inst:
             print "FAILED"
             print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}.\n{}".format(self.sha1_featid_mapping_filename,inst)

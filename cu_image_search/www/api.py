@@ -235,8 +235,9 @@ class Searcher(Resource):
 
 
     def refresh(self):
-        if not self.searcher.indexer.refreshing:
-            return {'refresh': 'run a new refresh'}
+        if not self.searcher.indexer.initializing:
+            self.searcher.indexer.initialize_sha1_mapping()
+            return {'refresh': 'just run a new refresh'}
         else:
             self.searcher.indexer.refresh_inqueue = True
             return {'refresh': 'pushed a refresh in queue.'}
@@ -244,7 +245,7 @@ class Searcher(Resource):
 
     def status(self):
         status_dict = {'status': 'OK'}
-        status_dict['last_refresh'] = self.searcher.indexer.last_refresh
+        status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh.isoformat(' ')
         status_dict['indexed_images'] = len(self.searcher.indexer.sha1_featid_mapping)
         status_dict['API_start_time'] = self.start_time.isoformat(' ')
         status_dict['API_uptime'] = str(datetime.now()-self.start_time)
