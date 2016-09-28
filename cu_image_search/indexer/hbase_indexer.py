@@ -55,6 +55,7 @@ class HBaseIndexer(GenericIndexer):
         self.last_refresh = None
         self.refresh_inqueue = False
         self.index_batches = []
+        self.sha1_featid_mapping = []
         self.initialize_sha1_mapping()
 
     def initialize_sha1_mapping(self):
