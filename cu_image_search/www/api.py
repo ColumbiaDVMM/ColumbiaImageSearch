@@ -245,7 +245,10 @@ class Searcher(Resource):
 
     def status(self):
         status_dict = {'status': 'OK'}
-        status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh.isoformat(' ')
+        if self.searcher.indexer.last_refresh:
+            status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh.isoformat(' ')
+        else:
+            status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh
         status_dict['indexed_images'] = len(self.searcher.indexer.sha1_featid_mapping)
         status_dict['API_start_time'] = self.start_time.isoformat(' ')
         status_dict['API_uptime'] = str(datetime.now()-self.start_time)
