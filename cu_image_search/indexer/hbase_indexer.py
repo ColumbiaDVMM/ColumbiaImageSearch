@@ -38,7 +38,6 @@ class HBaseIndexer(GenericIndexer):
         self.sha1_featid_mapping_filename = self.global_conf['HBI_sha1_featid_mapping_filename']
         self.cu_feat_id_column = "info:cu_feat_id" # could be loaded from conf
         self.discarded_column = "image_discarded" # could be loaded from conf
-        self.initialize_sha1_mapping()
         self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
             raise ValueError("[HBaseIngester.read_conf: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
@@ -56,6 +55,7 @@ class HBaseIndexer(GenericIndexer):
         self.last_refresh = None
         self.refresh_inqueue = False
         self.index_batches = []
+        self.initialize_sha1_mapping()
 
     def initialize_sha1_mapping(self):
         if self.refresh_inqueue:
