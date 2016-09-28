@@ -3,9 +3,9 @@ import sys
 import time
 import base64
 import shutil
-import datetime
 import happybase
 import numpy as np
+from datetime import datetime
 from generic_indexer import GenericIndexer
 from socket import timeout
 from ..memex_tools.image_dl import mkpath
