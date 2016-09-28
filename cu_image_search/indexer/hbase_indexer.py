@@ -12,7 +12,9 @@ from ..memex_tools.image_dl import mkpath
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 from ..memex_tools.binary_file import read_binary_file, write_binary_file
 
+
 class HBaseIndexer(GenericIndexer):
+
 
     def read_conf(self):
         """ Reads configuration parameters.
@@ -52,7 +54,6 @@ class HBaseIndexer(GenericIndexer):
         self.merging = False
         self.refreshing = False
         self.initializing = False
-        self.last_refresh = None
         self.refresh_inqueue = False
         self.index_batches = []
         self.sha1_featid_mapping = []
@@ -922,8 +923,4 @@ class HBaseIndexer(GenericIndexer):
     #             print "[HBaseIndexer.index_batch: log] writing batch of new images from {} to table {}.".format(new_sha1_rows_merged[0][0],self.table_sha1infos_name)
     #             self.write_batch(new_sha1_rows_merged,self.table_sha1infos_name) 
     #     print "[HBaseIndexer.index_batch: log] indexed batch in {}s.".format(time.time()-start_time)
-                
-        
 
-
-        
