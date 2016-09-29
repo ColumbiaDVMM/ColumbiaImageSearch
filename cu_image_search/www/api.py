@@ -43,6 +43,7 @@ class APIResponder(Resource):
         #self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
         self.searcher = global_searcher
         self.start_time = global_start_time
+        self.valid_options = ["near_dup", "near_dup_th"]
 
 
     def get(self, mode):
@@ -117,6 +118,11 @@ class APIResponder(Resource):
                 err_msg = "[get_options: error] Could not load options from: {}. {}".format(options, inst)
                 print(err_msg)
                 errors.append(err_msg)
+            for k in options_dict:
+                if k not in self.valid_options:
+                    err_msg = "[get_options: error] Unkown option {}".format(k)
+                    print(err_msg)
+                    errors.append(err_msg)
         return options_dict, errors
 
 
