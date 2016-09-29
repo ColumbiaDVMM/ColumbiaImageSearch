@@ -544,7 +544,7 @@ def get_s3url_infos_rdd_join(cdr_ids_infos_rdd, nb_partitions):
     return s3url_infos_rdd_join
 
 
-def get_cdr_ids_infos_rdd_join_sha1(basepath_save, s3url_infos_rdd_join, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id):
+def get_cdr_ids_infos_rdd_join_sha1(basepath_save, s3url_infos_rdd_join, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, restart):
     cdr_ids_infos_rdd_join_sha1_path = basepath_save + "/cdr_ids_infos_rdd_join_sha1"
     cdr_ids_infos_rdd_join_sha1_not_loaded = True
     if restart:
@@ -610,7 +610,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     ##-- end get s3url_infos_rdd_join
 
     ##-- get cdr_ids_infos_rdd_join_sha1
-    cdr_ids_infos_rdd_join_sha1 = get_cdr_ids_infos_rdd_join_sha1(basepath_save, s3url_infos_rdd_join, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id)
+    cdr_ids_infos_rdd_join_sha1 = get_cdr_ids_infos_rdd_join_sha1(basepath_save, s3url_infos_rdd_join, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, restart)
     ##-- end get cdr_ids_infos_rdd_join_sha1
 
     ##-- build out_join_rdd

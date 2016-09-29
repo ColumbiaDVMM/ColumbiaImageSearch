@@ -36,7 +36,7 @@ global_conf_file = '../../conf/global_var_remotehbase.json'
 global_searcher = None
 global_start_time = None
 
-class Searcher(Resource):
+class APIResponder(Resource):
 
 
     def __init__(self):
@@ -112,6 +112,7 @@ class Searcher(Resource):
         options_dict = dict()
         try:
             options_dict = json.loads(options)
+
         except Exception as inst:
             err_msg = "[get_options: error] Could not load options from: {}".format(options)
             print(err_msg)
@@ -333,8 +334,8 @@ class Searcher(Resource):
         sys.stdout.flush()
         return make_response(render_template('view_similar_images.html'),200,headers)
 
-#api.add_resource(Searcher, '/cu_image_search/<string:mode>/<path:query>', '/cu_image_search/<string:mode>', methods=['GET', 'POST'])
-api.add_resource(Searcher, '/cu_image_search/<string:mode>')
+
+api.add_resource(APIResponder, '/cu_image_search/<string:mode>')
 
 if __name__ == '__main__':
     global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
