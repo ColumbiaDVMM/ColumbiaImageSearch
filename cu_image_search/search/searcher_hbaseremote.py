@@ -67,9 +67,11 @@ class Searcher():
             raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
 
-    def filter_near_dup(self, nums, near_dup_th=self.near_dup_th):
+    def filter_near_dup(self, nums, near_dup_th=None):
         # nums is a list of ids then distances
         # onum is the number of similar images
+        if not near_dup_th:
+            near_dup_th = self.near_dup_th
         onum = len(nums)/2
         temp_nums=[]
         #print "[Searcher.filter_near_dup: log] nums {}".format(nums)
