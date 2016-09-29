@@ -87,7 +87,7 @@ class Searcher():
         return temp_nums
 
 
-    def read_sim(self, simname, nb_query, options=dict()):
+    def read_sim(self, simname, nb_query, options_dict=dict()):
     	# intialization
         sim = []
         sim_score = []
@@ -98,7 +98,7 @@ class Searcher():
         for line in f:
             #sim_index.append([])
             nums = line.replace(' \n','').split(' ')
-            if (self.near_dup and "near_dup" not in options) or ("near_dup" in options and options["near_dup"]): #filter near duplicate here
+            if self.near_dup or ("near_dup" in options_dict and options_dict["near_dup"]): #filter near duplicate here
                 if "near_dup_th" in options:
                     near_dup_th = options["near_dup_th"]
                 else:
@@ -122,7 +122,7 @@ class Searcher():
         return sim,sim_score
 
 
-    def read_sim_sha1(self, simname, nb_query):
+    def read_sim_sha1(self, simname, nb_query, options_dict=dict()):
         # intialization
         sim = []
         sim_score = []
@@ -133,8 +133,12 @@ class Searcher():
         for line in f:
             #sim_index.append([])
             nums = line.replace('\n','').split(' ')
-            if self.near_dup: #filter near duplicate here
-                nums=self.filter_near_dup(nums)
+            if self.near_dup or ("near_dup" in options_dict and options_dict["near_dup"]): #filter near duplicate here
+                if "near_dup_th" in options:
+                    near_dup_th = options["near_dup_th"]
+                else:
+                    near_dup_th = self.near_dup_th
+                nums = self.filter_near_dup(nums, near_dup_th)
             #print nums
             onum = len(nums)/2
             n = min(self.sim_limit,onum)
@@ -153,16 +157,21 @@ class Searcher():
         return sim,sim_score
 
 
-    def format_output(self, simname, nb_query, corrupted, list_sha1_id, sha1sim=False):
+    def format_output(self, simname, nb_query, corrupted, list_sha1_id, options_dict=dict()):
     	# read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
-        if sha1sim:
-            sim,sim_score = self.read_sim_sha1(simname, nb_query)
+        if 'sha1_sim' in options_dict:
+            sha1sim = options_dict['sha1_sim']
         else:
-            sim,sim_score = self.read_sim(simname, nb_query)
+            sha1sim = False
+        if sha1sim:
+            sim,sim_score = self.read_sim_sha1(simname, nb_query, options_dict)
+        else:
+            sim,sim_score = self.read_sim(simname, nb_query, options_dict)
 
         #print "[Searcher.format_output: log] sim: {}".format(sim)
         
         # build final output
+        # options_dict could be used to request more output infos 'cdr_ids' etc
         output = []
         dec = 0
         #needed_columns = ['info:s3_url', 'info:all_cdr_ids', 'info:all_parent_ids']
@@ -192,6 +201,7 @@ class Searcher():
         outp = OrderedDict([['number',nb_query],['images',output]])
         return outp
 
+
     def search_one_imagepath(self,image_path):
     	# initilization
         search_id = str(time.time())
@@ -199,7 +209,7 @@ class Searcher():
         return self.search_from_image_filenames(all_img_filenames,search_id)
 
 
-    def search_image_filelist(self, image_list):
+    def search_image_filelist(self, image_list, options_dict=dict()):
         # initilization
         search_id = str(time.time())
         i = 0
@@ -226,11 +236,11 @@ class Searcher():
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id)
+        outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
         return outputname
 
         
-    def search_image_list(self, image_list):
+    def search_image_list(self, image_list, options_dict=dict()):
         # initilization
         search_id = str(time.time())
         i = 0
@@ -259,7 +269,7 @@ class Searcher():
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id)
+        outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
         return outp
 
     def search_from_image_filenames_nocache(self, all_img_filenames, search_id):
@@ -292,7 +302,7 @@ class Searcher():
         return outp
 
 
-    def search_from_image_filenames(self,all_img_filenames,search_id):
+    def search_from_image_filenames(self, all_img_filenames, search_id, options_dict=dict()):
         # compute all sha1s
         corrupted = []
         list_sha1_id = []
@@ -368,7 +378,7 @@ class Searcher():
             # query with merged features_filename
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
         outputname = simname[:-4]+".json"
-        outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id)
+        outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
         print "[Searcher.search_from_image_filenames: log] saving output to {}".format(outputname)
         json.dump(outp, open(outputname,'w'), indent=4, sort_keys=False)    
         return outp, outputname

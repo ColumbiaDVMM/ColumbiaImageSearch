@@ -4,8 +4,10 @@ from flask_restful import Resource, Api
 import os
 import sys
 import time
-from datetime import datetime
+import json
 import imghdr
+from datetime import datetime
+
 from PIL import Image, ImageFile
 #Image.LOAD_TRUNCATED_IMAGES = True
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -105,18 +107,44 @@ class Searcher(Resource):
             return {'error': 'unknown_mode: '+str(mode)}
 
 
+    def get_options_dict(self, options):
+        errors = []
+        options_dict = dict()
+        try:
+            options_dict = json.loads(options)
+        except Exception as inst:
+            err_msg = "[get_options: error] Could not load options from: {}".format(options)
+            print(err_msg)
+            errors.append(err_msg)
+        return options_dict, errors
+
+
+    def append_errors(self, outp, errors=[]):
+        if errors:
+            e_d = dict()
+            for i,e in enumerate(errors):
+                e_d['error_{}'.format(i)] = e
+            outp['errors'] = e_d
+        return outp
+
+
     def search_byURL(self, query, options=None):
         query_urls = query.split(',')
+        options_dict, errors = self.get_options_dict(options)
+        
         # look for s3url in s3url sha1 mapping?
         # if not present, download and compute sha1
         # search for similar images by sha1 for those we could retrieve
         # search with 'search_image_list' for other images
-        return self.searcher.search_image_list(query_urls)
+        outp = self.searcher.search_image_list(query_urls, options_dict)
+        outp_we = self.append_errors(outp, errors)
+        return outp_we
 
 
     def search_byURL_nocache(self, query, options=None):
         query_urls = query.split(',')
-        return self.searcher.search_image_list(query_urls)
+        options_dict, errors = self.get_options_dict(options)
+        return self.searcher.search_image_list(query_urls, options_dict)
 
 
     def search_bySHA1_nocache(self, query, options=None):
@@ -181,7 +209,9 @@ class Searcher(Resource):
         with open(simname,'wb') as outsim:
             for row in sim_rows:
                 outsim.write(row+"\n")
-        out = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, True)
+        options_dict = dict()
+        options_dict['sim_sha1'] = True
+        out = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
         # cleanup
         os.remove(simname)
         return out
@@ -192,7 +222,7 @@ class Searcher(Resource):
         # and query for percomputed similar images using 
         # self.searcher.indexer.get_similar_images_from_sha1(query_sha1s)
         # left for later as we consider queries with b64 are for out of index images
-        return self.search_byB64_nocache(query)
+        return self.search_byB64_nocache(query, options)
 
 
     def search_byB64_nocache(self, query, options=None):
@@ -215,25 +245,22 @@ class Searcher(Resource):
                         im = Image.open(f)
                         im.save(img_fn,"JPEG")
                     except IOError:
-                        print("[search_byB64_nocache] Error when loading non-jpeg image. Trying to continue.")
-                        errors.append("[search_byB64_nocache] Error when loading non-jpeg image with length {} and ending with: {}".format(len(one_b64), one_b64[-20:]))
+                        err_msg = "[search_byB64_nocache: error] Non-jpeg image conversion failed."
+                        print(err_msg)
+                        errors.append(err_msg)
                         os.remove(img_fn)
                 else:
                     f.write(img_byte)
             list_imgs.append(img_fn)
-        outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
-        if errors:
-            for e in errors:
-                e_d = dict()
-                e_d['error'] = e
-                outp.append(e_d)
+        outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id, options)
+        outp_we = self.append_errors(outp, errors)
         # cleanup
         for f in list_imgs:
             try:
                 os.remove(f)
             except:
                 pass
-        return outp
+        return outp_we
 
 
     def refresh(self):

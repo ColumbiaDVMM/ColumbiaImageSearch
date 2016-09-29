@@ -13,7 +13,8 @@ from hbase_manager import HbaseManager
 
 # debugging
 debug = True
-ts_gap = 86400000 # One day
+#ts_gap = 86400000 # One day
+ts_gap = 20000000 
 
 # default settings
 fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
@@ -444,33 +445,7 @@ def save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_u
         hbase_man_update_out.rdd2hbase(batch_rdd)
 
 
-def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_in, hbase_man_update_out, nb_partitions, c_options):
-
-    restart = c_options.restart
-    identifier = c_options.identifier
-    day_to_process = c_options.day_to_process
-    save_inter_rdd = c_options.save_inter_rdd
-    batch_update_size = c_options.batch_update_size
-
-
-    start_time = time.time()
-    
-    # if we restart we should actually look for the most advanced saved rdd and restart from there.
-    # we could read the corresponding update row in table_updates to understand where we need to restart from.
-    if restart:
-        if not identifier:
-            raise ValueError('[incremental_update: error] Trying to restart without specifying update identifier.')
-        incr_update_id = identifier
-    else:
-        if day_to_process:
-            incr_update_id = datetime.date.fromtimestamp((es_ts_start)/1000).isoformat()
-        else:
-            incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
-
-    # need to use pydoop.hdfs to create the directory?
-    basepath_save = '/user/skaraman/data/images_incremental_update/'+incr_update_id
-    
-    ##-- get cdr_ids_infos_rdd
+def get_cdr_ids_infos_rdd(es_man, hbase_man_update_out, nb_partitions, es_ts_start, start_time, incr_update_id, restart, basepath_save, save_inter_rdd):
     cdr_ids_infos_rdd_not_loaded = True
     cdr_ids_infos_rdd_path = basepath_save + "/cdr_ids_infos_rdd"
     if restart:
@@ -528,9 +503,10 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
             # to be loaded with:
             # cdr_ids_infos_rdd = sc.sequenceFile(cdr_ids_infos_rdd_path).mapValues(json.loads)
         images_hb_rdd.unpersist()
-    ##-- end get cdr_ids_infos_rdd
+    return cdr_ids_infos_rdd
 
-    ##-- get s3url_infos_rdd_join
+
+def get_s3url_infos_rdd_join(cdr_ids_infos_rdd, nb_partitions):
     s3url_infos_rdd_join_not_loaded = True
     # s3url_infos_rdd_join_path = basepath_save + "/s3url_infos_rdd_join"
     # if restart:
@@ -544,7 +520,6 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     if s3url_infos_rdd_join_not_loaded:
         # there could be duplicates cdr_id near indices boundary or corrections might have been applied...
         cdr_ids_infos_rdd_red = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos).persist(StorageLevel.MEMORY_AND_DISK)
-        cdr_ids_infos_rdd.unpersist()
         # invert cdr_ids_infos_rdd (k,v) into s3url_infos_rdd (v[s3_url],[v,v['cdr_id']=k])
         s3url_infos_rdd = cdr_ids_infos_rdd_red.flatMap(lambda x: to_s3_url_key(x)).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
         # read s3url_sha1 table into s3url_sha1 to get sha1 here without downloading images
@@ -563,11 +538,13 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         #         save_info_incremental_update(hbase_man_update_out, incr_update_id, s3url_infos_rdd_join_path, "s3url_infos_rdd_join_path")
         #     except Exception as inst:
         #         print("Could not save rdd at {}, error was {}.".format(s3url_infos_rdd_join_path, inst))
+        cdr_ids_infos_rdd.unpersist()
         s3url_sha1_rdd.unpersist()
         s3url_infos_rdd.unpersist()
-    ##-- end get s3url_infos_rdd_join
+    return s3url_infos_rdd_join
 
-    ##-- get cdr_ids_infos_rdd_join_sha1
+
+def get_cdr_ids_infos_rdd_join_sha1(basepath_save, s3url_infos_rdd_join, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id):
     cdr_ids_infos_rdd_join_sha1_path = basepath_save + "/cdr_ids_infos_rdd_join_sha1"
     cdr_ids_infos_rdd_join_sha1_not_loaded = True
     if restart:
@@ -595,12 +572,50 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
                 save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_path, "cdr_ids_infos_rdd_join_sha1_path")
             except Exception as inst:
                 print("Could not save rdd at {}, error was {}.".format(cdr_ids_infos_rdd_join_sha1_path, inst))
+    return cdr_ids_infos_rdd_join_sha1
+
+
+def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_in, hbase_man_update_out, nb_partitions, c_options):
+
+    restart = c_options.restart
+    identifier = c_options.identifier
+    day_to_process = c_options.day_to_process
+    save_inter_rdd = c_options.save_inter_rdd
+    batch_update_size = c_options.batch_update_size
+
+
+    start_time = time.time()
+    
+    # if we restart we should actually look for the most advanced saved rdd and restart from there.
+    # we could read the corresponding update row in table_updates to understand where we need to restart from.
+    if restart:
+        if not identifier:
+            raise ValueError('[incremental_update: error] Trying to restart without specifying update identifier.')
+        incr_update_id = identifier
+    else:
+        if day_to_process:
+            incr_update_id = datetime.date.fromtimestamp((es_ts_start)/1000).isoformat()
+        else:
+            incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
+
+    # need to use pydoop.hdfs to create the directory?
+    basepath_save = '/user/skaraman/data/images_incremental_update/'+incr_update_id
+    
+    ##-- get cdr_ids_infos_rdd
+    cdr_ids_infos_rdd = get_cdr_ids_infos_rdd(es_man, hbase_man_update_out, nb_partitions, es_ts_start, start_time, incr_update_id, restart, basepath_save, save_inter_rdd)
+    ##-- end get cdr_ids_infos_rdd
+
+    ##-- get s3url_infos_rdd_join
+    s3url_infos_rdd_join = get_s3url_infos_rdd_join(cdr_ids_infos_rdd, nb_partitions)
+    ##-- end get s3url_infos_rdd_join
+
+    ##-- get cdr_ids_infos_rdd_join_sha1
+    cdr_ids_infos_rdd_join_sha1 = get_cdr_ids_infos_rdd_join_sha1(basepath_save, s3url_infos_rdd_join, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id)
     ##-- end get cdr_ids_infos_rdd_join_sha1
 
     ##-- build out_join_rdd
     # to sha1 key and save number of joined by s3 url images
     update_join_rdd = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: to_sha1_key(x)).partitionBy(nb_partitions).reduceByKey(reduce_sha1_infos_discarding).persist(StorageLevel.MEMORY_AND_DISK)
-    cdr_ids_infos_rdd_join_sha1.unpersist()
     # 0 when loading but 3320468 originally?...
     update_join_rdd_count = update_join_rdd.count()
     save_info_incremental_update(hbase_man_update_out, incr_update_id, update_join_rdd_count, "update_join_rdd_count")
@@ -630,6 +645,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     out_join_rdd = out_join_rdd_amandeep.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x)).persist(StorageLevel.MEMORY_AND_DISK)
     hbase_man_sha1infos_out.rdd2hbase(out_join_rdd)
     
+    cdr_ids_infos_rdd_join_sha1.unpersist()
     out_join_rdd.unpersist()
     sha1_infos_rdd.unpersist()
     ##-- end build out_join_rdd
