@@ -549,7 +549,7 @@ def get_cdr_ids_infos_rdd_join_sha1(basepath_save, s3url_infos_rdd_join, hbase_m
     cdr_ids_infos_rdd_join_sha1_not_loaded = True
     if restart:
         try:
-            cdr_ids_infos_rdd_join_sha1 = sc.sequenceFile(cdr_ids_infos_rdd_join_sha1_path)
+            cdr_ids_infos_rdd_join_sha1 = sc.sequenceFile(cdr_ids_infos_rdd_join_sha1_path).mapValues(json.loads)
             cdr_ids_infos_rdd_join_sha1_not_loaded = False
         except Exception as inst:
             print("Could not load rdd at {}. Error was {}.".format(cdr_ids_infos_rdd_join_sha1_path, inst))

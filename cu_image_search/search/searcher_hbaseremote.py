@@ -79,7 +79,7 @@ class Searcher():
         #print "[Searcher.filter_near_dup: log] nums {}".format(nums)
         for one_num in range(0,onum):
             # maintain only near duplicates, i.e. distance less than self.near_dup_th
-            if float(nums[onum+one_num])>near_dup_th:
+            if float(nums[onum+one_num])>float(near_dup_th):
                 return temp_nums
             # insert id at its right place
             temp_nums.insert(one_num,nums[one_num])
