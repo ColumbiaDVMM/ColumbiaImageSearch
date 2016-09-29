@@ -70,16 +70,15 @@ class Searcher():
     def filter_near_dup(self, nums, near_dup_th=None):
         # nums is a list of ids then distances
         # onum is the number of similar images
-        print("[filter_near_dup] near_dup_th option is : {}".format(near_dup_th))
         if not near_dup_th:
             near_dup_th = self.near_dup_th
-        print("[filter_near_dup] near_dup_th: {}".format(near_dup_th))
+        #print("[filter_near_dup] near_dup_th: {}".format(near_dup_th))
         onum = len(nums)/2
         temp_nums=[]
         #print "[Searcher.filter_near_dup: log] nums {}".format(nums)
         for one_num in range(0,onum):
             # maintain only near duplicates, i.e. distance less than self.near_dup_th
-            if float(nums[onum+one_num])>float(near_dup_th):
+            if float(nums[onum+one_num])>near_dup_th:
                 return temp_nums
             # insert id at its right place
             temp_nums.insert(one_num,nums[one_num])
