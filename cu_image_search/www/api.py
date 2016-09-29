@@ -46,31 +46,33 @@ class Searcher(Resource):
     def get(self, mode):
         print("[get] received parameters: {}".format(request.args.keys()))
         query = request.args.get('data')
+        options = request.args.get('options')
         print("[get] received data: {}".format(query))
+        print("[get] received options: {}".format(options))
         if query:
-            return self.process_query(mode, query)
+            return self.process_query(mode, query, options)
         else:
             return self.process_mode(mode)
  
 
     def put(self, mode):
-        print("[put] received parameters: {}".format(request.form.keys()))
-        query = request.form['data']
-        print("[put] received data: {}".format(query))
-        if not query:
-            return {'error': 'no data received'}
-        else:
-            return self.process_query(mode, query)
+        return self.put_post(mode)
 
 
     def post(self, mode):
-        print("[post] received parameters: {}".format(request.form.keys()))
+        return self.put_post(mode)        
+
+
+    def put_post(self, mode):
+        print("[put/post] received parameters: {}".format(request.form.keys()))
         query = request.form['data']
-        print("[post] received data: {}".format(query))
+        options = request.form['options']
+        print("[put/post] received data: {}".format(query))
+        print("[put/post] received options: {}".format(options))
         if not query:
             return {'error': 'no data received'}
         else:
-            return self.process_query(mode, query)
+            return self.process_query(mode, query, options)
 
 
     def process_mode(self, mode):
@@ -82,28 +84,28 @@ class Searcher(Resource):
             return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give data parameter?'}
 
 
-    def process_query(self, mode, query):
+    def process_query(self, mode, query, options=None):
         if mode == "byURL":
-            return self.search_byURL(query)
+            return self.search_byURL(query, options)
         elif mode == "byURL_nocache":
-            return self.search_byURL_nocache(query)
+            return self.search_byURL_nocache(query, options)
         elif mode == "bySHA1":
-            return self.search_bySHA1(query)
+            return self.search_bySHA1(query, options)
         elif mode == "bySHA1_nocache":
-            return self.search_bySHA1_nocache(query)
+            return self.search_bySHA1_nocache(query, options)
         elif mode == "byB64":
-            return self.search_byB64(query)
+            return self.search_byB64(query, options)
         elif mode == "byB64_nocache":
-            return self.search_byB64_nocache(query)
+            return self.search_byB64_nocache(query, options)
         elif mode == "view_image_sha1":
-            return self.view_image_sha1(query)
+            return self.view_image_sha1(query, options)
         elif mode == "view_similar_images_sha1":
-            return self.view_similar_images_sha1(query)
+            return self.view_similar_images_sha1(query, options)
         else:
             return {'error': 'unknown_mode: '+str(mode)}
 
 
-    def search_byURL(self, query):
+    def search_byURL(self, query, options=None):
         query_urls = query.split(',')
         # look for s3url in s3url sha1 mapping?
         # if not present, download and compute sha1
@@ -112,12 +114,12 @@ class Searcher(Resource):
         return self.searcher.search_image_list(query_urls)
 
 
-    def search_byURL_nocache(self, query):
+    def search_byURL_nocache(self, query, options=None):
         query_urls = query.split(',')
         return self.searcher.search_image_list(query_urls)
 
 
-    def search_bySHA1_nocache(self, query):
+    def search_bySHA1_nocache(self, query, options=None):
         query_sha1s = query.split(',')
         feats, ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
         corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
@@ -135,7 +137,7 @@ class Searcher(Resource):
         return out
         
 
-    def search_bySHA1(self, query):
+    def search_bySHA1(self, query, options=None):
         # cached sha1 search
         query_sha1s = [str(x) for x in query.split(',')]
         print("[search_bySHA1] query_sha1s {}".format(query_sha1s))
@@ -185,7 +187,7 @@ class Searcher(Resource):
         return out
     
 
-    def search_byB64(self, query):
+    def search_byB64(self, query, options=None):
         # we can implement a version that computes the sha1
         # and query for percomputed similar images using 
         # self.searcher.indexer.get_similar_images_from_sha1(query_sha1s)
@@ -193,7 +195,7 @@ class Searcher(Resource):
         return self.search_byB64_nocache(query)
 
 
-    def search_byB64_nocache(self, query):
+    def search_byB64_nocache(self, query, options=None):
         query_b64s = [str(x) for x in query.split(',')]
         import shutil
         import base64
@@ -258,7 +260,7 @@ class Searcher(Resource):
     def get_image_str(self, row):
         return "<img src=\"{}\" title=\"{}\" class=\"img_blur\">".format(row[1]["info:s3_url"],row[0])
 
-    def view_image_sha1(self, query):
+    def view_image_sha1(self, query, options=None):
         query_sha1s = [str(x) for x in query.split(',')]
         rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, ["info:s3_url"])
         images_str = ""
@@ -271,7 +273,7 @@ class Searcher(Resource):
         return make_response(render_template('view_images.html'),200,headers)
 
 
-    def view_similar_images_sha1(self, query):
+    def view_similar_images_sha1(self, query, options=None):
         query_sha1s = [str(x) for x in query.split(',')]
         print("[view_similar_images_sha1] querying with {} sha1s: {}".format(len(query_sha1s), query_sha1s))
         sys.stdout.flush()

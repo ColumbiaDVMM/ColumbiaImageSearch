@@ -1,7 +1,10 @@
 import os
 import json
 import time
+import calendar
 import datetime
+import dateutil.parser
+
 
 from optparse import OptionParser
 from pyspark import SparkContext, SparkConf, StorageLevel
@@ -459,8 +462,11 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
             raise ValueError('[incremental_update: error] Trying to restart without specifying update identifier.')
         incr_update_id = identifier
     else:
-        #incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
-        incr_update_id = datetime.date.fromtimestamp((es_ts_start)/1000).isoformat()
+        if day_to_process:
+            incr_update_id = datetime.date.fromtimestamp((es_ts_start)/1000).isoformat()
+        else:
+            incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
+
     # need to use pydoop.hdfs to create the directory?
     basepath_save = '/user/skaraman/data/images_incremental_update/'+incr_update_id
     
@@ -540,9 +546,9 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
         cdr_ids_infos_rdd_red = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos).persist(StorageLevel.MEMORY_AND_DISK)
         cdr_ids_infos_rdd.unpersist()
         # invert cdr_ids_infos_rdd (k,v) into s3url_infos_rdd (v[s3_url],[v,v['cdr_id']=k])
-        s3url_infos_rdd = cdr_ids_infos_rdd_red.flatMap(lambda x: to_s3_url_key(x)).persist(StorageLevel.MEMORY_AND_DISK)
+        s3url_infos_rdd = cdr_ids_infos_rdd_red.flatMap(lambda x: to_s3_url_key(x)).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
         # read s3url_sha1 table into s3url_sha1 to get sha1 here without downloading images
-        s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().map(clean_up_s3url_sha1).persist(StorageLevel.MEMORY_AND_DISK)
+        s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().map(clean_up_s3url_sha1).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
         # do a s3url_infos_rdd.leftOuterJoin(s3url_sha1) s3url_sha1_rdd
         s3url_infos_rdd_join = s3url_infos_rdd.leftOuterJoin(s3url_sha1_rdd).persist(StorageLevel.MEMORY_AND_DISK)
         # save rdd
@@ -593,7 +599,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 
     ##-- build out_join_rdd
     # to sha1 key and save number of joined by s3 url images
-    update_join_rdd = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_discarding).persist(StorageLevel.MEMORY_AND_DISK)
+    update_join_rdd = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: to_sha1_key(x)).partitionBy(nb_partitions).reduceByKey(reduce_sha1_infos_discarding).persist(StorageLevel.MEMORY_AND_DISK)
     cdr_ids_infos_rdd_join_sha1.unpersist()
     # 0 when loading but 3320468 originally?...
     update_join_rdd_count = update_join_rdd.count()
@@ -602,7 +608,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table().persist(StorageLevel.MEMORY_AND_DISK)
     # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
-        sha1_infos_rdd_json = sha1_infos_rdd.partitionBy(nb_partitions).flatMap(lambda x: sha1_key_json(x)).persist(StorageLevel.MEMORY_AND_DISK)
+        sha1_infos_rdd_json = sha1_infos_rdd.flatMap(lambda x: sha1_key_json(x)).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
         # check for info:image_discarded in flatten_leftjoin
         update_join_sha1_rdd = update_join_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x)).persist(StorageLevel.MEMORY_AND_DISK)
         sha1_infos_rdd_json.unpersist()
@@ -649,7 +655,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_new_sha1_count, "cdr_ids_infos_rdd_new_sha1_count")
     # here new sha1s means we did not see the corresponding s3url before, but the sha1 may still be in the sha1_infos table
     # so we still need to merge potentially
-    update_rdd = cdr_ids_infos_rdd_new_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_discarding).persist(StorageLevel.MEMORY_AND_DISK)
+    update_rdd = cdr_ids_infos_rdd_new_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_discarding).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
     update_rdd_count = update_rdd.count()
     save_info_incremental_update(hbase_man_update_out, incr_update_id, update_rdd_count, "update_rdd_count")
     hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_new_sha1.flatMap(lambda x: expand_info(x)))
@@ -658,7 +664,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table().persist(StorageLevel.MEMORY_AND_DISK)
     # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
-        sha1_infos_rdd_json = sha1_infos_rdd.partitionBy(nb_partitions).flatMap(lambda x: sha1_key_json(x)).persist(StorageLevel.MEMORY_AND_DISK)
+        sha1_infos_rdd_json = sha1_infos_rdd.flatMap(lambda x: sha1_key_json(x)).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
         sha1_infos_rdd.unpersist()
         # check for info:image_discarded in flatten_leftjoin
         join_rdd = update_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x)).persist(StorageLevel.MEMORY_AND_DISK)
@@ -739,6 +745,13 @@ if __name__ == '__main__':
     es_user = job_conf["es_user"]
     es_pass = job_conf["es_pass"]
     es_ts_start = job_conf["query_timestamp_start"]
+    if c_options.day_to_process:
+        print("Input date was {}".format(c_options.day_to_process))
+        start_date = dateutil.parser.parse(c_options.day_to_process)
+        print("Will process date {}".format(start_date))
+        # ES timestamp in milliseconds
+        es_ts_start = calendar.timegm(start_date.utctimetuple())*1000
+        print("Will query CDR from {} to {}".format(es_ts_start, es_ts_start+ts_gap))
     # query for first row of `tab_ts_name`
     ts_rdd = hbase_man_ts.read_hbase_table()
     hbase_table_fr = 0

@@ -66,7 +66,8 @@ class Searcher():
         else:
             raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
-    def filter_near_dup(self,nums):
+
+    def filter_near_dup(self, nums, near_dup_th=self.near_dup_th):
         # nums is a list of ids then distances
         # onum is the number of similar images
         onum = len(nums)/2
@@ -74,7 +75,7 @@ class Searcher():
         #print "[Searcher.filter_near_dup: log] nums {}".format(nums)
         for one_num in range(0,onum):
             # maintain only near duplicates, i.e. distance less than self.near_dup_th
-            if float(nums[onum+one_num])>self.near_dup_th:
+            if float(nums[onum+one_num])>near_dup_th:
                 return temp_nums
             # insert id at its right place
             temp_nums.insert(one_num,nums[one_num])
@@ -83,7 +84,8 @@ class Searcher():
         #print "[Searcher.filter_near_dup: log] temp_nums {}".format(temp_nums)
         return temp_nums
 
-    def read_sim(self,simname,nb_query):
+
+    def read_sim(self, simname, nb_query, options=dict()):
     	# intialization
         sim = []
         sim_score = []
@@ -94,8 +96,12 @@ class Searcher():
         for line in f:
             #sim_index.append([])
             nums = line.replace(' \n','').split(' ')
-            if self.near_dup: #filter near duplicate here
-                nums=self.filter_near_dup(nums)
+            if (self.near_dup and "near_dup" not in options) or ("near_dup" in options and options["near_dup"]): #filter near duplicate here
+                if "near_dup_th" in options:
+                    near_dup_th = options["near_dup_th"]
+                else:
+                    near_dup_th = self.near_dup_th
+                nums = self.filter_near_dup(nums, near_dup_th)
             #print nums
             onum = len(nums)/2
             n = min(self.sim_limit,onum)
