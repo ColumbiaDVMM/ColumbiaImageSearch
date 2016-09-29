@@ -210,7 +210,7 @@ class HBaseIndexer(GenericIndexer):
 
 
     def get_sim_infos(self, list_ids):
-        print("[HBaseIndexer.get_sim_infos: log] list_ids: {}".format(list_ids))
+        #print("[HBaseIndexer.get_sim_infos: log] list_ids: {}".format(list_ids))
         try:
             list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
         except Exception as inst:
