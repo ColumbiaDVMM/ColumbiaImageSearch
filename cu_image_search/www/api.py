@@ -112,9 +112,8 @@ class APIResponder(Resource):
         options_dict = dict()
         try:
             options_dict = json.loads(options)
-
         except Exception as inst:
-            err_msg = "[get_options: error] Could not load options from: {}".format(options)
+            err_msg = "[get_options: error] Could not load options from: {}. {}".format(options, inst)
             print(err_msg)
             errors.append(err_msg)
         return options_dict, errors

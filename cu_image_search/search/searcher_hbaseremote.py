@@ -99,8 +99,8 @@ class Searcher():
             #sim_index.append([])
             nums = line.replace(' \n','').split(' ')
             if self.near_dup or ("near_dup" in options_dict and options_dict["near_dup"]): #filter near duplicate here
-                if "near_dup_th" in options:
-                    near_dup_th = options["near_dup_th"]
+                if "near_dup_th" in options_dict:
+                    near_dup_th = options_dict["near_dup_th"]
                 else:
                     near_dup_th = self.near_dup_th
                 nums = self.filter_near_dup(nums, near_dup_th)
@@ -134,8 +134,8 @@ class Searcher():
             #sim_index.append([])
             nums = line.replace('\n','').split(' ')
             if self.near_dup or ("near_dup" in options_dict and options_dict["near_dup"]): #filter near duplicate here
-                if "near_dup_th" in options:
-                    near_dup_th = options["near_dup_th"]
+                if "near_dup_th" in options_dict:
+                    near_dup_th = options_dict["near_dup_th"]
                 else:
                     near_dup_th = self.near_dup_th
                 nums = self.filter_near_dup(nums, near_dup_th)
