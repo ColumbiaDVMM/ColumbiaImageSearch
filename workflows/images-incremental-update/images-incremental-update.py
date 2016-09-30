@@ -533,7 +533,7 @@ def get_s3url_infos_rdd_join(cdr_ids_infos_rdd, nb_partitions, restart, save_int
         s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().map(clean_up_s3url_sha1).partitionBy(nb_partitions)
         # do a s3url_infos_rdd.leftOuterJoin(s3url_sha1) s3url_sha1_rdd
         s3url_infos_rdd_join = s3url_infos_rdd.leftOuterJoin(s3url_sha1_rdd).persist(StorageLevel.MEMORY_AND_DISK)
-        # save rdd
+        # save rdd. Not saving?
         if save_inter_rdd:
             try:
                 #check if file exists, delete before trying to write? fails with ArrayWritable error...
