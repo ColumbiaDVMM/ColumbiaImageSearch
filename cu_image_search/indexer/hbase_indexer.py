@@ -518,6 +518,8 @@ class HBaseIndexer(GenericIndexer):
         existing_cu_feat_ids = []
         existing_sha1 = []
         start_check_new_time = time.time()
+        # fix to speed up indexing for now.
+        update_existing = False
         # # v2.0
         # if "sentibank" in self.extractions_types:
         #     check_images_sha1 = [image[0].rstrip() for image in readable_images]
@@ -545,9 +547,11 @@ class HBaseIndexer(GenericIndexer):
                 else:
                     print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}".format(sha1)
                     # will call push_cu_feats_id for these images to make sure they are marked as indexed.
-                    existing_cu_feat_ids.append(self.sha1_featid_mapping.index(sha1))
-                    existing_sha1.append(sha1)
-        if existing_sha1 and existing_cu_feat_ids:
+                    # this is slow...
+                    if update_existing:
+                        existing_cu_feat_ids.append(self.sha1_featid_mapping.index(sha1))
+                        existing_sha1.append(sha1)
+        if update_existing and existing_sha1 and existing_cu_feat_ids:
             print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed.".format(len(existing_sha1)))
             self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
         print("[HBaseIndexer.index_batch_sha1: log] Checked existing images in {}s.".format(time.time()-start_check_new_time))
