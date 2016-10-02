@@ -17,15 +17,14 @@ ts_gap = 10000000
 #ts_gap = 10000
 
 # default settings
-fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
-# use key as str(max_ts-ts)+"_"+doc_id so that first rows are the newest
+#fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
+fields_cdr = ["obj_stored_url", "obj_parent"]
 max_ts = 9999999999999
-# how to deal with info:image_discarded?
 fields_list = [("info","all_cdr_ids"), ("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded"), ("info","cu_feat_id")]
-infos_columns_list = ["info:sha1", "info:obj_stored_url", "info:obj_parent"]
 #compression = "org.apache.hadoop.io.compress.GzipCodec"
 # this seems to trigger a java.io.IOException: FAILED_TO_UNCOMPRESS(5)
 #  seems recommended to use org.apache.spark.io.LZFCompressionCodec: http://search-hadoop.com/m/q3RTtoCw3T14p5MD
+compression = "org.apache.spark.io.LZFCompressionCodec"
 
 
 def get_list_value(json_x,field_tuple):
@@ -113,7 +112,7 @@ def create_images_tuple(data):
     return tup_list
 
 
-def to_sha1_key(data):
+def cdrid_key_to_sha1_key(data):
     cdr_id = data[0]
     json_x = data[1]
     sha1 = None
@@ -127,11 +126,24 @@ def to_sha1_key(data):
     except Exception as inst2:
         pass
         #print "[Error] could not get SHA1, obj_stored_url or obj_parent for row {}. {}".format(cdr_id,inst2)
-    #print("[to_sha1_key] {}, {}, {}, {}, {}".format(data, cdr_id, sha1, obj_stored_url, obj_parent))
+    #print("[cdrid_key_to_sha1_key] {}, {}, {}, {}, {}".format(data, cdr_id, sha1, obj_stored_url, obj_parent))
     if cdr_id and sha1 and obj_stored_url and obj_parent:
         return [(sha1, {"info:all_cdr_ids": [cdr_id], "info:s3_url": [obj_stored_url], "info:all_parent_ids": [obj_parent]})]
     return []
 
+
+def cdrid_key_to_s3url_key_sha1_val(data):
+    json_x = data[1]
+    sha1 = None
+    obj_stored_url = None
+    try:
+        sha1 = json_x["info:sha1"].strip()
+        obj_stored_url = unicode(json_x["info:obj_stored_url"].strip())
+    except Exception as inst2:
+        pass
+    if obj_stored_url and sha1:
+        return [(obj_stored_url, sha1)]
+    return []
 
 def sha1_key_json(data):
     sha1 = data[0]
@@ -207,6 +219,9 @@ def reduce_sha1_infos_discarding(a,b):
             else:
                 print("[reduce_sha1_infos_discarding: error] both a and b have no s3 url.")
                 c["info:s3_url"] = [None]
+        # need to keep info:cu_feat_id if it exists
+        if "info:cu_feat_id" in b:
+            c["info:cu_feat_id"] = b["info:cu_feat_id"]
     else: # brand new image
         c = safe_assign(a, c, "info:s3_url", [None])
         c = safe_assign(a, c, "info:all_cdr_ids", [])
@@ -217,6 +232,12 @@ def reduce_sha1_infos_discarding(a,b):
         c["info:all_parent_ids"] = []
         c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images)
     return c
+
+
+def reduce_s3_keep_one_sha1(a,b):
+    if a != b:
+        raise ValueError("[reduce_s3_keep_one_sha1: error] one s3url has two differnet sha1 values {} and {}.".format(a, b))
+    return a
 
 
 def split_sha1_kv_filter_max_images_discarded(x):
@@ -272,14 +293,15 @@ def out_from_dict_str(x):
     return (x[0], [x[0], cf, cq, out_dict[key]])
 
 
-def get_new_s3url_sha1(x):
-    value = x[1]
-    out = []
-    if value[2] == "s3_url":
-        sha1 = x[0].strip()
-        s3_url = value[3].strip()
-        out.append((s3_url, [s3_url, "info", "sha1", sha1]))
-    return out
+# # deprecated
+# def get_new_s3url_sha1(x):
+#     value = x[1]
+#     out = []
+#     if value[2] == "s3_url":
+#         sha1 = x[0].strip()
+#         s3_url = value[3].strip()
+#         out.append((s3_url, [s3_url, "info", "sha1", sha1]))
+#     return out
 
 
 def flatten_leftjoin(x):
@@ -383,7 +405,7 @@ def clean_up_s3url_sha1(data):
     json_x = [json.loads(x) for x in data[1].split("\n")]
     sha1 = get_list_value(json_x,("info","sha1"))[0].strip()
     #print("[clean_up_s3url_sha1] out: {}".format((s3url,sha1)))
-    return (s3url,sha1)
+    return (s3url, sha1)
 
 
 def get_s3url_sha1(data):
@@ -409,6 +431,15 @@ def get_s3url_sha1(data):
         #print("[get_s3url_sha1] s3_url {} sha1 is {}".format(s3url, sha1))
         return [(s3url, [s3url, "info", "sha1", sha1.upper()])]
     return []
+
+
+def hbase_out_s3url_sha1(data):
+    s3_url = data[0]
+    sha1 = data[1]
+    if sha1 and s3url:
+        return [(s3url, [s3url, "info", "sha1", sha1.upper()])]
+    return []
+
 
 
 def save_info_incremental_update(hbase_man_update_out, incr_update_id, info_value, info_name):
@@ -449,65 +480,53 @@ def save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_u
 
 
 def get_cdr_ids_infos_rdd(es_man, hbase_man_update_out, nb_partitions, es_ts_start, start_time, incr_update_id, restart, basepath_save, save_inter_rdd):
-    cdr_ids_infos_rdd_not_loaded = True
-    cdr_ids_infos_rdd_path = basepath_save + "/cdr_ids_infos_rdd"
+    rdd_name = "cdr_ids_infos_rdd"
+    # try to load from disk if we are restarting
     if restart:
-        try:
-            cdr_ids_infos_rdd = sc.sequenceFile(cdr_ids_infos_rdd_path).mapValues(json.loads)
-            cdr_ids_infos_rdd_not_loaded = False
-        except Exception as inst:
-            print("Could not load rdd at {}. Error was {}.".format(cdr_ids_infos_rdd_path, inst))
+        cdr_ids_infos_rdd = load_rdd_json(basepath_save, rdd_name)
+        if cdr_ids_infos_rdd:
+            return cdr_ids_infos_rdd
 
-    if cdr_ids_infos_rdd_not_loaded:
-        #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}}"
-        #query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
-        if debug:
-            query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+", \"lt\": "+str(es_ts_start+ts_gap)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
-        else:
-            query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
-        print query
-        
-        ## get incremental update
-        es_rdd = es_man.es2rdd(query)
-        if es_rdd.isEmpty():
-            print("[incremental_update] empty incremental update when querying from timestamp {}".format(es_ts_start))
-            return
-        es_rdd_count = es_rdd.count()
-        ## save incremental update infos
-        incr_update_infos_list = []
-        incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "start_time", str(start_time)]))
-        incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "es_rdd_count", str(es_rdd_count)]))
-        incr_update_infos_rdd = sc.parallelize(incr_update_infos_list)
-        hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
-        # partition for efficiency
-        #images_hb_rdd = es_rdd.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
-        images_hb_rdd = es_rdd.partitionBy(nb_partitions)
-        # save incremental update data infos
-        images_ts_cdrid_rdd = images_hb_rdd.flatMap(lambda x: create_images_tuple(x))
-        hbase_man_ts.rdd2hbase(images_ts_cdrid_rdd)
-        min_ts_cdrid = images_ts_cdrid_rdd.min()[0].strip()
-        max_ts_cdrid = images_ts_cdrid_rdd.max()[0].strip()
-        incr_update_infos_list = []
-        incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "min_ts_cdrid", min_ts_cdrid]))
-        incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "max_ts_cdrid", max_ts_cdrid]))
-        incr_update_infos_rdd = sc.parallelize(incr_update_infos_list)
-        print("[incremental_update] saving incremental update infos: id {}, min_ts_cdrid {}, max_ts_cdrid {}".format(incr_update_id, min_ts_cdrid, max_ts_cdrid))
-        hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
+    if debug:
+        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+", \"lt\": "+str(es_ts_start+ts_gap)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+    else:
+        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+    print("[get_cdr_ids_infos_rdd] query CDR with: {}".format(query))
+    
+    # get incremental update
+    es_rdd = es_man.es2rdd(query)
+    if es_rdd.isEmpty():
+        print("[get_cdr_ids_infos_rdd] empty incremental update when querying from timestamp {}".format(es_ts_start))
+        return None
 
-        ## start processing incremental update
-        #cdr_ids_infos_rdd = images_hb_rdd.flatMap(lambda x: to_cdr_id_dict(x)).persist(StorageLevel.MEMORY_AND_DISK)
-        cdr_ids_infos_rdd = images_hb_rdd.flatMap(lambda x: to_cdr_id_dict(x))
-        # save rdd
-        if save_inter_rdd:
-            #cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_path, compressionCodecClass=compression)
-            try:
-                cdr_ids_infos_rdd.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_path)
-                save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_path, "cdr_ids_infos_rdd_path")
-            except Exception as inst:
-                print("Could not save rdd at {}. Error was {}.".format(cdr_ids_infos_rdd_path, inst))
-            # to be loaded with:
-            # cdr_ids_infos_rdd = sc.sequenceFile(cdr_ids_infos_rdd_path).mapValues(json.loads)
-        #images_hb_rdd.unpersist()
+    # save incremental update infos
+    incr_update_infos_list = []
+    es_rdd_count = es_rdd.count()
+    incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "start_time", str(start_time)]))
+    incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "es_rdd_count", str(es_rdd_count)]))
+    incr_update_infos_rdd = sc.parallelize(incr_update_infos_list)
+    hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
+
+    # save to hbase
+    images_hb_rdd = es_rdd.partitionBy(nb_partitions)
+    images_ts_cdrid_rdd = images_hb_rdd.flatMap(create_images_tuple)
+    hbase_man_ts.rdd2hbase(images_ts_cdrid_rdd)
+
+    min_ts_cdrid = images_ts_cdrid_rdd.min()[0].strip()
+    max_ts_cdrid = images_ts_cdrid_rdd.max()[0].strip()
+
+    # save incremental update infos
+    incr_update_infos_list = []
+    incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "min_ts_cdrid", min_ts_cdrid]))
+    incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", "max_ts_cdrid", max_ts_cdrid]))
+    incr_update_infos_rdd = sc.parallelize(incr_update_infos_list)
+    print("[incremental_update] saving incremental update infos: id {}, min_ts_cdrid {}, max_ts_cdrid {}".format(incr_update_id, min_ts_cdrid, max_ts_cdrid))
+    hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
+
+    cdr_ids_infos_rdd = images_hb_rdd.flatMap(to_cdr_id_dict).persist(StorageLevel.MEMORY_AND_DISK)
+    # save rdd
+    if save_inter_rdd:
+        save_rdd_json(basepath_save, rdd_name, cdr_ids_infos_rdd, incr_update_id, hbase_man_update_out)
     return cdr_ids_infos_rdd
 
 
@@ -527,13 +546,13 @@ def get_s3url_infos_rdd_join(cdr_ids_infos_rdd, nb_partitions, restart, save_int
         cdr_ids_infos_rdd_red = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos)
         # invert cdr_ids_infos_rdd (k,v) into s3url_infos_rdd (v[s3_url],[v,v['cdr_id']=k])
         #s3url_infos_rdd = cdr_ids_infos_rdd_red.flatMap(lambda x: to_s3_url_key(x)).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
-        s3url_infos_rdd = cdr_ids_infos_rdd_red.flatMap(lambda x: to_s3_url_key(x)).partitionBy(nb_partitions)
+        s3url_infos_rdd = cdr_ids_infos_rdd_red.flatMap(to_s3_url_key).partitionBy(nb_partitions)
         # read s3url_sha1 table into s3url_sha1 to get sha1 here without downloading images
         #s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().map(clean_up_s3url_sha1).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
         s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().map(clean_up_s3url_sha1).partitionBy(nb_partitions)
         # do a s3url_infos_rdd.leftOuterJoin(s3url_sha1) s3url_sha1_rdd
         s3url_infos_rdd_join = s3url_infos_rdd.leftOuterJoin(s3url_sha1_rdd).persist(StorageLevel.MEMORY_AND_DISK)
-        # save rdd. Not saving?
+        # save rdd.
         if save_inter_rdd:
             try:
                 #check if file exists, delete before trying to write? fails with ArrayWritable error...
@@ -548,35 +567,80 @@ def get_s3url_infos_rdd_join(cdr_ids_infos_rdd, nb_partitions, restart, save_int
 
 
 def get_cdr_ids_infos_rdd_join_sha1(basepath_save, s3url_infos_rdd_join, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, restart, save_inter_rdd):
-    cdr_ids_infos_rdd_join_sha1_path = basepath_save + "/cdr_ids_infos_rdd_join_sha1"
-    cdr_ids_infos_rdd_join_sha1_not_loaded = True
+    rdd_name = "cdr_ids_infos_rdd_join_sha1"
+    # try to load from disk if we are restarting
     if restart:
-        try:
-            cdr_ids_infos_rdd_join_sha1 = sc.sequenceFile(cdr_ids_infos_rdd_join_sha1_path).mapValues(json.loads)
-            cdr_ids_infos_rdd_join_sha1_not_loaded = False
-        except Exception as inst:
-            print("Could not load rdd at {}. Error was {}.".format(cdr_ids_infos_rdd_join_sha1_path, inst))
+        cdr_ids_infos_rdd_join_sha1 = load_rdd_json(basepath_save, rdd_name)
+        if cdr_ids_infos_rdd_join_sha1:
+            return cdr_ids_infos_rdd_join_sha1
 
-    if cdr_ids_infos_rdd_join_sha1_not_loaded:
-        ## invert s3url_infos_rdd_join (s3_url, (v,sha1)) into cdr_ids_infos_rdd_join_sha1 (k, v) adding info:sha1 in v
-        s3url_infos_rdd_with_sha1 = s3url_infos_rdd_join.filter(get_existing_joined_sha1)
+    # invert s3url_infos_rdd_join (s3_url, (v, sha1)) into cdr_ids_infos_rdd_join_sha1 (k, v) adding info:sha1 in v
+    s3url_infos_rdd_with_sha1 = s3url_infos_rdd_join.filter(get_existing_joined_sha1)
+    cdr_ids_infos_rdd_join_sha1 = s3url_infos_rdd_with_sha1.flatMap(s3url_to_cdr_id_wsha1)
 
-        #cdr_ids_infos_rdd_join_sha1 = s3url_infos_rdd_with_sha1.flatMap(lambda x: s3url_to_cdr_id_wsha1(x)).persist(StorageLevel.MEMORY_AND_DISK)
-        cdr_ids_infos_rdd_join_sha1 = s3url_infos_rdd_with_sha1.flatMap(lambda x: s3url_to_cdr_id_wsha1(x))
-        cdr_ids_infos_rdd_join_sha1_count = cdr_ids_infos_rdd_join_sha1.count()
-        save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_count, "cdr_ids_infos_rdd_join_sha1_count")
-        # save it to hbase
-        hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: expand_info(x)))
-        # save rdd
-        if save_inter_rdd:
-            try:
-                # check if file exists, delete before trying to write? 
-                #cdr_ids_infos_rdd_join_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_join_sha1_path, compressionCodecClass=compression)
-                cdr_ids_infos_rdd_join_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_join_sha1_path)
-                save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_path, "cdr_ids_infos_rdd_join_sha1_path")
-            except Exception as inst:
-                print("Could not save rdd at {}, error was {}.".format(cdr_ids_infos_rdd_join_sha1_path, inst))
+    # save infos to hbase update table
+    cdr_ids_infos_rdd_join_sha1_count = cdr_ids_infos_rdd_join_sha1.count()
+    save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_count, "cdr_ids_infos_rdd_join_sha1_count")
+    
+    # save rdd content to hbase
+    hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_join_sha1.flatMap(expand_info))
+
+    # save rdd to disk
+    if save_inter_rdd:
+        save_rdd_json(basepath_save, rdd_name, cdr_ids_infos_rdd_join_sha1, incr_update_id, hbase_man_update_out)
     return cdr_ids_infos_rdd_join_sha1
+
+
+def load_rdd_json(basepath_save, rdd_name):
+    rdd_path = basepath_save + "/" + rdd_name
+    rdd = None
+    print("[load_rdd_json] Trying to load rdd from {}.".format(rdd_path))
+    try:
+        rdd = sc.sequenceFile(rdd_path).mapValues(json.loads)
+    except Exception as inst:
+        print("[load_rdd_json: caught error] Could not load rdd from {}. Error was {}.".format(rdd_path, inst))
+    return rdd
+
+
+def save_rdd_json(basepath_save, rdd_name, rdd, incr_update_id, hbase_man_update_out):
+    rdd_path = basepath_save + "/" + rdd_name
+    print("[save_rdd_json] Saving rdd to {}.".format(rdd_path))
+    if not rdd.isEmpty():
+        try:
+            rdd.mapValues(json.dumps).saveAsSequenceFile(rdd_path)
+            save_info_incremental_update(hbase_man_update_out, incr_update_id, rdd_path, rdd_name+"_path")
+        except Exception as inst:
+            print("[save_rdd_json: caught error] Could not save rdd at {}, error was {}.".format(rdd_path, inst))
+    else:
+        save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", rdd_name+"_path")
+        
+
+def get_update_join_rdd(cdr_ids_infos_rdd_join_sha1, hbase_man_update_out, basepath_save, nb_partitions, incr_update_id, save_inter_rdd, restart):
+    rdd_name = "update_join_rdd"
+    if restart:
+        update_join_rdd = load_rdd_json(basepath_save, rdd_name)
+        if update_join_rdd:
+            return update_join_rdd
+
+    # transform cdr_id rdd into sha1 rdd
+    sha1_infos_rdd_from_join = cdr_ids_infos_rdd_join_sha1.flatMap(cdrid_key_to_sha1_key).partitionBy(nb_partitions)
+    update_join_rdd = sha1_infos_rdd_from_join.reduceByKey(reduce_sha1_infos_discarding)
+
+    # save rdd infos
+    update_join_rdd_count = update_join_rdd.count()
+    save_info_incremental_update(hbase_man_update_out, incr_update_id, update_join_rdd_count, rdd_name+"_count")
+
+    # save to disk
+    if save_inter_rdd:
+        save_rdd_json(basepath_save, rdd_name, update_join_rdd, incr_update_id, hbase_man_update_out)
+        # try:
+        #     # check if file exists, delete before trying to write? 
+        #     #cdr_ids_infos_rdd_join_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_join_sha1_path, compressionCodecClass=compression)
+        #     update_join_rdd.mapValues(json.dumps).saveAsSequenceFile(update_join_rdd_path)
+        #     save_info_incremental_update(hbase_man_update_out, incr_update_id, update_join_rdd_path, "update_join_rdd_path")
+        # except Exception as inst:
+        #     print("Could not save rdd at {}, error was {}.".format(update_join_rdd_path, inst))
+    return update_join_rdd
 
 
 def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_in, hbase_man_update_out, nb_partitions, c_options):
@@ -593,7 +657,10 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     # org.apache.spark.SparkException: EOF reached before Python server acknowledged
     # Seems to be related to memory configuration of the job...
     # Never managed to finish incremental_update_8524822279848, restart workflow with -r -i incremental_update_8524822279848
-    # Never managed to finish incremental_update_8524802151126, restart workflow with -r -i incremental_update_8524802151126
+    # Managed to finish incremental_update_8524802151126
+    # container is running beyond physical memory limits. Current usage: 8.0 GB of 8 GB physical memory used; 41.6 GB of 16.8 GB virtual memory used. Killing container.
+    # How to make it really stable? Force a save to disk?
+    # https://www.mail-archive.com/search?l=issues@spark.apache.org&q=subject:%22%5Bjira%5D+%5BComment+Edited%5D+(SPARK-5395)+Large+number+of+Python+workers+causing+resource+depletion%22&o=newest&f=1
 
     start_time = time.time()
     
@@ -625,21 +692,17 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     ##-- end get cdr_ids_infos_rdd_join_sha1
 
     ##-- build out_join_rdd
-    # to sha1 key and save number of joined by s3 url images
-    #update_join_rdd = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: to_sha1_key(x)).partitionBy(nb_partitions).reduceByKey(reduce_sha1_infos_discarding)
-    sha1_infos_rdd_from_join = cdr_ids_infos_rdd_join_sha1.flatMap(lambda x: to_sha1_key(x)).partitionBy(nb_partitions)
-    update_join_rdd = sha1_infos_rdd_from_join.reduceByKey(reduce_sha1_infos_discarding)
-    update_join_rdd_count = update_join_rdd.count()
-    save_info_incremental_update(hbase_man_update_out, incr_update_id, update_join_rdd_count, "update_join_rdd_count")
+    update_join_rdd = get_update_join_rdd(cdr_ids_infos_rdd_join_sha1, hbase_man_update_out, basepath_save, nb_partitions, incr_update_id, save_inter_rdd, restart)
+
     ## update cdr_ids, and parents cdr_ids for these existing sha1s
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
     # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
         #sha1_infos_rdd_json = sha1_infos_rdd.flatMap(lambda x: sha1_key_json(x)).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
-        sha1_infos_rdd_json = sha1_infos_rdd.flatMap(lambda x: sha1_key_json(x)).partitionBy(nb_partitions)
+        sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions)
         # check for info:image_discarded in flatten_leftjoin
         #update_join_sha1_rdd = update_join_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x)).persist(StorageLevel.MEMORY_AND_DISK)
-        update_join_sha1_rdd = update_join_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x))
+        update_join_sha1_rdd = update_join_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(flatten_leftjoin)
         out_join_rdd_amandeep = update_join_sha1_rdd
     else: # first update
         out_join_rdd_amandeep = update_join_rdd
@@ -655,7 +718,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
             except Exception as inst:
                 print("Could not save rdd at {}, error was {}.".format(out_join_rdd_path, inst))
     # save sha1 infos for these joined images
-    out_join_rdd = out_join_rdd_amandeep.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x))
+    out_join_rdd = out_join_rdd_amandeep.flatMap(split_sha1_kv_filter_max_images_discarded)
     hbase_man_sha1infos_out.rdd2hbase(out_join_rdd)
     
     #cdr_ids_infos_rdd_join_sha1.unpersist()
@@ -667,7 +730,7 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     # filter on second value member being empty in s3url_infos_rdd_join, and get sha1
     #cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_join.filter(lambda x: not get_existing_joined_sha1(x)).flatMap(lambda x: check_get_sha1(x))
     s3url_infos_rdd_with_sha1 = s3url_infos_rdd_join.filter(get_existing_joined_sha1)
-    cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_join.subtractByKey(s3url_infos_rdd_with_sha1).flatMap(lambda x: s3url_to_cdr_id_nosha1(x)).flatMap(lambda x: check_get_sha1(x)).persist(StorageLevel.MEMORY_AND_DISK)
+    cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_join.subtractByKey(s3url_infos_rdd_with_sha1).flatMap(s3url_to_cdr_id_nosha1).flatMap(check_get_sha1).persist(StorageLevel.MEMORY_AND_DISK)
 
     if cdr_ids_infos_rdd_new_sha1.isEmpty():
         save_info_incremental_update(hbase_man_update_out, incr_update_id, 0, "cdr_ids_infos_rdd_new_sha1_count")
@@ -678,30 +741,24 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     else:
         # save rdd
         if save_inter_rdd:
-            cdr_ids_infos_rdd_new_sha1_path = basepath_save + "/cdr_ids_infos_rdd_new_sha1"
-            try:
-                # check if file exists, delete before trying to write? 
-                #cdr_ids_infos_rdd_new_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_new_sha1_path, compressionCodecClass=compression)
-                cdr_ids_infos_rdd_new_sha1.mapValues(json.dumps).saveAsSequenceFile(cdr_ids_infos_rdd_new_sha1_path)
-                # to be loaded with
-                #cdr_ids_infos_rdd_new_sha1 = sc.sequenceFile(cdr_ids_infos_rdd_new_sha1_path).mapValues(json.loads)
-            except Exception as inst:
-                print("Could not save rdd at {}, error was {}.".format(cdr_ids_infos_rdd_new_sha1_path, inst))
+            save_rdd_json(basepath_save, "cdr_ids_infos_rdd_new_sha1", cdr_ids_infos_rdd_new_sha1, incr_update_id, hbase_man_update_out)
+        # save infos
         cdr_ids_infos_rdd_new_sha1_count = cdr_ids_infos_rdd_new_sha1.count()
         save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_new_sha1_count, "cdr_ids_infos_rdd_new_sha1_count")
         # here new sha1s means we did not see the corresponding s3url before, but the sha1 may still be in the sha1_infos table
         # so we still need to merge potentially
-        update_rdd = cdr_ids_infos_rdd_new_sha1.flatMap(lambda x: to_sha1_key(x)).reduceByKey(reduce_sha1_infos_discarding).partitionBy(nb_partitions)
+        update_rdd = cdr_ids_infos_rdd_new_sha1.flatMap(cdrid_key_to_sha1_key).reduceByKey(reduce_sha1_infos_discarding).partitionBy(nb_partitions)
         update_rdd_count = update_rdd.count()
         save_info_incremental_update(hbase_man_update_out, incr_update_id, update_rdd_count, "update_rdd_count")
-        hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_new_sha1.flatMap(lambda x: expand_info(x)))
+        print("Saving cdr_ids_infos_rdd_new_sha1 to HBase.")
+        hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_new_sha1.flatMap(expand_info))
         ## update cdr_ids, and parents cdr_ids for these new sha1s
         sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
         # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
         if not sha1_infos_rdd.isEmpty(): 
-            sha1_infos_rdd_json = sha1_infos_rdd.flatMap(lambda x: sha1_key_json(x)).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
+            sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
             # check for info:image_discarded in flatten_leftjoin
-            join_rdd = update_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(lambda x: flatten_leftjoin(x))
+            join_rdd = update_rdd.leftOuterJoin(sha1_infos_rdd_json).flatMap(flatten_leftjoin)
             out_rdd_amandeep = join_rdd
         else: # first update
             out_rdd_amandeep = update_rdd
@@ -714,26 +771,30 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
             except Exception as inst:
                 print("Could not save rdd at {}, error was {}.".format(out_rdd_path, inst))
         ## write out rdd of new images 
-        out_rdd = out_rdd_amandeep.flatMap(lambda x: split_sha1_kv_filter_max_images_discarded(x)).persist(StorageLevel.MEMORY_AND_DISK)
+        out_rdd = out_rdd_amandeep.flatMap(split_sha1_kv_filter_max_images_discarded).persist(StorageLevel.MEMORY_AND_DISK)
         hbase_man_sha1infos_out.rdd2hbase(out_rdd)
 
         ## save out newly computed sha1
-        # we are only keeping one s3url for each sha1. So we are missing some s3url -> sha1 mapping using this.
-        # this would just make us download a more images next update, not primordial
-        # we should invert cdr_ids_infos_rdd_new_sha1 to (s3url, sha1) and apply reduceByKey() selecting any sha1?
-        new_s3url_sha1_rdd = out_rdd.flatMap(lambda x: get_new_s3url_sha1(x))
-        hbase_man_s3url_sha1_out.rdd2hbase(new_s3url_sha1_rdd)
+        # invert cdr_ids_infos_rdd_new_sha1 to (s3url, sha1) and apply reduceByKey() selecting any sha1
+        new_s3url_sha1_rdd = cdr_ids_infos_rdd_new_sha1.flatMap(cdrid_key_to_s3url_key_sha1_val)
+        out_new_s3url_sha1_rdd = new_s3url_sha1_rdd.reduceByKey(reduce_s3_keep_one_sha1).map(hbase_out_s3url_sha1)
+        hbase_man_s3url_sha1_out.rdd2hbase(out_new_s3url_sha1_rdd)
         
-        ## save out_rdd by batch of 10000 to be indexed?
-        # it is not all samples in out_rdd that we should save, but only those without cu_feat_id...
-        new_sha1s_rdd = out_rdd.keys()
-        save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_update_size)
-
         ## save new images update infos
-        new_s3url_sha1_rdd_count = new_s3url_sha1_rdd.count()
+        new_s3url_sha1_rdd_count = out_new_s3url_sha1_rdd.count()
         print("[incremental_update] new_s3url_sha1_rdd_count count: {}".format(new_s3url_sha1_rdd_count))
         save_info_incremental_update(hbase_man_update_out, incr_update_id, new_s3url_sha1_rdd_count, "new_s3url_sha1_rdd_count")
+
+        ## save out_rdd by batch of 10000 to be indexed?
+        # save images without cu_feat_id that have not been discarded for indexing
+        new_images_to_index = out_rdd_amandeep.filter(lambda x: "info:image_discarded" not in x[1] and "info:cu_feat_id" not in x[1]).keys()
+        save_new_sha1s_for_index_update(new_images_to_index, hbase_man_update_out, batch_update_size)
+        
+        new_images_to_index_count = new_images_to_index.count()
+        print("[incremental_update] new_images_to_index_count count: {}".format(new_images_to_index_count))
+        save_info_incremental_update(hbase_man_update_out, incr_update_id, new_images_to_index_count, "new_images_to_index_count")
     
+
     update_elapsed_time = time.time() - start_time 
     save_info_incremental_update(hbase_man_update_out, incr_update_id, update_elapsed_time, str(update_elapsed_time))
     
