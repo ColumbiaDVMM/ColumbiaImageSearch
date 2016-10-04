@@ -215,10 +215,11 @@ class HBaseIndexer(GenericIndexer):
             list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
         except Exception as inst:
             # if this fails, it should mean a refresh happened and we need to refresh too 'sha1_featid_mapping'
-            print("[HBaseIndexer.get_sim_infos: log] caugh error: {}. The index might be refreshing and 'sha1_featid_mapping' is out of date.".format(inst))
-            while self.merging or self.initializing:
-                print("[HBaseIndexer.get_sim_infos: log] Waiting for 'sha1_featid_mapping' to be upated.")
-                time.sleep(1)
+            print("[HBaseIndexer.get_sim_infos: log] caugh error: {}. The index might need to be refreshed, thus 'sha1_featid_mapping' is out of date.".format(inst))
+            self.initialize_sha1_mapping()
+            #while self.merging or self.initializing:
+            #    print("[HBaseIndexer.get_sim_infos: log] Waiting for 'sha1_featid_mapping' to be upated.")
+            #    time.sleep(1)
             # something else (bad) is happening if this fails again
             list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
         return self.get_full_sha1_rows(list_sha1s)
