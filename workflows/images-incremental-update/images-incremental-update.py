@@ -130,7 +130,11 @@ def cdrid_key_to_s3url_key_sha1_val(data):
     sha1 = None
     obj_stored_url = None
     try:
-        sha1 = json_x["info:sha1"].strip()
+        sha1_val = json_x["info:sha1"]
+        if type(sha1_val)==list and len(sha1_val)==1:
+            sha1 = sha1_val[0].strip()
+        else:
+            sha1 = sha1_val.strip()
         obj_stored_url = unicode(json_x["info:obj_stored_url"].strip())
     except Exception as inst2:
         pass
@@ -357,40 +361,6 @@ def s3url_dict_list_to_cdr_id_wsha1(data):
     return tup_list
 
 
-# def s3url_to_cdr_id_wsha1(data):
-#     if len(data[1]) != 2 or data[1][1] is None or data[1][1] == 'None' or data[1][1] == u'None':
-#         print("[s3url_to_cdr_id_wsha1] incorrect data: {}".format(data))
-#         return []
-#     s3_url = data[0]
-#     v = data[1][0]
-#     sha1 = data[1][1]
-#     doc_id = v["info:doc_id"]
-#     v["info:sha1"] = sha1
-#     tup_list = [(doc_id, v)]
-#     return tup_list
-
-
-# def s3url_to_cdr_id_nosha1(data):
-#     if len(data[1]) == 2 and data[1][1] is not None and data[1][1] != 'None' and data[1][1] != u'None':
-#         print("[s3url_to_cdr_id_nosha1] beware: incorrect data, s3 url has a sha1: {}".format(data))
-#     s3_url = data[0]
-#     v = data[1][0]
-#     doc_id = v["info:doc_id"]
-#     tup_list = [(doc_id, v)]
-#     return tup_list
-
-# def s3url_dict_list_to_cdr_id_nosha1(data):
-#     if len(data[1]) == 2 and data[1][1] is not None and data[1][1] != 'None' and data[1][1] != u'None':
-#         print("[s3url_dict_list_to_cdr_id_nosha1] beware: incorrect data, s3 url has a sha1: {}".format(data))
-#     s3_url = data[0]
-#     list_v = list(data[1][0])
-#     tup_list = []
-#     for v in list_v:
-#         doc_id = v[0]["info:doc_id"]
-#         tup_list.append((doc_id, v[0]))
-#     return tup_list
-
-
 def get_existing_joined_sha1(data):
     if len(data[1]) == 2 and data[1][1] and data[1][1] is not None and data[1][1] != 'None' and data[1][1] != u'None':
         return True
@@ -448,10 +418,11 @@ def save_info_incremental_update(hbase_man_update_out, incr_update_id, info_valu
     hbase_man_update_out.rdd2hbase(incr_update_infos_rdd)
 
 
-def build_batch_rdd(batch_udpate):
+def build_batch_rdd(batch_udpate, incr_update_id, batch_id):
     import numpy as np
     # batch_rdd should be created to be stored in hbase table update_infos
-    update_id = "index_update_"+str(max_ts-int(time.time()*1000))+'_'+str(np.int32(np.random.random()*(10e6)))
+    #update_id = "index_update_"+str(max_ts-int(time.time()*1000))+'_'+str(np.int32(np.random.random()*(10e6)))
+    update_id = "index_update_"+incr_update_id+'_'+str(batch_id)
     list_key = []
     for x in batch_udpate:
         list_key.append(x)
@@ -459,24 +430,36 @@ def build_batch_rdd(batch_udpate):
     return sc.parallelize(batch_out)
 
 
-def save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_update_size):
+def save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_update_size, incr_update_id, total_batches):
+    start_save_time = time.time()
     iterator = new_sha1s_rdd.toLocalIterator()
     batch_udpate = []
     batch_id = 0
     for x in iterator:
         batch_udpate.append(x)
         if len(batch_udpate)==batch_update_size:
-            # we should use the incremental update id and batch id as row key
-            batch_rdd = build_batch_rdd(batch_udpate)
-            print("[save_new_sha1s_for_index_update] saving a batch of {} new images to HBase.".format(batch_update_size))
-            hbase_man_update_out.rdd2hbase(batch_rdd)
+            try:
+                print("[save_new_sha1s_for_index_update] will save batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_udpate[:10]))
+                batch_rdd = build_batch_rdd(batch_udpate, incr_update_id, batch_id)
+                batch_id += 1
+                print("[save_new_sha1s_for_index_update] saving batch {}/{} of {} new images to HBase.".format(batch_id, total_batches, batch_update_size))
+                hbase_man_update_out.rdd2hbase(batch_rdd)
+                batch_rdd.unpersist()
+            except Exception as inst:
+                print("[save_new_sha1s_for_index_update] Could not create/save batch {}. Error was: {}".format(batch_id, inst))
             batch_udpate = []
-            batch_id += 1
     # last batch
     if batch_udpate:
-        batch_rdd = build_batch_rdd(batch_udpate)
-        print("[save_new_sha1s_for_index_update] saving a batch of {} new images to HBase.".format(len(batch_udpate)))
-        hbase_man_update_out.rdd2hbase(batch_rdd)
+        try:    
+            print("[save_new_sha1s_for_index_update] will save batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_udpate[:10]))
+            batch_rdd = build_batch_rdd(batch_udpate, incr_update_id, batch_id)
+            batch_id += 1
+            print("[save_new_sha1s_for_index_update] saving batch {}/{} of {} new images to HBase.".format(batch_id, total_batches, len(batch_udpate)))
+            hbase_man_update_out.rdd2hbase(batch_rdd)
+            batch_rdd.unpersist()
+        except Exception as inst:
+            print("[save_new_sha1s_for_index_update] Could not create/save batch {}. Error was: {}".format(batch_id, inst))
+    print("[save_new_sha1s_for_index_update] DONE in {}s".format(time.time() - start_save_time))
 
 
 def load_rdd_json(basepath_save, rdd_name):
@@ -610,14 +593,14 @@ def load_s3url_infos_rdd_join(s3url_infos_rdd_join_path):
 
 def save_s3url_infos_rdd_join(s3url_infos_rdd_join, hbase_man_update_out, incr_update_id, s3url_infos_rdd_join_path, s3url_infos_rdd_join_path_str):
     try:
-        print("[get_s3url_infos_rdd_join: info] saving 's3url_infos_rdd_join' to {}.".format(s3url_infos_rdd_join_path))
+        print("[save_s3url_infos_rdd_join: info] saving 's3url_infos_rdd_join' to {}.".format(s3url_infos_rdd_join_path))
         #s3url_infos_rdd_join.mapValues(dump_s3url_info).saveAsSequenceFile(s3url_infos_rdd_join_path)
         s3url_infos_rdd_join_tosave = s3url_infos_rdd_join.mapValues(dump_s3url_info_list_dict)
-        print("[s3url_infos_rdd_join_tosave: info] first samples of s3url_infos_rdd_join_tosave looks like: {}".format(s3url_infos_rdd_join_tosave.take(5)))
+        print("[save_s3url_infos_rdd_join: info] first samples of s3url_infos_rdd_join_tosave looks like: {}".format(s3url_infos_rdd_join_tosave.take(5)))
         s3url_infos_rdd_join_tosave.saveAsSequenceFile(s3url_infos_rdd_join_path)
         save_info_incremental_update(hbase_man_update_out, incr_update_id, s3url_infos_rdd_join_path, s3url_infos_rdd_join_path_str)
     except Exception as inst:
-        print("[get_s3url_infos_rdd_join: caught error] could not save rdd at {}, error was {}.".format(s3url_infos_rdd_join_path, inst))
+        print("[save_s3url_infos_rdd_join: caught error] could not save rdd at {}, error was {}.".format(s3url_infos_rdd_join_path, inst))
 
 
 def get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time):
@@ -663,7 +646,6 @@ def get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, hbase_man_updat
             pass
     s3url_sha1_rdd_count = s3url_sha1_rdd.count()
     print("[get_s3url_infos_rdd_join: info] s3url_sha1_rdd_count is: {}".format(s3url_sha1_rdd_count))
-    #print("[get_s3url_infos_rdd_join: info] s3url_sha1_rdd first samples looks like: {}".format(s3url_sha1_rdd.take(5)))
     s3url_sha1_rdd_partitioned = s3url_sha1_rdd.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
     s3url_infos_rdd_red_partitioned = s3url_infos_rdd_red.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)  
     #print("[get_s3url_infos_rdd_join] start running 's3url_infos_rdd_red.cogroup(s3url_sha1_rdd)'.")
@@ -672,21 +654,15 @@ def get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, hbase_man_updat
     s3url_infos_rdd_join = s3url_infos_rdd_red_partitioned.leftOuterJoin(s3url_sha1_rdd_partitioned)
     s3url_infos_rdd_join_count = s3url_infos_rdd_join.count()
     print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_join_count is: {}".format(s3url_infos_rdd_join_count))
-    #s3url_infos_rdd_join_filtered = s3url_infos_rdd_join.filter(lambda x: list(x[1][0]))
-    #s3url_infos_rdd_join_filtered_count = s3url_infos_rdd_join_filtered.count()
-    #print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_join_filtered_count is: {}".format(s3url_infos_rdd_join_filtered_count))
-    #print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_join_filtered first samples looks like: {}".format(s3url_infos_rdd_join_filtered.take(10)))
     
     # save rdd.
     if save_inter_rdd:
         save_s3url_infos_rdd_join(s3url_infos_rdd_join, hbase_man_update_out, incr_update_id, s3url_infos_rdd_join_path, "s3url_infos_rdd_join_path")
-        try:
-            print("[get_s3url_infos_rdd_join: info] saving 's3url_infos_rdd_join' to {}.".format(s3url_infos_rdd_join_path))
-            #s3url_infos_rdd_join.mapValues(dump_s3url_info).saveAsSequenceFile(s3url_infos_rdd_join_path)
-            s3url_infos_rdd_join.mapValues(dump_s3url_info_list_dict).saveAsSequenceFile(s3url_infos_rdd_join_path)
-            save_info_incremental_update(hbase_man_update_out, incr_update_id, s3url_infos_rdd_join_path, "s3url_infos_rdd_join_path")
-        except Exception as inst:
-            print("[get_s3url_infos_rdd_join: caught error] could not save rdd at {}, error was {}.".format(s3url_infos_rdd_join_path, inst))
+        
+    # unpersist here, s3url_infos_rdd_join has been saved to hdfs
+    s3url_sha1_rdd_partitioned.unpersist()
+    s3url_infos_rdd_red_partitioned.unpersist()
+
     return s3url_infos_rdd_join
 
 
@@ -706,10 +682,8 @@ def get_cdr_ids_infos_rdd_join_sha1(basepath_save, es_man, es_ts_start, hbase_ma
         save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", rdd_name+"_path")
         return None
 
-    # invert s3url_infos_rdd_join (s3_url, (v, sha1)) into cdr_ids_infos_rdd_join_sha1 (k, v) adding info:sha1 in v
-    # invert s3url_infos_rdd_join (s3_url, ([v], sha1)) into cdr_ids_infos_rdd_join_sha1 (k, v) adding info:sha1 in v
+    # invert s3url_infos_rdd_join (s3_url, ([v], sha1)) into cdr_ids_infos_rdd_join_sha1 (k, [v]) adding info:sha1 in each v dict
     s3url_infos_rdd_with_sha1 = s3url_infos_rdd_join.filter(get_existing_joined_sha1)
-    #cdr_ids_infos_rdd_join_sha1 = s3url_infos_rdd_with_sha1.flatMap(s3url_to_cdr_id_wsha1)
     cdr_ids_infos_rdd_join_sha1 = s3url_infos_rdd_with_sha1.flatMap(s3url_dict_list_to_cdr_id_wsha1)
     print("[get_cdr_ids_infos_rdd_join_sha1: info] cdr_ids_infos_rdd_join_sha1 first samples look like: {}".format(cdr_ids_infos_rdd_join_sha1.take(5)))
 
@@ -762,6 +736,9 @@ def compute_out_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_
     ## check if we not already have computed this join step of this update
     out_join_rdd_path = basepath_save + "/out_join_rdd"
     out_join_rdd_amandeep = None
+    update_join_rdd_partitioned = None
+    sha1_infos_rdd_json = None
+
     if restart:
         try:
             out_join_rdd_amandeep = sc.sequenceFile(out_join_rdd_path).mapValues(amandeep_dict_str_to_out)
@@ -804,6 +781,13 @@ def compute_out_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_
         out_join_rdd = out_join_rdd_amandeep.flatMap(split_sha1_kv_filter_max_images_discarded)
         print("[compute_out_join_rdd] saving 'out_join_rdd' to sha1_infos HBase table.")
         hbase_man_sha1infos_out.rdd2hbase(out_join_rdd)
+
+    # unpersist here, out_join_rdd_amandeep has been saved to hdfs and HBase
+    if update_join_rdd_partitioned is not None:
+        update_join_rdd_partitioned.unpersist()
+    if sha1_infos_rdd_json is not None:
+        sha1_infos_rdd_json.unpersist()
+
     return out_join_rdd_amandeep
 
 
@@ -879,6 +863,9 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, 
     rdd_name = "out_rdd"
     out_rdd_path = basepath_save + "/" + rdd_name
     out_rdd_amandeep = None
+    update_rdd_partitioned = None
+    sha1_infos_rdd_json = None
+
     if restart:
         try:
             out_rdd_amandeep = sc.sequenceFile(out_rdd_path).mapValues(amandeep_dict_str_to_out)
@@ -917,7 +904,7 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, 
             else:
                 print("[compute_out_rdd] 'out_rdd_save' is empty.")
                 save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", rdd_name+"_path")
-                return None
+                #return None
         # org.apache.hadoop.mapred.FileAlreadyExistsException
         except Exception as inst:
             print("[compute_out_rdd] could not save rdd at {}, error was {}.".format(out_rdd_path, inst))
@@ -928,18 +915,45 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, 
         hbase_man_sha1infos_out.rdd2hbase(out_rdd)
     else:
         print("[compute_out_rdd] 'out_rdd' is empty.")
+
+    # unpersist here, out_rdd has been save to HDFS and HBase
+    if update_rdd_partitioned is not None:
+        update_rdd_partitioned.unpersist()
+    if sha1_infos_rdd_json is not None:
+        sha1_infos_rdd_json.unpersist()
+
     return out_rdd_amandeep
 
 
-def save_new_images_for_index(out_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, new_images_to_index_str):
+def save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, save_inter_rdd, new_images_to_index_str):
     # save images without cu_feat_id that have not been discarded for indexing
-    new_images_to_index = out_rdd.filter(lambda x: "info:image_discarded" not in x[1] and "info:cu_feat_id" not in x[1]).keys()
-    save_new_sha1s_for_index_update(new_images_to_index, hbase_man_update_out, batch_update_size)
+    new_images_to_index = out_rdd.filter(lambda x: "info:image_discarded" not in x[1] and "info:cu_feat_id" not in x[1])
     
     new_images_to_index_count = new_images_to_index.count()
-    print("[incremental_update] {}_count count: {}".format(new_images_to_index_str, new_images_to_index_count))
+    print("[save_new_images_for_index] {}_count count: {}".format(new_images_to_index_str, new_images_to_index_count))
     save_info_incremental_update(hbase_man_update_out, incr_update_id, new_images_to_index_count, new_images_to_index_str+"_count")
 
+    import numpy as np
+    total_batches = int(np.ceil(np.float32(new_images_to_index_count)/batch_update_size))
+    # partition to the number of batches?
+    # 'save_new_sha1s_for_index_update' uses toLocalIterator()
+    new_images_to_index_partitioned = new_images_to_index.partitionBy(total_batches)
+
+    # save to HDFS too
+    try:
+        new_images_to_index_out_path = basepath_save + "/" + new_images_to_index_str
+        new_images_to_index_partitioned.keys().saveAsTextFile(new_images_to_index_out_path)
+        save_info_incremental_update(hbase_man_update_out, incr_update_id, new_images_to_index_out_path, new_images_to_index_str+"_path")
+    except Exception as inst:
+        print("[save_new_images_for_index] could not save rdd 'new_images_to_index' at {}, error was {}.".format(new_images_to_index_out_path, inst))
+
+    # save by batch in HBase to let the API know it needs to index these images    
+    print("[save_new_images_for_index] start saving by batches of {} new images.".format(batch_update_size))
+    # crashes in 'save_new_sha1s_for_index_update'?
+    save_new_sha1s_for_index_update(new_images_to_index_partitioned.keys(), hbase_man_update_out, batch_update_size, incr_update_id, total_batches)
+    #save_new_sha1s_for_index_update(new_images_to_index, hbase_man_update_out, batch_update_size, incr_update_id, total_batches)
+
+        
 
 def save_new_s3_url(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd):
     ## save out newly computed sha1
@@ -1008,8 +1022,10 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     ## compute update for new s3 urls
     out_rdd = compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time) 
     
+    ## Unpersist?
+
     if out_rdd is not None and not out_rdd.isEmpty():
-        save_new_images_for_index(out_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, "new_images_to_index")
+        save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, save_inter_rdd, "new_images_to_index")
 
     save_new_s3_url(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd)
 
@@ -1037,6 +1053,7 @@ if __name__ == '__main__':
     conf = SparkConf()
     log4j = sc._jvm.org.apache.log4j
     log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
+    #log4j.LogManager.getRootLogger().setLevel(log4j.Level.ALL)
     # Set parameters job_conf
     nb_partitions = job_conf["nb_partitions"]
     # HBase Conf
