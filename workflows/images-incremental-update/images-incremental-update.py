@@ -59,7 +59,7 @@ def load_rdd_json(basepath_save, rdd_name):
     try:
         if hdfs_file_exist(rdd_path):
             print("[load_rdd_json] trying to load rdd from {}.".format(rdd_path))
-            rdd = sc.sequenceFile().mapValues(json.loads)
+            rdd = sc.sequenceFile(rdd_path).mapValues(json.loads)
     except Exception as inst:
         print("[load_rdd_json: caught error] could not load rdd from {}. Error was {}.".format(rdd_path, inst))
     return rdd
@@ -609,7 +609,11 @@ def save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, inc
     # save to HDFS too
     try:
         new_images_to_index_out_path = basepath_save + "/" + new_images_to_index_str
-        new_images_to_index_partitioned.keys().saveAsTextFile(new_images_to_index_out_path)
+        if not hdfs_file_exist(new_images_to_index_out_path):
+            print("[save_new_images_for_index] saving rdd to {}.".format(new_images_to_index_out_path))
+            new_images_to_index_partitioned.keys().saveAsTextFile(new_images_to_index_out_path)
+        else:
+            print("[save_new_images_for_index] skipped saving rdd to {}. File already exists.".format(new_images_to_index_out_path))
         save_info_incremental_update(hbase_man_update_out, incr_update_id, new_images_to_index_out_path, new_images_to_index_str+"_path")
     except Exception as inst:
         print("[save_new_images_for_index] could not save rdd 'new_images_to_index' at {}, error was {}.".format(new_images_to_index_out_path, inst))

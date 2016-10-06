@@ -31,7 +31,7 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 def after_request(response):
   #response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5009')
   response.headers.add('Access-Control-Allow-Origin', '*')
-  response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,origin')
   response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
   return response
 
@@ -220,12 +220,13 @@ class APIResponder(Resource):
         with open(simname,'wb') as outsim:
             for row in sim_rows:
                 outsim.write(row+"\n")
-        options_dict = dict()
+        options_dict, errors = self.get_options_dict(options)
         options_dict['sim_sha1'] = True
         out = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
+        outp_we = self.append_errors(outp, errors)
         # cleanup
         os.remove(simname)
-        return out
+        return outp_we
     
 
     def search_byB64(self, query, options=None):
