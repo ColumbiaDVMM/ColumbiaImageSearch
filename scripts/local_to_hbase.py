@@ -48,7 +48,7 @@ if __name__=="__main__":
     print "We have {} unique images to push.".format(max_uid)
 
     #start = 0
-    start = 28884494
+    start = 32827814
     batch_size = 1000
     list_type = ["feats","hashcodes"]
     while start < max_uid:

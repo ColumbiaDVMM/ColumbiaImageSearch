@@ -10,7 +10,7 @@ from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
 class DictOutput():
     
-    def __init__(self, mode='CamelCase'):
+    def __init__(self, mode='Old'):
         self.map = dict()
         if mode == 'CamelCase':
             self.fillDictCamelCase()
