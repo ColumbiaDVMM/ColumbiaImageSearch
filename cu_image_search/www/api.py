@@ -29,9 +29,12 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 @app.after_request
 def after_request(response):
+  #response.headers.add('Access-Control-Allow-Origin', '')
   #response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5009')
-  response.headers.add('Access-Control-Allow-Origin', '*')
-  response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  #response.headers.add('Access-Control-Allow-Origin', '*')
+  #response.headers.add('Access-Control-Allow-Origin', 'http://digappdev.dig.isi.edu:8080')
+  #response.headers.add('Access-Control-Allow-Credentials', 'true')
+  response.headers.add('Access-Control-Allow-Headers', 'Keep-Alive,User-Agent,If-Modified-Since,Cache-Control,x-requested-with,Content-Type,origin,authorization,accept,client-security-token')
   response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
   return response
 
@@ -71,9 +74,13 @@ class APIResponder(Resource):
 
     def put_post(self, mode):
         print("[put/post] received parameters: {}".format(request.form.keys()))
+        print("[put/post] received request: {}".format(request))
         query = request.form['data']
-        options = request.form['options']
-        print("[put/post] received data: {}".format(query))
+        try:
+            options = request.form['options']
+        except:
+            options = None
+        print("[put/post] received data of length: {}".format(len(query)))
         print("[put/post] received options: {}".format(options))
         if not query:
             return {'error': 'no data received'}
@@ -360,5 +367,11 @@ api.add_resource(APIResponder, '/cu_image_search/<string:mode>')
 if __name__ == '__main__':
     global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
     global_start_time = datetime.now()
-    app.run(debug=True, host='0.0.0.0')
+    
+    ## This cannot recover from an 'IOError: [Errno 32] Broken pipe' error when client disconnect before response has been sent e.g. nginx timeout at memexproxy...
+    #app.run(debug=True, host='0.0.0.0')
     #app.run(debug=False, host='0.0.0.0')
+
+    from gevent.wsgi import WSGIServer
+    http_server = WSGIServer(('', 5000), app)
+    http_server.serve_forever()
