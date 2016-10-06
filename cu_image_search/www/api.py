@@ -238,6 +238,7 @@ class APIResponder(Resource):
 
     def search_byB64_nocache(self, query, options=None):
         query_b64s = [str(x) for x in query.split(',')]
+        options_dict, errors = self.get_options_dict(options)
         import shutil
         import base64
         errors = []
@@ -270,7 +271,7 @@ class APIResponder(Resource):
             except:
                 print("[search_byB64_nocache] Error when decoding image.")
                 errors.append("[search_byB64_nocache] Error when decoding image with length {}.".format(len(one_b64)))
-        outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id, options)
+        outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id, options_dict)
         outp_we = self.append_errors(outp, errors)
         # cleanup
         for f in list_imgs:
