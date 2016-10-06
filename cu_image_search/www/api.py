@@ -174,7 +174,7 @@ class APIResponder(Resource):
         simname = self.searcher.indexer.hasher.get_similar_images_from_featuresfile(featuresfile, self.searcher.ratio)
         options_dict, errors = self.get_options_dict(options)
         options_dict['sha1_sim'] = True
-        out = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
+        outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
         outp_we = self.append_errors(outp, errors)
         # cleanup
         os.remove(simname)
@@ -229,7 +229,7 @@ class APIResponder(Resource):
                 outsim.write(row+"\n")
         options_dict, errors = self.get_options_dict(options)
         options_dict['sha1_sim'] = True
-        out = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
+        outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
         outp_we = self.append_errors(outp, errors)
         # cleanup
         os.remove(simname)
