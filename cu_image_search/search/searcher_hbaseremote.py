@@ -164,6 +164,7 @@ class Searcher():
 
     def format_output(self, simname, nb_query, corrupted, list_sha1_id, options_dict=dict()):
     	# read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
+        print "[Searcher.format_output: log] options are: {}".format(options_dict)
         if 'sha1_sim' in options_dict:
             sha1sim = options_dict['sha1_sim']
         else:
@@ -174,6 +175,7 @@ class Searcher():
             sim,sim_score = self.read_sim(simname, nb_query, options_dict)
 
         #print "[Searcher.format_output: log] sim: {}".format(sim)
+
         
         # build final output
         # options_dict could be used to request more output infos 'cdr_ids' etc
