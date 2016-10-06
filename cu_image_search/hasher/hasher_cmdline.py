@@ -28,6 +28,7 @@ class HasherCmdLine():
         if 'HA_master_update_file' in self.global_conf:
             self.master_update_file = self.global_conf['HA_master_update_file']
 
+
     def compute_hashcodes(self,features_filename,ins_num,startid):
         """ Compute ITQ hashcodes for the features in 'features_filename'
 
@@ -40,14 +41,22 @@ class HasherCmdLine():
         feature_filepath = features_filename[:-4]+'_norm'
         # we could be passing additional arguments here
         command = self.hashing_execpath+'hashing_update '+features_filename+' '+str(ins_num)+' '+self.hashing_execpath
-        print command
-        os.system(command)        
+        proc = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
+        print "[HasherCmdLine.compute_hashcodes: log] running command: {}".format(command)
+        sys.stdout.flush()
+        (out, err) = proc.communicate()
+        print "[HasherCmdLine.compute_hashcodes: log] program output:", out
+        print "[HasherCmdLine.compute_hashcodes: log] program error:", err
+        sys.stdout.flush()
+        #print command
+        #os.system(command)        
         hashbits_filepath = os.path.join(self.hashing_outpath,str(startid)+'_itq_norm_'+str(self.bits_num))
         itq_output_path = features_filename[:-4] + '_itq_norm_'+str(self.bits_num)
         print "[HasherCmdLine.compute_hashcodes: log] Moving {} to {}.".format(itq_output_path,hashbits_filepath)
         shutil.move(itq_output_path, hashbits_filepath)
         os.remove(features_filename)
         return hashbits_filepath
+
 
     def get_max_feat_id(self):
         """ Returns number of images indexed based on the size of hashcodes files.
@@ -63,16 +72,26 @@ class HasherCmdLine():
             print "[HasherCmdline.get_max_feat_id: error] {}".format(inst)
         return total_nb
 
+
     def compress_feats(self):
         """ Compress the features with zlib.
         """
         mkpath(os.path.join(self.base_update_path,'comp_features'))
         mkpath(os.path.join(self.base_update_path,'comp_idx'))
-        # we could be passing additional arguments here
-        command = self.hashing_execpath+'compress_feats '+self.base_update_path+'/ '+str(self.features_dim)+' 1 '+self.master_update_file+' '+str(self.bits_num)
+        args = [self.base_update_path+'/', str(self.features_dim), '1', self.master_update_file, str(self.bits_num)]
+        subprocess_command = [self.hashing_execpath+"compress_feats"] + args
         # this will work only if features to be compressed are present in self.base_update_path/features
-        print command
-        os.system(command)
+        proc = subprocess.Popen(subprocess_command, stdout=subprocess.PIPE)
+        print "[HasherCmdLine.compress_feats: log] running command: {}".format(subprocess_command)
+        (out, err) = proc.communicate()
+        print "[HasherCmdLine.compress_feats: log] program output:", out
+        print "[HasherCmdLine.compress_feats: log] program error:", err
+
+        ## we could be passing additional arguments here
+        #command = self.hashing_execpath+'compress_feats '+self.base_update_path+'/ '+str(self.features_dim)+' 1 '+self.master_update_file+' '+str(self.bits_num)
+        
+        #print command
+        #os.system(command)
 
     # we would need to be able to compress just one update file and merge with previous update.
     # see refresh indexer
@@ -144,7 +163,7 @@ class HasherCmdLine():
         #print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
         args = [str(x) for x in [featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio]]
         subprocess_command = [self.hashing_execpath+"hashing"] + args
-        if demote:
+        if demote: # needed when using Apache
             pw_record = pwd.getpwnam("www-data")
             user_uid = pw_record.pw_uid
             user_gid = pw_record.pw_gid
@@ -153,8 +172,8 @@ class HasherCmdLine():
             proc = subprocess.Popen(subprocess_command, stdout=subprocess.PIPE)
         print "[HasherCmdLine.get_similar_images: log] running command: {}".format(subprocess_command)
         (out, err) = proc.communicate()
-        print "program output:", out
-        print "program error:", err
+        print "[HasherCmdLine.get_similar_images: log] program output:", out
+        print "[HasherCmdLine.get_similar_images: log] program error:", err
         #os.system(command)
         initname = featurefilename[:-4] + '-sim.txt'
         simname = featurefilename[:-4] + '-sim_'+str(ratio)+'.txt'

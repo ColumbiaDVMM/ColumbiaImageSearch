@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import json
 import math
@@ -6,7 +7,7 @@ from ..memex_tools.image_dl import mkpath
 
 class SentiBankCmdLine():
 
-    def __init__(self,global_conf_filename):
+    def __init__(self, global_conf_filename):
         self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.base_update_path = os.path.dirname(__file__)
         if "LI_base_update_path" in self.global_conf:
@@ -15,9 +16,10 @@ class SentiBankCmdLine():
         self.features_dim = self.global_conf["FE_features_dim"]
         mkpath(self.features_path)
 
-    def compute_features(self,new_files,startid):
+    def compute_features(self, new_files, startid):
+        import subprocess as sub
         # create file listing images to be processed
-        img_filename = os.path.join(self.features_path,str(startid)+'.txt')
+        img_filename = os.path.join(self.features_path, str(startid)+'.txt')
         featurename = img_filename[:-4] + '-features'
         featurefilename = featurename + '_fc7.dat'
         if new_files:
@@ -28,7 +30,7 @@ class SentiBankCmdLine():
         else:
             f = open(featurefilename,"wb")
             f.close()
-            return featurefilename,0
+            return featurefilename, 0
 
         self.sentibank_path = os.path.join(os.path.dirname(__file__),'sentibank/')
         print "[SentiBankCmdLine.compute_features: log] sentibank_path is {}.".format(self.sentibank_path)
@@ -65,8 +67,13 @@ class SentiBankCmdLine():
         f.write(proto)
         f.close()
         command = self.sentibank_path+'extract_nfeatures_gpu '+self.sentibank_path+'caffe_sentibank_train_iter_250000 '+protoname+ ' fc7 '+featurename+'_fc7 '+str(iteration)+' '+device;
-        print command
-        os.system(command)
+        print "[SentiBankCmdLine.compute_features: log] command {}.".format(command)
+        sys.stdout.flush()
+        output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
+        print "[SentiBankCmdLine.compute_features: log] output {}.".format(output) 
+        print "[SentiBankCmdLine.compute_features: log] error {}.".format(error)
+        sys.stdout.flush()
+        #os.system(command)
         os.remove(protoname)
         os.remove(testname)
-        return featurefilename,ins_num
+        return featurefilename, ins_num

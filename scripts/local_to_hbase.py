@@ -51,7 +51,7 @@ if __name__=="__main__":
     start = 32827814
     batch_size = 1000
     list_type = ["feats","hashcodes"]
-    while start<max_uid:
+    while start < max_uid:
         list_ids = range(start+1,min(max_uid,start+batch_size)+1)
         start_time = time.time()
         print "[{}] Working on batch from {} to {}.".format(start_time,list_ids[0],list_ids[-1])

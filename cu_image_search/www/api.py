@@ -4,9 +4,12 @@ from flask_restful import Resource, Api
 import os
 import sys
 import time
+import json
 from datetime import datetime
 from collections import OrderedDict
 import imghdr
+from datetime import datetime
+
 from PIL import Image, ImageFile
 #Image.LOAD_TRUNCATED_IMAGES = True
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -36,43 +39,46 @@ global_conf_file = '../../conf/global_var_remotehbase.json'
 global_searcher = None
 global_start_time = None
 
-class Searcher(Resource):
+class APIResponder(Resource):
 
 
     def __init__(self):
         #self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
         self.searcher = global_searcher
         self.start_time = global_start_time
+        self.valid_options = ["near_dup", "near_dup_th"]
 
 
     def get(self, mode):
         print("[get] received parameters: {}".format(request.args.keys()))
         query = request.args.get('data')
+        options = request.args.get('options')
         print("[get] received data: {}".format(query))
+        print("[get] received options: {}".format(options))
         if query:
-            return self.process_query(mode, query)
+            return self.process_query(mode, query, options)
         else:
             return self.process_mode(mode)
  
 
     def put(self, mode):
-        print("[put] received parameters: {}".format(request.form.keys()))
-        query = request.form['data']
-        print("[put] received data: {}".format(query))
-        if not query:
-            return {'error': 'no data received'}
-        else:
-            return self.process_query(mode, query)
+        return self.put_post(mode)
 
 
     def post(self, mode):
-        print("[post] received parameters: {}".format(request.form.keys()))
+        return self.put_post(mode)        
+
+
+    def put_post(self, mode):
+        print("[put/post] received parameters: {}".format(request.form.keys()))
         query = request.form['data']
-        print("[post] received data: {}".format(query))
+        options = request.form['options']
+        print("[put/post] received data: {}".format(query))
+        print("[put/post] received options: {}".format(options))
         if not query:
             return {'error': 'no data received'}
         else:
-            return self.process_query(mode, query)
+            return self.process_query(mode, query, options)
 
 
     def process_mode(self, mode):
@@ -84,42 +90,74 @@ class Searcher(Resource):
             return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give \'data\' parameter?'}
 
 
-    def process_query(self, mode, query):
+    def process_query(self, mode, query, options=None):
         if mode == "byURL":
-            return self.search_byURL(query)
+            return self.search_byURL(query, options)
         elif mode == "byURL_nocache":
-            return self.search_byURL_nocache(query)
+            return self.search_byURL_nocache(query, options)
         elif mode == "bySHA1":
-            return self.search_bySHA1(query)
+            return self.search_bySHA1(query, options)
         elif mode == "bySHA1_nocache":
-            return self.search_bySHA1_nocache(query)
+            return self.search_bySHA1_nocache(query, options)
         elif mode == "byB64":
-            return self.search_byB64(query)
+            return self.search_byB64(query, options)
         elif mode == "byB64_nocache":
-            return self.search_byB64_nocache(query)
+            return self.search_byB64_nocache(query, options)
         elif mode == "view_image_sha1":
-            return self.view_image_sha1(query)
+            return self.view_image_sha1(query, options)
         elif mode == "view_similar_images_sha1":
-            return self.view_similar_images_sha1(query)
+            return self.view_similar_images_sha1(query, options)
         else:
             return {'error': 'unknown_mode: '+str(mode)}
 
 
-    def search_byURL(self, query):
+    def get_options_dict(self, options):
+        errors = []
+        options_dict = dict()
+        if options:
+            try:
+                options_dict = json.loads(options)
+            except Exception as inst:
+                err_msg = "[get_options: error] Could not load options from: {}. {}".format(options, inst)
+                print(err_msg)
+                errors.append(err_msg)
+            for k in options_dict:
+                if k not in self.valid_options:
+                    err_msg = "[get_options: error] Unkown option {}".format(k)
+                    print(err_msg)
+                    errors.append(err_msg)
+        return options_dict, errors
+
+
+    def append_errors(self, outp, errors=[]):
+        if errors:
+            e_d = dict()
+            for i,e in enumerate(errors):
+                e_d['error_{}'.format(i)] = e
+            outp['errors'] = e_d
+        return outp
+
+
+    def search_byURL(self, query, options=None):
         query_urls = query.split(',')
+        options_dict, errors = self.get_options_dict(options)
+        
         # look for s3url in s3url sha1 mapping?
         # if not present, download and compute sha1
         # search for similar images by sha1 for those we could retrieve
         # search with 'search_image_list' for other images
-        return self.searcher.search_image_list(query_urls)
+        outp = self.searcher.search_image_list(query_urls, options_dict)
+        outp_we = self.append_errors(outp, errors)
+        return outp_we
 
 
-    def search_byURL_nocache(self, query):
+    def search_byURL_nocache(self, query, options=None):
         query_urls = query.split(',')
-        return self.searcher.search_image_list(query_urls)
+        options_dict, errors = self.get_options_dict(options)
+        return self.searcher.search_image_list(query_urls, options_dict)
 
 
-    def search_bySHA1_nocache(self, query):
+    def search_bySHA1_nocache(self, query, options=None):
         query_sha1s = query.split(',')
         feats, ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
         corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
@@ -137,7 +175,7 @@ class Searcher(Resource):
         return out
         
 
-    def search_bySHA1(self, query):
+    def search_bySHA1(self, query, options=None):
         # cached sha1 search
         query_sha1s = [str(x) for x in query.split(',')]
         print("[search_bySHA1] query_sha1s {}".format(query_sha1s))
@@ -182,17 +220,23 @@ class Searcher(Resource):
         with open(simname,'wb') as outsim:
             for row in sim_rows:
                 outsim.write(row+"\n")
-        out = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, True)
+        options_dict = dict()
+        options_dict['sim_sha1'] = True
+        out = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
         # cleanup
         os.remove(simname)
         return out
     
 
-    def search_byB64(self, query):
-        return {'query_by_b64': str(query)}
+    def search_byB64(self, query, options=None):
+        # we can implement a version that computes the sha1
+        # and query for percomputed similar images using 
+        # self.searcher.indexer.get_similar_images_from_sha1(query_sha1s)
+        # left for later as we consider queries with b64 are for out of index images
+        return self.search_byB64_nocache(query, options)
 
 
-    def search_byB64_nocache(self, query):
+    def search_byB64_nocache(self, query, options=None):
         query_b64s = [str(x) for x in query.split(',')]
         import shutil
         import base64
@@ -216,37 +260,31 @@ class Searcher(Resource):
                             im = Image.open(f)
                             im.save(img_fn,"JPEG")
                         except IOError:
-                            print("[search_byB64_nocache] Error when loading non-jpeg image. Trying to continue.")
-                            errors.append("[search_byB64_nocache] Error when loading non-jpeg image with length {} and ending with: {}".format(len(one_b64), one_b64[-20:]))
+                            err_msg = "[search_byB64_nocache: error] Non-jpeg image conversion failed."
+                            print(err_msg)
+                            errors.append(err_msg)
                             os.remove(img_fn)
                     else:
                         f.write(img_byte)
-                list_imgs.append(img_fn)
+                    list_imgs.append(img_fn)
             except:
                 print("[search_byB64_nocache] Error when decoding image.")
                 errors.append("[search_byB64_nocache] Error when decoding image with length {}.".format(len(one_b64)))
-        if list_imgs:
-            outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id)
-        else:
-            outp = OrderedDict()
-        if errors:
-            outp['errors'] = []
-            for e in errors:
-                e_d = dict()
-                e_d['error'] = e
-                outp['errors'].append(e_d)
+        outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id, options)
+        outp_we = self.append_errors(outp, errors)
         # cleanup
         for f in list_imgs:
             try:
                 os.remove(f)
             except:
                 pass
-        return outp
+        return outp_we
 
 
     def refresh(self):
-        if not self.searcher.indexer.refreshing:
-            return {'refresh': 'run a new refresh'}
+        if not self.searcher.indexer.initializing:
+            self.searcher.indexer.initialize_sha1_mapping()
+            return {'refresh': 'just run a new refresh'}
         else:
             self.searcher.indexer.refresh_inqueue = True
             return {'refresh': 'pushed a refresh in queue.'}
@@ -254,7 +292,10 @@ class Searcher(Resource):
 
     def status(self):
         status_dict = {'status': 'OK'}
-        status_dict['last_refresh'] = self.searcher.indexer.last_refresh
+        if self.searcher.indexer.last_refresh:
+            status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh.isoformat(' ')
+        else:
+            status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh
         status_dict['indexed_images'] = len(self.searcher.indexer.sha1_featid_mapping)
         status_dict['API_start_time'] = self.start_time.isoformat(' ')
         status_dict['API_uptime'] = str(datetime.now()-self.start_time)
@@ -264,7 +305,8 @@ class Searcher(Resource):
     def get_image_str(self, row):
         return "<img src=\"{}\" title=\"{}\" class=\"img_blur\">".format(row[1]["info:s3_url"],row[0])
 
-    def view_image_sha1(self, query):
+
+    def view_image_sha1(self, query, options=None):
         query_sha1s = [str(x) for x in query.split(',')]
         rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, ["info:s3_url"])
         images_str = ""
@@ -277,7 +319,7 @@ class Searcher(Resource):
         return make_response(render_template('view_images.html'),200,headers)
 
 
-    def view_similar_images_sha1(self, query):
+    def view_similar_images_sha1(self, query, options=None):
         query_sha1s = [str(x) for x in query.split(',')]
         print("[view_similar_images_sha1] querying with {} sha1s: {}".format(len(query_sha1s), query_sha1s))
         sys.stdout.flush()
@@ -310,8 +352,9 @@ class Searcher(Resource):
         sys.stdout.flush()
         return make_response(render_template('view_similar_images.html'),200,headers)
 
-#api.add_resource(Searcher, '/cu_image_search/<string:mode>/<path:query>', '/cu_image_search/<string:mode>', methods=['GET', 'POST'])
-api.add_resource(Searcher, '/cu_image_search/<string:mode>')
+
+api.add_resource(APIResponder, '/cu_image_search/<string:mode>')
+
 
 if __name__ == '__main__':
     global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
