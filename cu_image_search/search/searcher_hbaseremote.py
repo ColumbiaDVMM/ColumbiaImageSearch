@@ -7,6 +7,39 @@ import numpy as np
 from collections import OrderedDict 
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
+
+class DictOutput():
+    
+    def __init__(self, mode='CamelCase'):
+        self.map = dict()
+        if mode == 'CamelCase':
+            self.fillDictCamelCase()
+        else:
+            self.fillDictOld()
+
+    def fillDictCamelCase(self):
+        self.map['images'] = "Images"
+        self.map['query_sha1'] = "QuerySha1"
+        self.map['similar_images'] = "SimilarImages"
+        self.map['ads_cdr_ids'] = "AdsCDRIds"
+        self.map['cdr_ids'] = "CDRIds"
+        self.map['distance'] = "Distance"
+        self.map['number'] = "Number"
+        self.map['sha1'] = "Sha1"
+        self.map['cached_image_urls'] = "CachedImageURLs"
+
+    def fillDictOld(self):
+        self.map['images'] = "images"
+        self.map['query_sha1'] = "query_sha1"
+        self.map['similar_images'] = "similar_images"
+        self.map['ads_cdr_ids'] = "ads_cdr_ids"
+        self.map['cdr_ids'] = "cdr_ids"
+        self.map['distance'] = "distance"
+        self.map['number'] = "number"
+        self.map['sha1'] = "sha1"
+        self.map['cached_image_urls'] = "cached_image_urls"
+
+
 class Searcher():
 
     def __init__(self, global_conf_filename):
@@ -175,8 +208,7 @@ class Searcher():
             sim,sim_score = self.read_sim(simname, nb_query, options_dict)
 
         #print "[Searcher.format_output: log] sim: {}".format(sim)
-
-        
+        do = DictOutput()
         # build final output
         # options_dict could be used to request more output infos 'cdr_ids' etc
         output = []
@@ -186,26 +218,36 @@ class Searcher():
         for i in range(0,nb_query):    
             output.append(dict())
             if i in corrupted:
-                output[i]['similar_images'] = OrderedDict([['number',0],['sha1',[]],['cached_image_urls',[]],['cdr_ids',[]],['ads_cdr_ids',[]],['distance',[]]])
+                output[i][do.map['similar_images']] = OrderedDict([[do.map['number'],0],\
+                                                           [do.map['sha1'],[]],\
+                                                           [do.map['cached_image_urls'],[]],\
+                                                           [do.map['cdr_ids'],[]],\
+                                                           [do.map['ads_cdr_ids'],[]],\
+                                                           [do.map['distance'],[]]])
                 dec += 1
                 continue
             ii = i - dec
-            output[i]['similar_images'] = OrderedDict([['number',len(sim[ii])],['sha1',[]],['cached_image_urls',[]],['cdr_ids',[]],['ads_cdr_ids',[]],['distance',[]]])
-            output[i]['query_sha1'] = list_sha1_id[ii]
+            output[i][do.map['similar_images']] = OrderedDict([[do.map['number'],len(sim[ii])],\
+                                                               [do.map['sha1'],[]],\
+                                                               [do.map['cached_image_urls'],[]],\
+                                                               [do.map['cdr_ids'],[]],\
+                                                               [do.map['ads_cdr_ids'],[]],\
+                                                               [do.map['distance'],[]]])
+            output[i][do.map['query_sha1']] = list_sha1_id[ii]
             ok_sims = []
             for jj,simj in enumerate(sim[ii]):
                 found_columns = [c in simj[1] for c in needed_columns]
                 if found_columns.count(True) == len(needed_columns):
-                    output[i]['similar_images']['sha1'].append(simj[0].strip())
-                    output[i]['similar_images']['cached_image_urls'].append(simj[1]['info:s3_url'].strip())
+                    output[i][do.map['similar_images']][do.map['sha1']].append(simj[0].strip())
+                    output[i][do.map['similar_images']][do.map['cached_image_urls']].append(simj[1]['info:s3_url'].strip())
                     #output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'].strip())
                     #output[i]['similar_images']['ads_cdr_ids'].append(simj[1]['info:all_parent_ids'].strip())
                     ok_sims.append(jj)
                 #else:
                 #    print "[Searcher.format_output: log] Found invalid image: {}. found_columns: {}".format(simj[0],found_columns)
-            output[i]['similar_images']['distance']=[sim_score[ii][jj] for jj in ok_sims]
+            output[i][do.map['similar_images']][do.map['distance']]=[sim_score[ii][jj] for jj in ok_sims]
         #print "[Searcher.format_output: log] output {}".format(output)
-        outp = OrderedDict([['number',nb_query],['images',output]])
+        outp = OrderedDict([[do.map['number'],nb_query],[do.map['images'],output]])
         return outp
 
 

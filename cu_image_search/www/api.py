@@ -5,6 +5,8 @@ import os
 import sys
 import time
 import json
+from datetime import datetime
+from collections import OrderedDict
 import imghdr
 from datetime import datetime
 
@@ -84,7 +86,7 @@ class APIResponder(Resource):
         elif mode == "refresh":
             return self.refresh()
         else:
-            return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give data parameter?'}
+            return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give \'data\' parameter?'}
 
 
     def process_query(self, mode, query, options=None):
@@ -176,6 +178,7 @@ class APIResponder(Resource):
         # cached sha1 search
         query_sha1s = [str(x) for x in query.split(',')]
         print("[search_bySHA1] query_sha1s {}".format(query_sha1s))
+        # validate the sha1 here?
         # retrieve similar images from hbase table 'escorts_images_similar_row_from_ts'
         import numpy as np
         corrupted = []
@@ -241,24 +244,31 @@ class APIResponder(Resource):
         list_imgs = []
         for i,one_b64 in enumerate(query_b64s):
             img_fn = search_id+'_'+str(i)+'.jpg'
-            with open(img_fn, 'wb') as f:
-                print("[search_byB64_nocache] Processing base64 encoded image of length {} ending with: {}".format(len(one_b64), one_b64[-20:]))
-                img_byte = base64.b64decode(one_b64)
-                img_type = imghdr.what('', img_byte)
-                if img_type != 'jpeg':
-                    #f = StringIO("data:image/png;base64,"+img_byte)
-                    f = StringIO(img_byte)
-                    try:
-                        im = Image.open(f)
-                        im.save(img_fn,"JPEG")
-                    except IOError:
-                        err_msg = "[search_byB64_nocache: error] Non-jpeg image conversion failed."
-                        print(err_msg)
-                        errors.append(err_msg)
-                        os.remove(img_fn)
-                else:
-                    f.write(img_byte)
-            list_imgs.append(img_fn)
+            if one_b64.startswith('data:'):
+                # this is the image header
+                continue
+            try:
+                with open(img_fn, 'wb') as f:
+                    print("[search_byB64_nocache] Processing base64 encoded image of length {} ending with: {}".format(len(one_b64), one_b64[-20:]))
+                    img_byte = base64.b64decode(one_b64)
+                    img_type = imghdr.what('', img_byte)
+                    if img_type != 'jpeg':
+                        #f = StringIO("data:image/png;base64,"+img_byte)
+                        f = StringIO(img_byte)
+                        try:
+                            im = Image.open(f)
+                            im.save(img_fn,"JPEG")
+                        except IOError:
+                            err_msg = "[search_byB64_nocache: error] Non-jpeg image conversion failed."
+                            print(err_msg)
+                            errors.append(err_msg)
+                            os.remove(img_fn)
+                    else:
+                        f.write(img_byte)
+                    list_imgs.append(img_fn)
+            except:
+                print("[search_byB64_nocache] Error when decoding image.")
+                errors.append("[search_byB64_nocache] Error when decoding image with length {}.".format(len(one_b64)))
         outp = self.searcher.search_from_image_filenames_nocache(list_imgs, search_id, options)
         outp_we = self.append_errors(outp, errors)
         # cleanup
