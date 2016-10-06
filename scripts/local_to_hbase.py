@@ -8,7 +8,7 @@ import numpy as np
 from cu_image_search.indexer.local_indexer import LocalIndexer
 from cu_image_search.memex_tools.sha1_tools import get_SHA1_from_file
 
-nb_threads = 2
+nb_threads = 4
 pool = happybase.ConnectionPool(size=nb_threads,host='10.1.94.57')
 
 def prepare_batch(list_ids,unique_ids,res,dup_ids):
@@ -48,7 +48,7 @@ if __name__=="__main__":
     print "We have {} unique images to push.".format(max_uid)
 
     #start = 0
-    start = 28884494
+    start = 32827814
     batch_size = 1000
     list_type = ["feats","hashcodes"]
     while start<max_uid:

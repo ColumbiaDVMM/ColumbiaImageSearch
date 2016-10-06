@@ -141,6 +141,7 @@ class Searcher(Resource):
         # cached sha1 search
         query_sha1s = [str(x) for x in query.split(',')]
         print("[search_bySHA1] query_sha1s {}".format(query_sha1s))
+        # validate the sha1 here?
         # retrieve similar images from hbase table 'escorts_images_similar_row_from_ts'
         import numpy as np
         corrupted = []

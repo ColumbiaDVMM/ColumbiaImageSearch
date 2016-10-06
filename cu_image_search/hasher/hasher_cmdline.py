@@ -105,7 +105,7 @@ class HasherCmdLine():
         os.system(command)
         # read features/hashcodes
         X, ok_ids = read_binary_file(X_fn,str_precomp,list_feats_id,read_dim,read_type)
-        print X,X[0].shape
+        #print X,X[0].shape
         # cleanup
         os.remove(query_precomp_fn)
         os.remove(X_fn)
