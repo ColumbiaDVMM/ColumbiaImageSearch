@@ -304,6 +304,7 @@ class APIResponder(Resource):
     def get_image_str(self, row):
         return "<img src=\"{}\" title=\"{}\" class=\"img_blur\">".format(row[1]["info:s3_url"],row[0])
 
+
     def view_image_sha1(self, query, options=None):
         query_sha1s = [str(x) for x in query.split(',')]
         rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, ["info:s3_url"])
@@ -352,6 +353,7 @@ class APIResponder(Resource):
 
 
 api.add_resource(APIResponder, '/cu_image_search/<string:mode>')
+
 
 if __name__ == '__main__':
     global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
