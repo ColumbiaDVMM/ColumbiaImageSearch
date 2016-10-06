@@ -115,6 +115,7 @@ class Searcher():
                 sim_score.append([])
                 continue
             # just get the sha1 at this point
+            # beware, need to make sure sim and sim_score are still aligned
             sim.append(self.indexer.get_sim_infos(nums[0:n]))
             sim_score.append(nums[onum:onum+n])
             count = count + 1
@@ -151,6 +152,7 @@ class Searcher():
                 sim_score.append([])
                 continue
             # just get the sha1 at this point
+            # beware, need to make sure sim and sim_score are still aligned
             sim.append(self.indexer.get_full_sha1_rows(nums[0:n]))
             sim_score.append(nums[onum:onum+n])
             count = count + 1
