@@ -38,6 +38,7 @@ def check_hdfs_file(hdfs_file_path):
     out, err = proc.communicate()
     if "Filesystem closed" in err:
         print("[check_hdfs_file: WARNING] Beware got error '{}' when checking for file: {}.".format(err, hdfs_file_path))
+        sys.stdout.flush()
     return out, err
 
 
@@ -282,19 +283,25 @@ def get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, hbase_man_updat
     s3url_infos_rdd_red_count = s3url_infos_rdd_red.count()
     print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_red_count is: {}".format(s3url_infos_rdd_red_count))
     print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_red first samples looks like: {}".format(s3url_infos_rdd_red.take(10)))
-    try:
+
+    print("[get_s3url_infos_rdd_join] starting to read from s3url_sha1 HBase table.")
+    s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().flatMap(clean_up_s3url_sha1)    
+
+    # do not save to HDFS for every update
+    #try:
         # try to reload from disk
-        s3url_sha1_rdd = sc.sequenceFile(basepath_save + "/s3url_sha1_rdd")
-    except Exception as inst:
+    #    s3url_sha1_rdd = sc.sequenceFile(basepath_save + "/s3url_sha1_rdd")
+    #except Exception as inst:
         # read s3url_sha1 table into s3url_sha1 to get sha1 here without downloading images
-        print("[get_s3url_infos_rdd_join] starting to read from s3url_sha1 HBase table.")
-        s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().flatMap(clean_up_s3url_sha1)
-        try:
-            s3url_sha1_rdd.saveAsSequenceFile(basepath_save + "/s3url_sha1_rdd")
-        except Exception as inst:
-            pass
-    s3url_sha1_rdd_count = s3url_sha1_rdd.count()
-    print("[get_s3url_infos_rdd_join: info] s3url_sha1_rdd_count is: {}".format(s3url_sha1_rdd_count))
+        #print("[get_s3url_infos_rdd_join] starting to read from s3url_sha1 HBase table.")
+        #s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().flatMap(clean_up_s3url_sha1)
+        #try:
+        #    s3url_sha1_rdd.saveAsSequenceFile(basepath_save + "/s3url_sha1_rdd")
+        #except Exception as inst:
+        #    pass
+    #s3url_sha1_rdd_count = s3url_sha1_rdd.count()
+    #print("[get_s3url_infos_rdd_join: info] s3url_sha1_rdd_count is: {}".format(s3url_sha1_rdd_count))
+
     s3url_sha1_rdd_partitioned = s3url_sha1_rdd.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
     s3url_infos_rdd_red_partitioned = s3url_infos_rdd_red.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)  
     #print("[get_s3url_infos_rdd_join] start running 's3url_infos_rdd_red.cogroup(s3url_sha1_rdd)'.")
