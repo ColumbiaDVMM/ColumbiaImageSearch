@@ -34,13 +34,14 @@ def download_image(data):
             raise ValueError('[download_image: error] s3_url is None.')
         # Download the image
         data = image_dl.get_image_from_URL(unicode(s3_url))
+        outdata = StringIO(data).getvalue()
         # Sanity check of sha1
         sha1 = image_dl.get_SHA1_from_data(data)
         if sha1 != key:
             # May be due to an original image in png and s3 in .jpg?
             raise ValueError('[download_image: error] sha1 has not the expected value {} != {}.'.format(sha1,key))
             #print('[download_image: error] sha1 has not the expected value {} != {}.'.format(sha1,key))
-        return [(key, [key, "info", image_column, StringIO(data).getvalue()])]
+        return [(key, [key, "info", image_column, outdata])]
     except Exception as inst: 
         print(inst)
     return []

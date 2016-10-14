@@ -12,6 +12,7 @@ from ..memex_tools.image_dl import mkpath
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 from ..memex_tools.binary_file import read_binary_file, write_binary_file
 
+TTransportException = happybase._thriftpy.transport.TTransportException
 
 class HBaseIndexer(GenericIndexer):
 
@@ -157,7 +158,7 @@ class HBaseIndexer(GenericIndexer):
                     for row in rows:
                         if "info:cu_feat_id" in row[1]:
                             found_ids.append((long(row[1]["info:cu_feat_id" ]),str(row[0])))
-            except timeout or happybase._thriftpy.transport.TTransportException:
+            except timeout or TTransportException:
                 print("[HBaseIndexer.get_ids_from_sha1s_hbase] caught timeout error or TTransportException. Trying to refresh connection pool.")
                 self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
                 return self.get_ids_from_sha1s_hbase(list_sha1s)
@@ -171,7 +172,7 @@ class HBaseIndexer(GenericIndexer):
                 with self.pool.connection() as connection:
                     table_sha1infos = connection.table(self.table_sha1infos_name)
                     rows = table_sha1infos.rows(list_sha1s)
-            except timeout or happybase._thriftpy.transport.TTransportException:
+            except timeout or TTransportException:
                 print("[HBaseIndexer.get_full_sha1_rows] caught timeout error or TTransportException. Trying to refresh connection pool.")
                 self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
                 return self.get_full_sha1_rows(list_sha1s)
@@ -186,7 +187,7 @@ class HBaseIndexer(GenericIndexer):
                     table_sha1infos = connection.table(self.table_sha1infos_name)
                     # this throws a socket timeout?...
                     rows = table_sha1infos.rows(list_sha1s, columns=columns)
-            except timeout or happybase._thriftpy.transport.TTransportException:
+            except timeout or TTransportException:
                 print("[HBaseIndexer.get_columns_from_sha1_rows] caught timeout error or TTransportException. Trying to refresh connection pool.")
                 self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
                 return self.get_columns_from_sha1_rows(list_sha1s, columns)
@@ -201,7 +202,7 @@ class HBaseIndexer(GenericIndexer):
                 with self.pool.connection() as connection:
                     table_sha1_sim = connection.table(self.table_sim_name)
                     rows = table_sha1_sim.rows(list_sha1s)
-            except timeout or happybase._thriftpy.transport.TTransportException:
+            except timeout or TTransportException:
                 print("[HBaseIndexer.get_similar_images_from_sha1] caught timeout error or TTransportException. Trying to refresh connection pool.")
                 self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
                 return self.get_similar_images_from_sha1(list_sha1s)
