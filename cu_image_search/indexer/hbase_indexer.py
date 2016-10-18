@@ -45,7 +45,7 @@ class HBaseIndexer(GenericIndexer):
         self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
             raise ValueError("[HBaseIngester.read_conf: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
-        self.nb_threads = 4
+        self.nb_threads = 2
         if 'HBI_pool_thread' in self.global_conf:
             self.nb_threads = self.global_conf['HBI_pool_thread']
         self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
