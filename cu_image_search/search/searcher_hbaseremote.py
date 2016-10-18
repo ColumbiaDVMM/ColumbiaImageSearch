@@ -198,20 +198,26 @@ class Searcher():
     def format_output(self, simname, nb_query, corrupted, list_sha1_id, options_dict=dict()):
     	# read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
         print "[Searcher.format_output: log] options are: {}".format(options_dict)
+        output = []
         if 'sha1_sim' in options_dict:
             sha1sim = options_dict['sha1_sim']
         else:
             sha1sim = False
-        if sha1sim:
-            sim,sim_score = self.read_sim_sha1(simname, nb_query, options_dict)
-        else:
-            sim,sim_score = self.read_sim(simname, nb_query, options_dict)
+        try:
+            if sha1sim:
+                sim,sim_score = self.read_sim_sha1(simname, nb_query, options_dict)
+            else:
+                sim,sim_score = self.read_sim(simname, nb_query, options_dict)
+        except Exception as inst:
+            errors = dict()
+            errors['search'] = "format_output error, could not prepare output: {}".format(inst)
+            outp = OrderedDict([[do.map['number'],nb_query],[do.map['images'],output]],['errors',errors])
+            return outp
 
         #print "[Searcher.format_output: log] sim: {}".format(sim)
         do = DictOutput()
         # build final output
         # options_dict could be used to request more output infos 'cdr_ids' etc
-        output = []
         dec = 0
         #needed_columns = ['info:s3_url', 'info:all_cdr_ids', 'info:all_parent_ids']
         needed_columns = ['info:s3_url']

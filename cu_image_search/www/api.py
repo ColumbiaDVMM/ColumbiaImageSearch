@@ -136,6 +136,8 @@ class APIResponder(Resource):
     def append_errors(self, outp, errors=[]):
         if errors:
             e_d = dict()
+            if 'errors' in outp:
+                e_d = outp['errors']
             for i,e in enumerate(errors):
                 e_d['error_{}'.format(i)] = e
             outp['errors'] = e_d
