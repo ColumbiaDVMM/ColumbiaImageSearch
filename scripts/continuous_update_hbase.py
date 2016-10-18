@@ -21,13 +21,13 @@ if __name__=="__main__":
         try:
             ctime = time.time()
             time_lapse = ctime - lasttime
+            if up_obj.has_indexed:
+                # we should refresh the API
+                print('[continuous_update_hbase] refreshing the API.')
+                up_obj.refresh_API()
+                print('[continuous_update_hbase] refreshed the API.')
+                up_obj.has_indexed = False
             if time_lapse < interval:
-                if up_obj.has_indexed:
-                    # we should refresh the API
-                    print('[continuous_update_hbase] refreshing the API.')
-                    up_obj.refresh_API()
-                    print('[continuous_update_hbase] refreshed the API.')
-                    up_obj.has_indexed = False
                 print('[continuous_update_hbase] sleeping for {} seconds...'.format(interval-time_lapse))
                 sys.stdout.flush()
                 time.sleep(interval-time_lapse)
