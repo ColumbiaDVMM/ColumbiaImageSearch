@@ -1,6 +1,7 @@
 import json
 import sys
 import traceback
+import requests
 
 class Updater():
     """ This class enables updating the index of available images.
@@ -15,6 +16,9 @@ class Updater():
         self.global_conf_filename = global_conf_filename
         self.global_conf = json.load(open(self.global_conf_filename,'rt'))
         self.init_indexer()
+        self.has_indexed = False
+        # could/should be loaded from conf
+        self.refresh_URL = 'http://127.0.0.1:5000/cu_image_search/refresh'
 
     def init_indexer(self):
         """ Initialize `indexer` from `global_conf['UP_indexer']` value.
@@ -30,6 +34,16 @@ class Updater():
             self.indexer = HBaseIndexer(self.global_conf_filename)
         else:
             raise ValueError("[Updater: error] unkown 'indexer' {}.".format(self.global_conf[field]))
+
+
+    def refresh_API(self):
+        """ Forces a refresh of the API index.
+        """
+        r = requests.get(self.refresh_URL)
+        if r.status_code == 200:
+            print("[Updater: refresh_API] refresh call return: {}".format(r.content))
+        return True
+
 
     def run_update(self):
         """ Runs an update.
@@ -47,6 +61,8 @@ class Updater():
                 if rows_batch:
                     clean_batch = [(row[0], row[1]["info:s3_url"]) for row in rows_batch]
                     batch_indexed = self.indexer.index_batch_sha1(clean_batch, update_id)
+                    if batch_indexed:
+                        self.has_indexed = True
                 else:
                     print("[Updater.run_update: log] Did not get any urls for this update ({}) images.".format(update_id))
                     print("[Updater.run_update: log] We were looking for the images urls in table {}.".format(self.indexer.table_sha1infos_name))
