@@ -311,9 +311,10 @@ def get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, es_ts_end, hbas
         s3url_infos_rdd_join_count = s3url_infos_rdd_join.count()
         print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_join_count is: {}".format(s3url_infos_rdd_join_count))
     else:
+        print("[get_s3url_infos_rdd_join: info] skipping join with s3url_sha1 table as requested from options.")
         # Fake a join so everything after run the same way. 
         # The real would have a SHA1 has right side value for already existing s3 URLs
-        s3url_infos_rdd_join = s3url_infos_rdd_red_count.mapValues(lambda x: (x, None))
+        s3url_infos_rdd_join = s3url_infos_rdd_red.mapValues(lambda x: (x, None))
     
     # Save rdd
     if c_options.save_inter_rdd:
@@ -332,6 +333,7 @@ def save_new_s3_url(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdr
     # invert cdr_ids_infos_rdd_new_sha1 to (s3url, sha1) and apply reduceByKey() selecting any sha1
     new_s3url_sha1_rdd = cdr_ids_infos_rdd_new_sha1.flatMap(cdrid_key_to_s3url_key_sha1_val)
     out_new_s3url_sha1_rdd = new_s3url_sha1_rdd.reduceByKey(reduce_s3_keep_one_sha1).flatMap(hbase_out_s3url_sha1)
+    print("[save_new_s3_url: info] out_new_s3url_sha1_rdd first samples look like: {}".format(out_new_s3url_sha1_rdd.take(5)))
     print("[save_new_s3_url] saving 'out_new_s3url_sha1_rdd' to HBase.")
     hbase_man_s3url_sha1_out.rdd2hbase(out_new_s3url_sha1_rdd)
     
@@ -706,7 +708,8 @@ def get_cdr_ids_infos_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_m
 
     # save to hbase
     images_ts_cdrid_rdd = es_rdd.flatMap(create_images_tuple)
-    print("[get_cdr_ids_infos_rdd] saving images_ts_cdrid_rdd to HBase.")
+    print("[get_cdr_ids_infos_rdd: info] images_ts_cdrid_rdd first samples look like: {}".format(images_ts_cdrid_rdd.take(5)))
+    print("[get_cdr_ids_infos_rdd] saving 'images_ts_cdrid_rdd' to HBase.")
     hbase_man_ts.rdd2hbase(images_ts_cdrid_rdd)
 
     min_ts_cdrid = images_ts_cdrid_rdd.min()[0].strip()
@@ -753,7 +756,8 @@ def get_cdr_ids_infos_rdd_join_sha1(basepath_save, es_man, es_ts_start, es_ts_en
     save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_count, rdd_name+"_count")
     
     # save rdd content to hbase
-    print("[get_cdr_ids_infos_rdd_join_sha1] saving cdr_ids_infos_rdd_join_sha1 to HBase.")
+    print("[get_cdr_ids_infos_rdd_join_sha1: info] cdr_ids_infos_rdd_join_sha1 first samples look like: {}".format(cdr_ids_infos_rdd_join_sha1.take(5)))
+    print("[get_cdr_ids_infos_rdd_join_sha1] saving 'cdr_ids_infos_rdd_join_sha1' to HBase.")
     hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_join_sha1.flatMap(expand_info))
 
     # save rdd to disk
@@ -861,27 +865,14 @@ def get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, es_ts_end
         print("[get_cdr_ids_infos_rdd_new_sha1: info] cdr_ids_infos_rdd_new_sha1 first samples look like: {}".format(cdr_ids_infos_rdd_new_sha1.take(5)))
         return cdr_ids_infos_rdd_new_sha1
     
-    # # we should not join if we don't have many s3url to download, as it would be faster to just download them...
-    # # if join_s3url is false actually get:
-    # if not c_options.join_s3url:
-    #     # download all images
-    #     cdr_ids_infos_rdd = get_cdr_ids_infos_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time)
-    #     cdr_ids_infos_rdd_red = cdr_ids_infos_rdd.reduceByKey(reduce_cdrid_infos)
-    #     s3url_infos_rdd = cdr_ids_infos_rdd_red.flatMap(to_s3_url_key_dict_list)
-    #     s3url_infos_rdd_red = s3url_infos_rdd.reduceByKey(reduce_s3url_infos)
-    #     # Fake a join so everything after run the same way. 
-    #     s3url_infos_rdd_with_sha1 = s3url_infos_rdd_red.mapValues(lambda x: (x,None)).flatMap(check_get_sha1_s3url)
-    #     cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_with_sha1.flatMap(s3url_dict_list_to_cdr_id_wsha1)
-    #     return cdr_ids_infos_rdd_new_sha1
-    # else:
     # get joined (actually all s3 urls of current update if not c_options.join_s3url), subtract, download images
     s3url_infos_rdd_join = get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time)
     if s3url_infos_rdd_join is not None:
         s3url_infos_rdd_with_sha1 = s3url_infos_rdd_join.filter(get_existing_joined_sha1)
         if not s3url_infos_rdd_with_sha1.isEmpty(): 
             s3url_infos_rdd_no_sha1 = s3url_infos_rdd_join.subtractByKey(s3url_infos_rdd_with_sha1)
-        else:
-            s3url_infos_rdd_no_sha1 = s3url_infos_rdd_with_sha1
+        else: # when all new s3 urls or not c_options.join_s3url
+            s3url_infos_rdd_no_sha1 = s3url_infos_rdd_join
         s3url_infos_rdd_no_sha1_count = s3url_infos_rdd_no_sha1.count()
         print("[get_cdr_ids_infos_rdd_new_sha1: info] starting to download images to get new sha1s for {} URLs.".format(s3url_infos_rdd_no_sha1_count))
         s3url_infos_rdd_new_sha1 = s3url_infos_rdd_no_sha1.partitionBy(nb_partitions).flatMap(check_get_sha1_s3url)
@@ -902,6 +893,7 @@ def get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, es_ts_end
         # save infos
         cdr_ids_infos_rdd_new_sha1_count = cdr_ids_infos_rdd_new_sha1.count()
         save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_new_sha1_count, "cdr_ids_infos_rdd_new_sha1_count")
+        print("[get_cdr_ids_infos_rdd_new_sha1: info] cdr_ids_infos_rdd_new_sha1 first samples look like: {}".format(cdr_ids_infos_rdd_new_sha1.take(5)))
         print("[get_cdr_ids_infos_rdd_new_sha1] saving 'cdr_ids_infos_rdd_new_sha1' to HBase.")
         hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_new_sha1.flatMap(expand_info))
     return cdr_ids_infos_rdd_new_sha1
