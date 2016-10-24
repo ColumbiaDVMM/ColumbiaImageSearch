@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-import datetime
+from datetime import datetime
 sys.path.append('..')
 import cu_image_search
 from cu_image_search.update import updater_hbase
