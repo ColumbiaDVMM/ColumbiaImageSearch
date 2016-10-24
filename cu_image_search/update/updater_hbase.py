@@ -2,6 +2,7 @@ import json
 import sys
 import traceback
 import requests
+from socket import timeout
 
 class Updater():
     """ This class enables updating the index of available images.
