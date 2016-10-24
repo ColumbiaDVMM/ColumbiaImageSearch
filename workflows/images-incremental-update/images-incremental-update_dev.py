@@ -561,43 +561,85 @@ def get_existing_joined_sha1(data):
 
 ##-- New images for features computation functions
 ##---------------
-def build_batch_rdd(batch_udpate, incr_update_id, batch_id):
-    import numpy as np
-    # batch_rdd should be created to be stored in hbase table update_infos
-    #update_id = "index_update_"+str(max_ts-int(time.time()*1000))+'_'+str(np.int32(np.random.random()*(10e6)))
+def build_batch_out(batch_update, incr_update_id, batch_id):
     update_id = "index_update_"+incr_update_id+'_'+str(batch_id)
     list_key = []
-    for x in batch_udpate:
+    for x in batch_update:
         list_key.append(x)
-    batch_out = [(update_id, [update_id, "info", "list_sha1s", ','.join(list_key)])]
+    return [(update_id, [update_id, "info", "list_sha1s", ','.join(list_key)])]
+
+
+def build_batch_rdd(batch_update, incr_update_id, batch_id):
+    batch_out = build_batch_out(batch_update, incr_update_id, batch_id)
     return sc.parallelize(batch_out)
+
+
+def save_new_sha1s_for_index_update_batchwrite(new_sha1s_rdd, hbase_man_update_out, batch_update_size, incr_update_id, total_batches, nb_batchwrite=32):
+    start_save_time = time.time()
+    iterator = new_sha1s_rdd.collect()
+    batch_update = []
+    batch_out = []
+    batch_id = 0
+    push_batches = False
+    for x in iterator:
+        batch_update.append(x)
+        if len(batch_update)==batch_update_size:
+            if batch_id > 0 and batch_id % nb_batchwrite == 0:
+                push_batches = True
+            try:
+                print("[save_new_sha1s_for_index_update_batchwrite] preparing batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_update[:10]))
+                batch_out.extend(build_batch_out(batch_update, incr_update_id, batch_id))
+                batch_id += 1
+            except Exception as inst:
+                print("[save_new_sha1s_for_index_update_batchwrite] Could not create/save batch {}. Error was: {}".format(batch_id, inst))
+            batch_update = []
+            if push_batches:
+                batch_out_rdd = sc.parallelize(batch_out)
+                print("[save_new_sha1s_for_index_update_batchwrite] saving {} batches of {} new images to HBase.".format(len(batch_out), batch_update_size))
+                hbase_man_update_out.rdd2hbase(batch_out_rdd)
+                batch_out = []
+
+    # last batch
+    if batch_update:
+        try:    
+            print("[save_new_sha1s_for_index_update_batchwrite] will prepare and save last batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_update[:10]))
+            batch_out.extend(build_batch_out(batch_update, incr_update_id, batch_id))
+            batch_out_rdd = sc.parallelize(batch_out)
+            print("[save_new_sha1s_for_index_update_batchwrite] saving {} batches of {} new images to HBase.".format(len(batch_out), batch_update_size))
+            hbase_man_update_out.rdd2hbase(batch_out_rdd)
+            #batch_rdd.unpersist()
+        except Exception as inst:
+            print("[save_new_sha1s_for_index_update_batchwrite] Could not create/save batch {}. Error was: {}".format(batch_id, inst))
+    print("[save_new_sha1s_for_index_update_batchwrite] DONE in {}s".format(time.time() - start_save_time))
 
 
 def save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_update_size, incr_update_id, total_batches):
     start_save_time = time.time()
-    iterator = new_sha1s_rdd.toLocalIterator()
-    batch_udpate = []
+    # this crashes?
+    #iterator = new_sha1s_rdd.toLocalIterator()
+    iterator = new_sha1s_rdd.collect()
+    batch_update = []
     batch_id = 0
     for x in iterator:
-        batch_udpate.append(x)
-        if len(batch_udpate)==batch_update_size:
+        batch_update.append(x)
+        if len(batch_update)==batch_update_size:
             try:
-                print("[save_new_sha1s_for_index_update] will save batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_udpate[:10]))
-                batch_rdd = build_batch_rdd(batch_udpate, incr_update_id, batch_id)
+                print("[save_new_sha1s_for_index_update] will save batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_update[:10]))
+                batch_rdd = build_batch_rdd(batch_update, incr_update_id, batch_id)
                 batch_id += 1
                 print("[save_new_sha1s_for_index_update] saving batch {}/{} of {} new images to HBase.".format(batch_id, total_batches, batch_update_size))
                 hbase_man_update_out.rdd2hbase(batch_rdd)
                 #batch_rdd.unpersist()
             except Exception as inst:
                 print("[save_new_sha1s_for_index_update] Could not create/save batch {}. Error was: {}".format(batch_id, inst))
-            batch_udpate = []
+            batch_update = []
     # last batch
-    if batch_udpate:
+    if batch_update:
         try:    
-            print("[save_new_sha1s_for_index_update] will save batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_udpate[:10]))
-            batch_rdd = build_batch_rdd(batch_udpate, incr_update_id, batch_id)
+            print("[save_new_sha1s_for_index_update] will save batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_update[:10]))
+            batch_rdd = build_batch_rdd(batch_update, incr_update_id, batch_id)
             batch_id += 1
-            print("[save_new_sha1s_for_index_update] saving batch {}/{} of {} new images to HBase.".format(batch_id, total_batches, len(batch_udpate)))
+            print("[save_new_sha1s_for_index_update] saving batch {}/{} of {} new images to HBase.".format(batch_id, total_batches, len(batch_update)))
             hbase_man_update_out.rdd2hbase(batch_rdd)
             #batch_rdd.unpersist()
         except Exception as inst:
@@ -635,8 +677,9 @@ def save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, inc
     # save by batch in HBase to let the API know it needs to index these images    
     print("[save_new_images_for_index] start saving by batches of {} new images.".format(batch_update_size))
     # crashes in 'save_new_sha1s_for_index_update'?
-    save_new_sha1s_for_index_update(new_images_to_index_partitioned.keys(), hbase_man_update_out, batch_update_size, incr_update_id, total_batches)
-    #save_new_sha1s_for_index_update(new_images_to_index, hbase_man_update_out, batch_update_size, incr_update_id, total_batches)
+    #save_new_sha1s_for_index_update(new_images_to_index_partitioned.keys(), hbase_man_update_out, batch_update_size, incr_update_id, total_batches)
+    save_new_sha1s_for_index_update_batchwrite(new_images_to_index_partitioned.keys(), hbase_man_update_out, batch_update_size, incr_update_id, total_batches)
+    
 
 ##---------------
 ##-- END New images for features computation functions

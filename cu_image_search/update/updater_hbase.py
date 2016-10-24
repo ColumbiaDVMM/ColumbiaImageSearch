@@ -69,6 +69,9 @@ class Updater():
             else:
                 print("[Updater.run_update: log] Nothing to update!")
             # when done mark update_id as processed.
+        except timeout:
+            print("[Updater.run_update] caught timeout error or TTransportException. Trying to refresh indexer connection pool.")
+            self.indexer.pool = happybase.ConnectionPool(size=self.indexer.nb_threads,host=self.indexer.hbase_host)
         except Exception as inst:
             print "[Updater.run_udpate: error] {}".format(inst)
             exc_type, exc_value, exc_traceback = sys.exc_info()
