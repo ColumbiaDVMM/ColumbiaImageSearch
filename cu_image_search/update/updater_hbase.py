@@ -2,7 +2,6 @@ import json
 import sys
 import traceback
 import requests
-from socket import timeout
 
 class Updater():
     """ This class enables updating the index of available images.
@@ -49,30 +48,25 @@ class Updater():
     def run_update(self):
         """ Runs an update.
         """
-        try:
-            # needs to read table 'escorts_images_updates', rows starting with 'index_update_' and not marked as indexed.
-            update_id, str_list_sha1s = self.indexer.get_next_batch()
-            if update_id:
-                list_sha1s = str_list_sha1s.split(',')
-                print("[Updater.run_update: log] Update {} has {} images.".format(update_id, len(list_sha1s)))
-                # also get 'info:image' 'info:featnorm_cu', and 'info:hash256_cu' or all self.extractions_columns
-                rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:s3_url"])
-                # deal with precomputed features (and hashcodes)
+        # needs to read table 'escorts_images_updates', rows starting with 'index_update_' and not marked as indexed.
+        update_id, str_list_sha1s = self.indexer.get_next_batch()
+        if update_id:
+            list_sha1s = str_list_sha1s.split(',')
+            print("[Updater.run_update: log] Update {} has {} images.".format(update_id, len(list_sha1s)))
+            # also get 'info:image' 'info:featnorm_cu', and 'info:hash256_cu' or all self.extractions_columns
+            rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:s3_url"])
+            # deal with precomputed features (and hashcodes)
 
-                if rows_batch:
-                    clean_batch = [(row[0], row[1]["info:s3_url"]) for row in rows_batch]
-                    batch_indexed = self.indexer.index_batch_sha1(clean_batch, update_id)
-                    if batch_indexed:
-                        self.has_indexed = True
-                else:
-                    print("[Updater.run_update: log] Did not get any urls for this update ({}) images.".format(update_id))
-                    print("[Updater.run_update: log] We were looking for the images urls in table {}.".format(self.indexer.table_sha1infos_name))
+            if rows_batch:
+                clean_batch = [(row[0], row[1]["info:s3_url"]) for row in rows_batch]
+                batch_indexed = self.indexer.index_batch_sha1(clean_batch, update_id)
+                if batch_indexed:
+                    self.has_indexed = True
             else:
-                print("[Updater.run_update: log] Nothing to update!")
-            # when done mark update_id as processed.
-        except timeout:
-            print("[Updater.run_update] caught timeout error or TTransportException. Trying to refresh indexer connection pool.")
-            self.indexer.pool = happybase.ConnectionPool(size=self.indexer.nb_threads,host=self.indexer.hbase_host)
+                print("[Updater.run_update: log] Did not get any urls for this update ({}) images.".format(update_id))
+                print("[Updater.run_update: log] We were looking for the images urls in table {}.".format(self.indexer.table_sha1infos_name))
+        else:
+            print("[Updater.run_update: log] Nothing to update!")
         except Exception as inst:
             print "[Updater.run_udpate: error] {}".format(inst)
             exc_type, exc_value, exc_traceback = sys.exc_info()

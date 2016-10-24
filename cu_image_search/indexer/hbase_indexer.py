@@ -623,18 +623,23 @@ class HBaseIndexer(GenericIndexer):
 
         :returns (update_id, list_sha1s): returns a batch to be indexed.
         """
-        if not self.index_batches:
-            with self.pool.connection() as connection:
-                table_updateinfos = connection.table(self.table_updateinfos_name)
-                for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~'):
-                    if "info:indexed" not in row[1] and 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
-                        self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
-        if self.index_batches:
-            batch = self.index_batches.pop()
-        else:
-            # we could look at the one marked as 'info:started' if they are not finished
-            # but started from a long time ago in this case.
-            batch = (None, None)
+        try:
+            if not self.index_batches:
+                with self.pool.connection() as connection:
+                    table_updateinfos = connection.table(self.table_updateinfos_name)
+                    for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~'):
+                        if "info:indexed" not in row[1] and 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
+                            self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
+            if self.index_batches:
+                batch = self.index_batches.pop()
+            else:
+                # we could look at the one marked as 'info:started' if they are not finished
+                # but started from a long time ago in this case.
+                batch = (None, None)
+        except timeout:
+            print("[HBaseIndexer.get_next_batch] caught timeout error or TTransportException. Trying to refresh connection pool.")
+            self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
+            return self.get_next_batch()
         return batch
 
 
