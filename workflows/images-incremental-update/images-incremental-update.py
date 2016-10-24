@@ -9,15 +9,18 @@ import sys
 print(sys.version)
 import subprocess
 
+dev_release_suffix = "_release"
+
 from optparse import OptionParser
 from pyspark import SparkContext, SparkConf, StorageLevel
 from elastic_manager import ES
 from hbase_manager import HbaseManager
 
-# debugging
-debug = True
+# deprecated, now uptonow option
+#query_ts_minmax = True # Otherwise get everything after es_ts_start
 day_gap = 86400000 # One day
-ts_gap = 10000000
+ts_gap = day_gap
+#ts_gap = 10000000
 #ts_gap = 10000
 
 # default settings
@@ -253,7 +256,7 @@ def save_s3url_infos_rdd_join(s3url_infos_rdd_join, hbase_man_update_out, incr_u
         print("[save_s3url_infos_rdd_join: caught error] could not save rdd at {}, error was {}.".format(s3url_infos_rdd_join_path, inst))
 
 
-def get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time):
+def get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time):
     rdd_name = "s3url_infos_rdd_join"
     s3url_infos_rdd_join_path = basepath_save + "/" + rdd_name
     # always try to load from disk
@@ -263,7 +266,7 @@ def get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, hbase_man_updat
         return s3url_infos_rdd_join
 
     # get dependency cdr_ids_infos_rdd
-    cdr_ids_infos_rdd = get_cdr_ids_infos_rdd(basepath_save, es_man, es_ts_start, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time)
+    cdr_ids_infos_rdd = get_cdr_ids_infos_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time)
     
     if cdr_ids_infos_rdd is None:
         print("[get_s3url_infos_rdd_join] cdr_ids_infos_rdd is empty.")
@@ -283,43 +286,45 @@ def get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, hbase_man_updat
     s3url_infos_rdd_red_count = s3url_infos_rdd_red.count()
     print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_red_count is: {}".format(s3url_infos_rdd_red_count))
     print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_red first samples looks like: {}".format(s3url_infos_rdd_red.take(10)))
-
-    print("[get_s3url_infos_rdd_join] starting to read from s3url_sha1 HBase table.")
-    s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().flatMap(clean_up_s3url_sha1)    
-
-    # do not save to HDFS for every update
-    #try:
-        # try to reload from disk
-    #    s3url_sha1_rdd = sc.sequenceFile(basepath_save + "/s3url_sha1_rdd")
-    #except Exception as inst:
-        # read s3url_sha1 table into s3url_sha1 to get sha1 here without downloading images
-        #print("[get_s3url_infos_rdd_join] starting to read from s3url_sha1 HBase table.")
-        #s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().flatMap(clean_up_s3url_sha1)
-        #try:
-        #    s3url_sha1_rdd.saveAsSequenceFile(basepath_save + "/s3url_sha1_rdd")
-        #except Exception as inst:
-        #    pass
-    #s3url_sha1_rdd_count = s3url_sha1_rdd.count()
-    #print("[get_s3url_infos_rdd_join: info] s3url_sha1_rdd_count is: {}".format(s3url_sha1_rdd_count))
-
-    s3url_sha1_rdd_partitioned = s3url_sha1_rdd.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
-    s3url_infos_rdd_red_partitioned = s3url_infos_rdd_red.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)  
-    #print("[get_s3url_infos_rdd_join] start running 's3url_infos_rdd_red.cogroup(s3url_sha1_rdd)'.")
-    #s3url_infos_rdd_join = s3url_infos_rdd_red_partitioned.cogroup(s3url_sha1_rdd_partitioned)
-    print("[get_s3url_infos_rdd_join] start running 's3url_infos_rdd_red.leftOuterJoin(s3url_sha1_rdd)'.")
-    s3url_infos_rdd_join = s3url_infos_rdd_red_partitioned.leftOuterJoin(s3url_sha1_rdd_partitioned)
-    s3url_infos_rdd_join_count = s3url_infos_rdd_join.count()
-    print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_join_count is: {}".format(s3url_infos_rdd_join_count))
     
-    # save rdd.
-    if save_inter_rdd:
+    if c_options.join_s3url:
+        try:
+            # try to reload from disk
+            s3url_sha1_rdd = sc.sequenceFile(basepath_save + "/s3url_sha1_rdd")
+        except Exception as inst:
+            # read s3url_sha1 table into s3url_sha1 to get sha1 here without downloading images
+            print("[get_s3url_infos_rdd_join] starting to read from s3url_sha1 HBase table.")
+            s3url_sha1_rdd = hbase_man_s3url_sha1_in.read_hbase_table().flatMap(clean_up_s3url_sha1)
+            # never save that anymore, too big.
+            # try:
+            #     s3url_sha1_rdd.saveAsSequenceFile(basepath_save + "/s3url_sha1_rdd")
+            # except Exception as inst:
+            #     pass
+        s3url_sha1_rdd_count = s3url_sha1_rdd.count()
+        print("[get_s3url_infos_rdd_join: info] s3url_sha1_rdd_count is: {}".format(s3url_sha1_rdd_count))
+        s3url_sha1_rdd_partitioned = s3url_sha1_rdd.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
+        s3url_infos_rdd_red_partitioned = s3url_infos_rdd_red.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)  
+        #print("[get_s3url_infos_rdd_join] start running 's3url_infos_rdd_red.cogroup(s3url_sha1_rdd)'.")
+        #s3url_infos_rdd_join = s3url_infos_rdd_red_partitioned.cogroup(s3url_sha1_rdd_partitioned)
+        print("[get_s3url_infos_rdd_join] start running 's3url_infos_rdd_red.leftOuterJoin(s3url_sha1_rdd)'.")
+        s3url_infos_rdd_join = s3url_infos_rdd_red_partitioned.leftOuterJoin(s3url_sha1_rdd_partitioned)
+        s3url_infos_rdd_join_count = s3url_infos_rdd_join.count()
+        print("[get_s3url_infos_rdd_join: info] s3url_infos_rdd_join_count is: {}".format(s3url_infos_rdd_join_count))
+    else:
+        print("[get_s3url_infos_rdd_join: info] skipping join with s3url_sha1 table as requested from options.")
+        # Fake a join so everything after run the same way. 
+        # The real would have a SHA1 has right side value for already existing s3 URLs
+        s3url_infos_rdd_join = s3url_infos_rdd_red.mapValues(lambda x: (x, None))
+    
+    # Save rdd
+    if c_options.save_inter_rdd:
         save_s3url_infos_rdd_join(s3url_infos_rdd_join, hbase_man_update_out, incr_update_id, s3url_infos_rdd_join_path, "s3url_infos_rdd_join_path")
         
     return s3url_infos_rdd_join
 
-def save_new_s3_url(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd):
+def save_new_s3_url(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options):
     ## save out newly computed s3url
-    cdr_ids_infos_rdd_new_sha1 = get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd)
+    cdr_ids_infos_rdd_new_sha1 = get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options)
     if cdr_ids_infos_rdd_new_sha1 is None:
         print("[save_new_s3_url] cdr_ids_infos_rdd_new_sha1 is empty.")
         save_info_incremental_update(hbase_man_update_out, incr_update_id, 0, "new_s3url_sha1_rdd_count")
@@ -328,6 +333,7 @@ def save_new_s3_url(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, 
     # invert cdr_ids_infos_rdd_new_sha1 to (s3url, sha1) and apply reduceByKey() selecting any sha1
     new_s3url_sha1_rdd = cdr_ids_infos_rdd_new_sha1.flatMap(cdrid_key_to_s3url_key_sha1_val)
     out_new_s3url_sha1_rdd = new_s3url_sha1_rdd.reduceByKey(reduce_s3_keep_one_sha1).flatMap(hbase_out_s3url_sha1)
+    print("[save_new_s3_url: info] out_new_s3url_sha1_rdd first samples look like: {}".format(out_new_s3url_sha1_rdd.take(5)))
     print("[save_new_s3_url] saving 'out_new_s3url_sha1_rdd' to HBase.")
     hbase_man_s3url_sha1_out.rdd2hbase(out_new_s3url_sha1_rdd)
     
@@ -599,7 +605,7 @@ def save_new_sha1s_for_index_update(new_sha1s_rdd, hbase_man_update_out, batch_u
     print("[save_new_sha1s_for_index_update] DONE in {}s".format(time.time() - start_save_time))
 
 
-def save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, save_inter_rdd, new_images_to_index_str):
+def save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, c_options, new_images_to_index_str):
     # save images without cu_feat_id that have not been discarded for indexing
     new_images_to_index = out_rdd.filter(lambda x: "info:image_discarded" not in x[1] and "info:cu_feat_id" not in x[1])
     
@@ -614,16 +620,17 @@ def save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, inc
     new_images_to_index_partitioned = new_images_to_index.partitionBy(total_batches)
 
     # save to HDFS too
-    try:
-        new_images_to_index_out_path = basepath_save + "/" + new_images_to_index_str
-        if not hdfs_file_exist(new_images_to_index_out_path):
-            print("[save_new_images_for_index] saving rdd to {}.".format(new_images_to_index_out_path))
-            new_images_to_index_partitioned.keys().saveAsTextFile(new_images_to_index_out_path)
-        else:
-            print("[save_new_images_for_index] skipped saving rdd to {}. File already exists.".format(new_images_to_index_out_path))
-        save_info_incremental_update(hbase_man_update_out, incr_update_id, new_images_to_index_out_path, new_images_to_index_str+"_path")
-    except Exception as inst:
-        print("[save_new_images_for_index] could not save rdd 'new_images_to_index' at {}, error was {}.".format(new_images_to_index_out_path, inst))
+    if c_options.save_inter_rdd:
+        try:
+            new_images_to_index_out_path = basepath_save + "/" + new_images_to_index_str
+            if not hdfs_file_exist(new_images_to_index_out_path):
+                print("[save_new_images_for_index] saving rdd to {}.".format(new_images_to_index_out_path))
+                new_images_to_index_partitioned.keys().saveAsTextFile(new_images_to_index_out_path)
+            else:
+                print("[save_new_images_for_index] skipped saving rdd to {}. File already exists.".format(new_images_to_index_out_path))
+            save_info_incremental_update(hbase_man_update_out, incr_update_id, new_images_to_index_out_path, new_images_to_index_str+"_path")
+        except Exception as inst:
+            print("[save_new_images_for_index] could not save rdd 'new_images_to_index' at {}, error was {}.".format(new_images_to_index_out_path, inst))
 
     # save by batch in HBase to let the API know it needs to index these images    
     print("[save_new_images_for_index] start saving by batches of {} new images.".format(batch_update_size))
@@ -667,7 +674,7 @@ def amandeep_dict_str_to_out(x):
 
 ##-- Incremental update get RDDs main functions
 ##---------------
-def get_cdr_ids_infos_rdd(basepath_save, es_man, es_ts_start, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time):
+def get_cdr_ids_infos_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time):
     rdd_name = "cdr_ids_infos_rdd"
     # always try to load from disk
     cdr_ids_infos_rdd = load_rdd_json(basepath_save, rdd_name)
@@ -675,11 +682,12 @@ def get_cdr_ids_infos_rdd(basepath_save, es_man, es_ts_start, hbase_man_update_o
         print("[get_cdr_ids_infos_rdd: info] cdr_ids_infos_rdd loaded rdd from {}.".format(basepath_save + "/" + rdd_name))
         return cdr_ids_infos_rdd
 
-    if debug:
-        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+", \"lt\": "+str(es_ts_start+ts_gap)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+    if not c_options.uptonow and es_ts_end is not None:
+        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+", \"lt\": "+str(es_ts_end)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+        print("[get_cdr_ids_infos_rdd] query CDR for one day with: {}".format(query))
     else:
         query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
-    print("[get_cdr_ids_infos_rdd] query CDR with: {}".format(query))
+        print("[get_cdr_ids_infos_rdd] query CDR UP TO NOW with: {}".format(query))
     
     # get incremental update
     es_rdd_nopart = es_man.es2rdd(query)
@@ -700,7 +708,8 @@ def get_cdr_ids_infos_rdd(basepath_save, es_man, es_ts_start, hbase_man_update_o
 
     # save to hbase
     images_ts_cdrid_rdd = es_rdd.flatMap(create_images_tuple)
-    print("[get_cdr_ids_infos_rdd] saving images_ts_cdrid_rdd to HBase.")
+    print("[get_cdr_ids_infos_rdd: info] images_ts_cdrid_rdd first samples look like: {}".format(images_ts_cdrid_rdd.take(5)))
+    print("[get_cdr_ids_infos_rdd] saving 'images_ts_cdrid_rdd' to HBase.")
     hbase_man_ts.rdd2hbase(images_ts_cdrid_rdd)
 
     min_ts_cdrid = images_ts_cdrid_rdd.min()[0].strip()
@@ -716,12 +725,12 @@ def get_cdr_ids_infos_rdd(basepath_save, es_man, es_ts_start, hbase_man_update_o
 
     cdr_ids_infos_rdd = es_rdd.flatMap(to_cdr_id_dict)
     # save rdd
-    if save_inter_rdd:
+    if c_options.save_inter_rdd:
         save_rdd_json(basepath_save, rdd_name, cdr_ids_infos_rdd, incr_update_id, hbase_man_update_out)
     return cdr_ids_infos_rdd
 
 
-def get_cdr_ids_infos_rdd_join_sha1(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd):
+def get_cdr_ids_infos_rdd_join_sha1(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options):
     rdd_name = "cdr_ids_infos_rdd_join_sha1"
     # always try to load from disk
     cdr_ids_infos_rdd_join_sha1 = load_rdd_json(basepath_save, rdd_name)
@@ -730,7 +739,7 @@ def get_cdr_ids_infos_rdd_join_sha1(basepath_save, es_man, es_ts_start, hbase_ma
         return cdr_ids_infos_rdd_join_sha1
 
     # get dependency s3url_infos_rdd_join
-    s3url_infos_rdd_join = get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time)
+    s3url_infos_rdd_join = get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time)
     if s3url_infos_rdd_join is None:
         print("[get_cdr_ids_infos_rdd_join_sha1] s3url_infos_rdd_join is empty.")
         save_info_incremental_update(hbase_man_update_out, incr_update_id, 0, rdd_name+"_count")
@@ -747,16 +756,17 @@ def get_cdr_ids_infos_rdd_join_sha1(basepath_save, es_man, es_ts_start, hbase_ma
     save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_join_sha1_count, rdd_name+"_count")
     
     # save rdd content to hbase
-    print("[get_cdr_ids_infos_rdd_join_sha1] saving cdr_ids_infos_rdd_join_sha1 to HBase.")
+    print("[get_cdr_ids_infos_rdd_join_sha1: info] cdr_ids_infos_rdd_join_sha1 first samples look like: {}".format(cdr_ids_infos_rdd_join_sha1.take(5)))
+    print("[get_cdr_ids_infos_rdd_join_sha1] saving 'cdr_ids_infos_rdd_join_sha1' to HBase.")
     hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_join_sha1.flatMap(expand_info))
 
     # save rdd to disk
-    if save_inter_rdd:
+    if c_options.save_inter_rdd:
         save_rdd_json(basepath_save, rdd_name, cdr_ids_infos_rdd_join_sha1, incr_update_id, hbase_man_update_out)
     return cdr_ids_infos_rdd_join_sha1
 
 
-def get_update_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd):
+def get_update_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options):
     rdd_name = "update_join_rdd"
     # always try to load from disk
     update_join_rdd = load_rdd_json(basepath_save, rdd_name)
@@ -765,7 +775,7 @@ def get_update_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_o
         return update_join_rdd
 
     # we need cdr_ids_infos_rdd_join_sha1
-    cdr_ids_infos_rdd_join_sha1 = get_cdr_ids_infos_rdd_join_sha1(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd)
+    cdr_ids_infos_rdd_join_sha1 = get_cdr_ids_infos_rdd_join_sha1(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options)
     if cdr_ids_infos_rdd_join_sha1 is None:
         print("[get_update_join_rdd] cdr_ids_infos_rdd_join_sha1 is empty.")
         save_info_incremental_update(hbase_man_update_out, incr_update_id, 0, rdd_name+"_count")
@@ -782,19 +792,19 @@ def get_update_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_o
     save_info_incremental_update(hbase_man_update_out, incr_update_id, update_join_rdd_count, rdd_name+"_count")
 
     # save to disk
-    if save_inter_rdd:
+    if c_options.save_inter_rdd:
         save_rdd_json(basepath_save, rdd_name, update_join_rdd, incr_update_id, hbase_man_update_out)
     return update_join_rdd
 
 
-def compute_out_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time):
+def compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time):
     ## check if we not already have computed this join step of this update
     out_join_rdd_path = basepath_save + "/out_join_rdd"
     out_join_rdd_amandeep = None
     update_join_rdd_partitioned = None
     sha1_infos_rdd_json = None
 
-    if restart:
+    if c_options.restart:
         try:
             if hdfs_file_exist(out_join_rdd_path):
                 out_join_rdd_amandeep = sc.sequenceFile(out_join_rdd_path).mapValues(amandeep_dict_str_to_out)
@@ -806,7 +816,8 @@ def compute_out_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_
             return out_join_rdd_amandeep
 
     ## try to reload rdds that could have already been computed, compute chain of dependencies if needed 
-    update_join_rdd = get_update_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd)
+    # propagate down es_ts_end
+    update_join_rdd = get_update_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options)
     if update_join_rdd is None:
         print("[compute_out_join_rdd] update_join_rdd is empty.")
     else:
@@ -822,7 +833,7 @@ def compute_out_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_
             out_join_rdd_amandeep = update_join_rdd
 
     ## save rdd
-    if save_inter_rdd: 
+    if c_options.save_inter_rdd: 
         if out_join_rdd_amandeep is None or out_join_rdd_amandeep.isEmpty(): 
             save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", "out_join_rdd_path")
         else:
@@ -844,7 +855,7 @@ def compute_out_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_
     return out_join_rdd_amandeep
 
 
-def get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd):
+def get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options):
     ## for not matching s3url i.e. missing sha1
     rdd_name = "cdr_ids_infos_rdd_new_sha1"
     # always try to load from disk
@@ -854,14 +865,17 @@ def get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, hbase_man
         print("[get_cdr_ids_infos_rdd_new_sha1: info] cdr_ids_infos_rdd_new_sha1 first samples look like: {}".format(cdr_ids_infos_rdd_new_sha1.take(5)))
         return cdr_ids_infos_rdd_new_sha1
     
-    # issue with reading from s3url_sha1. actually issue with leftJoin
-    s3url_infos_rdd_join = get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time)
+    # get joined (actually all s3 urls of current update if not c_options.join_s3url), subtract, download images
+    s3url_infos_rdd_join = get_s3url_infos_rdd_join(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time)
     if s3url_infos_rdd_join is not None:
         s3url_infos_rdd_with_sha1 = s3url_infos_rdd_join.filter(get_existing_joined_sha1)
-        s3url_infos_rdd_no_sha1 = s3url_infos_rdd_join.subtractByKey(s3url_infos_rdd_with_sha1).partitionBy(nb_partitions)
+        if not s3url_infos_rdd_with_sha1.isEmpty(): 
+            s3url_infos_rdd_no_sha1 = s3url_infos_rdd_join.subtractByKey(s3url_infos_rdd_with_sha1)
+        else: # when all new s3 urls or not c_options.join_s3url
+            s3url_infos_rdd_no_sha1 = s3url_infos_rdd_join
         s3url_infos_rdd_no_sha1_count = s3url_infos_rdd_no_sha1.count()
         print("[get_cdr_ids_infos_rdd_new_sha1: info] starting to download images to get new sha1s for {} URLs.".format(s3url_infos_rdd_no_sha1_count))
-        s3url_infos_rdd_new_sha1 = s3url_infos_rdd_no_sha1.flatMap(check_get_sha1_s3url)
+        s3url_infos_rdd_new_sha1 = s3url_infos_rdd_no_sha1.partitionBy(nb_partitions).flatMap(check_get_sha1_s3url)
         cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_new_sha1.flatMap(s3url_dict_list_to_cdr_id_wsha1)
     else:
         cdr_ids_infos_rdd_new_sha1 = None
@@ -874,17 +888,18 @@ def get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, hbase_man
     else:
         # save rdd
         print("[get_cdr_ids_infos_rdd_new_sha1: info] cdr_ids_infos_rdd_new_sha1 first samples look like: {}".format(cdr_ids_infos_rdd_new_sha1.take(5)))
-        if save_inter_rdd:
+        if c_options.save_inter_rdd:
             save_rdd_json(basepath_save, "cdr_ids_infos_rdd_new_sha1", cdr_ids_infos_rdd_new_sha1, incr_update_id, hbase_man_update_out)
         # save infos
         cdr_ids_infos_rdd_new_sha1_count = cdr_ids_infos_rdd_new_sha1.count()
         save_info_incremental_update(hbase_man_update_out, incr_update_id, cdr_ids_infos_rdd_new_sha1_count, "cdr_ids_infos_rdd_new_sha1_count")
+        print("[get_cdr_ids_infos_rdd_new_sha1: info] cdr_ids_infos_rdd_new_sha1 first samples look like: {}".format(cdr_ids_infos_rdd_new_sha1.take(5)))
         print("[get_cdr_ids_infos_rdd_new_sha1] saving 'cdr_ids_infos_rdd_new_sha1' to HBase.")
         hbase_man_cdrinfos_out.rdd2hbase(cdr_ids_infos_rdd_new_sha1.flatMap(expand_info))
     return cdr_ids_infos_rdd_new_sha1
 
 
-def get_update_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd):
+def get_update_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options):
     rdd_name = "update_rdd"
     # always try to load from disk
     update_rdd = load_rdd_json(basepath_save, rdd_name)
@@ -892,7 +907,7 @@ def get_update_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, h
         print("[get_update_rdd: info] update_rdd loaded rdd from {}.".format(basepath_save + "/" + rdd_name))
         return update_rdd
 
-    cdr_ids_infos_rdd_new_sha1 = get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd)
+    cdr_ids_infos_rdd_new_sha1 = get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options)
     if cdr_ids_infos_rdd_new_sha1 is None:
         print("[get_update_rdd] cdr_ids_infos_rdd_new_sha1 is empty.")
         save_info_incremental_update(hbase_man_update_out, incr_update_id, 0, rdd_name+"_count")
@@ -906,12 +921,12 @@ def get_update_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, h
     save_info_incremental_update(hbase_man_update_out, incr_update_id, update_rdd_count, "update_rdd_count")
 
     # save to disk
-    if save_inter_rdd:
+    if c_options.save_inter_rdd:
         save_rdd_json(basepath_save, rdd_name, update_rdd, incr_update_id, hbase_man_update_out)
     return update_rdd
 
 
-def compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time):
+def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time):
     ## check if we not already have computed this join step of this update
     rdd_name = "out_rdd"
     out_rdd_path = basepath_save + "/" + rdd_name
@@ -919,7 +934,7 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, 
     update_rdd_partitioned = None
     sha1_infos_rdd_json = None
 
-    if restart:
+    if c_options.restart:
         try:
             if hdfs_file_exist(out_rdd_path):
                 out_rdd_amandeep = sc.sequenceFile(out_rdd_path).mapValues(amandeep_dict_str_to_out)
@@ -931,7 +946,8 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, 
             return out_rdd_amandeep
 
     ## try to reload rdds that could have already been computed, compute chain of dependencies if needed 
-    update_rdd = get_update_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd)
+    # propagate down es_ts_end
+    update_rdd = get_update_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options)
     if update_rdd is None:
         print("[compute_out_rdd] update_rdd is empty.")
         save_info_incremental_update(hbase_man_update_out, incr_update_id, 0, rdd_name+"_count")
@@ -942,14 +958,14 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, 
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
     # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
-        update_rdd_partitioned = update_rdd.partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
-        sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions).persist(StorageLevel.MEMORY_AND_DISK)
+        update_rdd_partitioned = update_rdd.partitionBy(nb_partitions)
+        sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions)
         join_rdd = update_rdd_partitioned.leftOuterJoin(sha1_infos_rdd_json).flatMap(flatten_leftjoin)
         out_rdd_amandeep = join_rdd
     else: # first update
         out_rdd_amandeep = update_rdd
     # save rdd
-    if save_inter_rdd:
+    if c_options.save_inter_rdd:
         try:
             if not hdfs_file_exist(out_rdd_path):
                 out_rdd_save = out_rdd_amandeep.filter(lambda x: "info:image_discarded" not in x[1]).map(out_to_amandeep_dict_str)
@@ -966,7 +982,7 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, 
         except Exception as inst:
             print("[compute_out_rdd] could not save rdd at {}, error was {}.".format(out_rdd_path, inst))
     ## write out rdd of new images 
-    out_rdd = out_rdd_amandeep.flatMap(split_sha1_kv_filter_max_images_discarded).persist(StorageLevel.MEMORY_AND_DISK)
+    out_rdd = out_rdd_amandeep.flatMap(split_sha1_kv_filter_max_images_discarded)
     if not out_rdd.isEmpty():
         print("[compute_out_rdd] saving 'out_rdd' to sha1_infos HBase table.")
         hbase_man_sha1infos_out.rdd2hbase(out_rdd)
@@ -978,24 +994,34 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, 
 
 
 
-def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_in, hbase_man_update_out, nb_partitions, c_options):
-    # read options
+def incremental_update(es_man, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_out, nb_partitions, c_options):
+    
+    # We should query to get all data from LAST day
+    print("Will process full day before {}".format(c_options.day_to_process))
+    start_date = dateutil.parser.parse(c_options.day_to_process)
+    # es_ts_end could be set to None if uptonow was set to True
+    # ES timestamp in milliseconds
+    es_ts_end = calendar.timegm(start_date.utctimetuple())*1000
+    es_ts_start = es_ts_end - day_gap
+    print("Will query CDR from {} to {}".format(es_ts_start, es_ts_end))
+    # We should propagate down es_ts_start AND es_ts_end
+
     restart = c_options.restart
+    save_inter_rdd = c_options.save_inter_rdd
     identifier = c_options.identifier
     day_to_process = c_options.day_to_process
-    save_inter_rdd = c_options.save_inter_rdd
     batch_update_size = c_options.batch_update_size
-
+    
     
     start_time = time.time()
     
     ## set incr_update_id
-    if restart:
-        if not identifier:
+    if c_options.restart:
+        if not c_options.identifier:
             raise ValueError('[incremental_update: error] Trying to restart without specifying update identifier.')
-        incr_update_id = identifier
+        incr_update_id = c_options.identifier
     else:
-        if day_to_process:
+        if c_options.day_to_process:
             incr_update_id = datetime.date.fromtimestamp((es_ts_start)/1000).isoformat()
         else:
             incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
@@ -1003,20 +1029,21 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
     
     basepath_save = '/user/skaraman/data/images_incremental_update/'+incr_update_id
     
-    ## compute update for s3 urls we already now
-    out_join_rdd = compute_out_join_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time) 
-    ## save potential new images in out_join_rdd by batch of 10000 to be indexed? 
-    # They should have been indexed the first time they have been seen... But download could have failed etc.
-    # Might be good to retry image without cu_feat_id here when indexing has catched up
-    #save_new_images_for_index(out_join_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, "new_images_to_index_join")
+    if c_options.join_s3url:
+        ## compute update for s3 urls we already now
+        out_join_rdd = compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time) 
+        ## save potential new images in out_join_rdd by batch of 10000 to be indexed? 
+        # They should have been indexed the first time they have been seen... But download could have failed etc.
+        # Might be good to retry image without cu_feat_id here when indexing has catched up
+        #save_new_images_for_index(out_join_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, "new_images_to_index_join")
     
     ## compute update for new s3 urls
-    out_rdd = compute_out_rdd(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd, start_time) 
+    out_rdd = compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time) 
 
     if out_rdd is not None and not out_rdd.isEmpty():
-        save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, save_inter_rdd, "new_images_to_index")
+        save_new_images_for_index(basepath_save, out_rdd, hbase_man_update_out, incr_update_id, batch_update_size, c_options, "new_images_to_index")
 
-    save_new_s3_url(basepath_save, es_man, es_ts_start, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, restart, save_inter_rdd)
+    save_new_s3_url(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options)
 
     update_elapsed_time = time.time() - start_time 
     save_info_incremental_update(hbase_man_update_out, incr_update_id, str(update_elapsed_time), "update_elapsed_time")
@@ -1025,26 +1052,34 @@ def incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out
 ## MAIN
 if __name__ == '__main__':
     start_time = time.time()
-    # parse options
+    
+
+    # Parse options
     parser = OptionParser()
     parser.add_option("-r", "--restart", dest="restart", default=False, action="store_true")
-    parser.add_option("-i", "--identifier", dest="identifier")
-    parser.add_option("-d", "--day_to_process", dest="day_to_process")
-    # should define the es_ts_start from day_to_process
+    parser.add_option("-i", "--identifier", dest="identifier") # redudant with day to process now...
+    parser.add_option("-d", "--day_to_process", dest="day_to_process", default=datetime.date.today().isoformat())
     parser.add_option("-s", "--save", dest="save_inter_rdd", default=False, action="store_true")
+    parser.add_option("-j", "--join_s3url", dest="join_s3url", default=False, action="store_true")
+    parser.add_option("-u", "--uptonow", dest="uptonow", default=False, action="store_true")
     parser.add_option("-b", "--batch_update_size", dest="batch_update_size", default=10000)
+    # we could add options for uptonow, auto join based on number of s3_urls to download
     (c_options, args) = parser.parse_args()
     print "Got options:", c_options
+
+
     # Read job_conf
-    job_conf = json.load(open("job_conf_notcommited_release.json","rt"))
+    job_conf = json.load(open("job_conf_notcommited"+dev_release_suffix+".json","rt"))
     print job_conf
-    sc = SparkContext(appName='images_incremental_update_release')
+    sc = SparkContext(appName="images_incremental_update"+dev_release_suffix)
     conf = SparkConf()
     log4j = sc._jvm.org.apache.log4j
     log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
-    #log4j.LogManager.getRootLogger().setLevel(log4j.Level.ALL)
     # Set parameters job_conf
+    # should this be estimated from RDD counts actually?
     nb_partitions = job_conf["nb_partitions"]
+
+
     # HBase Conf
     hbase_host = job_conf["hbase_host"]
     tab_ts_name = job_conf["tab_ts_name"]
@@ -1054,6 +1089,17 @@ if __name__ == '__main__':
     tab_s3url_sha1_name = job_conf["tab_s3url_sha1_name"]
     tab_update_name = job_conf["tab_update_name"]
     max_images = job_conf["max_images"]
+    # Setup HBase managers
+    join_columns_list = [':'.join(x) for x in fields_list]
+    hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=join_columns_list)
+    hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
+    hbase_man_cdrinfos_out = HbaseManager(sc, conf, hbase_host, tab_cdrid_infos_name)
+    hbase_man_update_out = HbaseManager(sc, conf, hbase_host, tab_update_name)
+    # actually  only needed if join_s3url is True
+    hbase_man_s3url_sha1_in = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
+    hbase_man_s3url_sha1_out = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
+    
+    
     # ES conf
     es_index = job_conf["es_index"]
     es_domain = job_conf["es_domain"]
@@ -1061,28 +1107,14 @@ if __name__ == '__main__':
     es_port = job_conf["es_port"]
     es_user = job_conf["es_user"]
     es_pass = job_conf["es_pass"]
-    es_ts_start = job_conf["query_timestamp_start"]
-    if c_options.day_to_process:
-        print("Input date was {}".format(c_options.day_to_process))
-        start_date = dateutil.parser.parse(c_options.day_to_process)
-        print("Will process full day before {}".format(start_date))
-        ts_gap = day_gap
-        # ES timestamp in milliseconds
-        es_ts_end = calendar.timegm(start_date.utctimetuple())*1000
-        # We should query to get all data from LAST day
-        es_ts_start = es_ts_end-day_gap
-        print("Will query CDR from {} to {}".format(es_ts_start, es_ts_end))
-
+    # deprecated
+    #es_ts_start = job_conf["query_timestamp_start"]
+    # Setup ES manager
     es_man = ES(sc, conf, es_index, es_domain, es_host, es_port, es_user, es_pass)
     es_man.set_output_json()
     es_man.set_read_metadata()
-    join_columns_list = [':'.join(x) for x in fields_list]
-    hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=join_columns_list)
-    hbase_man_s3url_sha1_in = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
-    hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
-    hbase_man_cdrinfos_out = HbaseManager(sc, conf, hbase_host, tab_cdrid_infos_name)
-    hbase_man_s3url_sha1_out = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
-    hbase_man_update_in = HbaseManager(sc, conf, hbase_host, tab_update_name)
-    hbase_man_update_out = HbaseManager(sc, conf, hbase_host, tab_update_name)
-    incremental_update(es_man, es_ts_start, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_in, hbase_man_update_out, nb_partitions, c_options)
-    print("[DONE] Update from ts {} done in {}s.".format(es_ts_start, time.time() - start_time))
+
+
+    # Run update
+    incremental_update(es_man, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_s3url_sha1_in, hbase_man_s3url_sha1_out, hbase_man_update_out, nb_partitions, c_options)
+    print("[DONE] Update for day {} done in {}s.".format(c_options.day_to_process, time.time() - start_time))
