@@ -199,6 +199,7 @@ class Searcher():
     	# read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
         print "[Searcher.format_output: log] options are: {}".format(options_dict)
         output = []
+        do = DictOutput()
         if 'sha1_sim' in options_dict:
             sha1sim = options_dict['sha1_sim']
         else:
@@ -215,7 +216,6 @@ class Searcher():
             return outp
 
         #print "[Searcher.format_output: log] sim: {}".format(sim)
-        do = DictOutput()
         # build final output
         # options_dict could be used to request more output infos 'cdr_ids' etc
         dec = 0
