@@ -212,7 +212,7 @@ class Searcher():
         except Exception as inst:
             errors = dict()
             errors['search'] = "format_output error, could not prepare output: {}".format(inst)
-            outp = OrderedDict([[do.map['number'],nb_query],[do.map['images'],output]],['errors',errors])
+            outp = OrderedDict([[do.map['number'],nb_query],[do.map['images'],output],['errors',errors]])
             return outp
 
         #print "[Searcher.format_output: log] sim: {}".format(sim)
