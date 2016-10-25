@@ -149,15 +149,15 @@ class HBaseIndexer(GenericIndexer):
         return found_ids
 
 
-    def check_errors(self, previous_err, function_name):
+    def check_errors(self, previous_err, function_name, inst=None):
         if previous_err >= max_errors:
-            raise Exception("[HBaseIndexer: error] function {} reached maximum number of error {}.".format(function_name, max_errors))
+            raise Exception("[HBaseIndexer: error] function {} reached maximum number of error {}. Error was: {}".format(function_name, max_errors, inst))
         return None
 
 
-    def get_ids_from_sha1s_hbase(self, list_sha1s):
+    def get_ids_from_sha1s_hbase(self, list_sha1s, previous_err=0, inst=None):
         found_ids = []
-        self.check_errors(previous_err, "get_ids_from_sha1s_hbase")
+        self.check_errors(previous_err, "get_ids_from_sha1s_hbase", inst)
         if list_sha1s:
             try:
                 with self.pool.connection() as connection:
@@ -166,58 +166,57 @@ class HBaseIndexer(GenericIndexer):
                     for row in rows:
                         if "info:cu_feat_id" in row[1]:
                             found_ids.append((long(row[1]["info:cu_feat_id" ]),str(row[0])))
-            except timeout or TTransportException or IOError:
+            except (timeout or TTransportException or IOError) as inst:
                 print("[HBaseIndexer.get_ids_from_sha1s_hbase] caught timeout error or TTransportException. Trying to refresh connection pool.")
                 self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
-                return self.get_ids_from_sha1s_hbase(list_sha1s)
+                return self.get_ids_from_sha1s_hbase(list_sha1s, previous_err+1, inst)
         return found_ids
 
 
-    def get_full_sha1_rows(self, list_sha1s, previous_err=0):
+    def get_full_sha1_rows(self, list_sha1s, previous_err=0, inst=None):
         rows = None
-        self.check_errors(previous_err, "get_full_sha1_rows")
+        self.check_errors(previous_err, "get_full_sha1_rows", inst)
         if list_sha1s:
             try:
                 with self.pool.connection() as connection:
                     table_sha1infos = connection.table(self.table_sha1infos_name)
                     rows = table_sha1infos.rows(list_sha1s)
-            except timeout or TTransportException or IOError:
+            except (timeout or TTransportException or IOError) as inst:
                 print("[HBaseIndexer.get_full_sha1_rows] caught timeout error or TTransportException. Trying to refresh connection pool.")
                 self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
-                return self.get_full_sha1_rows(list_sha1s, previous_err+1)
+                return self.get_full_sha1_rows(list_sha1s, previous_err+1, inst)
         return rows
 
 
-    def get_columns_from_sha1_rows(self, list_sha1s, columns, previous_err=0):
+    def get_columns_from_sha1_rows(self, list_sha1s, columns, previous_err=0, inst=None):
         rows = None
-        self.check_errors(previous_err, "get_columns_from_sha1_rows")
+        self.check_errors(previous_err, "get_columns_from_sha1_rows", inst)
         if list_sha1s:
             try:
                 with self.pool.connection() as connection:
                     table_sha1infos = connection.table(self.table_sha1infos_name)
                     # this throws a socket timeout?...
                     rows = table_sha1infos.rows(list_sha1s, columns=columns)
-            except timeout or TTransportException or IOError:
+            except (timeout or TTransportException or IOError) as inst:
                 print("[HBaseIndexer.get_columns_from_sha1_rows] caught timeout error or TTransportException. Trying to refresh connection pool.")
                 self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
-                return self.get_columns_from_sha1_rows(list_sha1s, columns, previous_err+1)
+                return self.get_columns_from_sha1_rows(list_sha1s, columns, previous_err+1, inst)
         return rows
 
 
-    def get_similar_images_from_sha1(self, list_sha1s, previous_err=0):
+    def get_similar_images_from_sha1(self, list_sha1s, previous_err=0, inst=None):
         rows = None
-        self.check_errors(previous_err, "get_similar_images_from_sha1")
+        self.check_errors(previous_err, "get_similar_images_from_sha1", inst)
         print "[HBaseIndexer.get_similar_images_from_sha1: log] list_sha1s: {}".format(list_sha1s)
         if list_sha1s:
             try:
                 with self.pool.connection() as connection:
                     table_sha1_sim = connection.table(self.table_sim_name)
                     rows = table_sha1_sim.rows(list_sha1s)
-            except timeout or TTransportException or IOError:
+            except (timeout or TTransportException or IOError) as inst:
                 print("[HBaseIndexer.get_similar_images_from_sha1] caught timeout error or TTransportException. Trying to refresh connection pool.")
                 self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
-                return self.get_similar_images_from_sha1(list_sha1s, previous_err+1)
-                
+                return self.get_similar_images_from_sha1(list_sha1s, previous_err+1, inst)
         return rows
 
 
@@ -238,7 +237,7 @@ class HBaseIndexer(GenericIndexer):
         return self.get_full_sha1_rows(list_sha1s)
 
 
-    def get_precomp_from_sha1(self,list_sha1s,list_type):
+    def get_precomp_from_sha1(self, list_sha1s, list_type):
         """ Retrieves the 'list_type' extractions results from HBase for the image in 'list_sha1s'.
 
         :param list_sha1s: list of sha1s of the images for which the extractions are requested.

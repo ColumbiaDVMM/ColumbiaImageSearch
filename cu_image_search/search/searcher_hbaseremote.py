@@ -4,7 +4,7 @@ import time
 import json
 import struct
 import numpy as np
-from collections import OrderedDict 
+from collections import OrderedDict
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
 
@@ -211,7 +211,7 @@ class Searcher():
                 sim,sim_score = self.read_sim(simname, nb_query, options_dict)
         except Exception as inst:
             errors = dict()
-            errors['search'] = "format_output error, could not prepare output: {}".format(inst)
+            errors['search'] = "[format_output ERROR] could not prepare output. Error was: {}".format(inst)
             outp = OrderedDict([[do.map['number'],nb_query],[do.map['images'],output],['errors',errors]])
             return outp
 
