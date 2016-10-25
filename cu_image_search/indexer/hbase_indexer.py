@@ -635,8 +635,8 @@ class HBaseIndexer(GenericIndexer):
                 # we could look at the one marked as 'info:started' if they are not finished
                 # but started from a long time ago in this case.
                 batch = (None, None)
-        except timeout:
-            print("[HBaseIndexer.get_next_batch] caught timeout error or TTransportException. Trying to refresh connection pool.")
+        except timeout as inst:
+            print("[HBaseIndexer.get_next_batch] caught timeout error or TTransportException. Trying to refresh connection pool. Error was: {}".format(inst))
             self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
             return self.get_next_batch()
         return batch
