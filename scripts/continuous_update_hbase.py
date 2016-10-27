@@ -22,10 +22,11 @@ if __name__=="__main__":
             ctime = time.time()
             time_lapse = ctime - lasttime
             if up_obj.has_indexed:
-                # we should refresh the API
+                # we should refresh the API, only call that when totally finished update?
                 print('[continuous_update_hbase] refreshing the API.')
                 up_obj.refresh_API()
                 print('[continuous_update_hbase] refreshed the API.')
+		# need to call ../cache.sh also
                 up_obj.has_indexed = False
             if time_lapse < interval:
                 print('[continuous_update_hbase] sleeping for {} seconds...'.format(interval-time_lapse))
