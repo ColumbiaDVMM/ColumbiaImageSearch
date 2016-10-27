@@ -9,7 +9,15 @@ import sys
 print(sys.version)
 import subprocess
 
-dev_release_suffix = "_release"
+dev = False
+
+if dev:
+    dev_release_suffix = "_dev"
+    base_incremental_path = '/user/skaraman/data/images_incremental_update_dev/'
+else:
+    dev_release_suffix = "_release"
+    base_incremental_path = '/user/worker/dig2/incremental/'
+
 
 from optparse import OptionParser
 from pyspark import SparkContext, SparkConf, StorageLevel
@@ -25,8 +33,8 @@ ts_gap = day_gap
 
 # default settings
 #fields_cdr = ["obj_stored_url", "obj_parent", "obj_original_url", "timestamp", "crawl_data.image_id", "crawl_data.memex_ht_id"]
-fields_cdr = ["obj_stored_url", "obj_parent"]
 max_ts = 9999999999999
+fields_cdr = ["obj_stored_url", "obj_parent"]
 fields_list = [("info","all_cdr_ids"), ("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded"), ("info","cu_feat_id")]
 
 
@@ -474,7 +482,7 @@ def reduce_sha1_infos_discarding(a,b):
         if "info:image_discarded" in a or "info:image_discarded" in b:
             c["info:all_cdr_ids"] = []
             c["info:all_parent_ids"] = []
-            c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images)
+            c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images_reduce)
         else:
             # KeyError: 'info:all_cdr_ids'. How could an image not have this field?
             c = safe_reduce_infos(a, b, c, "info:all_cdr_ids")
@@ -494,18 +502,22 @@ def reduce_sha1_infos_discarding(a,b):
         c = safe_assign(a, c, "info:s3_url", [None])
         c = safe_assign(a, c, "info:all_cdr_ids", [])
         c = safe_assign(a, c, "info:all_parent_ids", [])
-    if len(c["info:all_cdr_ids"]) > max_images or len(c["info:all_parent_ids"]) > max_images:
+    # should discard if bigger than max(max_images_hbase, max_images_dig)...
+    if len(c["info:all_cdr_ids"]) > max_images_reduce or len(c["info:all_parent_ids"]) > max_images_reduce:
         print("Discarding image with URL: {}".format(c["info:s3_url"][0]))
         c["info:all_cdr_ids"] = []
         c["info:all_parent_ids"] = []
-        c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images)
+        c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images_reduce)
     return c
 
 
-def split_sha1_kv_filter_max_images_discarded(x):
+def split_sha1_kv_images_discarded(x):
+    # this prepares data to be saved in HBase
     tmp_fields_list = [("info","all_cdr_ids"), ("info","s3_url"), ("info","all_parent_ids")]
     out = []
-    if "info:image_discarded" in x[1]:
+    if "info:image_discarded" in x[1] or len(x[1]["info:all_cdr_ids"]) > max_images_hbase or len(x[1]["info:all_parent_ids"]) > max_images_hbase:
+        if "info:image_discarded" not in x[1]:
+            x[1]["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images_hbase)
         out.append((x[0], [x[0], "info", "image_discarded", x[1]["info:image_discarded"]]))
         str_s3url_value = None
         s3url_value = x[1]["info:s3_url"][0]
@@ -675,6 +687,12 @@ def amandeep_dict_str_to_out(x):
         if field in tmp_dict:
             out_dict["info:"+field] = tmp_dict[field]
     return out_dict
+
+
+def filter_out_rdd(x):
+    return "info:image_discarded" not in x[1] and len(x[1]["info:all_cdr_ids"]) <= max_images_dig and len(x[1]["info:all_parent_ids"]) <= max_images_dig
+
+
 ##-- END Amandeep RDDs I/O
 ##---------------
 
@@ -846,7 +864,7 @@ def compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_ma
         else:
             try:
                 if not hdfs_file_exist(out_join_rdd_path):
-                    out_join_rdd_amandeep.filter(lambda x: "info:image_discarded" not in x[1]).map(out_to_amandeep_dict_str).saveAsSequenceFile(out_join_rdd_path)
+                    out_join_rdd_amandeep.filter(filter_out_rdd).map(out_to_amandeep_dict_str).saveAsSequenceFile(out_join_rdd_path)
                 else:
                     print("[compute_out_join_rdd] Skipped saving out_join_rdd. File already exists at {}.".format(out_join_rdd_path))
                 save_info_incremental_update(hbase_man_update_out, incr_update_id, out_join_rdd_path, "out_join_rdd_path")
@@ -855,7 +873,7 @@ def compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_ma
    
     if out_join_rdd_amandeep is not None:
         ## save sha1 infos for these joined images in HBase
-        out_join_rdd = out_join_rdd_amandeep.flatMap(split_sha1_kv_filter_max_images_discarded)
+        out_join_rdd = out_join_rdd_amandeep.flatMap(split_sha1_kv_images_discarded)
         print("[compute_out_join_rdd] saving 'out_join_rdd' to sha1_infos HBase table.")
         hbase_man_sha1infos_out.rdd2hbase(out_join_rdd)
 
@@ -975,7 +993,8 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdr
     if c_options.save_inter_rdd:
         try:
             if not hdfs_file_exist(out_rdd_path):
-                out_rdd_save = out_rdd_amandeep.filter(lambda x: "info:image_discarded" not in x[1]).map(out_to_amandeep_dict_str)
+                # we should discard based on c_options.max_images_dig here actually
+                out_rdd_save = out_rdd_amandeep.filter(filter_out_rdd).map(out_to_amandeep_dict_str)
                 if not out_rdd_save.isEmpty():
                     out_rdd_save.saveAsSequenceFile(out_rdd_path)
                     save_info_incremental_update(hbase_man_update_out, incr_update_id, out_rdd_path, rdd_name+"_path")
@@ -989,7 +1008,7 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdr
         except Exception as inst:
             print("[compute_out_rdd] could not save rdd at {}, error was {}.".format(out_rdd_path, inst))
     ## write out rdd of new images 
-    out_rdd = out_rdd_amandeep.flatMap(split_sha1_kv_filter_max_images_discarded)
+    out_rdd = out_rdd_amandeep.flatMap(split_sha1_kv_images_discarded)
     if not out_rdd.isEmpty():
         print("[compute_out_rdd] saving 'out_rdd' to sha1_infos HBase table.")
         hbase_man_sha1infos_out.rdd2hbase(out_rdd)
@@ -1034,7 +1053,8 @@ def incremental_update(es_man, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_s
             incr_update_id = 'incremental_update_'+str(max_ts-int(start_time*1000))
 
     
-    basepath_save = '/user/skaraman/data/images_incremental_update/'+incr_update_id
+    #basepath_save = '/user/skaraman/data/images_incremental_update/'+incr_update_id
+    basepath_save = base_incremental_path+incr_update_id+'/images/info'
     
     if c_options.join_s3url:
         ## compute update for s3 urls we already now
@@ -1070,6 +1090,8 @@ if __name__ == '__main__':
     parser.add_option("-j", "--join_s3url", dest="join_s3url", default=False, action="store_true")
     parser.add_option("-u", "--uptonow", dest="uptonow", default=False, action="store_true")
     parser.add_option("-b", "--batch_update_size", dest="batch_update_size", default=10000)
+    # expose max_images_dig so Amandeep can change that on the fly if needed
+    parser.add_option("-m", "--max_images_dig", dest="max_images_dig", default=50000)
     # we could add options for uptonow, auto join based on number of s3_urls to download
     (c_options, args) = parser.parse_args()
     print "Got options:", c_options
@@ -1095,7 +1117,11 @@ if __name__ == '__main__':
     tab_sha1_infos_name = job_conf["tab_sha1_infos_name"]
     tab_s3url_sha1_name = job_conf["tab_s3url_sha1_name"]
     tab_update_name = job_conf["tab_update_name"]
-    max_images = job_conf["max_images"]
+    # this is the maximum number of cdr_ids for an image to be saved to HBase
+    max_images_hbase = job_conf["max_images"]
+    # this is the maximum number of cdr_ids for an image to be saved to HDFS for dig
+    max_images_dig = c_options.max_images_dig
+    max_images_reduce = max(max_images_hbase, max_images_dig)
     # Setup HBase managers
     join_columns_list = [':'.join(x) for x in fields_list]
     hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=join_columns_list)
