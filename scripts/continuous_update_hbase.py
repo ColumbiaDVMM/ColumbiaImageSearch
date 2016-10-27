@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import subprocess
 from datetime import datetime
 sys.path.append('..')
 import cu_image_search
@@ -21,17 +22,22 @@ if __name__=="__main__":
         try:
             ctime = time.time()
             time_lapse = ctime - lasttime
-            if up_obj.has_indexed:
-                # we should refresh the API, only call that when totally finished update?
-                print('[continuous_update_hbase] refreshing the API.')
-                up_obj.refresh_API()
-                print('[continuous_update_hbase] refreshed the API.')
-		# need to call ../cache.sh also
-                up_obj.has_indexed = False
             if time_lapse < interval:
-                print('[continuous_update_hbase] sleeping for {} seconds...'.format(interval-time_lapse))
-                sys.stdout.flush()
-                time.sleep(interval-time_lapse)
+                if up_obj.has_indexed:
+                    # we should refresh the API, only call that when totally finished update?
+                    print('[continuous_update_hbase] refreshing the API.')
+                    up_obj.refresh_API()
+                    print('[continuous_update_hbase] refreshed the API.')
+                    # need to call ../cache.sh also
+                    print('[continuous_update_hbase] refreshing cache.')
+                    proc = subprocess.Popen('../cache.sh', stdout=subprocess.PIPE)
+                    (out, err) = proc.communicate()
+                    print('[continuous_update_hbase] refreshed cache. output was: {}, error was: {}'.format(out, err))
+                    up_obj.has_indexed = False
+                else:
+                    print('[continuous_update_hbase] sleeping for {} seconds...'.format(interval-time_lapse))
+                    sys.stdout.flush()
+                    time.sleep(interval-time_lapse)
             lasttime = time.time()
             up_obj.run_update()
         except Exception as inst:
