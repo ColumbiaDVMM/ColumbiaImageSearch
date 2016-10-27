@@ -264,17 +264,23 @@ class HBaseIndexer(GenericIndexer):
         return res,ok_ids
    
         
-    def write_batch(self, batch, tab_out_name):
-        # batch is composed of tuples (row_key, dict())
-        # where entries in the dict are key-value pairs as {'column_name': column_value}
-        with self.pool.connection() as connection:
-            tab_out = connection.table(tab_out_name)
-            batch_write = tab_out.batch()
-            #print "Pushing batch from {}.".format(batch[0][0])
-            for row in batch:
-                #print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
-                batch_write.put(row[0], row[1])
-            batch_write.send()
+    def write_batch(self, batch, tab_out_name, previous_err=0, inst=None):
+        self.check_errors(previous_err, "write_batch", inst)
+        try:
+            # batch is composed of tuples (row_key, dict())
+            # where entries in the dict are key-value pairs as {'column_name': column_value}
+            with self.pool.connection() as connection:
+                tab_out = connection.table(tab_out_name)
+                batch_write = tab_out.batch()
+                #print "Pushing batch from {}.".format(batch[0][0])
+                for row in batch:
+                    #print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
+                    batch_write.put(row[0], row[1])
+                batch_write.send()
+        except (timeout or TTransportException or IOError) as inst:
+            print("[HBaseIndexer.write_batch] caught timeout error or TTransportException. Trying to refresh connection pool.")
+            self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
+            return self.write_batch(batch, previous_err+1, inst)
 
 
     def get_columns_name(self, list_type):
