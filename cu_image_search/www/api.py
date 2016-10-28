@@ -173,7 +173,7 @@ class APIResponder(Resource):
             print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
             urls = [row[1]["info:s3_url"] for row in rows]
             # simulate query 
-            return search_byURL_nocache(','.join(urls), options)
+            return self.search_byURL_nocache(','.join(urls), options)
         corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
         # featuresfile may require a full path
         featuresfile = "tmp"+str(time.time())
