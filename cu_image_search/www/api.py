@@ -171,7 +171,7 @@ class APIResponder(Resource):
             # fall back to URL query
             rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s,["info:s3_url"])
             print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
-            urls = [row[1]["info:s3_url"] in rows]
+            urls = [row[1]["info:s3_url"] for row in rows]
             # simulate query 
             return search_byURL_nocache(','.join(urls), options)
         corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
@@ -180,7 +180,7 @@ class APIResponder(Resource):
         with open(featuresfile,'wb') as out:
             for i,_ in enumerate(feats[0]):
                 try:
-                    tmp_feat = feats[i]
+                    tmp_feat = feats[0][i]
                     # TypeError: must be string or buffer, not list?
                     out.write(tmp_feat)
                 except TypeError as inst:
