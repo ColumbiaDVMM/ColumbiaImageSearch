@@ -181,6 +181,7 @@ class APIResponder(Resource):
             for i,_ in enumerate(feats[0]):
                 try:
                     tmp_feat = feats[0][i]
+                    print("[search_bySHA1_nocache: info] {} tmp_feat.shape was: {}".format(i, tmp_feat.shape))
                     # TypeError: must be string or buffer, not list?
                     out.write(tmp_feat)
                 except TypeError as inst:
