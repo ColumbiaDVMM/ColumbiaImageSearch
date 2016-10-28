@@ -191,8 +191,8 @@ class APIResponder(Resource):
         outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
         outp_we = self.append_errors(outp, errors)
         # cleanup
-        os.remove(simname)
-        os.remove(featuresfile)
+        #os.remove(simname)
+        #os.remove(featuresfile)
         return outp_we
         
 
