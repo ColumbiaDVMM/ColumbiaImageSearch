@@ -265,7 +265,8 @@ class HBaseIndexer(GenericIndexer):
                 if list_columns[e] in rows[i][1]:
                     print("[get_precomp_from_sha1] {} {} {} {}.".format(i,sha1,e,list_columns[e]))
                     ok_ids[e].append(list_sha1s.index(sha1))
-                    res[e].append(rows[i][1][list_columns[e]])
+                    res[e].append(np.frombuffer(base64.b64decode(rows[i][1][list_columns[e]]),np.float32))
+                    #res[e].append(rows[i][1][list_columns[e]])
         return res, ok_ids
    
         
