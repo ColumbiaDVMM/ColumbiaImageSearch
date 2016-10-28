@@ -165,6 +165,7 @@ class APIResponder(Resource):
 
     def search_bySHA1_nocache(self, query, options=None):
         query_sha1s = query.split(',')
+        print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
         feats, ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
         corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
         # featuresfile may require a full path

@@ -250,20 +250,20 @@ class HBaseIndexer(GenericIndexer):
         """
         res = []
         ok_ids = []
-        print "[get_precomp_from_sha1] list_sha1s: {}.".format(list_sha1s)
+        print("[get_precomp_from_sha1] list_sha1s: {}.".format(list_sha1s))
         rows = self.get_full_sha1_rows(list_sha1s)
         # check if we have retrieved rows and extractions for each sha1
         retrieved_sha1s = [row[0] for row in rows]
-        print "[get_precomp_from_sha1] retrieved_sha1s: {}.".format(list_sha1s)
+        print("[get_precomp_from_sha1] retrieved_sha1s: {}.".format(list_sha1s))
         # building a list of ok_ids and res for each extraction type
         ok_ids = [[] for i in range(len(list_type))]
         res = [[] for i in range(len(list_type))]
         list_columns = self.get_columns_name(list_type)
-        print "[get_precomp_from_sha1] list_columns: {}.".format(list_columns)
+        print("[get_precomp_from_sha1] list_columns: {}.".format(list_columns))
         for i,sha1 in enumerate(retrieved_sha1s):
             for e in range(len(list_type)):
                 if list_columns[e] in rows[i][1]:
-                    print "[get_precomp_from_sha1] {} {} {} {}.".format(i,sha1,e,list_columns[e])
+                    print("[get_precomp_from_sha1] {} {} {} {}.".format(i,sha1,e,list_columns[e]))
                     ok_ids[e].append(list_sha1s.index(sha1))
                     res[e].append(rows[i][1][list_columns[e]])
         return res,ok_ids
