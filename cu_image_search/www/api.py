@@ -174,7 +174,7 @@ class APIResponder(Resource):
             urls = [row[1]["info:s3_url"] for row in rows]
             # simulate query 
             return self.search_byURL_nocache(','.join(urls), options)
-        corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
+        corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids[0]]
         # featuresfile may require a full path
         featuresfile = "tmp"+str(time.time())
         with open(featuresfile,'wb') as out:
