@@ -266,7 +266,7 @@ class HBaseIndexer(GenericIndexer):
                     print("[get_precomp_from_sha1] {} {} {} {}.".format(i,sha1,e,list_columns[e]))
                     ok_ids[e].append(list_sha1s.index(sha1))
                     res[e].append(rows[i][1][list_columns[e]])
-        return res,ok_ids
+        return res, ok_ids
    
         
     def write_batch(self, batch, tab_out_name, previous_err=0, inst=None):

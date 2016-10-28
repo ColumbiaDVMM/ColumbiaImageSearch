@@ -167,6 +167,13 @@ class APIResponder(Resource):
         query_sha1s = query.split(',')
         print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
         feats, ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
+        if len(ok_ids) < len(query_sha1s):
+            # fall back to URL query
+            rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s,["info:s3_url"])
+            print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
+            urls = [row[1]["info:s3_url"] in rows]
+            # simulate query 
+            return search_byURL_nocache(','.join(urls), options)
         corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
         # featuresfile may require a full path
         featuresfile = "tmp"+str(time.time())
