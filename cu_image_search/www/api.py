@@ -171,8 +171,12 @@ class APIResponder(Resource):
         featuresfile = "tmp"+str(time.time())
         with open(featuresfile,'wb') as out:
             for i,_ in enumerate(feats):
-                tmp_feat = feats[i]
-                out.write(tmp_feat)
+                try:
+                    tmp_feat = feats[i]
+                    # TypeError: must be string or buffer, not list?
+                    out.write(tmp_feat)
+                except TypeError as inst:
+                    print("[search_bySHA1_nocache: error] tmp_feat was {}. Error was: {}".format(tmp_feat, inst))
         simname = self.searcher.indexer.hasher.get_similar_images_from_featuresfile(featuresfile, self.searcher.ratio)
         options_dict, errors = self.get_options_dict(options)
         options_dict['sha1_sim'] = True
