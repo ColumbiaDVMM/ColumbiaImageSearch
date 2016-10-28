@@ -167,7 +167,7 @@ class APIResponder(Resource):
         query_sha1s = query.split(',')
         print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
         feats, ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
-        if len(ok_ids) < len(query_sha1s):
+        if len(ok_ids[0]) < len(query_sha1s):
             # fall back to URL query
             rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s,["info:s3_url"])
             print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
@@ -178,7 +178,7 @@ class APIResponder(Resource):
         # featuresfile may require a full path
         featuresfile = "tmp"+str(time.time())
         with open(featuresfile,'wb') as out:
-            for i,_ in enumerate(feats):
+            for i,_ in enumerate(feats[0]):
                 try:
                     tmp_feat = feats[i]
                     # TypeError: must be string or buffer, not list?
