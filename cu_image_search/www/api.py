@@ -47,6 +47,8 @@ class APIResponder(Resource):
         self.searcher = global_searcher
         self.start_time = global_start_time
         self.valid_options = ["near_dup", "near_dup_th"]
+        # dl_pool_size could be set to a big value for the update process, overwrite here
+        self.searcher.indexer.image_downloader.dl_pool_size = 2
 
 
     def get(self, mode):
@@ -165,26 +167,34 @@ class APIResponder(Resource):
 
     def search_bySHA1_nocache(self, query, options=None):
         query_sha1s = query.split(',')
+        print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
         feats, ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
-        corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids]
+        if len(ok_ids[0]) < len(query_sha1s):
+            # fall back to URL query
+            rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s,["info:s3_url"])
+            print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
+            urls = [row[1]["info:s3_url"] for row in rows]
+            # simulate query 
+            return self.search_byURL_nocache(','.join(urls), options)
+        corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids[0]]
         # featuresfile may require a full path
         featuresfile = "tmp"+str(time.time())
         with open(featuresfile,'wb') as out:
-            for i,_ in enumerate(feats):
+            for i,_ in enumerate(feats[0]):
                 try:
-                    tmp_feat = feats[i]
+                    tmp_feat = feats[0][i]
+                    print("[search_bySHA1_nocache: info] {} tmp_feat.shape was: {}".format(i, tmp_feat.shape))
                     # TypeError: must be string or buffer, not list?
                     out.write(tmp_feat)
                 except TypeError as inst:
                     print("[search_bySHA1_nocache: error] tmp_feat was {}. Error was: {}".format(tmp_feat, inst))
         simname = self.searcher.indexer.hasher.get_similar_images_from_featuresfile(featuresfile, self.searcher.ratio)
         options_dict, errors = self.get_options_dict(options)
-        options_dict['sha1_sim'] = True
         outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
         outp_we = self.append_errors(outp, errors)
         # cleanup
-        os.remove(simname)
-        os.remove(featuresfile)
+        #os.remove(simname)
+        #os.remove(featuresfile)
         return outp_we
         
 
