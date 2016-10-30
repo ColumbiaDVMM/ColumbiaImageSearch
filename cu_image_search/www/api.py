@@ -47,6 +47,8 @@ class APIResponder(Resource):
         self.searcher = global_searcher
         self.start_time = global_start_time
         self.valid_options = ["near_dup", "near_dup_th"]
+        # dl_pool_size could be set to a big value for the update process, overwrite here
+        self.searcher.indexer.image_downloader.dl_pool_size = 2
 
 
     def get(self, mode):
