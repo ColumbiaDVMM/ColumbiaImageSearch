@@ -559,6 +559,7 @@ class HBaseIndexer(GenericIndexer):
         start_check_new_time = time.time()
         # some cu_feat_ids were not pushed to HBase, need to update them
         update_existing = True
+        time_find_existing = 0
         if "sentibank" in self.extractions_types:
             check_images_sha1 = [image[0].rstrip() for image in readable_images]
             set_check_images_sha1 = set(check_images_sha1)
@@ -572,10 +573,12 @@ class HBaseIndexer(GenericIndexer):
                     # will call push_cu_feats_id for these images to make sure they are marked as indexed.
                     if update_existing:
                         # this is slow...
+                        start_one_find_existing = time.time()
                         existing_cu_feat_ids.append(self.sha1_featid_mapping.index(sha1))
                         existing_sha1.append(sha1)
+                        time_find_existing += time.time() - start_one_find_existing
         if update_existing and existing_sha1 and existing_cu_feat_ids:
-            print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed.".format(len(existing_sha1)))
+            print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed in {} seconds.".format(len(existing_sha1), time_find_existing))
             self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
         print("[HBaseIndexer.index_batch_sha1: log] Checked existing images in {}s.".format(time.time()-start_check_new_time))
         sys.stdout.flush()
