@@ -406,10 +406,10 @@ class APIResponder(Resource):
             similar_images_response.append(one_res)
         if not similar_images_response:
             similar_images_response.append([('','No results'),[('','')]])
+        flash_message = (False, similar_images_response)
         if "no_blur" in options_dict:
-            flash((options_dict["no_blur"],similar_images_response))
-        else:
-            flash((False,similar_images_response))
+            flash_message = (options_dict["no_blur"],similar_images_response)
+        flash(flash_message,'message')
         headers = {'Content-Type': 'text/html'}
         sys.stdout.flush()
         return make_response(render_template('view_similar_images.html'),200,headers)
