@@ -59,7 +59,6 @@ class HBaseIndexer(GenericIndexer):
         self.refresh_inqueue = False
         self.index_batches = []
         self.sha1_featid_mapping = []
-        #self.dict_sha1_featid_mapping = dict()
         self.initialize_sha1_mapping()
 
     def initialize_sha1_mapping(self):
@@ -79,8 +78,6 @@ class HBaseIndexer(GenericIndexer):
             if len(self.sha1_featid_mapping) < previous_count:
                 print "[HBaseIndexer.initialize_sha1_mapping: warning] Initialized sha1_featid_mapping with less images than before. ({} vs.{})".format(previous_count, len(self.sha1_featid_mapping))
             self.set_sha1_indexed = set(self.sha1_featid_mapping)
-            # this is way too slow...
-            #self.dict_sha1_featid_mapping = {k: v for v, k in enumerate(sha1_featid_mapping)}
             print "Done in {} seconds.".format(time.time() - start_load_sha1_featid_mapping)
             sys.stdout.flush()
             self.initializing = False
@@ -182,7 +179,6 @@ class HBaseIndexer(GenericIndexer):
         for sha1 in list_sha1s:
             pos = None
             try:
-                #pos = self.dict_sha1_featid_mapping[sha1]
                 pos = self.sha1_featid_mapping.index(sha1)
             except:
                 pass
@@ -513,8 +509,6 @@ class HBaseIndexer(GenericIndexer):
             self.merging = False
         # push cu_feat_id to hbase
         cu_feat_ids = [nb_indexed+i for i in range(len(tmp_sha1_featid_mapping))]
-        #for i in range(len(tmp_sha1_featid_mapping)):
-        #    self.dict_sha1_featid_mapping[tmp_sha1_featid_mapping[i]] = cu_feat_ids[i]
         self.push_cu_feats_id(tmp_sha1_featid_mapping, cu_feat_ids)
 
 
@@ -577,10 +571,8 @@ class HBaseIndexer(GenericIndexer):
                     print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}".format(sha1)
                     # will call push_cu_feats_id for these images to make sure they are marked as indexed.
                     if update_existing:
-                        # this is too slow...
+                        # this is slow...
                         existing_cu_feat_ids.append(self.sha1_featid_mapping.index(sha1))
-                        # define a self.dict_sha1_featid_mapping? Too slow to build...
-                        #existing_cu_feat_ids.append(self.dict_sha1_featid_mapping[sha1])
                         existing_sha1.append(sha1)
         if update_existing and existing_sha1 and existing_cu_feat_ids:
             print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed.".format(len(existing_sha1)))
