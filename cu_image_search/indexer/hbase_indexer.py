@@ -84,8 +84,8 @@ class HBaseIndexer(GenericIndexer):
             if self.refresh_inqueue:
                 return self.initialize_sha1_mapping()
         except Exception as inst:
-            print "FAILED"
             print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}.\n{}".format(self.sha1_featid_mapping_filename,inst)
+
 
     def save_sha1_mapping(self):
         try:
@@ -108,7 +108,14 @@ class HBaseIndexer(GenericIndexer):
         self.initialize_image_downloader()
         self.initialize_feature_extractor()
         self.initialize_hasher()
-        self.check_alignment()
+        try:
+            self.check_alignment()
+        # misalignment may happen if an update is ongoing
+        except ValueError as inst:
+            print("[HBaseIndexer.initialize_indexer_backend: error] Caught a misalignment. Retrying in 10 seconds.")
+            time.sleep(10)
+            self.initialize_sha1_mapping()
+            self.check_alignment()
         self.db = None
 
 
@@ -135,6 +142,29 @@ class HBaseIndexer(GenericIndexer):
             self.init_master_uf_fn = os.path.join(self.hasher.base_update_path, self.hasher.master_update_file)
         else:
             raise ValueError("[HBaseIndexer.initialize_hasher: error] Unknown hasher_type: {}.".format(self.hasher_type))
+
+
+    def check_alignment(self):
+        # check alignment
+        nb_indexed = len(self.sha1_featid_mapping)
+        try:
+            max_id = self.hasher.get_max_feat_id()
+        except Exception as inst:
+            # first batch
+            if nb_indexed == 0:
+                return nb_indexed
+            else:
+                raise ValueError("[HBaseIndexer.check_alignment: error] Could not retrieve max_id from hasher. Error was: {}".format(inst))
+        if max_id != nb_indexed:
+            print "[HBaseIndexer.check_alignment: error] We have {} features, {} listed in sha1_featid_mapping.".format(max_id, nb_indexed)
+            # we could try to recover 
+            # if max_id > nb_indexed (an update crashed after merging files but before updating and saving sha1_featid_mapping): 
+            # - cut hasbits based at nb_indexed hashcodes
+            # - cut comp_features based on comp_idx for nb_indexed [may not be needed if it is this step which failed]
+            # if nb_indexed > max_id (unlikely, file have been tampered manually?):
+            # - self.sha1_featid_mapping at max_id
+            raise ValueError("[HBaseIndexer.check_alignment:error] max_id!=nb_indexed: {} vs. {}.".format(max_id, nb_indexed))
+        return nb_indexed
 
 
     def refresh_hbase_conn(self, calling_function, sleep_time=2):
@@ -450,29 +480,6 @@ class HBaseIndexer(GenericIndexer):
         except (timeout or TTransportException or IOError) as inst:
             self.refresh_hbase_conn("push_cu_feats_id")
             self.push_cu_feats_id(rows_update, cu_feat_ids, previous_err+1, inst)
-
-
-    def check_alignment(self):
-        # check alignment
-        nb_indexed = len(self.sha1_featid_mapping)
-        try:
-            max_id = self.hasher.get_max_feat_id()
-        except Exception as inst:
-            # first batch
-            if nb_indexed == 0:
-                return nb_indexed
-            else:
-                raise ValueError("[HBaseIndexer.check_alignment: error] Could not retrieve max_id from hasher. Error was: {}".format(inst))
-        if max_id != nb_indexed:
-            print "[HBaseIndexer.check_alignment: error] We have {} features, {} listed in sha1_featid_mapping.".format(max_id, nb_indexed)
-            # we could try to recover 
-            # if max_id > nb_indexed (an update crashed after merging files but before updating and saving sha1_featid_mapping): 
-            # - cut hasbits based at nb_indexed hashcodes
-            # - cut comp_features based on comp_idx for nb_indexed [may not be needed if it is this step which failed]
-            # if nb_indexed > max_id (unlikely, file have been tampered manually?):
-            # - self.sha1_featid_mapping at max_id
-            raise ValueError("[HBaseIndexer.check_alignment:error] max_id!=nb_indexed: {} vs. {}.".format(max_id, nb_indexed))
-        return nb_indexed
         
 
     def finalize_batch_indexing(self, tmp_sha1_featid_mapping, tmp_update_id, tmp_hasher):
@@ -550,7 +557,7 @@ class HBaseIndexer(GenericIndexer):
         existing_sha1 = []
         start_check_new_time = time.time()
         # fix to speed up indexing for now.
-        update_existing = False
+        update_existing = True
         # # v2.0
         # if "sentibank" in self.extractions_types:
         #     check_images_sha1 = [image[0].rstrip() for image in readable_images]
