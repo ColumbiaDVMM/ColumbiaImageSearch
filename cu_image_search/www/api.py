@@ -46,7 +46,7 @@ class APIResponder(Resource):
         #self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
         self.searcher = global_searcher
         self.start_time = global_start_time
-        self.valid_options = ["near_dup", "near_dup_th"]
+        self.valid_options = ["near_dup", "near_dup_th", "no_blur"]
         # dl_pool_size could be set to a big value for the update process, overwrite here
         self.searcher.indexer.image_downloader.dl_pool_size = 2
 
@@ -99,6 +99,9 @@ class APIResponder(Resource):
     def process_query(self, mode, query, options=None):
         if mode == "byURL":
             return self.search_byURL(query, options)
+        elif mode == "view_similar_byURL":
+            query_reponse = self.search_byURL(query, options)
+            return self.view_similar_query_response('URL', query, query_reponse, options)
         elif mode == "byURL_nocache":
             return self.search_byURL_nocache(query, options)
         elif mode == "bySHA1":
@@ -345,6 +348,7 @@ class APIResponder(Resource):
 
 
     def view_similar_images_sha1(self, query, options=None):
+        options_dict, errors = self.get_options_dict(options)
         query_sha1s = [str(x) for x in query.split(',')]
         print("[view_similar_images_sha1] querying with {} sha1s: {}".format(len(query_sha1s), query_sha1s))
         sys.stdout.flush()
@@ -372,7 +376,40 @@ class APIResponder(Resource):
             similar_images_response.append(one_res)
         if not similar_images_response:
             similar_images_response.append([('','No results'),[('','')]])
-        flash(similar_images_response)
+        if "no_blur" in options_dict:
+            flash((options_dict["no_blur"],similar_images_response))
+        else:
+            flash((False,similar_images_response))
+        headers = {'Content-Type': 'text/html'}
+        sys.stdout.flush()
+        return make_response(render_template('view_similar_images.html'),200,headers)
+
+
+    def view_similar_query_response(self, query_type, query, query_response, options=None):
+        if query_type == 'URL':
+            query_urls = query.split(',')
+            options_dict, errors = self.get_options_dict(options)
+            sim_images = query_response["images"]
+        # preprend for base64 image query: data:image/jpeg;base64 or whatever is the actually type of image
+        else:
+            return None
+        similar_images_response = []
+        for i in range(len(query_urls)):
+            one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
+            one_sims = []
+            for j,sim_sha1 in enumerate(sim_images[i]["similar_images"]["sha1"]):
+                one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1),)
+            one_res.append(one_sims)
+            print("[view_similar_query_response] one_res: {}.".format(one_res))
+            sys.stdout.flush()
+            #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
+            similar_images_response.append(one_res)
+        if not similar_images_response:
+            similar_images_response.append([('','No results'),[('','')]])
+        flash_message = (False, similar_images_response)
+        if "no_blur" in options_dict:
+            flash_message = (options_dict["no_blur"],similar_images_response)
+        flash(flash_message,'message')
         headers = {'Content-Type': 'text/html'}
         sys.stdout.flush()
         return make_response(render_template('view_similar_images.html'),200,headers)
