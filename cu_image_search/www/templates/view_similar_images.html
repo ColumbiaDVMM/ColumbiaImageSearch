@@ -5,13 +5,22 @@
     <link rel="stylesheet" href="../static/style.css">
   </head>
   <body>
-  	{% for similar_images_response in get_flashed_messages() %}
+  	{% with messages = get_flashed_messages() %}
+    {% set noblur = messages.0 %}
+    {% if noblur %}
+      {% set img_style = "img_noblur" % }
+    {% else %}
+      {% set img_style =  "img_blur" % }
+    {% endif %}
+    {% set responses = messages.1 %}
+    {% for similar_images_response in responses %}
     {% for query_image,similar_images in similar_images_response %}
     <h2>Query image:</h2>
-    <img src="{{query_image[0]}}" title="{{query_image[1]}}" class="img_blur">
+    <img src="{{query_image[0]}}" title="{{query_image[1]}}" class="{{img_style}}">
     <h2>Query results:</h2>
-    {% for url,sha1 in similar_images %}<img src="{{url}}" title="{{sha1}}" class="img_blur"> {% endfor %}
+    {% for url,sha1 in similar_images %}<img src="{{url}}" title="{{sha1}}" class="{{img_style}}"> {% endfor %}
     {% endfor %}
     {% endfor %}
+    {% endwith %}
   </body>
 </html>

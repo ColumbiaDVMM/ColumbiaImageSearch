@@ -46,7 +46,7 @@ class APIResponder(Resource):
         #self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
         self.searcher = global_searcher
         self.start_time = global_start_time
-        self.valid_options = ["near_dup", "near_dup_th"]
+        self.valid_options = ["near_dup", "near_dup_th", "no_blur"]
         # dl_pool_size could be set to a big value for the update process, overwrite here
         self.searcher.indexer.image_downloader.dl_pool_size = 2
 
@@ -348,6 +348,7 @@ class APIResponder(Resource):
 
 
     def view_similar_images_sha1(self, query, options=None):
+        options_dict, errors = self.get_options_dict(options)
         query_sha1s = [str(x) for x in query.split(',')]
         print("[view_similar_images_sha1] querying with {} sha1s: {}".format(len(query_sha1s), query_sha1s))
         sys.stdout.flush()
@@ -375,7 +376,10 @@ class APIResponder(Resource):
             similar_images_response.append(one_res)
         if not similar_images_response:
             similar_images_response.append([('','No results'),[('','')]])
-        flash(similar_images_response)
+        if "no_blur" in options_dict:
+            flash((options_dict["no_blur"],similar_images_response))
+        else:
+            flash((False,similar_images_response))
         headers = {'Content-Type': 'text/html'}
         sys.stdout.flush()
         return make_response(render_template('view_similar_images.html'),200,headers)
@@ -402,7 +406,10 @@ class APIResponder(Resource):
             similar_images_response.append(one_res)
         if not similar_images_response:
             similar_images_response.append([('','No results'),[('','')]])
-        flash(similar_images_response)
+        if "no_blur" in options_dict:
+            flash((options_dict["no_blur"],similar_images_response))
+        else:
+            flash((False,similar_images_response))
         headers = {'Content-Type': 'text/html'}
         sys.stdout.flush()
         return make_response(render_template('view_similar_images.html'),200,headers)
