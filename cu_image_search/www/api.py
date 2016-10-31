@@ -391,7 +391,7 @@ class APIResponder(Resource):
             return None
         similar_images_response = []
         for i in range(len(query_urls)):
-            one_res = [(query_urls[i], sim_images[i]["similar_images"]["query_sha1"])]
+            one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
             one_sims = []
             for j,sim_sha1 in enumerate(sim_images[i]["similar_images"]["sha1"]):
                 one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1),)
