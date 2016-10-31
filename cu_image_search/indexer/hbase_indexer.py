@@ -558,22 +558,6 @@ class HBaseIndexer(GenericIndexer):
         start_check_new_time = time.time()
         # fix to speed up indexing for now.
         update_existing = True
-        # # v2.0
-        # if "sentibank" in self.extractions_types:
-        #     check_images_sha1 = [image[0].rstrip() for image in readable_images]
-        #     already_indexed_sha1 = []
-        #     for i, indexed_image_sha1 in enumerate(self.sha1_featid_mapping):
-        #         if indexed_image_sha1 in check_images_sha1:
-        #             print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}".format(indexed_image_sha1)
-        #             # will call push_cu_feats_id for these images to make sure they are marked as indexed.
-        #             existing_cu_feat_ids.append(i)
-        #             existing_sha1.append(indexed_image_sha1)
-        #             already_indexed_sha1.append(indexed_image_sha1)
-        #     for i, image_toindex_sha1 in enumerate(check_images_sha1):
-        #         if image_toindex_sha1 not in already_indexed_sha1:
-        #             new_sb_files.append(readable_images[i][-1])
-        #             new_files_id.append(image_toindex_sha1)
-        # v3.0
         if "sentibank" in self.extractions_types:
             check_images_sha1 = [image[0].rstrip() for image in readable_images]
             set_check_images_sha1 = set(check_images_sha1)
