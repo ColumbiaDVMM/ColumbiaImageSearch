@@ -5,12 +5,13 @@
     <link rel="stylesheet" href="../static/style.css">
   </head>
   <body>
-  	{% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages() %}
+    <p>{{ messages }}</p>
     {% set noblur = messages.0 %}
     {% if noblur %}
-      {% set img_style = "img_noblur" % }
+      {% set img_style = "img_noblur" %}
     {% else %}
-      {% set img_style =  "img_blur" % }
+      {% set img_style =  "img_blur" %}
     {% endif %}
     {% set responses = messages.1 %}
     {% for similar_images_response in responses %}
