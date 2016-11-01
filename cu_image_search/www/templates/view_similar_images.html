@@ -17,7 +17,7 @@
     <h2>Query image:</h2>
     <img src="{{query_image[0]}}" title="{{query_image[1]}}" class="{{img_style}}">
     <h2>Query results:</h2>
-    {% for url,sha1,dist in similar_images %}<img src="{{url}}" title="{{sha1}}" class="{{img_style}}" altr="{{dist}}"> {% endfor %}
+    {% for url,sha1,dist in similar_images %}<img src="{{url}}" alt="{{sha1}}" class="{{img_style}}" title="{{dist}}"> {% endfor %}
     {% endfor %}
     {% endwith %}
   </body>
