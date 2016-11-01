@@ -398,9 +398,9 @@ class APIResponder(Resource):
             one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
             one_sims = []
             for j,sim_sha1 in enumerate(sim_images[i]["similar_images"]["sha1"]):
-                one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1),)
+                one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1, sim_images[i]["similar_images"]["distance"][j]),)
             one_res.append(one_sims)
-            print("[view_similar_query_response] one_res: {}.".format(one_res))
+            #print("[view_similar_query_response] one_res: {}.".format(one_res))
             sys.stdout.flush()
             #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
             similar_images_response.append(one_res)
