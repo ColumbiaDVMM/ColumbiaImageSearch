@@ -1,7 +1,7 @@
 import json
 from pyspark import SparkContext, SparkConf
 
-max_images_reduce = 50000
+max_images_reduce = 10000
 
 
 def get_list_value(json_x,field_tuple):
