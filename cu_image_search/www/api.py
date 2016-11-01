@@ -368,14 +368,15 @@ class APIResponder(Resource):
             sys.stdout.flush()
             one_sims = []
             for row in sim_rows:
-                one_sims += ((row[1]["info:s3_url"], row[0]),)
+                # should add distance here as third element
+                one_sims += ((row[1]["info:s3_url"], row[0]), '')
             one_res.append(one_sims)
             print("[view_similar_images_sha1] one_res: {}.".format(one_res))
             sys.stdout.flush()
             #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
             similar_images_response.append(one_res)
         if not similar_images_response:
-            similar_images_response.append([('','No results'),[('','')]])
+            similar_images_response.append([('','No results'),[('','','')]])
         if "no_blur" in options_dict:
             flash((options_dict["no_blur"],similar_images_response))
         else:
@@ -405,7 +406,7 @@ class APIResponder(Resource):
             #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
             similar_images_response.append(one_res)
         if not similar_images_response:
-            similar_images_response.append([('','No results'),[('','')]])
+            similar_images_response.append([('','No results'),[('','','')]])
         flash_message = (False, similar_images_response)
         if "no_blur" in options_dict:
             flash_message = (options_dict["no_blur"],similar_images_response)
