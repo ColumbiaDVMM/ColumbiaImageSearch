@@ -40,6 +40,7 @@ if __name__=="__main__":
                     time.sleep(interval-time_lapse)
             lasttime = time.time()
             up_obj.run_update()
+            print('[continuous_update_hbase] Update took {} seconds.'.format(time.time()-lasttime))            
         except Exception as inst:
             print "Update failed at {} with error {}.".format(datetime.now(),inst)
 
