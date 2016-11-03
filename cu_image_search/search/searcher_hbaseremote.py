@@ -107,7 +107,7 @@ class Searcher():
             near_dup_th = self.near_dup_th
         #print("[filter_near_dup] near_dup_th: {}".format(near_dup_th))
         onum = len(nums)/2
-        temp_nums=[]
+        temp_nums = []
         #print "[Searcher.filter_near_dup: log] nums {}".format(nums)
         for one_num in range(0,onum):
             # maintain only near duplicates, i.e. distance less than self.near_dup_th
@@ -359,6 +359,7 @@ class Searcher():
 
     def search_from_image_filenames(self, all_img_filenames, search_id, options_dict=dict()):
         # compute all sha1s
+        start_search = time.time()
         corrupted = []
         list_sha1_id = []
         valid_images = []
@@ -433,7 +434,10 @@ class Searcher():
             # query with merged features_filename
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
         outputname = simname[:-4]+".json"
+        start_format = time.time()
         outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
+        print "[Searcher.search_from_image_filenames: log] Formatting done in {}s".format(time.time() - start_format)
         print "[Searcher.search_from_image_filenames: log] saving output to {}".format(outputname)
         json.dump(outp, open(outputname,'w'), indent=4, sort_keys=False)    
+        print "[Searcher.search_from_image_filenames: log] Search done in {}s".format(time.time() - start_search)
         return outp, outputname
