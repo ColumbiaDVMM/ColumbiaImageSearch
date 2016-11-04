@@ -148,8 +148,8 @@ class Searcher():
                 sim_score.append([])
                 continue
             # just get the sha1 at this point
-            # beware, need to make sure sim and sim_score are still aligned
             sim_infos = self.indexer.get_sim_infos(nums[0:n])
+            # beware, need to make sure sim and sim_score are still aligned
             print("[read_sim] got {} sim_infos from {} samples".format(len(sim_infos), n))
             sim.append(sim_infos)
             sim_score.append(nums[onum:onum+n])

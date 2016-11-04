@@ -169,6 +169,7 @@ class HBaseIndexer(GenericIndexer):
 
 
     def refresh_hbase_conn(self, calling_function, sleep_time=2):
+        # Should we first try to close all connections from the pool?
         print("[HBaseIndexer.{}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function))
         time.sleep(sleep_time)
         self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
@@ -649,8 +650,7 @@ class HBaseIndexer(GenericIndexer):
                 # but started from a long time ago in this case.
                 batch = (None, None)
         except timeout as inst:
-            print("[HBaseIndexer.get_next_batch] caught timeout error or TTransportException. Trying to refresh connection pool. Error was: {}".format(inst))
-            self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
+            self.refresh_hbase_conn("get_next_batch")
             return self.get_next_batch()
         return batch
 
