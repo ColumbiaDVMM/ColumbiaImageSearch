@@ -640,14 +640,23 @@ class HBaseIndexer(GenericIndexer):
             if not self.index_batches:
                 with self.pool.connection() as connection:
                     table_updateinfos = connection.table(self.table_updateinfos_name)
+                    # need to specify batch size to avoid timeout
                     for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~', batch_size=500):
-                        if "info:indexed" not in row[1] and 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
-                            self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
+                        if "info:indexed" not in row[1]:
+                            if only_not_indexed:
+                                self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
+                            else:
+                                # batch as corrupted when dimensions mismatch during indexing
+                                if 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
+                                    self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
+                        #if "info:indexed" not in row[1] and 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
+                        #    self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
             if self.index_batches:
                 batch = self.index_batches.pop()
             else:
-                # we could look at the one marked as 'info:started' if they are not finished
-                # but started from a long time ago in this case.
+                # look for the ones marked as 'info:started' if they are not finished
+                if not only_not_indexed:
+                    return self.get_next_batch(True)
                 batch = (None, None)
         except timeout as inst:
             self.refresh_hbase_conn("get_next_batch")
