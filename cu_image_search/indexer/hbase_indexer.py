@@ -631,7 +631,7 @@ class HBaseIndexer(GenericIndexer):
         return True
 
 
-    def get_next_batch(self):
+    def get_next_batch(self, only_not_indexed=False):
         """ Get next update batch. 
 
         :returns (update_id, list_sha1s): returns a batch to be indexed.
@@ -640,7 +640,7 @@ class HBaseIndexer(GenericIndexer):
             if not self.index_batches:
                 with self.pool.connection() as connection:
                     table_updateinfos = connection.table(self.table_updateinfos_name)
-                    for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~'):
+                    for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~', batch_size=500):
                         if "info:indexed" not in row[1] and 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
                             self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
             if self.index_batches:
