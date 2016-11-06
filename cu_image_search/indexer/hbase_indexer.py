@@ -14,6 +14,7 @@ from ..memex_tools.binary_file import read_binary_file, write_binary_file
 
 TTransportException = happybase._thriftpy.transport.TTransportException
 max_errors = 10
+batch_size = 100
 
 class HBaseIndexer(GenericIndexer):
 
@@ -309,7 +310,7 @@ class HBaseIndexer(GenericIndexer):
             # where entries in the dict are key-value pairs as {'column_name': column_value}
             with self.pool.connection() as connection:
                 tab_out = connection.table(tab_out_name)
-                batch_write = tab_out.batch()
+                batch_write = tab_out.batch(batch_size=batch_size)
                 #print "Pushing batch from {}.".format(batch[0][0])
                 for row in batch:
                     #print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
@@ -641,7 +642,7 @@ class HBaseIndexer(GenericIndexer):
                 with self.pool.connection() as connection:
                     table_updateinfos = connection.table(self.table_updateinfos_name)
                     # need to specify batch size to avoid timeout
-                    for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~', batch_size=500):
+                    for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~', batch_size=batch_size):
                         if "info:indexed" not in row[1]:
                             if only_not_indexed:
                                 self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
