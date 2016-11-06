@@ -317,7 +317,7 @@ class HBaseIndexer(GenericIndexer):
                 batch_write.send()
         except (timeout or TTransportException or IOError) as inst:
             self.refresh_hbase_conn("write_batch")
-            return self.write_batch(batch, previous_err+1, inst)
+            return self.write_batch(batch, tab_out_name, previous_err+1, inst)
 
 
     def get_columns_name(self, list_type):
