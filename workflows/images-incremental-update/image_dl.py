@@ -84,7 +84,7 @@ def get_SHA1_from_URL(url,verbose=False):
 
 def get_b64_from_data(data):
     import base64
-    b64_from_data= None
+    b64_from_data = None
     try:
         b64_from_data = base64.b64encode(data)
     except:
@@ -114,7 +114,7 @@ def get_b64_from_URL_StringIO(url,verbose=False):
         if r.status_code == 200:
             r_sio = StringIO(r.content)
             data = r_sio.read()
-            b64_from_data = get_b64_from_data(r.raw.data)
+            b64_from_data = get_b64_from_data(data)
             return b64_from_data
         else:
             print "Incorrect status_code {} for url {}".format(r.status_code,url)
