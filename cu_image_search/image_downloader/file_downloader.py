@@ -25,6 +25,7 @@ class FileDownloader():
             print "[FileDownloader.download_images: error] Empty batch: {}.".format(batch)
             return None
     	print "[FileDownloader.download_images: log] Will download {} images with {} workers.".format(len(batch),self.dl_pool_size)
+        start_pool_time = time.time()
         pool = multiprocessing.Pool(self.dl_pool_size)
         basepath = os.path.join(self.dl_image_path,str(startid))
         if not os.path.isdir(basepath):
@@ -38,6 +39,7 @@ class FileDownloader():
             download_arg.append([url,basepath])
         #print "[FileDownloader.download_images: log] download_arg {}.".format(download_arg)
         start_dl = time.time()
+        print "[FileDownloader.download_images: log] Pool prepared in {:.2f}s.".format(start_dl - start_pool_time)
         # dlimage_basepath returns outpath if download succeeded, None otherwise
         download_indicator = pool.map(dlimage_args, download_arg)
         # Gather results
@@ -52,6 +54,7 @@ class FileDownloader():
             return None
         # Image integrity check, this is slow... 
         # And also does not deal with types other than JPEG...
+        start_integrity_check = time.time()
         readable_images = []
         integrity_path = os.path.join(basepath,'integrity_check')
         if not os.path.exists(integrity_path):
@@ -71,7 +74,7 @@ class FileDownloader():
                 continue
             readable_images.append(img_item)
         f.close()
-        print "[FileDownloader.download_images: log] We have {} readable images.".format(len(readable_images))
+        print "[FileDownloader.download_images: log] We have {} readable images. Integrity check took {:.2f}s.".format(len(readable_images), time.time()-start_integrity_check)
         if not readable_images:
             return None
         return readable_images
