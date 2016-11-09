@@ -1,6 +1,7 @@
+import json
 import base64
 import requests
-import json
+from StringIO import StringIO
 from optparse import OptionParser
 
 """ Test file for Columbia Image Search tool in MEMEX HT domain.
@@ -15,7 +16,6 @@ imagedltimeout = 4
 def get_b64_from_data(data):
     """ Encode data to base64.
     """
-    import base64
     b64_from_data = None
     try:
         b64_from_data = base64.b64encode(data)
@@ -27,7 +27,6 @@ def get_b64_from_data(data):
 def get_b64_from_URL_StringIO(url,verbose=False):
     """ Encode the image at 'url' into a base64 string.
     """
-    from StringIO import StringIO
     if verbose:
         print("Downloading image from {}.".format(url))
     try:
