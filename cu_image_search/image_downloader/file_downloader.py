@@ -41,13 +41,13 @@ class FileDownloader():
         # dlimage_basepath returns outpath if download succeeded, None otherwise
         download_indicator = pool.map(dlimage_args, download_arg)
         # Gather results
+        pool.close()
+        pool.join()
         downloaded = []
         for i,img_item in enumerate(batch):
             if download_indicator[i]:
                 downloaded.append(img_item+(download_indicator[i],))
         print "[FileDownloader.download_images: log] Downloaded {} images in {:.2f}s.".format(len(downloaded),time.time()-start_dl)
-        pool.close()
-        pool.join()
         if not downloaded:
             return None
         # Image integrity check, this is slow... 
