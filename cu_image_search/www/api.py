@@ -36,6 +36,7 @@ def after_request(response):
   return response
 
 global_conf_file = '../../conf/global_var_remotehbase_release.json'
+#global_conf_file = '../../conf/global_var_remotehbase.json'
 global_searcher = None
 global_start_time = None
 

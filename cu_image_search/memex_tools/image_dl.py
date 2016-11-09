@@ -15,6 +15,7 @@ def mkpath(outpath):
             pass
 
 def dlimage_basepath(url,basepath,logf=None):
+    start_time = time.time()
     if not url:
         return None
     pos_slash=[pos for pos,c in enumerate(url) if c=="/"]
@@ -25,13 +26,20 @@ def dlimage_basepath(url,basepath,logf=None):
     # path with time and random to ensure unique names
     outpath=os.path.join(basepath,str(time.time())+'_'+str(np.int32(np.random.random()*(10e6)))+'_'+file_img)
     mkpath(outpath)
+    uptomkpath_time = time.time()
     #print "Downloading image from {} to {}.".format(url,outpath)
     try:
         r = requests.get(url, stream=True, timeout=imagedltimeout)
+        uptorequest_time = time.time()
         if r.status_code == 200:
             with open(outpath, 'wb') as f:
                 r.raw.decode_content = True
                 shutil.copyfileobj(r.raw, f)
+            uptowrite_time = time.time()
+            mkpath_time = uptomkpath_time - start_time
+            dl_time = uptorequest_time - uptomkpath_time
+            write_time = uptowrite_time - uptorequest_time
+            print("[dlimage_basepath] mkpath_time {}, dl_time {}, write_time {}".format(mkpath_time, dl_time, write_time))
             return outpath
     except Exception as inst:
         if logf:
