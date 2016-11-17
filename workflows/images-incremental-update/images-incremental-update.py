@@ -476,6 +476,10 @@ def safe_assign(a, c, field, fallback):
     return c
 
 
+def test_info_s3_url(dict_img):
+    return "info:s3_url" in dict_img and dict_img["info:s3_url"] and dict_img["info:s3_url"][0]!=u'None' and dict_img["info:s3_url"][0].startswith('https://s3') 
+
+
 def reduce_sha1_infos_discarding(a,b):
     c = dict()
     if b:  # sha1 already existed
@@ -487,10 +491,11 @@ def reduce_sha1_infos_discarding(a,b):
             # KeyError: 'info:all_cdr_ids'. How could an image not have this field?
             c = safe_reduce_infos(a, b, c, "info:all_cdr_ids")
             c = safe_reduce_infos(a, b, c, "info:all_parent_ids")
-        if "info:s3_url" in a and a["info:s3_url"] and a["info:s3_url"][0] and a["info:s3_url"][0]!=u'None':
+        #if "info:s3_url" in a and a["info:s3_url"] and a["info:s3_url"].startswith('https://s3') and a["info:s3_url"][0]!=u'None':
+        if test_info_s3_url(a):
             c["info:s3_url"] = a["info:s3_url"]
         else:
-            if "info:s3_url" in b:
+            if test_info_s3_url(b):
                 c["info:s3_url"] = b["info:s3_url"]
             else:
                 print("[reduce_sha1_infos_discarding: error] both a and b have no s3 url.")
