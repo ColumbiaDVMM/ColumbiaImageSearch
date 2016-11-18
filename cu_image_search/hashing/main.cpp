@@ -7,23 +7,24 @@
 using namespace std;
 using namespace cv;
 
-#define DEMO 1
+// Now defined in header.h
+// #define DEMO 1
 
-int NumberOfSetBits(unsigned int i)
-{
-    i = i - ((i >> 1) & 0x55555555);
-    i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-    return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
-}
+// int NumberOfSetBits(unsigned int i)
+// {
+//     i = i - ((i >> 1) & 0x55555555);
+//     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
+//     return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+// }
 
-typedef std::pair<int,int> mypair;
-typedef std::pair<float,int> mypairf;
+// typedef std::pair<int,int> mypair;
+// typedef std::pair<float,int> mypairf;
 
-bool comparator ( const mypair & l, const mypair & r)
-{ return l.first < r.first; }
+// bool comparator ( const mypair & l, const mypair & r)
+// { return l.first < r.first; }
 
-bool comparatorf ( const mypairf & l, const mypairf & r)
-{ return l.first < r.first; }
+// bool comparatorf ( const mypairf & l, const mypairf & r)
+// { return l.first < r.first; }
 
 
 int main(int argc, char** argv){
@@ -242,16 +243,19 @@ int main(int argc, char** argv){
     {
         t[1] = get_wall_time();
         std::cout <<  "Looking for similar images of query #" << k+1 << std::endl;
-        //hashing
+        // Compute hamming distances between query k and all DB hashcodes
         unsigned int * hash_data= (unsigned int*)itq.data;
         for (int i=0;i<data_num;i++)
         {
             hamming[i] = mypair(0,i);
+            // Compute hamming distance by sets 32 bits
             for (int j=0;j<int_num;j++)
             {
                 unsigned int xnor = query[j]^hash_data[j];
                 hamming[i].first += NumberOfSetBits(xnor);
             }
+            // Here we could use a max heap to maintain only the top_feature
+            // Move pointer to next DB hashcode
             hash_data += int_num;
         }
         std::sort(hamming.begin(),hamming.end(),comparator);
