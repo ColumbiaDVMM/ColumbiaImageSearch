@@ -5,6 +5,8 @@ import time
 import numpy as np
 
 imagedltimeout = 3
+session = requests.Session()
+session.trust_env = False
 
 def mkpath(outpath):
     pos_slash=[pos for pos,c in enumerate(outpath) if c=="/"]
@@ -29,7 +31,8 @@ def dlimage_basepath(url,basepath,logf=None):
     uptomkpath_time = time.time()
     #print "Downloading image from {} to {}.".format(url,outpath)
     try:
-        r = requests.get(url, stream=True, timeout=imagedltimeout)
+        #r = requests.get(url, stream=True, timeout=imagedltimeout)
+        r = session.get(url, stream=True, timeout=imagedltimeout)
         uptorequest_time = time.time()
         if r.status_code == 200:
             with open(outpath, 'wb') as f:
@@ -63,7 +66,8 @@ def dlimage_basepath_integritycheck(url, basepath, logf=None):
     mkpath(outpath)
     #print "Downloading image from {} to {}.".format(url,outpath)
     try:
-        r = requests.get(url, stream=True, timeout=imagedltimeout)
+        #r = requests.get(url, stream=True, timeout=imagedltimeout)
+        r = session.get(url, stream=True, timeout=imagedltimeout)
         if r.status_code == 200:
             if int(r.headers['content-length']) == 0:
                 raise ValueError("Empty image.")

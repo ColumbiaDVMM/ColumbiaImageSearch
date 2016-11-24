@@ -35,8 +35,8 @@ def after_request(response):
   response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
   return response
 
-global_conf_file = '../../conf/global_var_remotehbase_release.json'
-#global_conf_file = '../../conf/global_var_remotehbase.json'
+#global_conf_file = '../../conf/global_var_remotehbase_release.json'
+global_conf_file = '../../conf/global_var_remotehbase.json'
 global_searcher = None
 global_start_time = None
 
