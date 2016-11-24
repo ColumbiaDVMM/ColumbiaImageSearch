@@ -11,6 +11,7 @@
 using namespace std;
 using namespace cv;
 
+// acutally in iotools.h
 template<class ty>
 void normalize(ty *X, size_t dim)
 {
@@ -27,26 +28,29 @@ void normalize(ty *X, size_t dim)
     }
 }
 
-int NumberOfSetBits(unsigned int i)
-{
-    i = i - ((i >> 1) & 0x55555555);
-    i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-    return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
-}
-
-int count_bits(unsigned int n) {
-    unsigned int c; // c accumulates the total bits set in v
-    for (c = 0; n; c++)
-        n &= n - 1; // clear the least significant bit set
-    return c;
-}
-
+// acutally in iotools.cpp
 ifstream::pos_type filesize(string filename)
 {
     ifstream in(filename, ios::ate | ios::binary);
     return in.tellg();
 }
 
+
+// Now in header.h
+// int NumberOfSetBits(unsigned int i)
+// {
+//     i = i - ((i >> 1) & 0x55555555);
+//     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
+//     return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+// }
+
+// Actually not used?
+// int count_bits(unsigned int n) {
+//     unsigned int c; // c accumulates the total bits set in v
+//     for (c = 0; n; c++)
+//         n &= n - 1; // clear the least significant bit set
+//     return c;
+// }
 
 
 int main(int argc, char** argv){
