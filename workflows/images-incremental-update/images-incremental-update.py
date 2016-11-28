@@ -9,7 +9,7 @@ import sys
 print(sys.version)
 import subprocess
 
-dev = False
+dev = True
 
 if dev:
     dev_release_suffix = "_dev"
@@ -827,7 +827,7 @@ def get_update_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man
     return update_join_rdd
 
 
-def compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time):
+def compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, hbase_man_sha1infos_out, incr_update_id, nb_partitions, c_options, start_time):
     ## check if we not already have computed this join step of this update
     out_join_rdd_path = basepath_save + "/out_join_rdd"
     out_join_rdd_amandeep = None
@@ -843,6 +843,8 @@ def compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_ma
         if out_join_rdd_amandeep is not None:
             # consider already processed
             print("[compute_out_join_rdd] out_join_rdd already computed for update {}.".format(incr_update_id))
+            # if we are re-running this, it might mean we did not manage to save to HBase. Retrying
+            save_out_rdd_to_hbase(out_join_rdd_amandeep, hbase_man_sha1infos_out)
             return out_join_rdd_amandeep
 
     ## try to reload rdds that could have already been computed, compute chain of dependencies if needed 
@@ -876,11 +878,12 @@ def compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_ma
             except Exception as inst:
                 print("[compute_out_join_rdd] could not save rdd at {}, error was {}.".format(out_join_rdd_path, inst))
    
-    if out_join_rdd_amandeep is not None:
-        ## save sha1 infos for these joined images in HBase
-        out_join_rdd = out_join_rdd_amandeep.flatMap(split_sha1_kv_images_discarded)
-        print("[compute_out_join_rdd] saving 'out_join_rdd' to sha1_infos HBase table.")
-        hbase_man_sha1infos_out.rdd2hbase(out_join_rdd)
+    save_out_rdd_to_hbase(out_join_rdd_amandeep, hbase_man_sha1infos_out)
+    # if out_join_rdd_amandeep is not None:
+    #     ## save sha1 infos for these joined images in HBase
+    #     out_join_rdd = out_join_rdd_amandeep.flatMap(split_sha1_kv_images_discarded)
+    #     print("[compute_out_join_rdd] saving 'out_join_rdd' to sha1_infos HBase table.")
+    #     hbase_man_sha1infos_out.rdd2hbase(out_join_rdd)
 
     return out_join_rdd_amandeep
 
@@ -956,7 +959,7 @@ def get_update_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdri
     return update_rdd
 
 
-def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time):
+def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, hbase_man_sha1infos_out, incr_update_id, nb_partitions, c_options, start_time):
     ## check if we not already have computed this join step of this update
     rdd_name = "out_rdd"
     out_rdd_path = basepath_save + "/" + rdd_name
@@ -973,6 +976,8 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdr
         if out_rdd_amandeep is not None:
             # consider already processed
             print("[compute_out_rdd] out_rdd already computed for update {}.".format(incr_update_id))
+            # we should try to check if saving to hbase_man_sha1infos_out has completed
+            save_out_rdd_to_hbase(out_rdd_amandeep, hbase_man_sha1infos_out)
             return out_rdd_amandeep
 
     ## try to reload rdds that could have already been computed, compute chain of dependencies if needed 
@@ -1012,15 +1017,34 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdr
         # org.apache.hadoop.mapred.FileAlreadyExistsException
         except Exception as inst:
             print("[compute_out_rdd] could not save rdd at {}, error was {}.".format(out_rdd_path, inst))
-    ## write out rdd of new images 
-    out_rdd = out_rdd_amandeep.flatMap(split_sha1_kv_images_discarded)
-    if not out_rdd.isEmpty():
-        print("[compute_out_rdd] saving 'out_rdd' to sha1_infos HBase table.")
-        hbase_man_sha1infos_out.rdd2hbase(out_rdd)
-    else:
-        print("[compute_out_rdd] 'out_rdd' is empty.")
+
+    # save to HBase
+    save_out_rdd_to_hbase(out_rdd_amandeep, hbase_man_sha1infos_out)
+    # ## write out rdd of new images 
+    # out_rdd = out_rdd_amandeep.flatMap(split_sha1_kv_images_discarded)
+    # if not out_rdd.isEmpty():
+    #     print("[compute_out_rdd] saving 'out_rdd' to sha1_infos HBase table.")
+    #     hbase_man_sha1infos_out.rdd2hbase(out_rdd)
+    #     # how to be sure this as completed?
+    # else:
+    #     print("[compute_out_rdd] 'out_rdd' is empty.")
 
     return out_rdd_amandeep
+
+
+def save_out_rdd_to_hbase(out_rdd_amandeep, hbase_man_sha1infos_out):
+    if out_rdd_amandeep is not None:
+        # write out rdd of new images 
+        out_rdd = out_rdd_amandeep.flatMap(split_sha1_kv_images_discarded)
+        if not out_rdd.isEmpty():
+            print("[save_out_rdd_to_hbase] saving 'out_rdd' to sha1_infos HBase table.")
+            hbase_man_sha1infos_out.rdd2hbase(out_rdd)
+            # how to be sure this as completed?
+        else:
+            print("[save_out_rdd_to_hbase] 'out_rdd' is empty.")
+    else:
+        print("[save_out_rdd_to_hbase] 'out_rdd_amandeep' is None.")
+
 ##-------------
 
 
@@ -1063,14 +1087,14 @@ def incremental_update(es_man, hbase_man_ts, hbase_man_cdrinfos_out, hbase_man_s
     
     if c_options.join_s3url:
         ## compute update for s3 urls we already now
-        out_join_rdd = compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time) 
+        out_join_rdd = compute_out_join_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, hbase_man_sha1infos_out, incr_update_id, nb_partitions, c_options, start_time) 
         ## save potential new images in out_join_rdd by batch of 10000 to be indexed? 
         # They should have been indexed the first time they have been seen... But download could have failed etc.
         # Might be good to retry image without cu_feat_id here when indexing has catched up
         #save_new_images_for_index(out_join_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, "new_images_to_index_join")
     
     ## compute update for new s3 urls
-    out_rdd = compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, incr_update_id, nb_partitions, c_options, start_time) 
+    out_rdd = compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdrinfos_out, hbase_man_update_out, hbase_man_sha1infos_out, incr_update_id, nb_partitions, c_options, start_time) 
 
     if out_rdd is not None and not out_rdd.isEmpty():
         save_new_images_for_index(basepath_save, out_rdd, hbase_man_update_out, incr_update_id, batch_update_size, c_options, "new_images_to_index")
