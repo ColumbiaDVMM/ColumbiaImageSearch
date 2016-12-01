@@ -9,7 +9,7 @@ using namespace std;
 using namespace cv;
 
 int HasherObject::load_hashcodes() {
-    cout << "Loading hashcodes..." << endl;
+    cout << "Loading hashcodes... " << endl;
     // If we are updating
     itq.release();
     itq.create(data_num, int_num, CV_32SC1);
@@ -27,6 +27,7 @@ int HasherObject::load_hashcodes() {
         read_in.close();
         read_pos +=read_size;
     }
+    cout << "Hashcodes dimensions are " << itq.rows << "x" << itq.cols << endl;
     return 0;
 }
 
@@ -65,7 +66,7 @@ int HasherObject::load_itq_model() {
 
 Mat HasherObject::read_feats_from_disk(string filename) {
     // Read count
-    int feats_num = (int)filesize(filename)/4/this->feature_dim;
+    int feats_num = (int)filesize(filename)/4/feature_dim;
     cout << "[read_feats_from_disk] Reading " << feats_num << " features." << endl;
     // Check input file
     ifstream read_in(filename, ios::in|ios::binary);
@@ -75,9 +76,9 @@ Mat HasherObject::read_feats_from_disk(string filename) {
         return Mat();
     }
     // Allocate memory
-    Mat feats_mat(feats_num, this->feature_dim, CV_32F);
+    Mat feats_mat(feats_num, feature_dim, CV_32F);
     // Read features
-    size_t read_size = sizeof(float)*this->feature_dim*feats_num;
+    size_t read_size = sizeof(float)*feature_dim*feats_num;
     read_in.read((char*)feats_mat.data, read_size);
     // Finalize reading
     read_in.close();
@@ -152,8 +153,7 @@ void HasherObject::find_knn() {
         query += int_num;
         query_feature += feature_dim;
     }
-
-    // Clean up?
+    // Clean up
     delete[] query_codes;
     query_feats.release();
     close_output_files();
