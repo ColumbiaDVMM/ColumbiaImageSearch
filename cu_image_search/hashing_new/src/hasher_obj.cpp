@@ -108,7 +108,7 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     feats_mat.convertTo(feats_mat_double, CV_64F);
     int feats_num = feats_mat.rows;
     cout << "[compute_hashcodes_from_feats] Computing hashcodes for " << feats_num << " features." << endl;
-    mvec = repeat(mvec, feats_num,1);
+    mvec = repeat(mvec, feats_num, 1);
     // Project features
     Mat realvalued_hash = feats_mat_double*W-mvec;
     // Binarizing features
@@ -117,10 +117,10 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     {
         for (int i=0; i < int_num; i++)
         {
-            hash_mat[k*this->int_num+i] = 0;
+            hash_mat[k*int_num+i] = 0;
             for (int j=0;j<32;j++)
                 if (realvalued_hash.at<double>(k,i*32+j)>0)
-                    hash_mat[k*this->int_num+i] += 1<<j;
+                    hash_mat[k*int_num+i] += 1<<j;
         }
     }
     // Done hashing features
