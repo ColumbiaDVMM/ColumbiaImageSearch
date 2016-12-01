@@ -47,6 +47,9 @@ int HasherObject::load_itq_model() {
     read_size = sizeof(double)*feature_dim*bit_num;
     read_in.read((char*)W.data, read_size);
     read_in.close();
+
+    cout << "[load_itq_model] W first value are: " << W.at<double>(0,0) << " " << W.at<double>(0,1) << endl;
+
     // read mvec
     read_in.open(mvec_name, ios::in|ios::binary);
     if (!read_in.is_open())
@@ -60,6 +63,9 @@ int HasherObject::load_itq_model() {
     read_size = sizeof(double)*bit_num;
     read_in.read((char*)mvec.data, read_size);
     read_in.close();
+
+    cout << "[load_itq_model] mvec first value are: " << mvec.at<double>(0,0) << " " << mvec.at<double>(0,1) << endl;
+
     return 0;
 }
 
@@ -113,6 +119,8 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     feats_mat.convertTo(feats_mat_double, CV_64F);
     int feats_num = feats_mat.rows;
     cout << "[compute_hashcodes_from_feats] Computing hashcodes for " << feats_num << " features." << endl;
+    cout << "[compute_hashcodes_from_feats] mvec first value are: " << mvec.at<double>(0,0) << " " << mvec.at<double>(0,1) << endl;
+
     mvec = repeat(mvec, feats_num, 1);
     // Project features
     Mat realvalued_hash = feats_mat_double*W-mvec;
