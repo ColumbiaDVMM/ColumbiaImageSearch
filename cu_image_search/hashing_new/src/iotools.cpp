@@ -172,6 +172,7 @@ int get_n_features(string update_fn, int* query_ids, int query_num, int norm, in
     vector<string> update_hash_files;
     vector<string> update_compfeature_files;
     vector<string> update_compidx_files;
+    cout << "Reading update file: " << update_fn << endl;
     ifstream fu(update_fn,ios::in);
     if (!fu.is_open())
     {
@@ -182,6 +183,7 @@ int get_n_features(string update_fn, int* query_ids, int query_num, int norm, in
     {
         while (getline(fu, line)) {
             //std::cout << "Loading update: " << line << std::endl;
+            cout << "Adding hashcode file " << update_hash_prefix+line+update_hash_suffix << endl;
             update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
             update_compfeature_files.push_back(update_compfeature_prefix+line+update_compfeature_suffix);
             update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);

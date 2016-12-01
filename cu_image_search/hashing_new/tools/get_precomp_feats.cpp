@@ -38,9 +38,10 @@ int main(int argc, char** argv){
     int norm = true;
     // we just use hashing files to know number of features per update here.
     // so if multiple hashing are computed, use the smallest number of bits available.
-    int bit_num = 256; 
+    int bit_num = 256;
     string ids_file(argv[1]);
     string out_file(argv[2]);
+    set_default_paths();
     if (argc>3)
         base_updatepath = argv[3];
     set_paths();
@@ -48,6 +49,9 @@ int main(int argc, char** argv){
         bit_num = atoi(argv[4]);
     if (argc>5)
         norm = atoi(argv[5]);
+
+    // debug
+    cout << "base_updatepath in get_precomp_feats is: " << base_updatepath << endl;
 
     //read in query
     int query_num = (int)filesize(argv[1])/sizeof(int);

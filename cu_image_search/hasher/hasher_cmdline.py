@@ -20,7 +20,10 @@ class HasherCmdLine():
             self.base_update_path = self.global_conf['HA_base_update_path']
         self.features_dim = self.global_conf['FE_features_dim']
         self.bits_num = self.global_conf['HA_bits_num']
-        self.hashing_execpath = os.path.join(os.path.dirname(__file__),'../hashing/')
+        if 'HA_path' in self.global_conf:
+            self.hashing_execpath = os.path.join(os.path.dirname(__file__),self.global_conf['HA_path'])
+        else:
+            self.hashing_execpath = os.path.join(os.path.dirname(__file__),'../hashing/')
         self.hashing_outpath = os.path.join(self.base_update_path,'hash_bits/')
         mkpath(self.hashing_outpath)
         # need to be able to set/get master_update file.
@@ -120,7 +123,8 @@ class HasherCmdLine():
                 f_prein.write(struct.pack('i',feat_id))
         # query for features
         command = self.hashing_execpath+"get_precomp_{} {} {} {}".format(str_precomp,query_precomp_fn,X_fn,self.base_update_path)
-        print "[HasherCmdLine.get_precomp_X: log] running command: {}".format(command)
+        print("[HasherCmdLine.get_precomp_X: log] running command: {}".format(command))
+        sys.stdout.flush()
         os.system(command)
         # read features/hashcodes
         X, ok_ids = read_binary_file(X_fn,str_precomp,list_feats_id,read_dim,read_type)
@@ -178,6 +182,7 @@ class HasherCmdLine():
         initname = featurefilename[:-4] + '-sim.txt'
         simname = featurefilename[:-4] + '-sim_'+str(ratio)+'.txt'
         print "[HasherCmdLine.get_similar_images: log] try to rename {} to {}".format(initname,simname)
+        # this would raise an error if command failed
         os.rename(initname,simname)
         return simname
 
