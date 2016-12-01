@@ -24,6 +24,10 @@ class HasherCmdLine():
             self.hashing_execpath = os.path.join(os.path.dirname(__file__),self.global_conf['HA_path'])
         else:
             self.hashing_execpath = os.path.join(os.path.dirname(__file__),'../hashing/')
+        if 'HA_exec' in self.global_conf:
+            self.hashing_execfile = self.global_conf['HA_exec']
+        else:
+            self.hashing_execfile = 'hashing'
         self.hashing_outpath = os.path.join(self.base_update_path,'hash_bits/')
         mkpath(self.hashing_outpath)
         # need to be able to set/get master_update file.
@@ -166,7 +170,7 @@ class HasherCmdLine():
         #command = self.hashing_execpath+"hashing "+featurefilename+" "+str(self.bits_num)+" "+str(ratio)
         #print "[HasherCmdLine.get_similar_images: log] running command: {}".format(command)
         args = [str(x) for x in [featurefilename,self.hashing_execpath,self.base_update_path,self.bits_num,ratio]]
-        subprocess_command = [self.hashing_execpath+"hashing"] + args
+        subprocess_command = [self.hashing_execpath+self.hashing_execfile] + args
         if demote: # needed when using Apache
             pw_record = pwd.getpwnam("www-data")
             user_uid = pw_record.pw_uid

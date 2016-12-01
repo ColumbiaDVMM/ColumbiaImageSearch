@@ -89,7 +89,7 @@ Mat HasherObject::read_feats_from_disk(string filename) {
 // Mat HasherObject::read_hashcodes_from_disk(string filename) {
 
 // }
-        
+
 void HasherObject::set_query_feats_from_disk(string filename) {
     query_feats = read_feats_from_disk(filename);
 }
@@ -105,7 +105,9 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     // Allocate temporary matrices
     Mat feats_mat_double;
     feats_mat.convertTo(feats_mat_double, CV_64F);
-    mvec = repeat(mvec, query_num,1);
+    int feats_num = feats_mat.rows;
+    cout << "[compute_hashcodes_from_feats] Computing hashcodes for " << feats_num << " features." << endl;
+    mvec = repeat(mvec, feats_num,1);
     // Project features
     Mat realvalued_hash = feats_mat_double*W-mvec;
     // Binarizing features
@@ -130,18 +132,23 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
 void HasherObject::find_knn() {
     unsigned int* query = query_codes;
     float* query_feature = (float*)query_feats.data;
+    query_num = query_feats.rows;
     vector<mypair> top_hamming;
     init_output_files();
     for (int k=0; k < query_num; k++)
     {
         cout <<  "Looking for similar images of query #" << k+1 << endl;
         // Compute hamming distances between query k and all DB hashcodes
+        cout <<  "Computing hamming distances for query #" << k+1 << endl;
         top_hamming = compute_hamming_dist_onehash(query);
         // Rerank based on real valued features
+        cout <<  "Reranking for query #" << k+1 << endl;
         postrank = rerank_knn_onesample(query_feature, top_hamming);
         // Write out results
+        cout <<  "Writing output for query #" << k+1 << endl;
         write_to_output_file(postrank, hamming);
         // Move to next query
+        cout <<  "Moving to next query" << endl;
         query += int_num;
         query_feature += feature_dim;
     }
@@ -162,6 +169,8 @@ void HasherObject::find_knn_from_feats(Mat _query_feats) {
 vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<mypair> top_hamming) {
     //read needed feature for post ranking
     //t[1]=get_wall_time();
+    cout << "We have " << top_hamming.size() << " candidates to rerank." << endl;
+
     vector<mypairf> postrank(top_hamming.size());
     char* feature_p = (char*)top_feature_mat.data;
     read_size = sizeof(float)*feature_dim;
@@ -169,6 +178,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
     int i;
     for (i = 0; i < top_hamming.size(); i++)
     {
+        //cout << "Getting precomputed feature #" << top_hamming[i].second << endl;
         // accum, read_in_compfeatures, read_in_compidx should be set previously
         status = get_onefeatcomp(top_hamming[i].second, read_size, accum, read_in_compfeatures, read_in_compidx, feature_p);
         //status = get_onefeat(hamming[i].second,read_size,accum,read_in_features,feature_p);
@@ -179,7 +189,8 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
         }
         feature_p += read_size;
     }
-    cout << "[rerank_knn_onesample] Biggest hamming distance is: " << top_hamming[i].first << endl;
+
+    cout << "[rerank_knn_onesample] Biggest hamming distance is: " << top_hamming[i-1].first << endl;
 
     // Why not always use squared euclidean distance?
     float* data_feature;
@@ -227,9 +238,9 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
 }
 
 vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
-    
     // Initialize data pointer
     unsigned int * hash_data = (unsigned int*)itq.data;
+
     // Compute distance for each sample of the DB
     for (int i=0; i < data_num; i++)
     {
@@ -244,10 +255,32 @@ vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
         // Move pointer to next DB hashcode
         hash_data += int_num;
     }
+
+    //cout << "First sample hamming distance before sort: " << hamming[0].first << endl;
+    //vector<mypair>::iterator max_hd = max_element(hamming.begin(), hamming.end(), comparator);
+    //vector<mypair>::iterator min_hd = min_element(hamming.begin(), hamming.end(), comparator);
+    //cout << "Smallest hamming distance before sort: " << hamming[distance(hamming.begin(),min_hd)].first << endl;
+    //cout << "Biggest hamming distance before sort: " << hamming[distance(hamming.begin(),max_hd)].first << endl;
+
     // Sort results
+    // Use nth_element maybe?
     sort(hamming.begin(), hamming.end(), comparator);
+
+    unsigned long long out_size = min((unsigned long long)top_feature, (unsigned long long)hamming.size());
+
+    int small_hd_sort = hamming[0].first;
+    int big_hd_sort = hamming[out_size-1].first;
+    cout << "Top " << out_size << " sorted hamming distances range is [" << small_hd_sort << ", " << big_hd_sort << "]" << endl;
+
     // Only get the results we need
-    vector<mypair> hamming_out(&hamming[0],&hamming[min((unsigned long long)top_feature, (unsigned long long)hamming.size())]);
+    vector<mypair>::const_iterator ho_first = hamming.begin();
+    vector<mypair>::const_iterator ho_last = hamming.begin()+out_size;
+    vector<mypair> hamming_out(ho_first, ho_last);
+
+    int small_hd = hamming_out[0].first;
+    int big_hd = hamming_out[out_size-1].first;
+
+    cout << "Top " << hamming_out.size() << " hamming distances range is [" << small_hd << ", " << big_hd << "]" << endl;
     return hamming_out;
 }
 
@@ -274,7 +307,7 @@ void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair>
     this->outputfile << endl;
     if (DEMO==0) {
         this->outputfile_hamming << endl;
-    }        
+    }
 }
 
 // Mat HasherObject::find_knn_from_hashcodes(Mat hash_mat) {
@@ -368,7 +401,7 @@ int HasherObject::read_update_files() {
             update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);
         }
     }
-    // Read comp features 
+    // Read comp features
     int status = 0;
     status = fill_vector_files(read_in_compfeatures, update_compfeature_files);
     if (status==-1) {
@@ -388,12 +421,13 @@ int HasherObject::read_update_files() {
 
 void HasherObject::fill_data_nums_accum() {
     data_num = fill_data_nums(update_hash_files, data_nums, bit_num);
+    cout << "We have " << data_num << " images indexed." << endl;
     delete[] accum;
     accum = new int[data_nums.size()];
     fill_accum(data_nums, accum);
     // this will overwrite top_feature
     set_top_feature();
-    hamming.reserve(data_num);
+    hamming.resize(data_num);
 }
 
 void HasherObject::clean_compfeat_files() {
@@ -401,7 +435,6 @@ void HasherObject::clean_compfeat_files() {
     {
         if (read_in_compfeatures[i]->is_open())
             read_in_compfeatures[i]->close();
-        
         if (read_in_compidx[i]->is_open())
             read_in_compidx[i]->close();
         delete read_in_compfeatures[i];
@@ -415,5 +448,3 @@ void HasherObject::clean_compfeat_files() {
 // Mat get_feats_from_memory(void* data);
 
 // Mat get_hashcodes_from_memory(void* data);
-
-       
