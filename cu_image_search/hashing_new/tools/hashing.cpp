@@ -243,6 +243,9 @@ int main(int argc, char** argv){
         std::cout <<  "Looking for similar images of query #" << k+1 << std::endl;
         // Compute hamming distances between query k and all DB hashcodes
         unsigned int * hash_data = (unsigned int*)itq.data;
+
+        cout << "Hash code first value are: " << query[0] << " " << query[1] << endl;
+
         for (int i=0;i<data_num;i++)
         {
             hamming[i] = mypair(0,i);

@@ -128,6 +128,7 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
                     hash_mat[k*this->int_num+i] += 1<<j;
         }
     }
+    cout << "[compute_hashcodes_from_feats] Hash code first value are: " << hash_mat[0] << " " << hash_mat[1] << endl;
     // Done hashing features
     return hash_mat;
 }
@@ -147,6 +148,7 @@ void HasherObject::find_knn() {
         cout <<  "Looking for similar images of query #" << k+1 << endl;
         // Compute hamming distances between query k and all DB hashcodes
         cout <<  "Computing hamming distances for query #" << k+1 << endl;
+        cout << "[find_knn] Hash code first value are: " << query[0] << " " << query[1] << endl;
         top_hamming = compute_hamming_dist_onehash(query);
         // Rerank based on real valued features
         cout <<  "Reranking for query #" << k+1 << endl;
