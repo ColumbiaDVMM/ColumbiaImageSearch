@@ -83,7 +83,7 @@ Mat HasherObject::read_feats_from_disk(string filename) {
     // Finalize reading
     read_in.close();
     cout << "[read_feats_from_disk] Read " << read_size <<  " bytes for " << feats_num << " features." << endl;
-    cout << "[read_feats_from_disk] Features first value is: " << feats_mat.at<double>(0,0) << endl;
+    cout << "[read_feats_from_disk] Features first value are: " << feats_mat.at<double>(0,0) << " " << feats_mat.at<double>(0,1) << endl;
     return feats_mat;
 }
 
@@ -95,19 +95,19 @@ Mat HasherObject::read_feats_from_disk(string filename) {
 void HasherObject::set_query_feats_from_disk(string filename) {
     query_feats.release();
     query_feats = read_feats_from_disk(filename);
-    cout << "[set_query_feats_from_disk] Features first value is: " << query_feats.at<double>(0,0) << endl;
+    cout << "[set_query_feats_from_disk] Features first value are: " << query_feats.at<double>(0,0) << " " << query_feats.at<double>(0,1) << endl;
 }
 
 
 // compute hashcodes from feats
 unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
-    cout << "[compute_hashcodes_from_feats] Features first value is: " << feats_mat.at<double>(0,0) << endl;
+    cout << "[compute_hashcodes_from_feats] Features first value are: " << feats_mat.at<double>(0,0) << " " << feats_mat.at<double>(0,1) << endl;
     // hashing init
     if (norm) {
         for  (int k = 0; k < query_num; k++)
             normalize((float*)feats_mat.data + k*feature_dim, feature_dim);
     }
-    cout << "[compute_hashcodes_from_feats:after_norm] Features first value is: " << feats_mat.at<double>(0,0) << endl;
+    cout << "[compute_hashcodes_from_feats:after_norm] Features first value are: " << feats_mat.at<double>(0,0) << " " << feats_mat.at<double>(0,1) << endl;
     // Allocate temporary matrices
     Mat feats_mat_double;
     feats_mat.convertTo(feats_mat_double, CV_64F);
