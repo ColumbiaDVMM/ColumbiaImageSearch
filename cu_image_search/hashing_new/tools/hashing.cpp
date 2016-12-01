@@ -241,7 +241,7 @@ int main(int argc, char** argv){
         t[1] = get_wall_time();
         std::cout <<  "Looking for similar images of query #" << k+1 << std::endl;
         // Compute hamming distances between query k and all DB hashcodes
-        unsigned int * hash_data= (unsigned int*)itq.data;
+        unsigned int * hash_data = (unsigned int*)itq.data;
         for (int i=0;i<data_num;i++)
         {
             hamming[i] = mypair(0,i);
@@ -256,6 +256,14 @@ int main(int argc, char** argv){
             hash_data += int_num;
         }
         std::sort(hamming.begin(),hamming.end(),comparator);
+
+        unsigned long long out_size = min((unsigned long long)top_feature, (unsigned long long)hamming.size());
+
+        int small_hd_sort = hamming[0].first;
+        int big_hd_sort = hamming[out_size-1].first;
+        cout << "Top " << out_size << " sorted hamming distances range is [" << small_hd_sort << ", " << big_hd_sort << "]" << endl;
+
+
         query += int_num;
         // 5. Hamming distances (accumulate for all queries)
         runtimes[4]+=(float)(get_wall_time() - t[1]);
