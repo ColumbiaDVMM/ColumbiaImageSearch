@@ -67,7 +67,7 @@ int HasherObject::load_itq_model() {
 Mat HasherObject::read_feats_from_disk(string filename) {
     // Read count
     int feats_num = (int)filesize(filename)/4/feature_dim;
-    cout << "[read_feats_from_disk] Reading " << feats_num << " features." << endl;
+    cout << "[read_feats_from_disk] Reading " << feats_num << " features from " << filename << endl;
     // Check input file
     ifstream read_in(filename, ios::in|ios::binary);
     if (!read_in.is_open())

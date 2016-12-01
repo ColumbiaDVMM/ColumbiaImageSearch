@@ -76,6 +76,7 @@ int main(int argc, char** argv){
     size_t read_size = sizeof(float)*feature_dim*query_num;
     read_in.read((char*)query_mat.data, read_size);
     std::cout << "Read " << read_size <<  " bytes for " << query_num << " queries." << std::endl;
+    cout << "Features first value are: " << query_mat.at<double>(0,0) << " " << query_mat.at<double>(0,1) << endl;
     read_in.close();
     // 1. Time reading query
     runtimes[0]=(float)(get_wall_time() - t[0]);
