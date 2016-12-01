@@ -9,6 +9,20 @@
 using namespace std;
 using namespace cv;
 
+// This needs to be in any "main"
+string base_modelpath;
+string base_updatepath;
+string update_files_listname;
+string update_hash_folder;
+string update_feature_folder;
+string update_compfeature_folder;
+string update_compidx_folder;
+string update_files_list;
+string update_hash_prefix;
+string update_feature_prefix;
+string update_compfeature_prefix;
+string update_compidx_prefix;
+
 int main(int argc, char** argv){
     double t[2]; // timing
     t[0] = get_wall_time(); // Start Time

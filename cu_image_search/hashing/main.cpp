@@ -7,25 +7,19 @@
 using namespace std;
 using namespace cv;
 
-// Now defined in header.h
-// #define DEMO 1
-
-// int NumberOfSetBits(unsigned int i)
-// {
-//     i = i - ((i >> 1) & 0x55555555);
-//     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-//     return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
-// }
-
-// typedef std::pair<int,int> mypair;
-// typedef std::pair<float,int> mypairf;
-
-// bool comparator ( const mypair & l, const mypair & r)
-// { return l.first < r.first; }
-
-// bool comparatorf ( const mypairf & l, const mypairf & r)
-// { return l.first < r.first; }
-
+// This needs to be in any "main"
+string base_modelpath;
+string base_updatepath;
+string update_files_listname;
+string update_hash_folder;
+string update_feature_folder;
+string update_compfeature_folder;
+string update_compidx_folder;
+string update_files_list;
+string update_hash_prefix;
+string update_feature_prefix;
+string update_compfeature_prefix;
+string update_compidx_prefix;
 
 int main(int argc, char** argv){
     double t[2]; // timing
@@ -38,6 +32,7 @@ int main(int argc, char** argv){
     //omp_set_num_threads(omp_get_max_threads());
 
     // hardcoded
+    set_default_paths();
     int feature_dim = 4096;
     float ratio = 0.001f;
     int bit_num = 256;
@@ -54,9 +49,11 @@ int main(int argc, char** argv){
     if (argc>6)
         norm = atoi(argv[6]);
 
+    // Is actually never used? To deal with very large queries?
     int read_thres = (int)(1.0f/ratio);
     if (argc>7)
         read_thres =  atoi(argv[7]);
+
     int int_num = bit_num/32;
     string bit_string = to_string((long long)bit_num);
     string str_norm = "";
@@ -118,7 +115,7 @@ int main(int argc, char** argv){
     vector<unsigned long long int> data_nums;
     unsigned long long int data_num = fill_data_nums(update_hash_files,data_nums,bit_num);
     int * accum = new int[data_nums.size()];
-      fill_accum(data_nums,accum);
+    fill_accum(data_nums,accum);
     int top_feature=(int)ceil(data_num*ratio);
     std::cout << "Will retrieve the top " << top_feature << " features." << std::endl;
     // 2. Time reading files list
@@ -130,7 +127,7 @@ int main(int argc, char** argv){
     char * read_pos = (char*)itq.data;
     for (int i=0;i<update_hash_files.size();i++)
     {
-        read_in.open(update_hash_files[i],ios::in|ios::binary);
+        read_in.open(update_hash_files[i].c_str(),ios::in|ios::binary);
         if (!read_in.is_open())
         {
             std::cout << "Cannot load the itq updates! File "<< update_hash_files[i] << std::endl;
@@ -142,7 +139,7 @@ int main(int argc, char** argv){
         read_pos +=read_size;
     }
 
-    read_in.open(W_name,ios::in|ios::binary);
+    read_in.open(W_name.c_str(),ios::in|ios::binary);
     if (!read_in.is_open())
     {
         std::cout << "Cannot load the W model! " << W_name << std::endl;
@@ -153,7 +150,7 @@ int main(int argc, char** argv){
     read_in.read((char*)W.data, read_size);
     read_in.close();
 
-    read_in.open(mvec_name,ios::in|ios::binary);
+    read_in.open(mvec_name.c_str(),ios::in|ios::binary);
     if (!read_in.is_open())
     {
         std::cout << "Cannot load the mvec model!" << std::endl;
@@ -226,11 +223,11 @@ int main(int argc, char** argv){
     string outname_sim = outname+"-sim.txt";
     ofstream outputfile;
     std::cout <<  "Will write results to " << outname_sim << std::endl;
-    outputfile.open(outname_sim,ios::out);
+    outputfile.open(outname_sim.c_str(),ios::out);
     ofstream outputfile_hamming;
     if (DEMO==0) {
         string outname_hamming = outname+"-hamming.txt";
-        outputfile_hamming.open(outname_hamming,ios::out);
+        outputfile_hamming.open(outname_hamming.c_str(),ios::out);
     }
     unsigned int * query = query_all;
     float * query_feature = (float*)query_mat.data;

@@ -1,7 +1,11 @@
+#ifndef HASHIOTOOLS_H
+#define HASHIOTOOLS_H
+
 #include <fstream>
 #include <math.h>
 #include <vector>
 #include <iostream>
+#include <sstream>
 
 using namespace std;
 
@@ -49,3 +53,19 @@ void normalize(ty *X, size_t dim)
         X[i] *= n;
     }
 }
+
+// because to_string is not available on Mac OS X?
+template <typename T>
+std::string to_string(T value)
+{
+  //create an output string stream
+  std::ostringstream os ;
+
+  //throw the value into the string stream
+  os << value ;
+
+  //convert the string stream into a string and return
+  return os.str() ;
+}
+
+#endif

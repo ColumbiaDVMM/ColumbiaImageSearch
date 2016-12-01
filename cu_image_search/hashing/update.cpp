@@ -7,9 +7,21 @@
 //#include <math.h>
 #include <fstream>
 
-
 using namespace std;
 using namespace cv;
+
+string base_modelpath;
+string base_updatepath;
+string update_files_listname;
+string update_hash_folder;
+string update_feature_folder;
+string update_compfeature_folder;
+string update_compidx_folder;
+string update_files_list;
+string update_hash_prefix;
+string update_feature_prefix;
+string update_compfeature_prefix;
+string update_compidx_prefix;
 
 // acutally in iotools.h
 template<class ty>

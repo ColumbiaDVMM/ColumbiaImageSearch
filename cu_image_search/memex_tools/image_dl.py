@@ -33,6 +33,7 @@ def dlimage_basepath(url,basepath,logf=None):
     try:
         #r = requests.get(url, stream=True, timeout=imagedltimeout)
         # still slow with session.trust_env
+        # verify=False induces a InsecureRequestWarning
         r = session.get(url, stream=True, timeout=imagedltimeout, verify=False)
         uptorequest_time = time.time()
         if r.status_code == 200:
@@ -68,6 +69,7 @@ def dlimage_basepath_integritycheck(url, basepath, logf=None):
     #print "Downloading image from {} to {}.".format(url,outpath)
     try:
         #r = requests.get(url, stream=True, timeout=imagedltimeout)
+        # verify=False induces a InsecureRequestWarning
         r = session.get(url, stream=True, timeout=imagedltimeout, verify=False)
         if r.status_code == 200:
             if int(r.headers['content-length']) == 0:
