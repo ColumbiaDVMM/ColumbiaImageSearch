@@ -1,5 +1,4 @@
 #include "hasher_obj.hpp"
-#include "iotools.h"
 
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
@@ -36,10 +35,10 @@ int HasherObject::load_hashcodes() {
 int HasherObject::load_itq_model() {
     // Read itq model
     // read W
-    read_in.open(W_name.c_str(), ios::in|ios::binary);
+    read_in.open(pm.W_name.c_str(), ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        cout << "Cannot load the W model from " << W_name << endl;
+        cout << "Cannot load the W model from " << pm.W_name << endl;
         return -1;
     }
     // If we are updating
@@ -52,10 +51,10 @@ int HasherObject::load_itq_model() {
     cout << "[load_itq_model] W first value are: " << W.at<double>(0,0) << " " << W.at<double>(0,1) << endl;
 
     // read mvec
-    read_in.open(mvec_name.c_str(), ios::in|ios::binary);
+    read_in.open(pm.mvec_name.c_str(), ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        cout << "Cannot load the mvec model from " << mvec_name << endl;
+        cout << "Cannot load the mvec model from " << pm.mvec_name << endl;
         return -1;
     }
     // If we are updating
@@ -365,32 +364,40 @@ void HasherObject::close_output_files() {
 }
 
 void HasherObject::set_paths() {
-    // Update strings used to define itq model filenames
-    if (norm)
-        str_norm = "_norm";
-    else
-        str_norm = "";
-    bit_string = to_string((long long)bit_num);
-    itq_name = "itq" + str_norm + "_" + bit_string;
-    W_name = m_base_modelpath + "W" + str_norm + "_" + bit_string;
-    mvec_name = m_base_modelpath + "mvec" + str_norm + "_" + bit_string;
+    pm.set_paths(norm, bit_num);
 
-    // Update string has suffix
-    update_feature_suffix = "" + str_norm;
-    update_compfeature_suffix = "_comp" + str_norm;
-    update_compidx_suffix = "_compidx" + str_norm;
-    update_hash_suffix = "_" + itq_name;
-    if (norm)
-        update_hash_suffix = "_" + itq_name;
-    else
-        update_hash_suffix = "";
+    // // Update strings used to define itq model filenames
+    // if (norm)
+    //     str_norm = "_norm";
+    // else
+    //     str_norm = "";
+    // bit_string = to_string((long long)bit_num);
+    // itq_name = "itq" + str_norm + "_" + bit_string;
+    // // W_name = m_base_modelpath + "W" + str_norm + "_" + bit_string;
+    // // mvec_name = m_base_modelpath + "mvec" + str_norm + "_" + bit_string;
 
-    // Update files prefix
-    update_files_list = m_base_updatepath+m_update_files_listname;
-    update_hash_prefix = m_base_updatepath+m_update_hash_folder;
-    update_feature_prefix = m_base_updatepath+m_update_feature_folder;
-    update_compfeature_prefix = m_base_updatepath+m_update_compfeature_folder;
-    update_compidx_prefix = m_base_updatepath+m_update_compidx_folder;
+    // W_name = pm.base_modelpath + "W" + str_norm + "_" + bit_string;
+    // mvec_name = pm.base_modelpath + "mvec" + str_norm + "_" + bit_string;
+
+
+    // // Update string hash suffix. Should this be in pm too?
+    // update_feature_suffix = "" + str_norm;
+    // update_compfeature_suffix = "_comp" + str_norm;
+    // update_compidx_suffix = "_compidx" + str_norm;
+    // update_hash_suffix = "_" + itq_name;
+    // if (norm)
+    //     update_hash_suffix = "_" + itq_name;
+    // else
+    //     update_hash_suffix = "";
+
+    // // Update files prefix
+    // update_files_list = m_base_updatepath+m_update_files_listname;
+    // update_hash_prefix = m_base_updatepath+m_update_hash_folder;
+    // update_feature_prefix = m_base_updatepath+m_update_feature_folder;
+    // update_compfeature_prefix = m_base_updatepath+m_update_compfeature_folder;
+    // update_compidx_prefix = m_base_updatepath+m_update_compidx_folder;
+
+    //pm.set_paths();
 
 }
 
@@ -402,10 +409,10 @@ int HasherObject::read_update_files() {
     read_in_compfeatures.clear();
     read_in_compidx.clear();
     // Read update files list
-    ifstream fu(update_files_list.c_str(),ios::in);
+    ifstream fu(pm.update_files_list.c_str(),ios::in);
     if (!fu.is_open())
     {
-        cout << "No update! Was looking for " << update_files_list << endl;
+        cout << "No update! Was looking for " << pm.update_files_list << endl;
         perror("");
         return -1;
     }
@@ -414,9 +421,9 @@ int HasherObject::read_update_files() {
         // Read all update infos
         string line;
         while (getline(fu, line)) {
-            update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
-            update_compfeature_files.push_back(update_compfeature_prefix+line+update_compfeature_suffix);
-            update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);
+            update_hash_files.push_back(pm.update_hash_prefix+line+pm.update_hash_suffix);
+            update_compfeature_files.push_back(pm.update_compfeature_prefix+line+pm.update_compfeature_suffix);
+            update_compidx_files.push_back(pm.update_compidx_prefix+line+pm.update_compidx_suffix);
         }
     }
     // Read comp features

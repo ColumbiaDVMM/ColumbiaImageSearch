@@ -1,34 +1,36 @@
 #include "header.h"
+#include "iotools.h"
+
 #include <opencv2/opencv.hpp>
 #include <fstream>
 #include <assert.h>
-#include "iotools.h"
 // For mkdir
 #include <sys/types.h>
 #include <sys/stat.h>
 
+
 using namespace std;
 using namespace cv;
 
-// This needs to be in any "main"
-string base_modelpath;
-string base_updatepath;
-string update_files_listname;
-string update_hash_folder;
-string update_feature_folder;
-string update_compfeature_folder;
-string update_compidx_folder;
-string update_files_list;
-string update_hash_prefix;
-string update_feature_prefix;
-string update_compfeature_prefix;
-string update_compidx_prefix;
+// // This needs to be in any "main"
+// string base_modelpath;
+// string base_updatepath;
+// string update_files_listname;
+// string update_hash_folder;
+// string update_feature_folder;
+// string update_compfeature_folder;
+// string update_compidx_folder;
+// string update_files_list;
+// string update_hash_prefix;
+// string update_feature_prefix;
+// string update_compfeature_prefix;
+// string update_compidx_prefix;
 
 int main(int argc, char** argv){
     double t[2]; // timing
     t[0] = get_wall_time(); // Start Time
     if (argc < 1){
-        cout << "Usage: compress_feat [base_updatepath feature_dim normalize_features master_file num_bits]" << std::endl;
+        cout << "Usage: compress_feat [base_updatepath feature_dim normalize_features master_file num_bits]" << endl;
         return -1;
     }
 
@@ -36,21 +38,25 @@ int main(int argc, char** argv){
     int feature_dim = 4096;
     int norm = true;
     int bit_num = 256;
+    PathManager pm;
     if (argc>1)
-        base_updatepath = argv[1];
+        //base_updatepath = argv[1];
+        pm.base_updatepath = argv[1];
     if (argc>2)
         feature_dim = atoi(argv[2]);
     if (argc>3)
         norm = atoi(argv[3]);
     if (argc>4)
-        update_files_listname = std::string(argv[4]);
+        //update_files_listname = string(argv[4]);
+        pm.update_files_listname = string(argv[4]);
     if (argc>5)
         bit_num = atoi(argv[5]);
-    set_paths();
+    //set_paths();
+    pm.set_paths(norm, bit_num);
 
-    string str_norm = "";
-    if (norm)
-        str_norm = "_norm";
+    // string str_norm = "";
+    // if (norm)
+    //     str_norm = "_norm";
 
     // File names vectors, prefix and suffix.
     string line;
@@ -60,28 +66,32 @@ int main(int argc, char** argv){
     vector<string> update_compidx_files;
     vector<int> need_comp;
     int status; //Not working on MAC
-    status = mkdir(update_compfeature_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    status = mkdir(update_compidx_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    string update_feature_suffix = "" + str_norm;
-    string update_comp_feature_suffix = "_comp" + str_norm;
-    string update_compidx_suffix = "_compidx" + str_norm;
-    string bit_string = to_string((long long)bit_num);
-    string update_hash_suffix = "_itq" + str_norm + "_" + bit_string;
+    // status = mkdir(update_compfeature_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    // status = mkdir(update_compidx_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    
+    status = mkdir(pm.update_compfeature_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    status = mkdir(pm.update_compidx_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    
+    // string update_feature_suffix = "" + str_norm;
+    // string update_comp_feature_suffix = "_comp" + str_norm;
+    // string update_compidx_suffix = "_compidx" + str_norm;
+    // string bit_string = to_string((long long)bit_num);
+    // string update_hash_suffix = "_itq" + str_norm + "_" + bit_string;
 
 
-    ifstream fu(update_files_list,ios::in);
+    ifstream fu(pm.update_files_list,ios::in);
     if (!fu.is_open())
     {
-        std::cout << "No update!\nbase_updatepath is: " << base_updatepath << "\nMaster is: " << update_files_list << std::endl;
+        cout << "No update!\nbase_updatepath is: " << pm.base_updatepath << "\nMaster is: " << pm.update_files_list << endl;
         return 0;
     }
     else
     {
         while (getline(fu, line)) {
-            update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
-            update_feature_files.push_back(update_feature_prefix+line+update_feature_suffix);
-            update_comp_feature_files.push_back(update_compfeature_prefix+line+update_comp_feature_suffix);
-            update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);
+            update_hash_files.push_back(pm.update_hash_prefix+line+pm.update_hash_suffix);
+            update_feature_files.push_back(pm.update_feature_prefix+line+pm.update_feature_suffix);
+            update_comp_feature_files.push_back(pm.update_compfeature_prefix+line+pm.update_compfeature_suffix);
+            update_compidx_files.push_back(pm.update_compidx_prefix+line+pm.update_compidx_suffix);
         }
     }
 
@@ -96,7 +106,7 @@ int main(int argc, char** argv){
         filesizecomp = filesize(update_comp_feature_files[i]);
         if (filesizecomp==0||filesizecomp==-1||filesizeidx==0||filesizeidx==-1) {
             // Comp file empty or non existing
-            std:cout << "Some file missing for " << update_comp_feature_files[i] << std::endl;
+            cout << "Some file missing for " << update_comp_feature_files[i] << endl;
             need_comp.push_back(i);
             continue;
         }
@@ -106,16 +116,16 @@ int main(int argc, char** argv){
         idx_num=filesize(update_compidx_files[i])/sizeof(unsigned long long int);
         if (idx_num-1!=data_num) {
             // We have a mismatch indices vs features
-            std::cout << "Curr hashcodes size: " << data_num << " (hashcodes file size: " << filesize(update_hash_files[i]) << "), curr idx size: " << idx_num  << " (compidx file size: " << filesize(update_compidx_files[i]) << ")" << endl;
+            cout << "Curr hashcodes size: " << data_num << " (hashcodes file size: " << filesize(update_hash_files[i]) << "), curr idx size: " << idx_num  << " (compidx file size: " << filesize(update_compidx_files[i]) << ")" << endl;
             need_comp.push_back(i);
         }
     }
     // ... if so we should be good to go.
     if (need_comp.size()==0) {
-        std::cout << "Everything seems up-to-date, exiting." << std::endl;
+        cout << "Everything seems up-to-date, exiting." << endl;
         return 0;
     } else {
-        std::cout << "We need to compress " << need_comp.size() << " files." << std::endl;
+        cout << "We need to compress " << need_comp.size() << " files." << endl;
     }
 
     ifstream read_in;
@@ -131,7 +141,7 @@ int main(int argc, char** argv){
         comp_idx.open(update_compidx_files[fi],ios::out|ios::binary);
         if (!read_in.is_open())
         {
-            std::cout << "Cannot read features file: " << update_feature_files[fi] << std::endl;
+            cout << "Cannot read features file: " << update_feature_files[fi] << endl;
             return -1;
         }
         data_num = (filesize(update_feature_files[fi])/(sizeof(float)*feature_dim));
@@ -141,7 +151,7 @@ int main(int argc, char** argv){
         char* comp_feature = new char[read_size];
         unsigned long long int curr_pos = 0;
         comp_idx.write((char *)&curr_pos,sizeof(unsigned long long int));
-        std::cout << "We need to compress " << data_num << " features for file " << update_feature_files[fi] << std::endl;
+        cout << "We need to compress " << data_num << " features for file " << update_feature_files[fi] << endl;
         // Compress each feature separately, write it out along its compressed size
         for (int feat_num=0;feat_num<data_num;feat_num++) {
             read_in.read(feature, read_size);
@@ -160,7 +170,7 @@ int main(int argc, char** argv){
         comp_idx.close();
     }
     
-    cout << "Total time (seconds): " << (float)(get_wall_time() - t[0]) << std::endl;
+    cout << "Total time (seconds): " << (float)(get_wall_time() - t[0]) << endl;
     return 0;
 }
 

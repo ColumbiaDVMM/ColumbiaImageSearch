@@ -2,6 +2,8 @@
 #define HASHEROBJ
 
 #include "header.h"
+#include "iotools.h"
+//#include "path_manager.hpp"
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
 #include <fstream>
@@ -28,16 +30,16 @@ class HasherObject {
             // number of features indexed
             data_num = 0;
 
-            // set default paths
-            m_base_modelpath = "/home/ubuntu/memex/";
-            m_base_updatepath = "/home/ubuntu/memex/update/";
-            m_update_files_listname = "update_list_dev.txt";
-            m_update_hash_folder = "hash_bits/";
-            m_update_feature_folder = "features/";
-            m_update_compfeature_folder = "comp_features/";
-            m_update_compidx_folder = "comp_idx/";
-            // set other variables depending on those
-            set_paths();
+            // // set default paths
+            // m_base_modelpath = "/home/ubuntu/memex/";
+            // m_base_updatepath = "/home/ubuntu/memex/update/";
+            // m_update_files_listname = "update_list_dev.txt";
+            // m_update_hash_folder = "hash_bits/";
+            // m_update_feature_folder = "features/";
+            // m_update_compfeature_folder = "comp_features/";
+            // m_update_compidx_folder = "comp_idx/";
+            // // set other variables depending on those
+            // set_paths();
         };
 
         // What need to be freed/closed?
@@ -106,11 +108,13 @@ class HasherObject {
         };
 
         void set_base_modelpath(string _base_modelpath){
-            m_base_modelpath = _base_modelpath;
+            //m_base_modelpath = _base_modelpath;
+            pm.base_modelpath = _base_modelpath;
         };
 
         void set_base_updatepath(string _base_updatepath) {
-            m_base_updatepath = _base_updatepath;
+            //m_base_updatepath = _base_updatepath;
+            pm.base_updatepath  = _base_updatepath;
         };
 
         void set_outputfile(string _outname){
@@ -136,8 +140,9 @@ class HasherObject {
         // parameters values
         float ratio;
         int feature_dim;
-        int bit_num;
         int int_num;
+        // only these two parameters influence filenames
+        int bit_num;
         int norm;
 
         // number of features to retrieve for reranking
@@ -162,24 +167,25 @@ class HasherObject {
         double t[2];
 
         // Default paths
-        std::string m_base_modelpath;
-        std::string m_base_updatepath;
-        std::string m_update_files_listname;
-        std::string m_update_hash_folder;
-        std::string m_update_feature_folder;
-        std::string m_update_compfeature_folder;
-        std::string m_update_compidx_folder;
+        PathManager pm; 
+        // std::string m_base_modelpath;
+        // std::string m_base_updatepath;
+        // std::string m_update_files_listname;
+        // std::string m_update_hash_folder;
+        // std::string m_update_feature_folder;
+        // std::string m_update_compfeature_folder;
+        // std::string m_update_compidx_folder;
 
         // Strings derived from settings (would be overwritten in set_paths)
-        string str_norm;
-        string bit_string;
-        string itq_name;
-        string W_name;
-        string mvec_name;
-        string update_feature_suffix;
-        string update_compfeature_suffix;
-        string update_compidx_suffix;
-        string update_hash_suffix;
+        // string str_norm;
+        // string bit_string;
+        // string itq_name;
+        // string W_name;
+        // string mvec_name;
+        // string update_feature_suffix;
+        // string update_compfeature_suffix;
+        // string update_compidx_suffix;
+        // string update_hash_suffix;
 
         // List of data files
         vector<string> update_hash_files;

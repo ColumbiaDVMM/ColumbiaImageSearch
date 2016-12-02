@@ -40,9 +40,9 @@ int decompress_onefeat(char * in, char * comp, int compsize, int fsize) {
 }
 
 // File reading functions
-std::ifstream::pos_type filesize(std::string filename)
+ifstream::pos_type filesize(string filename)
 {
-    std::ifstream in(filename, std::ios::ate | std::ios::binary);
+    ifstream in(filename, ios::ate | ios::binary);
     if (!in.fail()) {
         return in.tellg();
     } else {
@@ -59,7 +59,7 @@ int get_file_pos(int * accum, int nb_files, int query, int & res)
     }
     if (file_id==nb_files) {
         res=-1;
-        std::cout << "Could not find feature "  << query << ", maximum id is " << accum[file_id-1] << std::endl;
+        cout << "Could not find feature "  << query << ", maximum id is " << accum[file_id-1] << endl;
         return -1;
     }
 
@@ -79,15 +79,15 @@ int get_onefeatcomp(int query_id, size_t read_size, int* accum, vector<ifstream*
     file_id = get_file_pos(accum, (int)read_in_compidx.size(), query_id, new_pos);
     if (file_id==-1)
         return -1;
-    //std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
+    //cout << "Feature found in file "  << file_id << " at pos " << new_pos << endl;
     read_in_compidx[file_id]->seekg((unsigned long long int)(new_pos)*idx_size);
     read_in_compidx[file_id]->read((char*)&start_feat, idx_size);
     read_in_compidx[file_id]->read((char*)&end_feat, idx_size);
     read_in_compfeatures[file_id]->seekg(start_feat);
     read_in_compfeatures[file_id]->read(comp_feature, end_feat-start_feat);
-    //std::cout << "Reading compressed feature from "  << start_feat << " to " << end_feat << std::endl;
+    //cout << "Reading compressed feature from "  << start_feat << " to " << end_feat << endl;
     uLong total_out = decompress_onefeat(comp_feature, feature_cp, (int)end_feat-start_feat, read_size);
-    //std::cout << "Decompressed size is "  << total_out << std::endl;
+    //cout << "Decompressed size is "  << total_out << endl;
     delete[] comp_feature;
     return 0;
 }
@@ -99,7 +99,7 @@ int get_onefeat(int query_id, size_t read_size, int* accum, vector<ifstream*>& r
     file_id = get_file_pos(accum, (int)read_in_features.size(), query_id, new_pos);
     if (file_id==-1)
         return -1;
-    //std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
+    //cout << "Feature found in file "  << file_id << " at pos " << new_pos << endl;
     read_in_features[file_id]->seekg((unsigned long long int)(new_pos)*read_size);
     read_in_features[file_id]->read(feature_cp, read_size);
     return 0;
@@ -111,7 +111,7 @@ int get_onesample(int query_id, size_t read_size, int* accum, vector<ifstream*>&
     file_id = get_file_pos(accum, (int)read_in.size(), query_id, new_pos);
     if (file_id==-1)
         return -1;
-    //std::cout << "Feature found in file "  << file_id << " at pos " << new_pos << std::endl;
+    //cout << "Feature found in file "  << file_id << " at pos " << new_pos << endl;
     read_in[file_id]->seekg((unsigned long long int)(new_pos)*read_size);
     read_in[file_id]->read(cp, read_size);
     return 0;
@@ -123,9 +123,9 @@ unsigned long long int fill_data_nums(vector<string>& update_hash_files, vector<
     {
         data_nums.push_back((unsigned long long int)filesize(update_hash_files[i])*8/bit_num);
         data_num += data_nums[i];
-        //std::cout << "We have a " << data_nums[i] << " features in file " << update_hash_files[i] << std::endl;
+        //cout << "We have a " << data_nums[i] << " features in file " << update_hash_files[i] << endl;
     }
-    std::cout << "We have a total of " << data_num << " features." << std::endl;
+    cout << "We have a total of " << data_num << " features." << endl;
     return data_num;
 }
 
@@ -137,7 +137,7 @@ int fill_vector_files(vector<ifstream*>& read_in, vector<string>& update_files){
     read_in[i]->open(update_files[i],ios::in|ios::binary);*/
     if (!read_in[i]->is_open())
         {
-            std::cout << "Cannot load the file " << update_files[i] << std::endl;
+            cout << "Cannot load the file " << update_files[i] << endl;
             return -1;
         }
     }
@@ -152,41 +152,28 @@ void fill_accum(vector<unsigned long long int>& data_nums, int * accum) {
     }
 }
 
-int get_n_features(string update_fn, int* query_ids, int query_num, int norm, int bit_num, size_t read_size, char* feature_cp) {
-    // Some ugly hard coded string initialization...
-    string bit_string = to_string((long long)bit_num);
-    string str_norm = "";
-    if (norm)
-        str_norm = "_norm";
-    string itq_name = "itq" + str_norm + "_" + bit_string;
-    string update_compfeature_suffix = "_comp" + str_norm;
-    string update_compidx_suffix = "_compidx" + str_norm;
-    string update_hash_suffix = "";
-    if (norm)
-    {
-        update_hash_suffix = "_" + itq_name;
-    }
-
-    // Config update
+int get_n_features(int* query_ids, int query_num, int norm, int bit_num, size_t read_size, char* feature_cp, PathManager& pm) {
+    
     string line;
     vector<string> update_hash_files;
     vector<string> update_compfeature_files;
     vector<string> update_compidx_files;
-    cout << "Reading update file: " << update_fn << endl;
-    ifstream fu(update_fn,ios::in);
+    
+    cout << "Reading update file: " << pm.update_files_list << endl;
+    ifstream fu(pm.update_files_list,ios::in);
     if (!fu.is_open())
     {
-        std::cout << "No update! Was looking for " << update_fn << std::endl;
+        cout << "No update! Was looking for " << pm.update_files_list << endl;
         return -1;
     }
     else
     {
         while (getline(fu, line)) {
-            //std::cout << "Loading update: " << line << std::endl;
-            cout << "Adding hashcode file " << update_hash_prefix+line+update_hash_suffix << endl;
-            update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
-            update_compfeature_files.push_back(update_compfeature_prefix+line+update_compfeature_suffix);
-            update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);
+            //cout << "Loading update: " << line << endl;
+            cout << "Adding hashcode file " << pm.update_hash_prefix+line+pm.update_hash_suffix << endl;
+            update_hash_files.push_back(pm.update_hash_prefix+line+pm.update_hash_suffix);
+            update_compfeature_files.push_back(pm.update_compfeature_prefix+line+pm.update_compfeature_suffix);
+            update_compidx_files.push_back(pm.update_compidx_prefix+line+pm.update_compidx_suffix);
         }
     }
 
@@ -194,34 +181,34 @@ int get_n_features(string update_fn, int* query_ids, int query_num, int norm, in
     vector<ifstream*> read_in_compfeatures;
     vector<ifstream*> read_in_compidx;
     int status = 0;
-    status = fill_vector_files(read_in_compfeatures,update_compfeature_files);
+    status = fill_vector_files(read_in_compfeatures, update_compfeature_files);
     if (status==-1) {
-        std::cout << "Could not load compressed features properly. Exiting." << std::endl;
+        cout << "Could not load compressed features properly. Exiting." << endl;
         // TODO: We should clean here
         return -1;
     }
-    status = fill_vector_files(read_in_compidx,update_compidx_files);
+    status = fill_vector_files(read_in_compidx, update_compidx_files);
     if (status==-1) {
-        std::cout << "Could not load compressed indices properly. Exiting." << std::endl;
+        cout << "Could not load compressed indices properly. Exiting." << endl;
         // TODO: We should clean here
         return -1;
     }
 
     // read in all files size to know where to look for features...
     vector<unsigned long long int> data_nums;
-    unsigned long long int data_num = fill_data_nums(update_hash_files,data_nums,bit_num);
+    unsigned long long int data_num = fill_data_nums(update_hash_files, data_nums, bit_num);
     int * accum = new int[data_nums.size()];
-    fill_accum(data_nums,accum);
+    fill_accum(data_nums, accum);
 
     // Get query feature(s)
     for (int i=0;i<query_num;i++)
     {
-        std::cout << "Looking for feature #" << query_ids[i] << std::endl;
+        cout << "Looking for feature #" << query_ids[i] << endl;
         // BEWARE: we consider here ids are python/db, so in C they are ids+1...
         // TODO: maybe define a flag python id or not
         status = get_onefeatcomp(query_ids[i]-1,read_size,accum,read_in_compfeatures,read_in_compidx,feature_cp);
         if (status==-1) {
-            std::cout << "Could not load compressed feature " << query_ids[i]-1 << ". Exiting." << std::endl;
+            cout << "Could not load compressed feature " << query_ids[i]-1 << ". Exiting." << endl;
             // TODO: We should clean here
             return -1;
         }
@@ -240,42 +227,34 @@ int get_n_features(string update_fn, int* query_ids, int query_num, int norm, in
     return 0;
 }
 
-int get_n_hashcodes(string update_fn, int* query_ids, int query_num, int norm, int bit_num, size_t read_size, char* hashcode_cp) {
-    // Some ugly hard coded string initialization...
-    string bit_string = to_string((long long)bit_num);
-    string str_norm = "";
-    if (norm)
-        str_norm = "_norm";
-    string itq_name = "itq" + str_norm + "_" + bit_string;
-    string update_hash_suffix = "";
-    if (norm)
-    {
-        update_hash_suffix = "_" + itq_name;
-    }
-
-    // Config update
+int get_n_hashcodes(int* query_ids, int query_num, int norm, int bit_num, size_t read_size, char* hashcode_cp, PathManager& pm) {
+    
     string line;
     vector<string> update_hash_files;
-    ifstream fu(update_fn,ios::in);
+    vector<string> update_compfeature_files;
+    vector<string> update_compidx_files;
+
+    cout << "Reading update file: " << pm.update_files_list << endl;
+    ifstream fu(pm.update_files_list,ios::in);
     if (!fu.is_open())
     {
-        std::cout << "No update! Was looking for " << update_fn << std::endl;
+        cout << "No update! Was looking for " << pm.update_files_list << endl;
     return -1;
     }
     else
     {
         while (getline(fu, line)) {
-            //std::cout << "Loading update: " << line << std::endl;
-            update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
+            //cout << "Loading update: " << line << endl;
+            update_hash_files.push_back(pm.update_hash_prefix+line+pm.update_hash_suffix);
         }
     }
 
     // get compressed features files pointers and their corresponding indices
     vector<ifstream*> read_in_hashcodes;
     int status = 0;
-    status = fill_vector_files(read_in_hashcodes,update_hash_files);
+    status = fill_vector_files(read_in_hashcodes, update_hash_files);
     if (status==-1) {
-        std::cout << "Could not load hashcodes properly. Exiting." << std::endl;
+        cout << "Could not load hashcodes properly. Exiting." << endl;
         // TODO: We should clean here
         return -1;
     }
@@ -289,12 +268,12 @@ int get_n_hashcodes(string update_fn, int* query_ids, int query_num, int norm, i
     // Get query feature(s)
     for (int i=0;i<query_num;i++)
     {
-        std::cout << "Looking for feature #" << query_ids[i] << std::endl;
+        cout << "Looking for feature #" << query_ids[i] << endl;
         // BEWARE: we consider here ids are python/db, so in C they are ids+1...
         // TODO: maybe define a flag python id or not
         status = get_onesample(query_ids[i]-1,read_size,accum,read_in_hashcodes,hashcode_cp);
         if (status==-1) {
-            std::cout << "Could not load hashcode " << query_ids[i]-1 << ". Exiting." << std::endl;
+            cout << "Could not load hashcode " << query_ids[i]-1 << ". Exiting." << endl;
             // TODO: We should clean here
             return -1;
         }

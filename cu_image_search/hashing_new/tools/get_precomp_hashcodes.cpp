@@ -1,24 +1,25 @@
 #include "header.h"
-#include <opencv2/opencv.hpp>
 #include "iotools.h"
+
+#include <opencv2/opencv.hpp>
 #include <fstream>
 
 using namespace std;
 using namespace cv;
 
-// This needs to be in any "main"
-string base_modelpath;
-string base_updatepath;
-string update_files_listname;
-string update_hash_folder;
-string update_feature_folder;
-string update_compfeature_folder;
-string update_compidx_folder;
-string update_files_list;
-string update_hash_prefix;
-string update_feature_prefix;
-string update_compfeature_prefix;
-string update_compidx_prefix;
+// // This needs to be in any "main"
+// string base_modelpath;
+// string base_updatepath;
+// string update_files_listname;
+// string update_hash_folder;
+// string update_feature_folder;
+// string update_compfeature_folder;
+// string update_compidx_folder;
+// string update_files_list;
+// string update_hash_prefix;
+// string update_feature_prefix;
+// string update_compfeature_prefix;
+// string update_compidx_prefix;
 
 int main(int argc, char** argv){
     double t[2]; // timing
@@ -28,19 +29,19 @@ int main(int argc, char** argv){
         return -1;
     }
     //omp_set_num_threads(omp_get_max_threads());
-
+    PathManager pm;
     // hardcoded default value. 
     int norm = true;
     int bit_num = 256; 
     string ids_file(argv[1]);
     string out_file(argv[2]);
     if (argc>3)
-        base_updatepath = argv[3];
-    set_paths();
+        pm.base_updatepath = argv[3];
     if (argc>4)
         bit_num = atoi(argv[4]);
     if (argc>5)
         norm = atoi(argv[5]);
+    pm.set_paths(norm, bit_num);
 
     //read in query
     int query_num = (int)filesize(argv[1])/sizeof(int);
@@ -60,7 +61,7 @@ int main(int argc, char** argv){
     int* hashcodes = new int[query_num*read_size];
     char* hashcodes_cp = (char*)hashcodes;
 
-    int status = get_n_hashcodes(update_files_list,query_ids,query_num,norm,bit_num,read_size,hashcodes_cp);
+    int status = get_n_hashcodes(query_ids,query_num,norm,bit_num,read_size,hashcodes_cp,pm);
     if (status==-1) {
         std::cout << "Could not get hashcodes. Exiting." << std::endl;
         // TODO: We should clean here

@@ -1,28 +1,27 @@
 #include "header.h"
 #include "iotools.h"
+
 //#include <omp.h>
 //#include <vl/generic.h>
-
-#include <opencv2/opencv.hpp>
-
 //#include <math.h>
+#include <opencv2/opencv.hpp>
 #include <fstream>
 
 using namespace std;
 using namespace cv;
 
-string base_modelpath;
-string base_updatepath;
-string update_files_listname;
-string update_hash_folder;
-string update_feature_folder;
-string update_compfeature_folder;
-string update_compidx_folder;
-string update_files_list;
-string update_hash_prefix;
-string update_feature_prefix;
-string update_compfeature_prefix;
-string update_compidx_prefix;
+// string base_modelpath;
+// string base_updatepath;
+// string update_files_listname;
+// string update_hash_folder;
+// string update_feature_folder;
+// string update_compfeature_folder;
+// string update_compidx_folder;
+// string update_files_list;
+// string update_hash_prefix;
+// string update_feature_prefix;
+// string update_compfeature_prefix;
+// string update_compidx_prefix;
 
 // // acutally in iotools.h
 // template<class ty>
@@ -76,23 +75,25 @@ int main(int argc, char** argv){
     }
     //omp_set_num_threads(omp_get_max_threads());
     // hardcoded
+    PathManager pm;
     int feature_dim = 4096;
     int bit_num = 256;
     int norm = true;
     if (argc>3)
-        base_modelpath = argv[3];
+        pm.base_modelpath = argv[3];
     if (argc>4)
-        base_updatepath = argv[4];
-    set_paths();
+        pm.base_updatepath = argv[4];
     if (argc>5)
         bit_num = atoi(argv[5]);
     int int_num = bit_num/32;
-    string bit_string = to_string((long long)bit_num);
-    string str_norm = "";
-    if (norm)
-        str_norm = "norm_";
-    string W_name = base_modelpath + "W_" + str_norm + bit_string;
-    string mvec_name = base_modelpath + "mvec_" + str_norm + bit_string;
+    pm.set_paths(norm, bit_num);
+    
+    // string bit_string = to_string((long long)bit_num);
+    // string str_norm = "";
+    // if (norm)
+    //     str_norm = "norm_";
+    // string W_name = base_modelpath + "W_" + str_norm + bit_string;
+    // string mvec_name = base_modelpath + "mvec_" + str_norm + bit_string;
 
     //read in query
     int query_num = atoi(argv[2]);
@@ -109,10 +110,10 @@ int main(int argc, char** argv){
 
     //read in model
 
-    read_in.open(W_name,ios::in|ios::binary);
+    read_in.open(pm.W_name,ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        std::cout << "Cannot load the W model!" << std::endl;
+        std::cout << "Cannot load the W model from: " << pm.W_name << std::endl;
         return -1;
     }
     Mat W(feature_dim,bit_num,CV_64F);
@@ -120,10 +121,10 @@ int main(int argc, char** argv){
     read_in.read((char*)W.data, read_size);
     read_in.close();
 
-    read_in.open(mvec_name,ios::in|ios::binary);
+    read_in.open(pm.mvec_name,ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        std::cout << "Cannot load the mvec model!" << std::endl;
+        std::cout << "Cannot load the mvec model " << pm.mvec_name << std::endl;
         return -1;
     }
     Mat mvec(1,bit_num,CV_64F);
@@ -177,11 +178,11 @@ int main(int argc, char** argv){
     write_out.write((char*)query_mat.data, write_size);
     write_out.close();
 
-    string itq_name = filename+ "_itq_" + str_norm + bit_string;
+    string itq_name = filename + "_itq_" + pm.str_norm + pm.bit_string;
     write_out.open(itq_name,ios::out|ios::binary);
     if (!write_out.is_open())
     {
-        std::cout << "Cannot open the output hashing file for writing!" << std::endl;
+        std::cout << "Cannot open the output hashing file " << itq_name << " for writing " << std::endl;
         return -1;
     }
     write_size = sizeof(int)*query_num*int_num;
