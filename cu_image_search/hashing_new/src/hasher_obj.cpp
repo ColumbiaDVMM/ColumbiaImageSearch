@@ -28,7 +28,7 @@ int HasherObject::load_hashcodes() {
         read_pos +=read_size;
     }
     cout << "DB Hashcodes dimensions are " << itq.rows << "x" << itq.cols << endl;
-    cout << "DB Hashcodes first values are " << itq.at<int>(0,0) << " " <<  itq.at<int>(0,1) << endl;
+    cout << "DB Hashcodes first values are " << itq.at<unsigned int>(0,0) << " " <<  itq.at<unsigned int>(0,1) << endl;
     return 0;
 }
 
@@ -121,13 +121,14 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     int feats_num = feats_mat.rows;
     cout << "[compute_hashcodes_from_feats] Computing hashcodes for " << feats_num << " features." << endl;
     cout << "[compute_hashcodes_from_feats] mvec first value are: " << mvec.at<double>(0,0) << " " << mvec.at<double>(0,1) << endl;
+    cout << "[compute_hashcodes_from_feats] W first value are: " << W.at<double>(0,0) << " " << W.at<double>(0,1) << endl;
 
     mvec = repeat(mvec, feats_num, 1);
     // Project features
     Mat realvalued_hash = feats_mat_double*W-mvec;
     // Binarizing features
-    unsigned int * hash_mat = new unsigned int[int_num*query_num];
-    for  (int k=0; k < query_num; k++)
+    unsigned int * hash_mat = new unsigned int[int_num*feats_num];
+    for  (int k=0; k < feats_num; k++)
     {
         for (int i=0; i < int_num; i++)
         {

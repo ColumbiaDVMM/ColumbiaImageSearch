@@ -139,7 +139,7 @@ int main(int argc, char** argv){
         read_in.close();
         read_pos +=read_size;
     }
-    cout << "DB Hashcodes first values are " << itq.at<int>(0,0) << " " <<  itq.at<int>(0,1) << endl;
+    cout << "DB Hashcodes first values are " << itq.at<unsigned int>(0,0) << " " <<  itq.at<unsigned int>(0,1) << endl;
     read_in.open(W_name.c_str(),ios::in|ios::binary);
     if (!read_in.is_open())
     {
