@@ -50,7 +50,6 @@ int HasherObject::load_itq_model() {
     read_in.close();
 
     cout << "[load_itq_model] W first value are: " << W.at<double>(0,0) << " " << W.at<double>(0,1) << endl;
-    
 
     // read mvec
     read_in.open(mvec_name, ios::in|ios::binary);
@@ -67,7 +66,7 @@ int HasherObject::load_itq_model() {
     read_in.close();
 
     cout << "[load_itq_model] mvec first value are: " << mvec.at<double>(0,0) << " " << mvec.at<double>(0,1) << endl;
-    
+
     return 0;
 }
 
@@ -121,9 +120,8 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     feats_mat.convertTo(feats_mat_double, CV_64F);
     int feats_num = feats_mat.rows;
     cout << "[compute_hashcodes_from_feats] Computing hashcodes for " << feats_num << " features." << endl;
-
     cout << "[compute_hashcodes_from_feats] mvec first value are: " << mvec.at<double>(0,0) << " " << mvec.at<double>(0,1) << endl;
-    
+
     mvec = repeat(mvec, feats_num, 1);
     // Project features
     Mat realvalued_hash = feats_mat_double*W-mvec;
@@ -133,10 +131,10 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     {
         for (int i=0; i < int_num; i++)
         {
-            hash_mat[k*this->int_num+i] = 0;
+            hash_mat[k*int_num+i] = 0;
             for (int j=0;j<32;j++)
                 if (realvalued_hash.at<double>(k,i*32+j)>0)
-                    hash_mat[k*this->int_num+i] += 1<<j;
+                    hash_mat[k*int_num+i] += 1<<j;
         }
     }
     cout << "[compute_hashcodes_from_feats] Hash code first value are: " << hash_mat[0] << " " << hash_mat[1] << endl;
