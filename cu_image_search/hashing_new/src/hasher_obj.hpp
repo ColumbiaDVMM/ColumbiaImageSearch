@@ -41,7 +41,16 @@ class HasherObject {
         };
 
         // What need to be freed/closed?
-        ~HasherObject();
+        ~HasherObject() {
+            itq.release();
+            W.release();
+            mvec.release();
+            top_feature_mat.release();
+            postrank.clear();
+            hamming.clear();
+            // accum?
+            // query_codes?
+        };
 
         int read_update_files();
 
@@ -114,6 +123,7 @@ class HasherObject {
 
         void fill_data_nums_accum();
         void clean_compfeat_files();
+
         // // io from memory
         // Need to use boost::python converter for cv::Mat?
         // maybe later...
