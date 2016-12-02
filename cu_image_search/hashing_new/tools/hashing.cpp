@@ -150,7 +150,7 @@ int main(int argc, char** argv){
     read_size = sizeof(double)*feature_dim*bit_num;
     read_in.read((char*)W.data, read_size);
     read_in.close();
-
+    cout << "W first value are: " << W.at<double>(0,0) << " " << W.at<double>(0,1) << endl;
     read_in.open(mvec_name.c_str(),ios::in|ios::binary);
     if (!read_in.is_open())
     {
@@ -161,6 +161,7 @@ int main(int argc, char** argv){
     read_size = sizeof(double)*bit_num;
     read_in.read((char*)mvec.data, read_size);
     read_in.close();
+    cout << "mvec first value are: " << mvec.at<double>(0,0) << " " << mvec.at<double>(0,1) << endl;
     // 3.1 Time reading all hashcodes
     runtimes[7]=(float)(get_wall_time() - t[1]);
     t[1] = get_wall_time();
