@@ -27,7 +27,8 @@ int HasherObject::load_hashcodes() {
         read_in.close();
         read_pos +=read_size;
     }
-    cout << "Hashcodes dimensions are " << itq.rows << "x" << itq.cols << endl;
+    cout << "DB Hashcodes dimensions are " << itq.rows << "x" << itq.cols << endl;
+    cout << "DB Hashcodes first values are " << itq.at<int>(0,0) << " " <<  itq.at<int>(0,1) << endl;
     return 0;
 }
 
