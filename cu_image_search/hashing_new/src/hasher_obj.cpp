@@ -16,7 +16,7 @@ int HasherObject::load_hashcodes() {
     char * read_pos = (char*)itq.data;
     for (int i=0; i < update_hash_files.size(); i++)
     {
-        read_in.open(update_hash_files[i],ios::in|ios::binary);
+        read_in.open(update_hash_files[i].c_str(),ios::in|ios::binary);
         if (!read_in.is_open())
         {
             cout << "Cannot load the itq updates! File "<< update_hash_files[i] << endl;
@@ -36,7 +36,7 @@ int HasherObject::load_hashcodes() {
 int HasherObject::load_itq_model() {
     // Read itq model
     // read W
-    read_in.open(W_name, ios::in|ios::binary);
+    read_in.open(W_name.c_str(), ios::in|ios::binary);
     if (!read_in.is_open())
     {
         cout << "Cannot load the W model from " << W_name << endl;
@@ -52,7 +52,7 @@ int HasherObject::load_itq_model() {
     cout << "[load_itq_model] W first value are: " << W.at<double>(0,0) << " " << W.at<double>(0,1) << endl;
 
     // read mvec
-    read_in.open(mvec_name, ios::in|ios::binary);
+    read_in.open(mvec_name.c_str(), ios::in|ios::binary);
     if (!read_in.is_open())
     {
         cout << "Cannot load the mvec model from " << mvec_name << endl;
@@ -76,7 +76,7 @@ Mat HasherObject::read_feats_from_disk(string filename) {
     int feats_num = (int)filesize(filename)/4/feature_dim;
     cout << "[read_feats_from_disk] Reading " << feats_num << " features from " << filename << endl;
     // Check input file
-    ifstream read_in(filename, ios::in|ios::binary);
+    ifstream read_in(filename.c_str(), ios::in|ios::binary);
     if (!read_in.is_open())
     {
         cout << "[read_feats_from_disk] Cannot load the feature file: " << filename << endl;
@@ -349,11 +349,11 @@ void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair>
 void HasherObject::init_output_files() {
     string outname_sim = outname+"-sim.txt";
     cout <<  "[set_output_files] Will write results to " << outname_sim << endl;
-    this->outputfile.open(outname_sim, ios::out);
+    outputfile.open(outname_sim.c_str(), ios::out);
     if (DEMO==0) {
         string outname_hamming = outname+"-hamming.txt";
         cout <<  "Will write detailed hamming results to " << outname_hamming << endl;
-        this->outputfile_hamming.open(outname_hamming,ios::out);
+        outputfile_hamming.open(outname_hamming.c_str(), ios::out);
     }
 }
 
