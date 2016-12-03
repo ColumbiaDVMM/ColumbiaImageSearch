@@ -24,6 +24,9 @@ void PathManager::set_paths(int norm, int bit_num) {
     
     update_feature_prefix = base_updatepath+update_feature_folder;
     update_feature_suffix = "" + str_norm;
+
+    W_name = base_modelpath + "W" + str_norm + "_" + bit_string;
+    mvec_name = base_modelpath + "mvec" + str_norm + "_" + bit_string;
 }
 
 void PathManager::set_default_paths() {

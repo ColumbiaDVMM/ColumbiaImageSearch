@@ -7,19 +7,19 @@
 using namespace std;
 using namespace cv;
 
-// This needs to be in any "main"
-string base_modelpath;
-string base_updatepath;
-string update_files_listname;
-string update_hash_folder;
-string update_feature_folder;
-string update_compfeature_folder;
-string update_compidx_folder;
-string update_files_list;
-string update_hash_prefix;
-string update_feature_prefix;
-string update_compfeature_prefix;
-string update_compidx_prefix;
+// // This needs to be in any "main"
+// string base_modelpath;
+// string base_updatepath;
+// string update_files_listname;
+// string update_hash_folder;
+// string update_feature_folder;
+// string update_compfeature_folder;
+// string update_compidx_folder;
+// string update_files_list;
+// string update_hash_prefix;
+// string update_feature_prefix;
+// string update_compfeature_prefix;
+// string update_compidx_prefix;
 
 // Additional output of hamming distances if DEMO==0
 #define DEMO 1
