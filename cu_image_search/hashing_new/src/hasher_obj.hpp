@@ -29,17 +29,8 @@ class HasherObject {
             ratio = 0.001f;
             // number of features indexed
             data_num = 0;
-
-            // // set default paths
-            // m_base_modelpath = "/home/ubuntu/memex/";
-            // m_base_updatepath = "/home/ubuntu/memex/update/";
-            // m_update_files_listname = "update_list_dev.txt";
-            // m_update_hash_folder = "hash_bits/";
-            // m_update_feature_folder = "features/";
-            // m_update_compfeature_folder = "comp_features/";
-            // m_update_compidx_folder = "comp_idx/";
-            // // set other variables depending on those
-            // set_paths();
+            // initialize path manager
+            pm.set_paths(norm, bit_num);
         };
 
         // What need to be freed/closed?
