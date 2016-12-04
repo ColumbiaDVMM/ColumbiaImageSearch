@@ -1,4 +1,4 @@
-from _hasher_obj_py import *   
+from _hasher_obj_py import HasherObjectPy
 
 if __name__ == "__main__":
     hasher = HasherObjectPy()

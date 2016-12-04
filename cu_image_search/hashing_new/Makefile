@@ -44,6 +44,7 @@ endef
 define OBJ_RULE
 $(1).o: $(SRCDIR)$(1).cpp
 	$(CC) $(CXXFLAGS) $(CFLAGS) $(SRCDIR)$(1).cpp -o $(OBJDIR)$(1).o $(INCLUDE_DIRS_CMD)
+	$(CC) $(CXXFLAGS) $(CFLAGS) -fPIC $(SRCDIR)$(1).cpp -o $(OBJDIR)$(1)_fpic.o $(INCLUDE_DIRS_CMD)
 endef
 
 $(foreach obj,$(OBJ),$(eval $(call OBJ_RULE,$(obj))))
