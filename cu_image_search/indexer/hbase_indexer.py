@@ -138,9 +138,13 @@ class HBaseIndexer(GenericIndexer):
 
 
     def initialize_hasher(self):
-        if self.hasher_type=="hasher_cmdline":
+        if self.hasher_type == "hasher_cmdline":
             from ..hasher.hasher_cmdline import HasherCmdLine
             self.hasher = HasherCmdLine(self.global_conf_filename)
+            self.init_master_uf_fn = os.path.join(self.hasher.base_update_path, self.hasher.master_update_file)
+        if self.hasher_type == "hasher_swig":
+            from ..hasher.hasher_swig import HasherSwig
+            self.hasher = HasherSwig(self.global_conf_filename)
             self.init_master_uf_fn = os.path.join(self.hasher.base_update_path, self.hasher.master_update_file)
         else:
             raise ValueError("[HBaseIndexer.initialize_hasher: error] Unknown hasher_type: {}.".format(self.hasher_type))

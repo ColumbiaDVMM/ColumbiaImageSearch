@@ -13,7 +13,7 @@ if __name__ == "__main__":
     status = HasherObjectPy_read_update_files(hasher)
     if status != 0:
         print("Hasher was not able to read update")
-	sys.exit(-1)
+        sys.exit(-1)
     HasherObjectPy_load_itq_model(hasher)
     HasherObjectPy_load_hashcodes(hasher)
     delete_HasherObjectPy(hasher)
