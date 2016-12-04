@@ -9,7 +9,7 @@
  #include "hasher_obj_py.hpp"
 %}
 
-
+/*
 class HasherObjectPy {
 
     public:
@@ -34,11 +34,11 @@ class HasherObjectPy {
         void set_base_updatepath(std::string _base_updatepath);
         std::string get_base_updatepath();
         void set_outputfile(std::string _outname);
-};
+};*/
 
 
 // Tell swig to put type information into the functions docstrings... 
 %feature("autodoc", "1");
 
 /* Parse the header file to generate wrappers */
-//%include "hasher_obj_py.hpp"
+%include "hasher_obj_py.hpp"
