@@ -22,6 +22,7 @@ class HasherObjectPy {
         };
 
         int load_hashcodes() {
+            hobj->fill_data_nums_accum();
             return hobj->load_hashcodes();
         };
 
@@ -63,6 +64,7 @@ class HasherObjectPy {
 
         void set_base_modelpath(std::string _base_modelpath){
             hobj->set_base_modelpath(_base_modelpath);
+            hobj->set_paths();
         };
 
         std::string get_base_modelpath(){
@@ -71,6 +73,7 @@ class HasherObjectPy {
 
         void set_base_updatepath(std::string _base_updatepath) {
             hobj->set_base_updatepath(_base_updatepath);
+            hobj->set_paths();
         };
 
         std::string get_base_updatepath() {
