@@ -99,75 +99,31 @@ SwigPyIterator_swigregister = _hasher_obj_py.SwigPyIterator_swigregister
 SwigPyIterator_swigregister(SwigPyIterator)
 
 class HasherObjectPy(_object):
-    """Proxy of C++ HasherObjectPy class"""
     __swig_setmethods__ = {}
     __setattr__ = lambda self, name, value: _swig_setattr(self, HasherObjectPy, name, value)
     __swig_getmethods__ = {}
     __getattr__ = lambda self, name: _swig_getattr(self, HasherObjectPy, name)
     __repr__ = _swig_repr
     def __init__(self): 
-        """__init__(HasherObjectPy self) -> HasherObjectPy"""
         this = _hasher_obj_py.new_HasherObjectPy()
         try: self.this.append(this)
         except: self.this = this
     __swig_destroy__ = _hasher_obj_py.delete_HasherObjectPy
     __del__ = lambda self : None;
-    def read_update_files(self):
-        """read_update_files(HasherObjectPy self) -> int"""
-        return _hasher_obj_py.HasherObjectPy_read_update_files(self)
-
-    def load_hashcodes(self):
-        """load_hashcodes(HasherObjectPy self) -> int"""
-        return _hasher_obj_py.HasherObjectPy_load_hashcodes(self)
-
-    def load_itq_model(self):
-        """load_itq_model(HasherObjectPy self) -> int"""
-        return _hasher_obj_py.HasherObjectPy_load_itq_model(self)
-
-    def set_query_feats_from_disk(self, *args):
-        """set_query_feats_from_disk(HasherObjectPy self, string filename)"""
-        return _hasher_obj_py.HasherObjectPy_set_query_feats_from_disk(self, *args)
-
-    def find_knn(self):
-        """find_knn(HasherObjectPy self)"""
-        return _hasher_obj_py.HasherObjectPy_find_knn(self)
-
-    def set_paths(self):
-        """set_paths(HasherObjectPy self)"""
-        return _hasher_obj_py.HasherObjectPy_set_paths(self)
-
-    def set_topk(self, *args):
-        """set_topk(HasherObjectPy self, int _top_k)"""
-        return _hasher_obj_py.HasherObjectPy_set_topk(self, *args)
-
-    def set_ratio(self, *args):
-        """set_ratio(HasherObjectPy self, float _ratio)"""
-        return _hasher_obj_py.HasherObjectPy_set_ratio(self, *args)
-
-    def set_bit_num(self, *args):
-        """set_bit_num(HasherObjectPy self, int _bit_num)"""
-        return _hasher_obj_py.HasherObjectPy_set_bit_num(self, *args)
-
-    def set_norm(self, *args):
-        """set_norm(HasherObjectPy self, int _norm)"""
-        return _hasher_obj_py.HasherObjectPy_set_norm(self, *args)
-
-    def set_feature_dim(self, *args):
-        """set_feature_dim(HasherObjectPy self, int _feature_dim)"""
-        return _hasher_obj_py.HasherObjectPy_set_feature_dim(self, *args)
-
-    def set_base_modelpath(self, *args):
-        """set_base_modelpath(HasherObjectPy self, string _base_modelpath)"""
-        return _hasher_obj_py.HasherObjectPy_set_base_modelpath(self, *args)
-
-    def set_base_updatepath(self, *args):
-        """set_base_updatepath(HasherObjectPy self, string _base_updatepath)"""
-        return _hasher_obj_py.HasherObjectPy_set_base_updatepath(self, *args)
-
-    def set_outputfile(self, *args):
-        """set_outputfile(HasherObjectPy self, string _outname)"""
-        return _hasher_obj_py.HasherObjectPy_set_outputfile(self, *args)
-
+    def read_update_files(self): return _hasher_obj_py.HasherObjectPy_read_update_files(self)
+    def load_hashcodes(self): return _hasher_obj_py.HasherObjectPy_load_hashcodes(self)
+    def load_itq_model(self): return _hasher_obj_py.HasherObjectPy_load_itq_model(self)
+    def set_query_feats_from_disk(self, *args): return _hasher_obj_py.HasherObjectPy_set_query_feats_from_disk(self, *args)
+    def find_knn(self): return _hasher_obj_py.HasherObjectPy_find_knn(self)
+    def set_paths(self): return _hasher_obj_py.HasherObjectPy_set_paths(self)
+    def set_topk(self, *args): return _hasher_obj_py.HasherObjectPy_set_topk(self, *args)
+    def set_ratio(self, *args): return _hasher_obj_py.HasherObjectPy_set_ratio(self, *args)
+    def set_bit_num(self, *args): return _hasher_obj_py.HasherObjectPy_set_bit_num(self, *args)
+    def set_norm(self, *args): return _hasher_obj_py.HasherObjectPy_set_norm(self, *args)
+    def set_feature_dim(self, *args): return _hasher_obj_py.HasherObjectPy_set_feature_dim(self, *args)
+    def set_base_modelpath(self, *args): return _hasher_obj_py.HasherObjectPy_set_base_modelpath(self, *args)
+    def set_base_updatepath(self, *args): return _hasher_obj_py.HasherObjectPy_set_base_updatepath(self, *args)
+    def set_outputfile(self, *args): return _hasher_obj_py.HasherObjectPy_set_outputfile(self, *args)
 HasherObjectPy_swigregister = _hasher_obj_py.HasherObjectPy_swigregister
 HasherObjectPy_swigregister(HasherObjectPy)
 

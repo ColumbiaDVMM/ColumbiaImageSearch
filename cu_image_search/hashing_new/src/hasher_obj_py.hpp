@@ -1,26 +1,8 @@
-//swig -python -c++ -o src/hasher_obj_wrap.cxx src/hasher_obj.i
-//g++ -O2 -fPIC -c src/hasher_obj_wrap.cxx -I/opt/local/include/ -I./src/ -I/usr/include/python2.7/ -o obj/hasher_obj_wrap.o
-//g++ -shared obj/hasher_obj.o obj/hasher_obj_wrap.o obj/header.o obj/iotools.o -L/opt/local/lib/ -lopencv_core -lopencv_highgui -lz -lpython2.7 -o _hasher_obj_py.so
-
-
 #ifndef HASHEROBJ_PY
 #define HASHEROBJ_PY
 
 #include "hasher_obj.hpp"
 
-// // This needs to be in any "main"
-// string base_modelpath;
-// string base_updatepath;
-// string update_files_listname;
-// string update_hash_folder;
-// string update_feature_folder;
-// string update_compfeature_folder;
-// string update_compidx_folder;
-// string update_files_list;
-// string update_hash_prefix;
-// string update_feature_prefix;
-// string update_compfeature_prefix;
-// string update_compidx_prefix;
 
 // Simpler HasherObject to be wrapped with SWIG
 class HasherObjectPy {
@@ -91,7 +73,6 @@ class HasherObjectPy {
         void set_outputfile(string _outname){
             hobj->set_outputfile(_outname);
         };
-
 
     private:
         
