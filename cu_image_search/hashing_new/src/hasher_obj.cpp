@@ -109,8 +109,9 @@ void HasherObject::set_query_feats_from_disk(string filename) {
 unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     cout << "[compute_hashcodes_from_feats] Features first value are: " << feats_mat.at<double>(0,0) << " " << feats_mat.at<double>(0,1) << endl;
     // hashing init
+    // segfault here when called from python/swig?
     if (norm) {
-        for  (int k = 0; k < query_num; k++)
+        for (int k = 0; k < query_num; k++)
             normalize((float*)feats_mat.data + k*feature_dim, feature_dim);
     }
     cout << "[compute_hashcodes_from_feats:after_norm] Features first value are: " << feats_mat.at<double>(0,0) << " " << feats_mat.at<double>(0,1) << endl;
@@ -146,10 +147,10 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
 // query methods
 // use member query_feats and query_codes
 void HasherObject::find_knn() {
+    query_num = query_feats.rows;
     query_codes = compute_hashcodes_from_feats(query_feats);
     unsigned int* query = query_codes;
     float* query_feature = (float*)query_feats.data;
-    query_num = query_feats.rows;
     vector<mypair> top_hamming;
     init_output_files();
     for (int k=0; k < query_num; k++)

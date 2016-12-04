@@ -83,6 +83,7 @@ class HasherObject {
 
         void set_ratio(float _ratio) {
             ratio = _ratio;
+            set_top_feature();
         };
 
         void set_bit_num(int _bit_num) {
