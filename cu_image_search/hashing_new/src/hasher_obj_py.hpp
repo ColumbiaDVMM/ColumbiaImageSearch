@@ -6,11 +6,10 @@
 
 // Simpler HasherObject to be wrapped with SWIG
 class HasherObjectPy {
-    
+
     public:
-        
+
         HasherObjectPy() {
-            // set default values
             hobj = new HasherObject();
         };
 
@@ -29,11 +28,11 @@ class HasherObjectPy {
         int load_itq_model() {
             return hobj->load_itq_model();
         };
-        
-        void set_query_feats_from_disk(string filename) {
+
+        void set_query_feats_from_disk(std::string filename) {
             hobj->set_query_feats_from_disk(filename);
         };
-        
+
         void find_knn() {
             hobj->find_knn();
         };
@@ -62,20 +61,20 @@ class HasherObjectPy {
             hobj->set_feature_dim(_feature_dim);
         };
 
-        void set_base_modelpath(string _base_modelpath){
+        void set_base_modelpath(std::string _base_modelpath){
             hobj->set_base_modelpath(_base_modelpath);
         };
 
-        void set_base_updatepath(string _base_updatepath) {
+        void set_base_updatepath(std::string _base_updatepath) {
             hobj->set_base_updatepath(_base_updatepath);
         };
 
-        void set_outputfile(string _outname){
+        void set_outputfile(std::string _outname){
             hobj->set_outputfile(_outname);
         };
 
     private:
-        
+
         HasherObject* hobj;
 
 };
