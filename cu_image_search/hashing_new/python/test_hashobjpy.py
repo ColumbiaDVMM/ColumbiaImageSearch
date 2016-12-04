@@ -10,10 +10,12 @@ if __name__ == "__main__":
     up_path = HasherObjectPy_get_base_updatepath(hasher)
     print(up_path)
     HasherObjectPy_set_base_modelpath(hasher, "/home/ubuntu/memex/data/")
-    status = HasherObjectPy_read_update_files(hasher)
+    status = HasherObjectPy_initialize(hasher)
     if status != 0:
-        print("Hasher was not able to read update")
+        print("Hasher was not able to initialize")
         sys.exit(-1)
-    HasherObjectPy_load_itq_model(hasher)
-    HasherObjectPy_load_hashcodes(hasher)
+    featurefilename = "/home/ubuntu/memex/DeepSentiBank_memex/cu_image_search/www/1480830128.81.dat"
+    HasherObjectPy_set_query_feats_from_disk(hasher, featurefilename)
+    HasherObjectPy_set_outputfile(hasher, featurefilename[:-4])
+    HasherObjectPy_find_knn(hasher)
     delete_HasherObjectPy(hasher)

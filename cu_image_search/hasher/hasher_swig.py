@@ -31,21 +31,22 @@ class HasherSwig():
         else:
             self.hashing_execfile = 'hashing'
         self.features_dim = self.global_conf['FE_features_dim']
-        hop.HasherObjectPy_set_features_dim(self.hasher, features_dim)
+        hop.HasherObjectPy_set_feature_dim(self.hasher, self.features_dim)
         self.bits_num = self.global_conf['HA_bits_num']
-        hop.HasherObjectPy_set_bits_num(self.hasher, bits_num)
+        hop.HasherObjectPy_set_bit_num(self.hasher, self.bits_num)
         # set_paths is called internally in this
-        hop.HasherObjectPy_set_base_updatepath(self.hasher, self.base_update_path)
+        print(type(self.base_update_path)) # unicode...
+        hop.HasherObjectPy_set_base_updatepath(self.hasher, str(self.base_update_path))
         up_path = hop.HasherObjectPy_get_base_updatepath(self.hasher)
         print(up_path)
         # base_model_path from conf too?
         hop.HasherObjectPy_set_base_modelpath(self.hasher, "/home/ubuntu/memex/data/")
-        status = HasherObjectPy_read_update_files(hasher)
+        status = hop.HasherObjectPy_initialize(self.hasher)
         if status != 0:
-            print("Hasher was not able to read update")
+            print("Hasher was not able to initialize")
             sys.exit(-1)
-        HasherObjectPy_load_itq_model(hasher)
-        HasherObjectPy_load_hashcodes(hasher)
+        #HasherObjectPy_load_itq_model(hasher)
+        #HasherObjectPy_load_hashcodes(hasher)
         self.hashing_outpath = os.path.join(self.base_update_path,'hash_bits/')
         mkpath(self.hashing_outpath)
         # need to be able to set/get master_update file in HasherObjectPy too.
