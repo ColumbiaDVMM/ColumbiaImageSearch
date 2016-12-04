@@ -10,11 +10,10 @@ if __name__ == "__main__":
     up_path = HasherObjectPy_get_base_updatepath(hasher)
     print(up_path)
     HasherObjectPy_set_base_modelpath(hasher, "/home/ubuntu/memex/data/")
-    HasherObjectPy_set_paths(hasher)
+    #HasherObjectPy_set_paths(hasher)
     status = HasherObjectPy_read_update_files(hasher)
     if status != 0:
         print("Hasher was not able to read update")
 	sys.exit(-1)
     HasherObjectPy_load_itq_model(hasher)
-    HasherObjectPy_fill_data_nums_accum(hasher)
     HasherObjectPy_load_hashcodes(hasher)

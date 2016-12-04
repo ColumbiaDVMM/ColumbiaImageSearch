@@ -447,7 +447,8 @@ int HasherObject::read_update_files() {
 void HasherObject::fill_data_nums_accum() {
     data_num = fill_data_nums(update_hash_files, data_nums, bit_num);
     cout << "We have " << data_num << " images indexed." << endl;
-    delete[] accum;
+    // This induces a segfault when called from swig?
+    //delete[] accum;
     accum = new int[data_nums.size()];
     fill_accum(data_nums, accum);
     // this will overwrite top_feature
