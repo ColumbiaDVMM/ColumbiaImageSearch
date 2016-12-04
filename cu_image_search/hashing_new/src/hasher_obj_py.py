@@ -170,7 +170,6 @@ class HasherObjectPy(_object):
 
 HasherObjectPy_swigregister = _hasher_obj_py.HasherObjectPy_swigregister
 HasherObjectPy_swigregister(HasherObjectPy)
-cvar = _hasher_obj_py.cvar
 
 # This file is compatible with both classic and new-style classes.
 
