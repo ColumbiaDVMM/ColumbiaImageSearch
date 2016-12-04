@@ -65,8 +65,16 @@ class HasherObjectPy {
             hobj->set_base_modelpath(_base_modelpath);
         };
 
+        std::string get_base_modelpath(){
+            return hobj->get_base_modelpath();
+        };
+
         void set_base_updatepath(std::string _base_updatepath) {
             hobj->set_base_updatepath(_base_updatepath);
+        };
+
+        std::string get_base_updatepath() {
+            return hobj->get_base_updatepath();
         };
 
         void set_outputfile(std::string _outname){

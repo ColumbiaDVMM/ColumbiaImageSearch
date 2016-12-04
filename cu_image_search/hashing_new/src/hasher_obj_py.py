@@ -122,7 +122,9 @@ class HasherObjectPy(_object):
     def set_norm(self, *args): return _hasher_obj_py.HasherObjectPy_set_norm(self, *args)
     def set_feature_dim(self, *args): return _hasher_obj_py.HasherObjectPy_set_feature_dim(self, *args)
     def set_base_modelpath(self, *args): return _hasher_obj_py.HasherObjectPy_set_base_modelpath(self, *args)
+    def get_base_modelpath(self): return _hasher_obj_py.HasherObjectPy_get_base_modelpath(self)
     def set_base_updatepath(self, *args): return _hasher_obj_py.HasherObjectPy_set_base_updatepath(self, *args)
+    def get_base_updatepath(self): return _hasher_obj_py.HasherObjectPy_get_base_updatepath(self)
     def set_outputfile(self, *args): return _hasher_obj_py.HasherObjectPy_set_outputfile(self, *args)
 HasherObjectPy_swigregister = _hasher_obj_py.HasherObjectPy_swigregister
 HasherObjectPy_swigregister(HasherObjectPy)

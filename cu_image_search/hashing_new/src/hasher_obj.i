@@ -30,7 +30,9 @@ class HasherObjectPy {
         void set_norm(int _norm);
         void set_feature_dim(int _feature_dim);
         void set_base_modelpath(std::string _base_modelpath);
+        std::string get_base_modelpath();
         void set_base_updatepath(std::string _base_updatepath);
+        std::string get_base_updatepath();
         void set_outputfile(std::string _outname);
 };
 

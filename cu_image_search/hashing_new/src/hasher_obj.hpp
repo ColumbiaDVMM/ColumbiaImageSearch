@@ -103,9 +103,17 @@ class HasherObject {
             pm.base_modelpath = _base_modelpath;
         };
 
+        string get_base_modelpath() {
+            return pm.base_modelpath;
+        };
+
         void set_base_updatepath(string _base_updatepath) {
             //m_base_updatepath = _base_updatepath;
             pm.base_updatepath  = _base_updatepath;
+        };
+
+        string get_base_updatepath() {
+            return pm.base_updatepath;
         };
 
         void set_outputfile(string _outname){
