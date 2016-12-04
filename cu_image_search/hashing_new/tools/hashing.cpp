@@ -8,20 +8,6 @@
 using namespace std;
 using namespace cv;
 
-// // This needs to be in any "main"
-// string base_modelpath;
-// string base_updatepath;
-// string update_files_listname;
-// string update_hash_folder;
-// string update_feature_folder;
-// string update_compfeature_folder;
-// string update_compidx_folder;
-// string update_files_list;
-// string update_hash_prefix;
-// string update_feature_prefix;
-// string update_compfeature_prefix;
-// string update_compidx_prefix;
-
 int main(int argc, char** argv){
     double t[2]; // timing
     t[0] = get_wall_time(); // Start Time
@@ -56,14 +42,7 @@ int main(int argc, char** argv){
         read_thres =  atoi(argv[7]);
 
     int int_num = bit_num/32;
-    // string bit_string = to_string((long long)bit_num);
-    // string str_norm = "";
-    // if (norm)
-    //     str_norm = "_norm";
-    // string itq_name = "itq" + str_norm + "_" + bit_string;
-    // string W_name = base_modelpath + "W" + str_norm + "_" + bit_string;
-    // string mvec_name = base_modelpath + "mvec" + str_norm + "_" + bit_string;
-
+    
     //read in query
     int query_num = (int)filesize(argv[1])/4/feature_dim;
     std::cout << "Hashing for " << query_num << " queries." << std::endl;
@@ -90,14 +69,6 @@ int main(int argc, char** argv){
     vector<string> update_compfeature_files;
     vector<string> update_compidx_files;
 
-    // string update_feature_suffix = "" + str_norm;
-    // string update_compfeature_suffix = "_comp" + str_norm;
-    // string update_compidx_suffix = "_compidx" + str_norm;
-    // string update_hash_suffix = "";
-    // if (norm)
-    // {
-    //     update_hash_suffix = "_" + itq_name;
-    // }
     ifstream fu(pm.update_files_list.c_str(),ios::in);
     if (!fu.is_open())
     {
@@ -175,13 +146,7 @@ int main(int argc, char** argv){
     vector<ifstream*> read_in_compfeatures;
     vector<ifstream*> read_in_compidx;
     int status = 0;
-    /*vector<ifstream*> read_in_features;
-    status = fill_vector_files(read_in_features,update_feature_files);
-    if (status==-1) {
-          std::cout << "Could not load features properly. Exiting." << std::endl;
-          // TODO: We should clean here
-          return -1;
-    }*/
+    
     status = fill_vector_files(read_in_compfeatures,update_compfeature_files);
     if (status==-1) {
         std::cout << "Could not load compressed features properly. Exiting." << std::endl;

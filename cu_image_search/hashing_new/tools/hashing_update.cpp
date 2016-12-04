@@ -1,68 +1,11 @@
 #include "header.h"
 #include "iotools.h"
 
-//#include <omp.h>
-//#include <vl/generic.h>
-//#include <math.h>
 #include <opencv2/opencv.hpp>
 #include <fstream>
 
 using namespace std;
 using namespace cv;
-
-// string base_modelpath;
-// string base_updatepath;
-// string update_files_listname;
-// string update_hash_folder;
-// string update_feature_folder;
-// string update_compfeature_folder;
-// string update_compidx_folder;
-// string update_files_list;
-// string update_hash_prefix;
-// string update_feature_prefix;
-// string update_compfeature_prefix;
-// string update_compidx_prefix;
-
-// // acutally in iotools.h
-// template<class ty>
-// void normalize(ty *X, size_t dim)
-// {
-//     ty sum = 0;
-//     for (int i=0;i<dim;i++)
-//     {
-//         sum +=X[i]*X[i];
-//     }
-//     sum = sqrt(sum);
-//     ty n = 1 / sum;
-//     for (int i=0;i<dim;i++)
-//     {
-//         X[i] *= n;
-//     }
-// }
-
-// // acutally in iotools.cpp
-// ifstream::pos_type filesize(string filename)
-// {
-//     ifstream in(filename, ios::ate | ios::binary);
-//     return in.tellg();
-// }
-
-
-// Now in header.h
-// int NumberOfSetBits(unsigned int i)
-// {
-//     i = i - ((i >> 1) & 0x55555555);
-//     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-//     return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
-// }
-
-// Actually not used?
-// int count_bits(unsigned int n) {
-//     unsigned int c; // c accumulates the total bits set in v
-//     for (c = 0; n; c++)
-//         n &= n - 1; // clear the least significant bit set
-//     return c;
-// }
 
 
 int main(int argc, char** argv){
@@ -73,8 +16,8 @@ int main(int argc, char** argv){
         cout << "Usage: hashing feature_file_name feature_number [base_modelpath base_updatepath hashing_bits]" << std::endl;
         return -1;
     }
-    //omp_set_num_threads(omp_get_max_threads());
-    // hardcoded
+    
+    // Deal with parameters
     PathManager pm;
     int feature_dim = 4096;
     int bit_num = 256;
@@ -88,13 +31,6 @@ int main(int argc, char** argv){
     int int_num = bit_num/32;
     pm.set_paths(norm, bit_num);
     
-    // string bit_string = to_string((long long)bit_num);
-    // string str_norm = "";
-    // if (norm)
-    //     str_norm = "norm_";
-    // string W_name = base_modelpath + "W_" + str_norm + bit_string;
-    // string mvec_name = base_modelpath + "mvec_" + str_norm + bit_string;
-
     //read in query
     int query_num = atoi(argv[2]);
     ifstream read_in(argv[1],ios::in|ios::binary);
@@ -109,7 +45,6 @@ int main(int argc, char** argv){
     read_in.close();
 
     //read in model
-
     read_in.open(pm.W_name,ios::in|ios::binary);
     if (!read_in.is_open())
     {
@@ -134,11 +69,6 @@ int main(int argc, char** argv){
 
 
     runtimes[0]=(float)(get_wall_time() - t[0]);
-
-    //demo
-    //int query_idx = 76;
-    //float * query_feature = (float*)feature.data+feature_dim*query_idx;
-    //unsigned int * query= (unsigned int*)itq.data+int_num*query_idx;
 
     //hashing init
     t[1]=get_wall_time();

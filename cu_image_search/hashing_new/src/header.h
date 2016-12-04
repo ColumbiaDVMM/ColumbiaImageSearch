@@ -10,33 +10,6 @@
 
 double get_wall_time();
 
-extern std::string base_modelpath;
-extern std::string base_updatepath;
-extern std::string update_files_listname;
-extern std::string update_hash_folder;
-extern std::string update_feature_folder;
-extern std::string update_compfeature_folder;
-extern std::string update_compidx_folder;
-extern std::string update_files_list;
-extern std::string update_hash_prefix;
-extern std::string update_feature_prefix;
-extern std::string update_compfeature_prefix;
-extern std::string update_compidx_prefix;
-
-// // Trying to gather all paths or part of path here
-// std::string base_modelpath;
-// std::string base_updatepath;
-// std::string update_files_listname;
-// std::string update_hash_folder;
-// std::string update_feature_folder;
-// std::string update_compfeature_folder;
-// std::string update_compidx_folder;
-// std::string update_files_list;
-// std::string update_hash_prefix;
-// std::string update_feature_prefix;
-// std::string update_compfeature_prefix;
-// std::string update_compidx_prefix;
-
 void set_paths();
 void set_default_paths();
 

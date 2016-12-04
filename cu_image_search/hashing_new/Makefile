@@ -41,6 +41,7 @@ $(1): $(foreach obj,$(OBJ),$(obj).o)
 	$(CC) $(CXXFLAGS) $(TOOLSSRCDIR)$(1).cpp $(foreach obj,$(OBJ),$(OBJDIR)$(obj).o) -o $(1) $(INCLUDE_DIRS_CMD) $(OPEN_MP) $(CVLIBS) -L$(LIB_DIRS)
 endef	
 
+# build with -fPIC for shared library build with SWIG
 define OBJ_RULE
 $(1).o: $(SRCDIR)$(1).cpp
 	$(CC) $(CXXFLAGS) $(CFLAGS) $(SRCDIR)$(1).cpp -o $(OBJDIR)$(1).o $(INCLUDE_DIRS_CMD)

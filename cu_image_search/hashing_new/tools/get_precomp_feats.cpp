@@ -1,28 +1,11 @@
 #include "header.h"
 #include "iotools.h"
 
-//#include <omp.h>
-//#include <vl/generic.h>
-//#include <math.h>
 #include <opencv2/opencv.hpp>
 #include <fstream>
 
 using namespace std;
 using namespace cv;
-
-// // This needs to be in any "main"
-// string base_modelpath;
-// string base_updatepath;
-// string update_files_listname;
-// string update_hash_folder;
-// string update_feature_folder;
-// string update_compfeature_folder;
-// string update_compidx_folder;
-// string update_files_list;
-// string update_hash_prefix;
-// string update_feature_prefix;
-// string update_compfeature_prefix;
-// string update_compidx_prefix;
 
 int main(int argc, char** argv){
     double t[2]; // timing
@@ -31,11 +14,8 @@ int main(int argc, char** argv){
         cout << "Usage: get_precomp_feats feature_ids_file_name feature_file_name [base_updatepath num_bits normalize_features]" << std::endl;
         return -1;
     }
-    //omp_set_num_threads(omp_get_max_threads());
-
+    
     PathManager pm;
-    // hardcoded default value. 
-    // TODO put this in header, at least we have a single file to modify
     int feature_dim = 4096;
     int norm = true;
     // we just use hashing files to know number of features per update here.
@@ -43,7 +23,6 @@ int main(int argc, char** argv){
     int bit_num = 256;
     string ids_file(argv[1]);
     string out_file(argv[2]);
-    //pm.set_default_paths();
     if (argc>3)
         pm.base_updatepath = argv[3];
     if (argc>4)

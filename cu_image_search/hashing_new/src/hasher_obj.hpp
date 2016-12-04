@@ -99,7 +99,6 @@ class HasherObject {
         };
 
         void set_base_modelpath(string _base_modelpath){
-            //m_base_modelpath = _base_modelpath;
             pm.base_modelpath = _base_modelpath;
         };
 
@@ -108,7 +107,6 @@ class HasherObject {
         };
 
         void set_base_updatepath(string _base_updatepath) {
-            //m_base_updatepath = _base_updatepath;
             pm.base_updatepath  = _base_updatepath;
         };
 
@@ -165,26 +163,8 @@ class HasherObject {
         // timing
         double t[2];
 
-        // Default paths
+        // To manage paths/strings
         PathManager pm; 
-        // std::string m_base_modelpath;
-        // std::string m_base_updatepath;
-        // std::string m_update_files_listname;
-        // std::string m_update_hash_folder;
-        // std::string m_update_feature_folder;
-        // std::string m_update_compfeature_folder;
-        // std::string m_update_compidx_folder;
-
-        // Strings derived from settings (would be overwritten in set_paths)
-        // string str_norm;
-        // string bit_string;
-        // string itq_name;
-        // string W_name;
-        // string mvec_name;
-        // string update_feature_suffix;
-        // string update_compfeature_suffix;
-        // string update_compidx_suffix;
-        // string update_hash_suffix;
 
         // List of data files
         vector<string> update_hash_files;

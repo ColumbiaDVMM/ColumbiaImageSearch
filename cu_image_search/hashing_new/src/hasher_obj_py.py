@@ -112,6 +112,10 @@ class HasherObjectPy(_object):
         except: self.this = this
     __swig_destroy__ = _hasher_obj_py.delete_HasherObjectPy
     __del__ = lambda self : None;
+    def initialize(self):
+        """initialize(HasherObjectPy self) -> int"""
+        return _hasher_obj_py.HasherObjectPy_initialize(self)
+
     def read_update_files(self):
         """read_update_files(HasherObjectPy self) -> int"""
         return _hasher_obj_py.HasherObjectPy_read_update_files(self)

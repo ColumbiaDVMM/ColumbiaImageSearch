@@ -12,20 +12,6 @@
 using namespace std;
 using namespace cv;
 
-// // This needs to be in any "main"
-// string base_modelpath;
-// string base_updatepath;
-// string update_files_listname;
-// string update_hash_folder;
-// string update_feature_folder;
-// string update_compfeature_folder;
-// string update_compidx_folder;
-// string update_files_list;
-// string update_hash_prefix;
-// string update_feature_prefix;
-// string update_compfeature_prefix;
-// string update_compidx_prefix;
-
 int main(int argc, char** argv){
     double t[2]; // timing
     t[0] = get_wall_time(); // Start Time
@@ -34,29 +20,22 @@ int main(int argc, char** argv){
         return -1;
     }
 
-    // hardcoded default value. Maybe read that from JSON conf
+    // Deal with parameters
     int feature_dim = 4096;
     int norm = true;
     int bit_num = 256;
     PathManager pm;
     if (argc>1)
-        //base_updatepath = argv[1];
         pm.base_updatepath = argv[1];
     if (argc>2)
         feature_dim = atoi(argv[2]);
     if (argc>3)
         norm = atoi(argv[3]);
     if (argc>4)
-        //update_files_listname = string(argv[4]);
         pm.update_files_listname = string(argv[4]);
     if (argc>5)
         bit_num = atoi(argv[5]);
-    //set_paths();
     pm.set_paths(norm, bit_num);
-
-    // string str_norm = "";
-    // if (norm)
-    //     str_norm = "_norm";
 
     // File names vectors, prefix and suffix.
     string line;
@@ -66,19 +45,9 @@ int main(int argc, char** argv){
     vector<string> update_compidx_files;
     vector<int> need_comp;
     int status; //Not working on MAC
-    // status = mkdir(update_compfeature_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    // status = mkdir(update_compidx_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    
     status = mkdir(pm.update_compfeature_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     status = mkdir(pm.update_compidx_prefix.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     
-    // string update_feature_suffix = "" + str_norm;
-    // string update_comp_feature_suffix = "_comp" + str_norm;
-    // string update_compidx_suffix = "_compidx" + str_norm;
-    // string bit_string = to_string((long long)bit_num);
-    // string update_hash_suffix = "_itq" + str_norm + "_" + bit_string;
-
-
     ifstream fu(pm.update_files_list,ios::in);
     if (!fu.is_open())
     {

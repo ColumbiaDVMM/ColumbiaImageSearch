@@ -17,6 +17,16 @@ class HasherObjectPy {
             delete hobj;
         };
 
+        int initialize() {
+            int status = hobj->read_update_files();
+            if (status != 0)
+                return status;
+            status = hobj->load_itq_model();
+            if (status != 0)
+                return status;
+            return load_hashcodes();
+        };
+
         int read_update_files() {
             return hobj->read_update_files();
         };

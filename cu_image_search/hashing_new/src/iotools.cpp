@@ -92,19 +92,6 @@ int get_onefeatcomp(int query_id, size_t read_size, int* accum, vector<ifstream*
     return 0;
 }
 
-/* Deprecated: use get_onesample
-int get_onefeat(int query_id, size_t read_size, int* accum, vector<ifstream*>& read_in_features, char* feature_cp) {
-    int new_pos = 0;
-    int file_id = 0;
-    file_id = get_file_pos(accum, (int)read_in_features.size(), query_id, new_pos);
-    if (file_id==-1)
-        return -1;
-    //cout << "Feature found in file "  << file_id << " at pos " << new_pos << endl;
-    read_in_features[file_id]->seekg((unsigned long long int)(new_pos)*read_size);
-    read_in_features[file_id]->read(feature_cp, read_size);
-    return 0;
-}*/
-
 int get_onesample(int query_id, size_t read_size, int* accum, vector<ifstream*>& read_in, char* cp) {
     int new_pos = 0;
     int file_id = 0;
