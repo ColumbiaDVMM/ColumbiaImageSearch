@@ -15,5 +15,5 @@ if __name__ == "__main__":
         print("Hasher was not able to read update")
 	sys.exit(-1)
     HasherObjectPy_load_itq_model(hasher)
-    #HasherObjectPy_load_hashcodes(hasher)
+    HasherObjectPy_load_hashcodes(hasher)
     delete_HasherObjectPy(hasher)
