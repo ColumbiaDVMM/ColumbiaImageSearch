@@ -214,7 +214,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
 
     // Why not always use squared euclidean distance?
     float* data_feature;
-    /*if (norm)
+    if (norm)
     {
         for (int i = 0; i < top_hamming.size(); i++)
         {
@@ -234,8 +234,8 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
         }
     }
     else
-    {*/
-        #pragma omp parallel for
+    {
+        //#pragma omp parallel for
         for (int i = 0; i < top_hamming.size(); i++)
         {
             postrank[i]= mypairf(0.0f,top_hamming[i].second);
@@ -253,7 +253,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
             // divide by 2 so postrank[i].first is always equal between norm and not norm?
             postrank[i].first /= 2;
         }
-    //}
+    }
     std::sort(postrank.begin(), postrank.end(), comparatorf);
     return postrank;
 }
