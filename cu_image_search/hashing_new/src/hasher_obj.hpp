@@ -57,6 +57,7 @@ class HasherObject {
             int status = read_update_files();
             if (status != 0)
                 return status;
+            fill_data_nums_accum();
             status = load_itq_model();
             if (status != 0)
                 return status;
