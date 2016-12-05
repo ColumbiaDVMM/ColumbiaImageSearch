@@ -18,13 +18,7 @@ class HasherObjectPy {
         };
 
         int initialize() {
-            int status = hobj->read_update_files();
-            if (status != 0)
-                return status;
-            status = hobj->load_itq_model();
-            if (status != 0)
-                return status;
-            return load_hashcodes();
+            return hobj->initialize();
         };
 
         int read_update_files() {
