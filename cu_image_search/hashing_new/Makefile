@@ -3,10 +3,10 @@ INCLUDE_DIRS=/opt/local/include/ ./src/
 LIB_DIRS=/opt/local/lib/
 CC=g++
 
-# local
-CC=g++-mp-4.9
-INCLUDE_DIRS=/usr/local/include/ ./src/
-LIB_DIRS=/usr/local/lib/
+# # local
+# CC=g++-mp-4.9
+# INCLUDE_DIRS=/usr/local/include/ ./src/
+# LIB_DIRS=/usr/local/lib/
 
 INCLUDE_DIRS_CMD=$(foreach d,$(INCLUDE_DIRS),-I$d)
 
