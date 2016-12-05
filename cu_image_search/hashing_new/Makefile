@@ -3,12 +3,12 @@ LIB_DIRS=/opt/local/lib/
 CC=g++
 
 # local
-#CC=g++-mp-4.9
-#INCLUDE_DIRS=/usr/local/include/ ./src/
-#LIB_DIRS=/usr/local/lib/
+CC=g++-mp-4.9
+INCLUDE_DIRS=/usr/local/include/ ./src/
+LIB_DIRS=/usr/local/lib/
 
-#OPEN_MP=-fopenmp
-OPEN_MP=
+OPEN_MP=-fopenmp
+#OPEN_MP=
 
 CFLAGS=-c 
 CXXFLAGS=-std=c++0x -O2
@@ -44,8 +44,8 @@ endef
 # build with -fPIC for shared library build with SWIG
 define OBJ_RULE
 $(1).o: $(SRCDIR)$(1).cpp
-	$(CC) $(CXXFLAGS) $(CFLAGS) $(SRCDIR)$(1).cpp -o $(OBJDIR)$(1).o $(INCLUDE_DIRS_CMD)
-	$(CC) $(CXXFLAGS) $(CFLAGS) -fPIC $(SRCDIR)$(1).cpp -o $(OBJDIR)$(1)_fpic.o $(INCLUDE_DIRS_CMD)
+	$(CC) $(CXXFLAGS) $(CFLAGS) $(SRCDIR)$(1).cpp -o $(OBJDIR)$(1).o $(OPEN_MP) $(INCLUDE_DIRS_CMD)
+	$(CC) $(CXXFLAGS) $(CFLAGS) -fPIC $(SRCDIR)$(1).cpp -o $(OBJDIR)$(1)_fpic.o $(OPEN_MP) $(INCLUDE_DIRS_CMD)
 endef
 
 $(foreach obj,$(OBJ),$(eval $(call OBJ_RULE,$(obj))))

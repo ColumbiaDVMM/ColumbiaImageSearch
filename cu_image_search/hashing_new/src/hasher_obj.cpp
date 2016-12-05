@@ -214,7 +214,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
 
     // Why not always use squared euclidean distance?
     float* data_feature;
-    if (norm)
+    /*if (norm)
     {
         for (int i = 0; i < top_hamming.size(); i++)
         {
@@ -234,7 +234,8 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
         }
     }
     else
-    {
+    {*/
+        #pragma omp parallel for
         for (int i = 0; i < top_hamming.size(); i++)
         {
             postrank[i]= mypairf(0.0f,top_hamming[i].second);
@@ -252,7 +253,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
             // divide by 2 so postrank[i].first is always equal between norm and not norm?
             postrank[i].first /= 2;
         }
-    }
+    //}
     std::sort(postrank.begin(), postrank.end(), comparatorf);
     return postrank;
 }
@@ -260,27 +261,25 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
 vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
     // Initialize data pointer
     unsigned int * hash_data = (unsigned int*)itq.data;
+    unsigned int * tmp_hash_data = hash_data;
 
     // Compute distance for each sample of the DB
+    #pragma omp parallel for
     for (int i=0; i < data_num; i++)
     {
+        tmp_hash_data = hash_data + i*int_num;
         // Initialize hamming distance 0 and sample id i
         hamming[i] = mypair(0,i);
         // Compute hamming distance by sets 32 bits
         for (int j=0; j<int_num; j++)
         {
-            unsigned int xnor = query[j]^hash_data[j];
+            //unsigned int xnor = query[j]^hash_data[j];
+            unsigned int xnor = query[j]^tmp_hash_data[j];
             hamming[i].first += NumberOfSetBits(xnor);
         }
         // Move pointer to next DB hashcode
-        hash_data += int_num;
+        //hash_data += int_num;
     }
-
-    //cout << "First sample hamming distance before sort: " << hamming[0].first << endl;
-    //vector<mypair>::iterator max_hd = max_element(hamming.begin(), hamming.end(), comparator);
-    //vector<mypair>::iterator min_hd = min_element(hamming.begin(), hamming.end(), comparator);
-    //cout << "Smallest hamming distance before sort: " << hamming[distance(hamming.begin(),min_hd)].first << endl;
-    //cout << "Biggest hamming distance before sort: " << hamming[distance(hamming.begin(),max_hd)].first << endl;
 
     // Sort results
     // Use nth_element maybe?
@@ -368,40 +367,6 @@ void HasherObject::close_output_files() {
 
 void HasherObject::set_paths() {
     pm.set_paths(norm, bit_num);
-
-    // // Update strings used to define itq model filenames
-    // if (norm)
-    //     str_norm = "_norm";
-    // else
-    //     str_norm = "";
-    // bit_string = to_string((long long)bit_num);
-    // itq_name = "itq" + str_norm + "_" + bit_string;
-    // // W_name = m_base_modelpath + "W" + str_norm + "_" + bit_string;
-    // // mvec_name = m_base_modelpath + "mvec" + str_norm + "_" + bit_string;
-
-    // W_name = pm.base_modelpath + "W" + str_norm + "_" + bit_string;
-    // mvec_name = pm.base_modelpath + "mvec" + str_norm + "_" + bit_string;
-
-
-    // // Update string hash suffix. Should this be in pm too?
-    // update_feature_suffix = "" + str_norm;
-    // update_compfeature_suffix = "_comp" + str_norm;
-    // update_compidx_suffix = "_compidx" + str_norm;
-    // update_hash_suffix = "_" + itq_name;
-    // if (norm)
-    //     update_hash_suffix = "_" + itq_name;
-    // else
-    //     update_hash_suffix = "";
-
-    // // Update files prefix
-    // update_files_list = m_base_updatepath+m_update_files_listname;
-    // update_hash_prefix = m_base_updatepath+m_update_hash_folder;
-    // update_feature_prefix = m_base_updatepath+m_update_feature_folder;
-    // update_compfeature_prefix = m_base_updatepath+m_update_compfeature_folder;
-    // update_compidx_prefix = m_base_updatepath+m_update_compidx_folder;
-
-    //pm.set_paths();
-
 }
 
 int HasherObject::read_update_files() {
