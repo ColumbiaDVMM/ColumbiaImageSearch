@@ -299,7 +299,8 @@ class Searcher():
         
     def search_image_list(self, image_list, options_dict=dict()):
         # initilization
-        search_id = str(time.time())
+        start_search = time.time()
+        search_id = str(start_search)
         i = 0
         # read all images
         dl_images = []
@@ -326,6 +327,7 @@ class Searcher():
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
+        print "[Searcher.search_image_list: log] Search prepared in {}s.".format(time.time() - start_search)
         outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
         return outp
 
@@ -432,6 +434,7 @@ class Searcher():
                 print "[Searcher.search_from_image_filenames: log] tmp_feat for image {} has norm {} and is: {}".format(image_name,np.linalg.norm(tmp_feat),tmp_feat)
                 out.write(tmp_feat)
                 features_wrote += 1
+        print "[Searcher.search_from_image_filenames: log] Search prepared in {}s".format(time.time() - start_search)
         if features_wrote:
             # query with merged features_filename
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
