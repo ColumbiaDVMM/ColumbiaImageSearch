@@ -253,7 +253,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
             {
                 postrank[i].first += pow(query_feature[j]-data_feature[j],2);
             }
-            postrank[i].first = sqrt(postrank[i].first)/2;
+            postrank[i].first = sqrt(postrank[i].first)/2.0;
         }
     // }
     // Should we time separately this sort?
