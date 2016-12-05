@@ -98,6 +98,133 @@ class SwigPyIterator(_object):
 SwigPyIterator_swigregister = _hasher_obj_py.SwigPyIterator_swigregister
 SwigPyIterator_swigregister(SwigPyIterator)
 
+class ResPair(_object):
+    __swig_setmethods__ = {}
+    __setattr__ = lambda self, name, value: _swig_setattr(self, ResPair, name, value)
+    __swig_getmethods__ = {}
+    __getattr__ = lambda self, name: _swig_getattr(self, ResPair, name)
+    __repr__ = _swig_repr
+    def __init__(self, *args): 
+        this = _hasher_obj_py.new_ResPair(*args)
+        try: self.this.append(this)
+        except: self.this = this
+    __swig_setmethods__["first"] = _hasher_obj_py.ResPair_first_set
+    __swig_getmethods__["first"] = _hasher_obj_py.ResPair_first_get
+    if _newclass:first = _swig_property(_hasher_obj_py.ResPair_first_get, _hasher_obj_py.ResPair_first_set)
+    __swig_setmethods__["second"] = _hasher_obj_py.ResPair_second_set
+    __swig_getmethods__["second"] = _hasher_obj_py.ResPair_second_get
+    if _newclass:second = _swig_property(_hasher_obj_py.ResPair_second_get, _hasher_obj_py.ResPair_second_set)
+    def __len__(self): return 2
+    def __repr__(self): return str((self.first, self.second))
+    def __getitem__(self, index): 
+      if not (index % 2): 
+        return self.first
+      else:
+        return self.second
+    def __setitem__(self, index, val):
+      if not (index % 2): 
+        self.first = val
+      else:
+        self.second = val
+    __swig_destroy__ = _hasher_obj_py.delete_ResPair
+    __del__ = lambda self : None;
+ResPair_swigregister = _hasher_obj_py.ResPair_swigregister
+ResPair_swigregister(ResPair)
+
+class InnerResVector(_object):
+    __swig_setmethods__ = {}
+    __setattr__ = lambda self, name, value: _swig_setattr(self, InnerResVector, name, value)
+    __swig_getmethods__ = {}
+    __getattr__ = lambda self, name: _swig_getattr(self, InnerResVector, name)
+    __repr__ = _swig_repr
+    def iterator(self): return _hasher_obj_py.InnerResVector_iterator(self)
+    def __iter__(self): return self.iterator()
+    def __nonzero__(self): return _hasher_obj_py.InnerResVector___nonzero__(self)
+    def __bool__(self): return _hasher_obj_py.InnerResVector___bool__(self)
+    def __len__(self): return _hasher_obj_py.InnerResVector___len__(self)
+    def pop(self): return _hasher_obj_py.InnerResVector_pop(self)
+    def __getslice__(self, *args): return _hasher_obj_py.InnerResVector___getslice__(self, *args)
+    def __setslice__(self, *args): return _hasher_obj_py.InnerResVector___setslice__(self, *args)
+    def __delslice__(self, *args): return _hasher_obj_py.InnerResVector___delslice__(self, *args)
+    def __delitem__(self, *args): return _hasher_obj_py.InnerResVector___delitem__(self, *args)
+    def __getitem__(self, *args): return _hasher_obj_py.InnerResVector___getitem__(self, *args)
+    def __setitem__(self, *args): return _hasher_obj_py.InnerResVector___setitem__(self, *args)
+    def append(self, *args): return _hasher_obj_py.InnerResVector_append(self, *args)
+    def empty(self): return _hasher_obj_py.InnerResVector_empty(self)
+    def size(self): return _hasher_obj_py.InnerResVector_size(self)
+    def clear(self): return _hasher_obj_py.InnerResVector_clear(self)
+    def swap(self, *args): return _hasher_obj_py.InnerResVector_swap(self, *args)
+    def get_allocator(self): return _hasher_obj_py.InnerResVector_get_allocator(self)
+    def begin(self): return _hasher_obj_py.InnerResVector_begin(self)
+    def end(self): return _hasher_obj_py.InnerResVector_end(self)
+    def rbegin(self): return _hasher_obj_py.InnerResVector_rbegin(self)
+    def rend(self): return _hasher_obj_py.InnerResVector_rend(self)
+    def pop_back(self): return _hasher_obj_py.InnerResVector_pop_back(self)
+    def erase(self, *args): return _hasher_obj_py.InnerResVector_erase(self, *args)
+    def __init__(self, *args): 
+        this = _hasher_obj_py.new_InnerResVector(*args)
+        try: self.this.append(this)
+        except: self.this = this
+    def push_back(self, *args): return _hasher_obj_py.InnerResVector_push_back(self, *args)
+    def front(self): return _hasher_obj_py.InnerResVector_front(self)
+    def back(self): return _hasher_obj_py.InnerResVector_back(self)
+    def assign(self, *args): return _hasher_obj_py.InnerResVector_assign(self, *args)
+    def resize(self, *args): return _hasher_obj_py.InnerResVector_resize(self, *args)
+    def insert(self, *args): return _hasher_obj_py.InnerResVector_insert(self, *args)
+    def reserve(self, *args): return _hasher_obj_py.InnerResVector_reserve(self, *args)
+    def capacity(self): return _hasher_obj_py.InnerResVector_capacity(self)
+    __swig_destroy__ = _hasher_obj_py.delete_InnerResVector
+    __del__ = lambda self : None;
+InnerResVector_swigregister = _hasher_obj_py.InnerResVector_swigregister
+InnerResVector_swigregister(InnerResVector)
+
+class ResVector(_object):
+    __swig_setmethods__ = {}
+    __setattr__ = lambda self, name, value: _swig_setattr(self, ResVector, name, value)
+    __swig_getmethods__ = {}
+    __getattr__ = lambda self, name: _swig_getattr(self, ResVector, name)
+    __repr__ = _swig_repr
+    def iterator(self): return _hasher_obj_py.ResVector_iterator(self)
+    def __iter__(self): return self.iterator()
+    def __nonzero__(self): return _hasher_obj_py.ResVector___nonzero__(self)
+    def __bool__(self): return _hasher_obj_py.ResVector___bool__(self)
+    def __len__(self): return _hasher_obj_py.ResVector___len__(self)
+    def pop(self): return _hasher_obj_py.ResVector_pop(self)
+    def __getslice__(self, *args): return _hasher_obj_py.ResVector___getslice__(self, *args)
+    def __setslice__(self, *args): return _hasher_obj_py.ResVector___setslice__(self, *args)
+    def __delslice__(self, *args): return _hasher_obj_py.ResVector___delslice__(self, *args)
+    def __delitem__(self, *args): return _hasher_obj_py.ResVector___delitem__(self, *args)
+    def __getitem__(self, *args): return _hasher_obj_py.ResVector___getitem__(self, *args)
+    def __setitem__(self, *args): return _hasher_obj_py.ResVector___setitem__(self, *args)
+    def append(self, *args): return _hasher_obj_py.ResVector_append(self, *args)
+    def empty(self): return _hasher_obj_py.ResVector_empty(self)
+    def size(self): return _hasher_obj_py.ResVector_size(self)
+    def clear(self): return _hasher_obj_py.ResVector_clear(self)
+    def swap(self, *args): return _hasher_obj_py.ResVector_swap(self, *args)
+    def get_allocator(self): return _hasher_obj_py.ResVector_get_allocator(self)
+    def begin(self): return _hasher_obj_py.ResVector_begin(self)
+    def end(self): return _hasher_obj_py.ResVector_end(self)
+    def rbegin(self): return _hasher_obj_py.ResVector_rbegin(self)
+    def rend(self): return _hasher_obj_py.ResVector_rend(self)
+    def pop_back(self): return _hasher_obj_py.ResVector_pop_back(self)
+    def erase(self, *args): return _hasher_obj_py.ResVector_erase(self, *args)
+    def __init__(self, *args): 
+        this = _hasher_obj_py.new_ResVector(*args)
+        try: self.this.append(this)
+        except: self.this = this
+    def push_back(self, *args): return _hasher_obj_py.ResVector_push_back(self, *args)
+    def front(self): return _hasher_obj_py.ResVector_front(self)
+    def back(self): return _hasher_obj_py.ResVector_back(self)
+    def assign(self, *args): return _hasher_obj_py.ResVector_assign(self, *args)
+    def resize(self, *args): return _hasher_obj_py.ResVector_resize(self, *args)
+    def insert(self, *args): return _hasher_obj_py.ResVector_insert(self, *args)
+    def reserve(self, *args): return _hasher_obj_py.ResVector_reserve(self, *args)
+    def capacity(self): return _hasher_obj_py.ResVector_capacity(self)
+    __swig_destroy__ = _hasher_obj_py.delete_ResVector
+    __del__ = lambda self : None;
+ResVector_swigregister = _hasher_obj_py.ResVector_swigregister
+ResVector_swigregister(ResVector)
+
 class HasherObjectPy(_object):
     """Proxy of C++ HasherObjectPy class"""
     __swig_setmethods__ = {}
