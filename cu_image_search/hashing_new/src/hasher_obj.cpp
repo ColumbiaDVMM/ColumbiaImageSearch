@@ -204,8 +204,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
     int status = 0;
     int failed = 0;
     int i;
-    // get_onefeatcomp is not thread safe with the seek of the same file pointer
-    //#pragma omp parallel for
+    // Getting top nn features
     for (i = 0; i < top_hamming.size(); i++)
     {
         status = get_onefeatcomp(top_hamming[i].second, read_size, accum, read_in_compfeatures, read_in_compidx, feature_p+i*read_size);
@@ -213,49 +212,44 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
             cout << "[rerank_knn_onesample] Could not get feature " << top_hamming[i].second << ". Exiting." << endl;
             failed++;
         }
-        //feature_p += read_size;
     }
-    if (failed) {
+    if (failed > 0) {
         return vector<mypairf>(0);
     }
     t[5] += get_wall_time() - t_start;
-        
+    
+    // Reranking
     t_start = get_wall_time();
-    // Why not always use squared euclidean distance?
-    float* data_feature;
-    // if (norm)
-    // {
-    //     for (int i = 0; i < top_hamming.size(); i++)
-    //     {
-    //         // from relationship L2 distance <-> Cosine similarity rerank with:
-    //         // 1 - sum(query_feature[j]*data_feature[j]) 
-    //         postrank[i] = mypairf(1.0f,top_hamming[i].second);
-    //         // if there are too many queries?
-    //         // if (query_num>read_thres)
-    //         //     data_feature = (float*)top_feature_mat.data+feature_dim*postrank[i].second;
-    //         // else
-    //         data_feature = (float*)top_feature_mat.data+feature_dim*i;
-
-    //         for (int j=0;j<feature_dim;j++)
-    //         {
-    //             postrank[i].first -= query_feature[j]*data_feature[j];
-    //         }
-    //     }
-    // }
-    // else
-    // {
+    if (norm)
+    {
         #pragma omp parallel for
         for (int i = 0; i < top_hamming.size(); i++)
         {
-            postrank[i]= mypairf(0.0f,top_hamming[i].second);
-            data_feature = (float*)top_feature_mat.data+feature_dim*i;
+            // from relationship squared L2 distance <-> Cosine similarity rerank with:
+            // L2^2 = 2(1 - sum(query_feature[j]*data_feature[j]))
+            postrank[i] = mypairf(1.0f,top_hamming[i].second);
+            float* data_feature = (float*)top_feature_mat.data+feature_dim*i;
+            for (int j=0;j<feature_dim;j++)
+            {
+                postrank[i].first -= query_feature[j]*data_feature[j];
+            }
+        }
+    }
+    else
+    {
+        // This version does not give the same ranking...
+        #pragma omp parallel for
+        for (int i = 0; i < top_hamming.size(); i++)
+        {
+            postrank[i] = mypairf(0.0f,top_hamming[i].second);
+            float* data_feature = (float*)top_feature_mat.data+feature_dim*i;
             for (int j=0;j<feature_dim;j++)
             {
                 postrank[i].first += pow(query_feature[j]-data_feature[j],2);
             }
             postrank[i].first = postrank[i].first/2.0;
         }
-    // }
+    }
     // Should we time separately this sort?
     std::sort(postrank.begin(), postrank.end(), comparatorf);
     t[6] += get_wall_time() - t_start;
