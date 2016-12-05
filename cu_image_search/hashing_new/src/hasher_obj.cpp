@@ -204,12 +204,13 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
     int status = 0;
     int failed = 0;
     int i;
-    #pragma omp parallel for
+    // get_onefeatcomp is not thread safe with the seek of the same file pointer
+    //#pragma omp parallel for
     for (i = 0; i < top_hamming.size(); i++)
     {
         status = get_onefeatcomp(top_hamming[i].second, read_size, accum, read_in_compfeatures, read_in_compidx, feature_p+i*read_size);
         if (status == -1) {
-            cout << "[rerank_knn_onesample] Could not get feature " << top_hamming[i].second << ". Exiting." << std::endl;
+            cout << "[rerank_knn_onesample] Could not get feature " << top_hamming[i].second << ". Exiting." << endl;
             failed++;
         }
         //feature_p += read_size;
