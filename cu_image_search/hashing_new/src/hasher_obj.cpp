@@ -155,33 +155,26 @@ vector< vector< mypairf > > HasherObject::find_knn_nodiskout() {
     int k;
     for (k=0; k < query_num; k++)
     {
-        cout <<  "[find_knn] Looking for similar images of query #" << k+1 << endl;
+        cout <<  "[find_knn_nodiskout] Looking for similar images of query #" << k+1 << endl;
         // Compute hamming distances between query k and all DB hashcodes
-        cout <<  "[find_knn] Computing hamming distances for query #" << k+1 << endl;
+        cout <<  "[find_knn_nodiskout] Computing hamming distances for query #" << k+1 << endl;
         top_hamming = compute_hamming_dist_onehash(query);
         // Rerank based on real valued features
-        cout <<  "[find_knn] Reranking for query #" << k+1 << endl;
+        cout <<  "[find_knn_nodiskout] Reranking for query #" << k+1 << endl;
         postrank = rerank_knn_onesample(query_feature, top_hamming);
-        cout <<  "[find_knn] Pushing output for query #" << k+1 << endl;
+        cout <<  "[find_knn_nodiskout] Pushing output for query #" << k+1 << endl;
         t_start = get_wall_time();
         out_res.push_back(postrank);
         t[7] += get_wall_time() - t_start;
         query += int_num;
         query_feature += feature_dim;
     }
-    cout <<  "[find_knn] Done searching knn for " << k << " queries." << endl;
+    cout <<  "[find_knn_nodiskout] Done searching knn for " << k << " queries." << endl;
     // Clean up
     delete[] query_codes;
     query_feats.release();
     // Print out timing
-    cout << "[find_knn] Time reading DB hashcodes (seconds): " << t[0] << endl;
-    cout << "[find_knn] Time reading query feats (seconds): " << t[1] << endl;
-    cout << "[find_knn] Time computing query hashcodes (seconds): " << t[2] << endl;
-    cout << "[find_knn] Time hamming distances computation (accumulated for all queries) (seconds): " << t[3] << endl;
-    cout << "[find_knn] Time sorting hamming distances (accumulated for all queries) (seconds): " << t[4] << endl;
-    cout << "[find_knn] Time loading top features (accumulated for all queries) (seconds): " << t[5] << endl;
-    cout << "[find_knn] Time reranking top features (accumulated for all queries) (seconds): " << t[6] << endl;
-    cout << "[find_knn] Time saving results to disk (accumulated for all queries) (seconds): " << t[7] << endl;
+    print_timing();
     return out_res;
 }
 
@@ -219,14 +212,18 @@ void HasherObject::find_knn() {
     query_feats.release();
     close_output_files();
     // Print out timing
-    cout << "[find_knn] Time reading DB hashcodes (seconds): " << t[0] << endl;
-    cout << "[find_knn] Time reading query feats (seconds): " << t[1] << endl;
-    cout << "[find_knn] Time computing query hashcodes (seconds): " << t[2] << endl;
-    cout << "[find_knn] Time hamming distances computation (accumulated for all queries) (seconds): " << t[3] << endl;
-    cout << "[find_knn] Time sorting hamming distances (accumulated for all queries) (seconds): " << t[4] << endl;
-    cout << "[find_knn] Time loading top features (accumulated for all queries) (seconds): " << t[5] << endl;
-    cout << "[find_knn] Time reranking top features (accumulated for all queries) (seconds): " << t[6] << endl;
-    cout << "[find_knn] Time saving results to disk (accumulated for all queries) (seconds): " << t[7] << endl;
+    print_timing();
+}
+
+void HasherObject::print_timing() {
+    cout << "[offline] Time reading DB hashcodes (seconds): " << t[0] << endl;
+    cout << "[query] Time reading query feats (seconds): " << t[1] << endl;
+    cout << "[query] Time computing query hashcodes (seconds): " << t[2] << endl;
+    cout << "[query] Time hamming distances computation (accumulated for all queries) (seconds): " << t[3] << endl;
+    cout << "[query] Time sorting hamming distances (accumulated for all queries) (seconds): " << t[4] << endl;
+    cout << "[query] Time loading top features (accumulated for all queries) (seconds): " << t[5] << endl;
+    cout << "[query] Time reranking top features (accumulated for all queries) (seconds): " << t[6] << endl;
+    cout << "[query] Time saving results to disk (accumulated for all queries) (seconds): " << t[7] << endl;
 }
 
 void HasherObject::find_knn_from_feats(Mat _query_feats) {
@@ -349,9 +346,10 @@ vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
 
 
 void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair> hamming) {
-    // Output to file
+    // Output to file (this is slow, can take several seconds for one query!)
     // First, write samples ids
     //for (int i=0; i < postrank.size(); i++) {
+    // iterator version is not really faster...
     for (vector<mypairf>::iterator it = postrank.begin(), end = postrank.end(); it != end; it++) {
         //outputfile << postrank[i].second << ' ';
         outputfile << it->second << ' ';

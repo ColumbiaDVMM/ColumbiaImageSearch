@@ -48,7 +48,7 @@ class APIResponder(Resource):
         #self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
         self.searcher = global_searcher
         self.start_time = global_start_time
-        self.valid_options = ["near_dup", "near_dup_th", "no_blur"]
+        self.valid_options = ["near_dup", "near_dup_th", "no_blur", "no_diskout"]
         # dl_pool_size could be set to a big value for the update process, overwrite here
         self.searcher.indexer.image_downloader.dl_pool_size = 2
 
@@ -193,9 +193,13 @@ class APIResponder(Resource):
                     out.write(tmp_feat)
                 except TypeError as inst:
                     print("[search_bySHA1_nocache: error] tmp_feat was {}. Error was: {}".format(tmp_feat, inst))
-        simname = self.searcher.indexer.hasher.get_similar_images_from_featuresfile(featuresfile, self.searcher.ratio)
         options_dict, errors = self.get_options_dict(options)
-        outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
+        if "no_diskout" in options_dict:
+            out_res = self.searcher.indexer.hasher.get_similar_images_from_featuresfile_nodiskout(featuresfile, self.searcher.ratio)
+            outp = self.searcher.format_output_nodiskout(out_res, len(query_sha1s), corrupted, query_sha1s, options_dict)
+        else:
+            simname = self.searcher.indexer.hasher.get_similar_images_from_featuresfile(featuresfile, self.searcher.ratio)
+            outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
         outp_we = self.append_errors(outp, errors)
         # cleanup
         #os.remove(simname)
