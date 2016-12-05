@@ -234,7 +234,7 @@ class HasherObject {
         };
 
         // To be used to speed up writing out results
-        static const unsigned int length = 2048;
+        static const unsigned int length = 8192;
         char buffer[length];
 
         void init_output_files();
