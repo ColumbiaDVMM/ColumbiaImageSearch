@@ -176,3 +176,21 @@ class HasherSwig():
         os.rename(initname,simname)
         return simname
 
+    def get_similar_images_from_featuresfile_nodiskout(self, featurefilename, ratio, demote=False):
+        """ Get similar images of the images with features in 'featurefilename'.
+
+        :param featurefilename: features of the query images.
+        :type featurefilename: string
+        :param ratio: ratio of images retrieved with hashing that will be reranked.
+        :type ratio: float
+        :returns simlist: list of nearest neighbors of each query
+        """
+
+        hop.HasherObjectPy_set_ratio(self.hasher, ratio)
+        # needed?
+        sys.stdout = sys.stderr
+        hop.HasherObjectPy_set_query_feats_from_disk(self.hasher, featurefilename)
+        hop.HasherObjectPy_set_outputfile(self.hasher, featurefilename[:-4])
+        out_res = hop.HasherObjectPy_find_knn_nodiskout(self.hasher)
+        print "[HasherSwig.get_similar_images_from_featuresfile_nodiskout: log] out_res: {}".format(out_res)
+        return out_res

@@ -99,6 +99,13 @@ class Searcher():
         else:
             raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
+    def compute_features_listimgfiles(self, listimgfiles, search_id):
+        features_filename, ins_num = self.indexer.feature_extractor.compute_features(listimgfiles, search_id)
+        if ins_num != len(listimgfiles):
+            print_err = "[Searcher.compute_features_listimgfiles: error] We did not get enough features ({}) from list of {} images."
+            raise ValueError(print_err.format(ins_num,len(listimgfiles)))
+        return features_filename
+        
 
     def filter_near_dup(self, nums, near_dup_th=None):
         # nums is a list of ids then distances
@@ -350,9 +357,10 @@ class Searcher():
                 # need to deal with that in output formatting too
                 corrupted.append(i)
         if valid_img_filenames:
-            features_filename, ins_num = self.indexer.feature_extractor.compute_features(valid_img_filenames, search_id)
-            if ins_num!=len(valid_img_filenames):
-                raise ValueError("[Searcher.search_from_image_filenames_nocache: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
+            features_filename = self.compute_features(valid_img_filenames, search_id)
+            #features_filename, ins_num = self.indexer.feature_extractor.compute_features(valid_img_filenames, search_id)
+            #if ins_num!=len(valid_img_filenames):
+            #    raise ValueError("[Searcher.search_from_image_filenames_nocache: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
             # query with features_filename
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(features_filename, self.ratio)
             outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
@@ -411,9 +419,10 @@ class Searcher():
         # check images are jpeg (and convert them here?)
         print "[Searcher.search_from_image_filenames: log] all_valid_images {}".format(all_valid_images)
         print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
-        features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
-        if ins_num!=len(new_files):
-            raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
+        features_filename = self.compute_features(new_files, search_id)
+        #features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
+        #if ins_num!=len(new_files):
+        #    raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
         # merge feats with features_filename
         final_featuresfile = search_id+'.dat'
         read_dim = self.features_dim*4
