@@ -95,6 +95,8 @@ class HasherObject {
         // use member query_feats, assumes set_query_feats_from_disk have been called before
         void find_knn();
 
+        vector< vector< pair<float, int> > > find_knn_nodiskout();
+
         void find_knn_from_feats(Mat query_feats);
 
         //Mat find_knn_from_hashcodes(Mat query_hashcodes);

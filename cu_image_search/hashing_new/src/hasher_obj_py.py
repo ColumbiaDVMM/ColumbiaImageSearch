@@ -263,6 +263,10 @@ class HasherObjectPy(_object):
         """find_knn(HasherObjectPy self)"""
         return _hasher_obj_py.HasherObjectPy_find_knn(self)
 
+    def find_knn_nodiskout(self):
+        """find_knn_nodiskout(HasherObjectPy self) -> vector< vector< pair< float,int > > >"""
+        return _hasher_obj_py.HasherObjectPy_find_knn_nodiskout(self)
+
     def set_paths(self):
         """set_paths(HasherObjectPy self)"""
         return _hasher_obj_py.HasherObjectPy_set_paths(self)

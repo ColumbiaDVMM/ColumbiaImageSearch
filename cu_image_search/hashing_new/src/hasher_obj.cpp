@@ -144,6 +144,47 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
 }
 
 
+vector< vector< mypairf > > HasherObject::find_knn_nodiskout() {
+    query_num = query_feats.rows;
+    query_codes = compute_hashcodes_from_feats(query_feats);
+    unsigned int* query = query_codes;
+    float* query_feature = (float*)query_feats.data;
+    vector<mypair> top_hamming;
+    vector< vector< mypairf > > out_res;
+    double t_start;
+    int k;
+    for (k=0; k < query_num; k++)
+    {
+        cout <<  "[find_knn] Looking for similar images of query #" << k+1 << endl;
+        // Compute hamming distances between query k and all DB hashcodes
+        cout <<  "[find_knn] Computing hamming distances for query #" << k+1 << endl;
+        top_hamming = compute_hamming_dist_onehash(query);
+        // Rerank based on real valued features
+        cout <<  "[find_knn] Reranking for query #" << k+1 << endl;
+        postrank = rerank_knn_onesample(query_feature, top_hamming);
+        cout <<  "[find_knn] Pushing output for query #" << k+1 << endl;
+        t_start = get_wall_time();
+        out_res.push_back(postrank);
+        t[7] += get_wall_time() - t_start;
+        query += int_num;
+        query_feature += feature_dim;
+    }
+    cout <<  "[find_knn] Done searching knn for " << k << " queries." << endl;
+    // Clean up
+    delete[] query_codes;
+    query_feats.release();
+    // Print out timing
+    cout << "[find_knn] Time reading DB hashcodes (seconds): " << t[0] << endl;
+    cout << "[find_knn] Time reading query feats (seconds): " << t[1] << endl;
+    cout << "[find_knn] Time computing query hashcodes (seconds): " << t[2] << endl;
+    cout << "[find_knn] Time hamming distances computation (accumulated for all queries) (seconds): " << t[3] << endl;
+    cout << "[find_knn] Time sorting hamming distances (accumulated for all queries) (seconds): " << t[4] << endl;
+    cout << "[find_knn] Time loading top features (accumulated for all queries) (seconds): " << t[5] << endl;
+    cout << "[find_knn] Time reranking top features (accumulated for all queries) (seconds): " << t[6] << endl;
+    cout << "[find_knn] Time saving results to disk (accumulated for all queries) (seconds): " << t[7] << endl;
+    return out_res;
+}
+
 // query methods
 // use member query_feats and query_codes
 void HasherObject::find_knn() {
