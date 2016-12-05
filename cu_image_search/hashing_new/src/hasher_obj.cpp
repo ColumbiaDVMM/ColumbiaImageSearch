@@ -19,7 +19,7 @@ int HasherObject::load_hashcodes() {
         read_in.open(update_hash_files[i].c_str(),ios::in|ios::binary);
         if (!read_in.is_open())
         {
-            cout << "Cannot load the itq updates! File "<< update_hash_files[i] << endl;
+            cout << "[load_hashcodes] Cannot load the itq updates! File "<< update_hash_files[i] << endl;
             return -1;
         }
         read_size = sizeof(int)*data_nums[i]*int_num;
@@ -422,7 +422,7 @@ int HasherObject::read_update_files() {
 
 void HasherObject::fill_data_nums_accum() {
     data_num = fill_data_nums(update_hash_files, data_nums, bit_num);
-    cout << "We have " << data_num << " images indexed." << endl;
+    cout << "[fill_data_nums_accum] We have " << data_num << " images indexed." << endl;
     // This induces a segfault when called from swig?
     //delete[] accum;
     accum = new int[data_nums.size()];
