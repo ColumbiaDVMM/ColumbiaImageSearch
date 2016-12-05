@@ -404,8 +404,15 @@ class Searcher():
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        print "[Searcher.search_image_list: log] Search prepared in {}s.".format(time.time() - start_search)
-        outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
+        print "[Searcher.search_image_filelist: log] Search prepared in {}s.".format(time.time() - start_search)
+        #outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
+        print("[Searcher.search_image_filelist: log] options_dict: {}".format(options_dict))
+        if "no_diskout" in options_dict:
+            print("[search_image_filelist: log] using no_diskout")
+            outp, outputname = search_from_image_filenames_nodiskout(all_img_filenames, search_id, options_dict)
+        else:
+            outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
+        
         return outp
 
     def search_from_image_filenames_nocache(self, all_img_filenames, search_id, options_dict=dict()):
