@@ -310,11 +310,14 @@ vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
 void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair> hamming) {
     // Output to file
     // First, write samples ids
-    for (int i=0; i < postrank.size(); i++) {
-        outputfile << postrank[i].second << ' ';
+    //for (int i=0; i < postrank.size(); i++) {
+    for (vector<mypairf>::iterator it = postrank.begin(), end = postrank.end(); it != end; it++) {
+        //outputfile << postrank[i].second << ' ';
+        outputfile << it->second << ' ';
         // Also output to detailed hamming file (for debugging)
         if (DEMO == 0) {
-            outputfile_hamming << postrank[i].second << ' ';
+            //outputfile_hamming << postrank[i].second << ' ';
+            outputfile_hamming << it->second << ' ';
         }
     }
     // Then distances
@@ -333,8 +336,6 @@ void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair>
 }
 
 void HasherObject::init_output_files() {
-    //const unsigned int length = 8192;
-    //char buffer[length];
     string outname_sim = outname+"-sim.txt";
     cout <<  "[set_output_files] Will write results to " << outname_sim << endl;
     outputfile.open(outname_sim.c_str(), ios::out);
