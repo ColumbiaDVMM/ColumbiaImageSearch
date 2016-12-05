@@ -217,11 +217,12 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
         return vector<mypairf>(0);
     }
     t[5] += get_wall_time() - t_start;
-    
+
     // Reranking
     t_start = get_wall_time();
-    if (norm)
+    if (norm && 0)
     {
+        cout << "[rerank_knn_onesample] reraking using cosine similarity" << endl;
         #pragma omp parallel for
         for (int i = 0; i < top_hamming.size(); i++)
         {
@@ -237,6 +238,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
     }
     else
     {
+        cout << "[rerank_knn_onesample] reraking using euclidean distance" << endl;
         // This version does not give the same ranking...
         #pragma omp parallel for
         for (int i = 0; i < top_hamming.size(); i++)
