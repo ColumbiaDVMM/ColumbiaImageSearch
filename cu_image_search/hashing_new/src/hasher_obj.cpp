@@ -8,8 +8,9 @@ using namespace std;
 using namespace cv;
 
 int HasherObject::load_hashcodes() {
-    cout << "Loading hashcodes... " << endl;
-    // If we are updating
+    double t_start = get_wall_time();
+    cout << "[load_hashcodes] Loading hashcodes... " << endl;
+    // Read DB hashcodes
     itq.release();
     itq.create(data_num, int_num, CV_32SC1);
     char * read_pos = (char*)itq.data;
@@ -26,51 +27,54 @@ int HasherObject::load_hashcodes() {
         read_in.close();
         read_pos +=read_size;
     }
-    cout << "DB Hashcodes dimensions are " << itq.rows << "x" << itq.cols << endl;
-    cout << "DB Hashcodes first values are " << itq.at<unsigned int>(0,0) << " " <<  itq.at<unsigned int>(0,1) << endl;
+    // Time loading
+    double t_load_hashcodes = get_wall_time() - t_start;
+    t[0] += t_load_hashcodes;
+    cout << "[load_hashcodes] Loaded " << itq.rows << " DB Hashcodes in " << t_load_hashcodes << "s." << endl;
     return 0;
 }
 
 
 int HasherObject::load_itq_model() {
-    // Read itq model
+    double t_start = get_wall_time();
+    cout << "[load_itq_model] Loading hash model... " << endl;
+    // Read itq model (W, mvec)
     // read W
     read_in.open(pm.W_name.c_str(), ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        cout << "Cannot load the W model from " << pm.W_name << endl;
+        cout << "[load_itq_model] Cannot load the W model from " << pm.W_name << endl;
         return -1;
     }
-    // If we are updating
     W.release();
     W.create(feature_dim, bit_num, CV_64F);
     read_size = sizeof(double)*feature_dim*bit_num;
     read_in.read((char*)W.data, read_size);
     read_in.close();
-
-    cout << "[load_itq_model] W first value are: " << W.at<double>(0,0) << " " << W.at<double>(0,1) << endl;
-
     // read mvec
     read_in.open(pm.mvec_name.c_str(), ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        cout << "Cannot load the mvec model from " << pm.mvec_name << endl;
+        cout << "[load_itq_model] Cannot load the mvec model from " << pm.mvec_name << endl;
         return -1;
     }
-    // If we are updating
     mvec.release();
     mvec.create(1, bit_num, CV_64F);
     read_size = sizeof(double)*bit_num;
     read_in.read((char*)mvec.data, read_size);
     read_in.close();
-
-    cout << "[load_itq_model] mvec first value are: " << mvec.at<double>(0,0) << " " << mvec.at<double>(0,1) << endl;
-
+    // Time loading
+    double t_load_hashmodel = get_wall_time() - t_start;
+    t[0] += t_load_hashmodel;
+    cout << "[load_itq_model] Loaded hash model in " << t_load_hashmodel << "s." << endl;
     return 0;
 }
 
 
 Mat HasherObject::read_feats_from_disk(string filename) {
+    // Calling this function means we start a new querying process, reset timings.
+    reset_timings();
+    double t_start = get_wall_time();
     // Read count
     int feats_num = (int)filesize(filename)/4/feature_dim;
     cout << "[read_feats_from_disk] Reading " << feats_num << " features from " << filename << endl;
@@ -88,43 +92,34 @@ Mat HasherObject::read_feats_from_disk(string filename) {
     read_in.read((char*)feats_mat.data, read_size);
     // Finalize reading
     read_in.close();
-    cout << "[read_feats_from_disk] Read " << read_size <<  " bytes for " << feats_num << " features." << endl;
-    cout << "[read_feats_from_disk] Features first value are: " << feats_mat.at<double>(0,0) << " " << feats_mat.at<double>(0,1) << endl;
+    // Time reading feats
+    double t_load_feats = get_wall_time() - t_start;
+    t[1] = t_load_feats;
+    cout << "[read_feats_from_disk] Read " << read_size <<  " bytes for " << feats_num << " features in " << t_load_feats << "s." << endl;
     return feats_mat;
 }
 
-// // When would that be necessary?
-// Mat HasherObject::read_hashcodes_from_disk(string filename) {
-
-// }
 
 void HasherObject::set_query_feats_from_disk(string filename) {
     query_feats.release();
     query_feats = read_feats_from_disk(filename);
-    cout << "[set_query_feats_from_disk] Features first value are: " << query_feats.at<double>(0,0) << " " << query_feats.at<double>(0,1) << endl;
 }
 
 
 // compute hashcodes from feats
 unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
-    cout << "[compute_hashcodes_from_feats] Features first value are: " << feats_mat.at<double>(0,0) << " " << feats_mat.at<double>(0,1) << endl;
-    // hashing init
-    // segfault here when called from python/swig?
+    double t_start = get_wall_time();
     if (norm) {
         for (int k = 0; k < query_num; k++) {
-    	    cout << "[compute_hashcodes_from_feats] Normalizing query: " << k+1 << "/" << query_num << endl;
+    	    //cout << "[compute_hashcodes_from_feats] Normalizing query: " << k+1 << "/" << query_num << endl;
             normalize((float*)feats_mat.data + k*feature_dim, feature_dim);
         }
     }
-    cout << "[compute_hashcodes_from_feats:after_norm] Features first value are: " << feats_mat.at<double>(0,0) << " " << feats_mat.at<double>(0,1) << endl;
     // Allocate temporary matrices
     Mat feats_mat_double;
     feats_mat.convertTo(feats_mat_double, CV_64F);
     int feats_num = feats_mat.rows;
     cout << "[compute_hashcodes_from_feats] Computing hashcodes for " << feats_num << " features." << endl;
-    cout << "[compute_hashcodes_from_feats] mvec first value are: " << mvec.at<double>(0,0) << " " << mvec.at<double>(0,1) << endl;
-    cout << "[compute_hashcodes_from_feats] W first value are: " << W.at<double>(0,0) << " " << W.at<double>(0,1) << endl;
-
     mvec = repeat(mvec, feats_num, 1);
     // Project features
     Mat realvalued_hash = feats_mat_double*W-mvec;
@@ -140,7 +135,10 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
                     hash_mat[k*int_num+i] += 1<<j;
         }
     }
-    cout << "[compute_hashcodes_from_feats] Hash code first value are: " << hash_mat[0] << " " << hash_mat[1] << endl;
+    // Time hashcodes computation
+    double t_compute_hashcodes = get_wall_time() - t_start;
+    t[2] = t_compute_hashcodes;
+    cout << "[compute_hashcodes_from_feats] Hashcodes computed in " << t_compute_hashcodes << "s." << endl;
     // Done hashing features
     return hash_mat;
 }
@@ -155,28 +153,39 @@ void HasherObject::find_knn() {
     float* query_feature = (float*)query_feats.data;
     vector<mypair> top_hamming;
     init_output_files();
-    for (int k=0; k < query_num; k++)
+    double t_start;
+    int k;
+    for (k=0; k < query_num; k++)
     {
-        cout <<  "Looking for similar images of query #" << k+1 << endl;
+        cout <<  "[find_knn] Looking for similar images of query #" << k+1 << endl;
         // Compute hamming distances between query k and all DB hashcodes
-        cout <<  "Computing hamming distances for query #" << k+1 << endl;
-        cout << "[find_knn] Hash code first value are: " << query[0] << " " << query[1] << endl;
+        cout <<  "[find_knn] Computing hamming distances for query #" << k+1 << endl;
         top_hamming = compute_hamming_dist_onehash(query);
         // Rerank based on real valued features
-        cout <<  "Reranking for query #" << k+1 << endl;
+        cout <<  "[find_knn] Reranking for query #" << k+1 << endl;
         postrank = rerank_knn_onesample(query_feature, top_hamming);
         // Write out results
-        cout <<  "Writing output for query #" << k+1 << endl;
+        cout <<  "[find_knn] Writing output for query #" << k+1 << endl;
+        t_start = get_wall_time();
         write_to_output_file(postrank, hamming);
-        // Move to next query
-        cout <<  "Moving to next query" << endl;
+        t[7] += get_wall_time() - t_start;
         query += int_num;
         query_feature += feature_dim;
     }
+    cout <<  "[find_knn] Done searching knn for " << k << " queries." << endl;
     // Clean up
     delete[] query_codes;
     query_feats.release();
     close_output_files();
+    // Print out timing
+    cout << "[find_knn] Time reading DB hashcodes (seconds): " << t[0] << endl;
+    cout << "[find_knn] Time reading query feats (seconds): " << t[1] << endl;
+    cout << "[find_knn] Time computing query hashcodes (seconds): " << t[2] << endl;
+    cout << "[find_knn] Time hamming distances computation (accumulated for all queries) (seconds): " << t[3] << endl;
+    cout << "[find_knn] Time sorting hamming distances (accumulated for all queries) (seconds): " << t[4] << endl;
+    cout << "[find_knn] Time loading top features (accumulated for all queries) (seconds): " << t[5] << endl;
+    cout << "[find_knn] Time reranking top features (accumulated for all queries) (seconds): " << t[6] << endl;
+    cout << "[find_knn] Time saving results to disk (accumulated for all queries) (seconds): " << t[7] << endl;
 }
 
 void HasherObject::find_knn_from_feats(Mat _query_feats) {
@@ -187,10 +196,8 @@ void HasherObject::find_knn_from_feats(Mat _query_feats) {
 
 // compute rerank top samples using real valued features
 vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<mypair> top_hamming) {
-    //read needed feature for post ranking
-    //t[1]=get_wall_time();
-    cout << "We have " << top_hamming.size() << " candidates to rerank." << endl;
-
+    double t_start = get_wall_time();
+    cout << "[rerank_knn_onesample] We have " << top_hamming.size() << " candidates to rerank." << endl;
     vector<mypairf> postrank(top_hamming.size());
     char* feature_p = (char*)top_feature_mat.data;
     read_size = sizeof(float)*feature_dim;
@@ -198,8 +205,6 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
     int i;
     for (i = 0; i < top_hamming.size(); i++)
     {
-        //cout << "Getting precomputed feature #" << top_hamming[i].second << endl;
-        // accum, read_in_compfeatures, read_in_compidx should be set previously
         status = get_onefeatcomp(top_hamming[i].second, read_size, accum, read_in_compfeatures, read_in_compidx, feature_p);
         //status = get_onefeat(hamming[i].second,read_size,accum,read_in_features,feature_p);
         if (status == -1) {
@@ -209,9 +214,9 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
         }
         feature_p += read_size;
     }
-
-    cout << "[rerank_knn_onesample] Biggest hamming distance is: " << top_hamming[i-1].first << endl;
-
+    t[5] += get_wall_time() - t_start;
+        
+    t_start = get_wall_time();
     // Why not always use squared euclidean distance?
     float* data_feature;
     if (norm)
@@ -242,14 +247,17 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
             }
             //postrank[i].first = sqrt(postrank[i].first);
             // divide by 2 so postrank[i].first is always equal between norm and not norm?
-            postrank[i].first /= 2;
+            postrank[i].first = sqrt(postrank[i].first)/2;
         }
     }
+    // Should we time separately this sort?
     std::sort(postrank.begin(), postrank.end(), comparatorf);
+    t[6] += get_wall_time() - t_start;
     return postrank;
 }
 
 vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
+    double t_start = get_wall_time();
     // Initialize data pointer
     unsigned int * hash_data = (unsigned int*)itq.data;
     unsigned int * tmp_hash_data = hash_data;
@@ -258,39 +266,39 @@ vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
     #pragma omp parallel for
     for (int i=0; i < data_num; i++)
     {
+        // Pointer to ith DB hashcode
         tmp_hash_data = hash_data + i*int_num;
         // Initialize hamming distance 0 and sample id i
         hamming[i] = mypair(0,i);
         // Compute hamming distance by sets 32 bits
         for (int j=0; j<int_num; j++)
         {
-            //unsigned int xnor = query[j]^hash_data[j];
             unsigned int xnor = query[j]^tmp_hash_data[j];
             hamming[i].first += NumberOfSetBits(xnor);
         }
-        // Move pointer to next DB hashcode
-        //hash_data += int_num;
+        
     }
-
+    t[3] += get_wall_time() - t_start;
     // Sort results
     // Use nth_element maybe?
+    t_start = get_wall_time();
     sort(hamming.begin(), hamming.end(), comparator);
+    t[4] += get_wall_time() - t_start;
 
     unsigned long long out_size = min((unsigned long long)top_feature, (unsigned long long)hamming.size());
-
-    int small_hd_sort = hamming[0].first;
-    int big_hd_sort = hamming[out_size-1].first;
-    cout << "Top " << out_size << " sorted hamming distances range is [" << small_hd_sort << ", " << big_hd_sort << "]" << endl;
-
+    
     // Only get the results we need
     vector<mypair>::const_iterator ho_first = hamming.begin();
     vector<mypair>::const_iterator ho_last = hamming.begin()+out_size;
     vector<mypair> hamming_out(ho_first, ho_last);
 
-    int small_hd = hamming_out[0].first;
-    int big_hd = hamming_out[out_size-1].first;
-
-    cout << "Top " << hamming_out.size() << " hamming distances range is [" << small_hd << ", " << big_hd << "]" << endl;
+    // // For debugging
+    // int small_hd_sort = hamming[0].first;
+    // int big_hd_sort = hamming[out_size-1].first;
+    // int small_hd = hamming_out[0].first;
+    // int big_hd = hamming_out[out_size-1].first;
+    // cout << "Top " << out_size << " sorted hamming distances range is [" << small_hd_sort << ", " << big_hd_sort << "]" << endl;
+    // cout << "Top " << hamming_out.size() << " hamming distances range is [" << small_hd << ", " << big_hd << "]" << endl;
     return hamming_out;
 }
 

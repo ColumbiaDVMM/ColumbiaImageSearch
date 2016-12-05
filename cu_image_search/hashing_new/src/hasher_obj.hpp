@@ -31,6 +31,8 @@ class HasherObject {
             data_num = 0;
             // initialize path manager
             pm.set_paths(norm, bit_num);
+            t[0] = 0.0;
+            reset_timings();
         };
 
         // What need to be freed/closed?
@@ -43,6 +45,27 @@ class HasherObject {
             hamming.clear();
             // accum?
             // query_codes?
+        };
+
+        void reset_timings() {
+            for (int _t=1; _t<8; _t++)
+                t[_t] = 0.0; 
+        }
+
+        int initialize() {
+            double t_start = get_wall_time();
+            int status = read_update_files();
+            if (status != 0)
+                return status;
+            status = load_itq_model();
+            if (status != 0)
+                return status;
+            status = load_hashcodes();
+            if (status != 0)
+                return status;
+            double t_init = get_wall_time() - t_start;
+            cout << "[initialize] Done in " << t_init << "s." << endl;
+            return 0;
         };
 
         int read_update_files();
@@ -162,7 +185,7 @@ class HasherObject {
         Mat top_feature_mat;
         
         // timing
-        double t[2];
+        double t[8];
 
         // To manage paths/strings
         PathManager pm; 
