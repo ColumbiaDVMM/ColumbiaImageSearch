@@ -288,14 +288,16 @@ vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
         
     }
     t[3] += get_wall_time() - t_start;
-    // Sort results
-    // Use nth_element maybe?
-    t_start = get_wall_time();
-    sort(hamming.begin(), hamming.end(), comparator);
-    t[4] += get_wall_time() - t_start;
-
+    
     unsigned long long out_size = min((unsigned long long)top_feature, (unsigned long long)hamming.size());
     
+    // Sort results
+    t_start = get_wall_time();
+    //sort(hamming.begin(), hamming.end(), comparator);
+    // Use nth_element or partial_sort maybe?
+    nth_element(hamming.begin(), hamming.begin()+out_size, hamming.end(), comparator);
+    t[4] += get_wall_time() - t_start;
+
     // Only get the results we need
     vector<mypair>::const_iterator ho_first = hamming.begin();
     vector<mypair>::const_iterator ho_last = hamming.begin()+out_size;
@@ -316,44 +318,26 @@ void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair>
     // Output to file
     // First, write samples ids
     for (int i=0; i < postrank.size(); i++) {
-        this->outputfile << postrank[i].second << ' ';
+        outputfile << postrank[i].second << ' ';
         // Also output to detailed hamming file (for debugging)
         if (DEMO == 0) {
-            this->outputfile_hamming << postrank[i].second << ' ';
+            outputfile_hamming << postrank[i].second << ' ';
         }
     }
     // Then distances
     for (int i=0; i < postrank.size(); i++) {
-        this->outputfile << postrank[i].first << ' ';
+        outputfile << postrank[i].first << ' ';
         // Also output hamming distances (for debugging)
         if (DEMO == 0) {
-            this->outputfile_hamming << hamming[i].first << ' ';
+            outputfile_hamming << hamming[i].first << ' ';
         }
     }
     // Write end of lines to both files
-    this->outputfile << endl;
+    outputfile << endl;
     if (DEMO==0) {
-        this->outputfile_hamming << endl;
+        outputfile_hamming << endl;
     }
 }
-
-// Mat HasherObject::find_knn_from_hashcodes(Mat hash_mat) {
-//     // should init_output_files be called here?
-//     unsigned int * query = hash_mat;
-//     for (int k=0; k < this->query_num; k++)
-//     {
-//         cout <<  "Looking for similar images of query #" << k+1 << endl;
-//         // Compute hamming distances between query k and all DB hashcodes
-//         top_hamming = compute_hamming_dist_onehash(query, top_feature);
-//         // Rerank based on real valued features
-//         postrank = rerank_knn_onesample(top_hamming);
-//         // Write out results
-//         write_to_output_file(postrank, hamming);
-//         // Move to next query
-//         query += int_num;
-//         query_feature +=feature_dim;
-//     }
-// }
 
 void HasherObject::init_output_files() {
     string outname_sim = outname+"-sim.txt";
@@ -367,9 +351,9 @@ void HasherObject::init_output_files() {
 }
 
 void HasherObject::close_output_files() {
-    this->outputfile.close();
+    outputfile.close();
     if (DEMO==0) {
-        this->outputfile_hamming.close();
+        outputfile_hamming.close();
     }
 }
 
