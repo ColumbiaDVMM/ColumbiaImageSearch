@@ -31,8 +31,11 @@ class HasherObject {
             data_num = 0;
             // initialize path manager
             pm.set_paths(norm, bit_num);
+            // initialize timing
             t[0] = 0.0;
             reset_timings();
+            // initialize output buffer to speed up writing out results
+            outputfile.rdbuf()->pubsetbuf(buffer, length);
         };
 
         // What need to be freed/closed?
@@ -229,6 +232,10 @@ class HasherObject {
             postrank.clear();
             postrank.reserve(top_feature);
         };
+
+        // To be used to speed up writing out results
+        static const unsigned int length = 2048;
+        char buffer[length];
 
         void init_output_files();
         void close_output_files();

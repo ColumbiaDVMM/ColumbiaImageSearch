@@ -333,6 +333,8 @@ void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair>
 }
 
 void HasherObject::init_output_files() {
+    //const unsigned int length = 8192;
+    //char buffer[length];
     string outname_sim = outname+"-sim.txt";
     cout <<  "[set_output_files] Will write results to " << outname_sim << endl;
     outputfile.open(outname_sim.c_str(), ios::out);
