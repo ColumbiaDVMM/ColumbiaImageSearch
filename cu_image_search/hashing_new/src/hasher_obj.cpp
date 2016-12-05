@@ -223,46 +223,39 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
     t_start = get_wall_time();
     // Why not always use squared euclidean distance?
     float* data_feature;
-    if (norm)
-    {
-        for (int i = 0; i < top_hamming.size(); i++)
-        {
-            // from relationship L2 distance <-> Cosine similarity rerank with:
-            // 1 - sum(query_feature[j]*data_feature[j]) 
-            postrank[i] = mypairf(1.0f,top_hamming[i].second);
-            // if there are too many queries?
-            // if (query_num>read_thres)
-            //     data_feature = (float*)top_feature_mat.data+feature_dim*postrank[i].second;
-            // else
-            data_feature = (float*)top_feature_mat.data+feature_dim*i;
+    // if (norm)
+    // {
+    //     for (int i = 0; i < top_hamming.size(); i++)
+    //     {
+    //         // from relationship L2 distance <-> Cosine similarity rerank with:
+    //         // 1 - sum(query_feature[j]*data_feature[j]) 
+    //         postrank[i] = mypairf(1.0f,top_hamming[i].second);
+    //         // if there are too many queries?
+    //         // if (query_num>read_thres)
+    //         //     data_feature = (float*)top_feature_mat.data+feature_dim*postrank[i].second;
+    //         // else
+    //         data_feature = (float*)top_feature_mat.data+feature_dim*i;
 
-            for (int j=0;j<feature_dim;j++)
-            {
-                postrank[i].first -= query_feature[j]*data_feature[j];
-            }
-        }
-    }
-    else
-    {
-        //#pragma omp parallel for
+    //         for (int j=0;j<feature_dim;j++)
+    //         {
+    //             postrank[i].first -= query_feature[j]*data_feature[j];
+    //         }
+    //     }
+    // }
+    // else
+    // {
+        #pragma omp parallel for
         for (int i = 0; i < top_hamming.size(); i++)
         {
             postrank[i]= mypairf(0.0f,top_hamming[i].second);
-            // if there are too many queries?
-            // if (query_num>read_thres)
-            //     data_feature = (float*)top_feature_mat.data+feature_dim*postrank[i].second;
-            // else
             data_feature = (float*)top_feature_mat.data+feature_dim*i;
-
             for (int j=0;j<feature_dim;j++)
             {
                 postrank[i].first += pow(query_feature[j]-data_feature[j],2);
             }
-            //postrank[i].first = sqrt(postrank[i].first);
-            // divide by 2 so postrank[i].first is always equal between norm and not norm?
             postrank[i].first = sqrt(postrank[i].first)/2;
         }
-    }
+    // }
     // Should we time separately this sort?
     std::sort(postrank.begin(), postrank.end(), comparatorf);
     t[6] += get_wall_time() - t_start;
