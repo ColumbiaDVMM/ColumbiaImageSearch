@@ -95,7 +95,7 @@ class HasherObject {
         // use member query_feats, assumes set_query_feats_from_disk have been called before
         void find_knn();
 
-        std::vector< std::vector< mypairf > > find_knn_nodiskout();
+        std::vector< std::vector< std::pair<float,int> > > find_knn_nodiskout();
 
         void find_knn_from_feats(Mat query_feats);
 

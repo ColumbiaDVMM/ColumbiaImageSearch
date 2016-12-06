@@ -144,7 +144,7 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
 }
 
 
-std::vector< std::vector< mypairf > > HasherObject::find_knn_nodiskout() {
+std::vector< std::vector< std::pair<float,int> > > HasherObject::find_knn_nodiskout() {
     query_num = query_feats.rows;
     query_codes = compute_hashcodes_from_feats(query_feats);
     unsigned int* query = query_codes;

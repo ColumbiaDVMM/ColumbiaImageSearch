@@ -98,22 +98,22 @@ class SwigPyIterator(_object):
 SwigPyIterator_swigregister = _hasher_obj_py.SwigPyIterator_swigregister
 SwigPyIterator_swigregister(SwigPyIterator)
 
-class ResPair(_object):
+class PairF(_object):
     __swig_setmethods__ = {}
-    __setattr__ = lambda self, name, value: _swig_setattr(self, ResPair, name, value)
+    __setattr__ = lambda self, name, value: _swig_setattr(self, PairF, name, value)
     __swig_getmethods__ = {}
-    __getattr__ = lambda self, name: _swig_getattr(self, ResPair, name)
+    __getattr__ = lambda self, name: _swig_getattr(self, PairF, name)
     __repr__ = _swig_repr
     def __init__(self, *args): 
-        this = _hasher_obj_py.new_ResPair(*args)
+        this = _hasher_obj_py.new_PairF(*args)
         try: self.this.append(this)
         except: self.this = this
-    __swig_setmethods__["first"] = _hasher_obj_py.ResPair_first_set
-    __swig_getmethods__["first"] = _hasher_obj_py.ResPair_first_get
-    if _newclass:first = _swig_property(_hasher_obj_py.ResPair_first_get, _hasher_obj_py.ResPair_first_set)
-    __swig_setmethods__["second"] = _hasher_obj_py.ResPair_second_set
-    __swig_getmethods__["second"] = _hasher_obj_py.ResPair_second_get
-    if _newclass:second = _swig_property(_hasher_obj_py.ResPair_second_get, _hasher_obj_py.ResPair_second_set)
+    __swig_setmethods__["first"] = _hasher_obj_py.PairF_first_set
+    __swig_getmethods__["first"] = _hasher_obj_py.PairF_first_get
+    if _newclass:first = _swig_property(_hasher_obj_py.PairF_first_get, _hasher_obj_py.PairF_first_set)
+    __swig_setmethods__["second"] = _hasher_obj_py.PairF_second_set
+    __swig_getmethods__["second"] = _hasher_obj_py.PairF_second_get
+    if _newclass:second = _swig_property(_hasher_obj_py.PairF_second_get, _hasher_obj_py.PairF_second_set)
     def __len__(self): return 2
     def __repr__(self): return str((self.first, self.second))
     def __getitem__(self, index): 
@@ -126,10 +126,10 @@ class ResPair(_object):
         self.first = val
       else:
         self.second = val
-    __swig_destroy__ = _hasher_obj_py.delete_ResPair
+    __swig_destroy__ = _hasher_obj_py.delete_PairF
     __del__ = lambda self : None;
-ResPair_swigregister = _hasher_obj_py.ResPair_swigregister
-ResPair_swigregister(ResPair)
+PairF_swigregister = _hasher_obj_py.PairF_swigregister
+PairF_swigregister(PairF)
 
 class InnerResVector(_object):
     __swig_setmethods__ = {}
