@@ -84,8 +84,7 @@ class HasherObject {
         // io from disk
         Mat read_feats_from_disk(string filename);
 
-        //Mat read_hashcodes_from_disk(string filename);
-        
+        //Mat read_hashcodes_from_disk(string filename); 
         void set_query_feats_from_disk(string filename);
 
         // compute hashcodes from feats
@@ -95,6 +94,7 @@ class HasherObject {
         // use member query_feats, assumes set_query_feats_from_disk have been called before
         void find_knn();
 
+	// How to properly access this in python
         std::vector< std::vector< std::pair<float,int> > > find_knn_nodiskout();
 
         void find_knn_from_feats(Mat query_feats);
