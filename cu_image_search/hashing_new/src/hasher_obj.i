@@ -4,17 +4,19 @@
 %include "typemaps.i"
 %include "stl.i"
 
-namespace std
-{
-  %template(ResPair) pair<float, int>;
-  %template(InnerResVector) vector< pair<float, int> >;
-  %template(ResVector) vector< vector< pair<float, int> > >;
-}
-
 %{
  /* Includes the header in the wrapper code */
  #include "hasher_obj_py.hpp"
+ %typedef std::pair<float,int> mypairf;
 %}
+
+namespace std
+{
+  %template(ResMyPairF) mypairf;
+  %template(InnerResVector) vector< mypairf >;
+  %template(ResVector) vector< vector< mypairf > >;
+}
+
 
 // Tell swig to put type information into the functions docstrings... 
 %feature("autodoc", "1");

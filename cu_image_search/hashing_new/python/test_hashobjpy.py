@@ -1,16 +1,16 @@
-from _hasher_obj_py import *
+import _hasher_obj_py as hop
 import sys
 
 if __name__ == "__main__":
-    hasher = new_HasherObjectPy()
+    hasher = hop.new_HasherObjectPy()
     # setters are not working?
-    up_path = HasherObjectPy_get_base_updatepath(hasher)
+    up_path = hop.HasherObjectPy_get_base_updatepath(hasher)
     print(up_path)
-    HasherObjectPy_set_base_updatepath(hasher, "/home/ubuntu/memex/update/indexing/")
-    up_path = HasherObjectPy_get_base_updatepath(hasher)
+    hop.HasherObjectPy_set_base_updatepath(hasher, "/home/ubuntu/memex/update/indexing/")
+    up_path = hop.HasherObjectPy_get_base_updatepath(hasher)
     print(up_path)
-    HasherObjectPy_set_base_modelpath(hasher, "/home/ubuntu/memex/data/")
-    status = HasherObjectPy_initialize(hasher)
+    hop.HasherObjectPy_set_base_modelpath(hasher, "/home/ubuntu/memex/data/")
+    status = hop.HasherObjectPy_initialize(hasher)
     if status != 0:
         print("Hasher was not able to initialize")
         sys.exit(-1)
