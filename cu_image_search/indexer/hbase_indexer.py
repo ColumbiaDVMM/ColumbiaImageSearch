@@ -209,7 +209,7 @@ class HBaseIndexer(GenericIndexer):
                 nb_batch = 0
                 for batch_start in range(0,len(list_queries),batch_size):
                     batch_list_queries = list_queries[batch_start:min(batch_start+batch_size,len(list_queries))]
-                    rows.extend(hbase_table.rows(batch_list_queries))
+                    rows.extend(hbase_table.rows(batch_list_queries, columns=columns))
                     nb_batch += 1
                 print("[get_rows_by_batch] got {} rows using {} batches.".format(len(rows), nb_batch))
                 return rows
