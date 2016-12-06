@@ -319,16 +319,14 @@ class Searcher():
         return outp
 
     def format_output_nodiskout(self, out_res, nb_query, corrupted, list_sha1_id, options_dict=dict()):
-        # read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
+        # read similarity results from memory
         print "[Searcher.format_output_nodiskout: log] options are: {}".format(options_dict)
         try:
-            sim,sim_score = self.read_sim_nodiskout(out_res, nb_query, options_dict)
+            sim, sim_score = self.read_sim_nodiskout(out_res, nb_query, options_dict)
         except Exception as inst:
             return self.build_error_output(nb_query, inst)
 
         outp = self.build_output(nb_query, corrupted, list_sha1_id, sim, sim_score, options_dict)
-        #print "[Searcher.format_output_nodiskout: log] output {}".format(output)
-        
         return outp
 
     def search_one_imagepath(self,image_path):
@@ -612,6 +610,7 @@ class Searcher():
         if features_wrote:
             # query with merged features_filename
             out_res = self.indexer.hasher.get_similar_images_from_featuresfile_nodiskout(final_featuresfile, self.ratio)
+        start_format = time.time()
         outp = self.format_output_nodiskout(out_res, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
         print "[Searcher.search_from_image_filenames_nodiskout: log] Formatting done in {}s".format(time.time() - start_format)
         print "[Searcher.search_from_image_filenames_nodiskout: log] saving output to {}".format(outputname)
