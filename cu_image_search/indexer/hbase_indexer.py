@@ -337,11 +337,13 @@ class HBaseIndexer(GenericIndexer):
             # where entries in the dict are key-value pairs as {'column_name': column_value}
             with self.pool.connection() as connection:
                 tab_out = connection.table(tab_out_name)
+                # this will write out every batch_size automatically
                 batch_write = tab_out.batch(batch_size=batch_size)
                 #print "Pushing batch from {}.".format(batch[0][0])
                 for row in batch:
                     #print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
                     batch_write.put(row[0], row[1])
+                # send last batch
                 batch_write.send()
         except (timeout or TTransportException or IOError) as inst:
             self.refresh_hbase_conn("write_batch")
