@@ -203,7 +203,7 @@ class HBaseIndexer(GenericIndexer):
         self.check_errors(previous_err, "get_rows_by_batch", inst)
         try:
             with self.pool.connection() as connection:
-                hbase_table = connection.table(self.table_name)
+                hbase_table = connection.table(table_name)
                 # slice list_queries in batches of batch_size to query
                 rows = []
                 for batch_start in range(0,len(list_queries),batch_size):
