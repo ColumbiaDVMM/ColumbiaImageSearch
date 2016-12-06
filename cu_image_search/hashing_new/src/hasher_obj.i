@@ -5,6 +5,7 @@
 %include "stl.i"
 
 %{
+ #define SWIG_PYTHON_EXTRA_NATIVE_CONTAINERS 
  /* Includes the header in the wrapper code */
  #include "hasher_obj_py.hpp"
  %typedef std::pair<float,int> mypairf;
