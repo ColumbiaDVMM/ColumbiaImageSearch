@@ -48,7 +48,9 @@ class APIResponder(Resource):
         #self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
         self.searcher = global_searcher
         self.start_time = global_start_time
-        self.valid_options = ["near_dup", "near_dup_th", "no_blur", "no_diskout"]
+        # "no_diskout" not yet supported. Issue with managing SWIG output
+        #self.valid_options = ["near_dup", "near_dup_th", "no_blur", "no_diskout"]
+        self.valid_options = ["near_dup", "near_dup_th", "no_blur"]
         # dl_pool_size could be set to a big value for the update process, overwrite here
         self.searcher.indexer.image_downloader.dl_pool_size = 2
 
@@ -396,8 +398,11 @@ class APIResponder(Resource):
     def view_similar_query_response(self, query_type, query, query_response, options=None):
         if query_type == 'URL':
             query_urls = query.split(',')
-            options_dict, errors = self.get_options_dict(options)
+            options_dict, errors_options = self.get_options_dict(options)
             sim_images = query_response["images"]
+            errors_search = None
+            if "errors" in query_response:
+                errors_search = query_response["errors"]
         # preprend for base64 image query: data:image/jpeg;base64 or whatever is the actually type of image
         else:
             return None
@@ -423,6 +428,7 @@ class APIResponder(Resource):
         flash(flash_message,'message')
         headers = {'Content-Type': 'text/html'}
         sys.stdout.flush()
+        # pass named arguments instead of flash messages 
         return make_response(render_template('view_similar_images.html'),200,headers)
 
 
