@@ -6,6 +6,7 @@ import struct
 import numpy as np
 from collections import OrderedDict
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
+from ..hasher import _hasher_obj_py as hop
 
 
 class DictOutput():
@@ -609,7 +610,7 @@ class Searcher():
         print "[Searcher.search_from_image_filenames_nodiskout: log] Search prepared in {}s".format(time.time() - start_search)
         if features_wrote:
             # query with merged features_filename
-            out_res = ResVector(self.indexer.hasher.get_similar_images_from_featuresfile_nodiskout(final_featuresfile, self.ratio))
+            out_res = hop.ResVector(self.indexer.hasher.get_similar_images_from_featuresfile_nodiskout(final_featuresfile, self.ratio))
         start_format = time.time()
         outp = self.format_output_nodiskout(out_res, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
         print "[Searcher.search_from_image_filenames_nodiskout: log] Formatting done in {}s".format(time.time() - start_format)
