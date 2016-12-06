@@ -211,6 +211,7 @@ class HBaseIndexer(GenericIndexer):
                     rows.extend(hbase_table.rows(batch_list_queries))
                 return rows
         except (timeout or TTransportException or IOError) as inst:
+            time.sleep(2)
             self.refresh_hbase_conn("get_rows_by_batch")
             return self.get_rows_by_batch(list_queries, table_name, columns, previous_err+1, inst)
         
