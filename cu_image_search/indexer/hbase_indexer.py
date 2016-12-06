@@ -687,7 +687,7 @@ class HBaseIndexer(GenericIndexer):
                     return self.get_next_batch(True)
                 batch = (None, None)
         except timeout as inst:
-            self.refresh_hbase_conn("get_next_batch")
+            self.refresh_hbase_conn("get_next_batch", sleep_time=4)
             return self.get_next_batch()
         return batch
 
