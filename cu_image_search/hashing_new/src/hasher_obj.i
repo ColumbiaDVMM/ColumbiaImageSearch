@@ -7,14 +7,13 @@
 %{
  /* Includes the header in the wrapper code */
  #include "hasher_obj_py.hpp"
- %typedef std::pair<float,int> mypairf;
 %}
 
 namespace std
 {
-  %template(ResMyPairF) mypairf;
-  %template(InnerResVector) vector< mypairf >;
-  %template(ResVector) vector< vector< mypairf > >;
+  %template(PairF) std::pair<float,int>;
+  %template(InnerResVector) std::vector< std::pair<float,int> >;
+  %template(ResVector) std::vector< std::vector< std::pair<float,int> > >;
 }
 
 
