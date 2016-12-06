@@ -410,7 +410,7 @@ class APIResponder(Resource):
                     one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1, sim_images[i]["similar_images"]["distance"][j]),)
                 one_res.append(one_sims)
             else:
-                one_res = [(query_urls[i], "")]
+                one_res = [(query_urls[i], [])]
             #print("[view_similar_query_response] one_res: {}.".format(one_res))
             #sys.stdout.flush()
             #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
