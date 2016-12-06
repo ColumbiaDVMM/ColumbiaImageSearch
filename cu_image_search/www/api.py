@@ -403,13 +403,16 @@ class APIResponder(Resource):
             return None
         similar_images_response = []
         for i in range(len(query_urls)):
-            one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
-            one_sims = []
-            for j,sim_sha1 in enumerate(sim_images[i]["similar_images"]["sha1"]):
-                one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1, sim_images[i]["similar_images"]["distance"][j]),)
-            one_res.append(one_sims)
+            if sim_images and len(sim_images)>=i:
+                one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
+                one_sims = []
+                for j,sim_sha1 in enumerate(sim_images[i]["similar_images"]["sha1"]):
+                    one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1, sim_images[i]["similar_images"]["distance"][j]),)
+                one_res.append(one_sims)
+            else:
+                one_res = [(query_urls[i], "")]
             #print("[view_similar_query_response] one_res: {}.".format(one_res))
-            sys.stdout.flush()
+            #sys.stdout.flush()
             #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
             similar_images_response.append(one_res)
         if not similar_images_response:

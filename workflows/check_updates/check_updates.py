@@ -30,7 +30,8 @@ def check_updates(hbase_man_in):
 
 if __name__ == '__main__':
     from hbase_manager import HbaseManager
-    job_conf = json.load(open("job_conf_dev.json","rt"))
+    job_conf = json.load(open("job_conf.json","rt"))
+    #job_conf = json.load(open("job_conf_dev.json","rt"))
     print job_conf
     tab_updates_name = job_conf["tab_updates_name"]
     hbase_host = job_conf["hbase_host"]

@@ -241,10 +241,11 @@ class HBaseIndexer(GenericIndexer):
         self.check_errors(previous_err, "get_full_sha1_rows", inst)
         if list_sha1s:
             try:
-                with self.pool.connection() as connection:
-                    table_sha1infos = connection.table(self.table_sha1infos_name)
-                    # this throws a socket timeout?...
-                    rows = table_sha1infos.rows(list_sha1s)
+                rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name)
+                # with self.pool.connection() as connection:
+                #     table_sha1infos = connection.table(self.table_sha1infos_name)
+                #     # this throws a socket timeout?...
+                #     rows = table_sha1infos.rows(list_sha1s)
             except (timeout or TTransportException or IOError) as inst:
                 self.refresh_hbase_conn("get_full_sha1_rows")
                 return self.get_full_sha1_rows(list_sha1s, previous_err+1, inst)
