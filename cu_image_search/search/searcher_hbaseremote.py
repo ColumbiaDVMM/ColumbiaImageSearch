@@ -613,9 +613,10 @@ class Searcher():
         start_format = time.time()
         outp = self.format_output_nodiskout(out_res, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
         print "[Searcher.search_from_image_filenames_nodiskout: log] Formatting done in {}s".format(time.time() - start_format)
-        print "[Searcher.search_from_image_filenames_nodiskout: log] saving output to {}".format(outputname)
+        outputname = str(search_id)+"-sim.json"
+        print "[Searcher.search_from_image_filenames_nodiskout: log] Saving output to {}".format(outputname)
         json.dump(outp, open(outputname,'w'), indent=4, sort_keys=False)    
         print "[Searcher.search_from_image_filenames_nodiskout: log] Search done in {}s".format(time.time() - start_search)
         return outp, outputname
 
-#
+
