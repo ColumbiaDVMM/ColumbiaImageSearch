@@ -199,20 +199,23 @@ class HBaseIndexer(GenericIndexer):
 
 
     def get_rows_by_batch(self, list_queries, table_name, columns=None, previous_err=0, inst=None):
-        # to improve stability wrt timeout, TTransportException and IOError issues
+        # still get timeout, TTransportException and IOError issues
         self.check_errors(previous_err, "get_rows_by_batch", inst)
         try:
             with self.pool.connection() as connection:
                 hbase_table = connection.table(table_name)
                 # slice list_queries in batches of batch_size to query
                 rows = []
+                nb_batch = 0
                 for batch_start in range(0,len(list_queries),batch_size):
                     batch_list_queries = list_queries[batch_start:min(batch_start+batch_size,len(list_queries))]
                     rows.extend(hbase_table.rows(batch_list_queries))
+                    nb_batch += 1
+                print("[get_rows_by_batch] got {} rows using {} batches.".format(len(rows), nb_batch))
                 return rows
         except (timeout or TTransportException or IOError) as inst:
-            time.sleep(2)
-            self.refresh_hbase_conn("get_rows_by_batch")
+            # try to force longer sleep time...
+            self.refresh_hbase_conn("get_rows_by_batch", sleep_time=4)
             return self.get_rows_by_batch(list_queries, table_name, columns, previous_err+1, inst)
         
 
