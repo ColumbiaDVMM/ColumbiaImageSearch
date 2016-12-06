@@ -198,6 +198,23 @@ class HBaseIndexer(GenericIndexer):
         return None
 
 
+    def get_rows_by_batch(self, list_queries, table_name, columns=None, previous_err=0, inst=None):
+        # to improve stability wrt timeout, TTransportException and IOError issues
+        self.check_errors(previous_err, "get_rows_by_batch", inst)
+        try:
+            with self.pool.connection() as connection:
+                hbase_table = connection.table(self.table_name)
+                # slice list_queries in batches of batch_size to query
+                rows = []
+                for batch_start in range(0,len(list_queries),batch_size):
+                    batch_list_queries = list_queries[batch_start:min(batch_start+batch_size,len(list_queries))]
+                    rows.extend(hbase_table.rows(batch_list_queries))
+                return rows
+        except (timeout or TTransportException or IOError) as inst:
+            self.refresh_hbase_conn("get_rows_by_batch")
+            return self.get_rows_by_batch(list_queries, table_name, columns, previous_err+1, inst)
+        
+
     def get_ids_from_sha1s_hbase(self, list_sha1s, previous_err=0, inst=None):
         found_ids = []
         self.check_errors(previous_err, "get_ids_from_sha1s_hbase", inst)
@@ -235,10 +252,11 @@ class HBaseIndexer(GenericIndexer):
         self.check_errors(previous_err, "get_columns_from_sha1_rows", inst)
         if list_sha1s:
             try:
-                with self.pool.connection() as connection:
-                    table_sha1infos = connection.table(self.table_sha1infos_name)
-                    # this throws a socket timeout?...
-                    rows = table_sha1infos.rows(list_sha1s, columns=columns)
+                rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name, columns=columns)
+                # with self.pool.connection() as connection:
+                #     table_sha1infos = connection.table(self.table_sha1infos_name)
+                #     # this throws a socket timeout?...
+                #     rows = table_sha1infos.rows(list_sha1s, columns=columns)
             except (timeout or TTransportException or IOError) as inst:
                 self.refresh_hbase_conn("get_columns_from_sha1_rows")
                 return self.get_columns_from_sha1_rows(list_sha1s, columns, previous_err+1, inst)
