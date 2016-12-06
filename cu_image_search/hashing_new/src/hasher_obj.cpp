@@ -258,38 +258,19 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
 
     // Reranking
     t_start = get_wall_time();
-    if (norm && 0)
+    cout << "[rerank_knn_onesample] reraking using euclidean distance" << endl;
+    #pragma omp parallel for
+    for (int i = 0; i < top_hamming.size(); i++)
     {
-        cout << "[rerank_knn_onesample] reraking using cosine similarity" << endl;
-        #pragma omp parallel for
-        for (int i = 0; i < top_hamming.size(); i++)
+        postrank[i] = mypairf(0.0f,top_hamming[i].second);
+        float* data_feature = (float*)top_feature_mat.data+feature_dim*i;
+        for (int j=0;j<feature_dim;j++)
         {
-            // from relationship squared L2 distance <-> Cosine similarity rerank with:
-            // L2^2 = 2(1 - sum(query_feature[j]*data_feature[j]))
-            postrank[i] = mypairf(1.0f,top_hamming[i].second);
-            float* data_feature = (float*)top_feature_mat.data+feature_dim*i;
-            for (int j=0;j<feature_dim;j++)
-            {
-                postrank[i].first -= query_feature[j]*data_feature[j];
-            }
+            postrank[i].first += pow(query_feature[j]-data_feature[j],2);
         }
+        postrank[i].first = postrank[i].first/2.0;
     }
-    else
-    {
-        cout << "[rerank_knn_onesample] reraking using euclidean distance" << endl;
-        // This version does not give the same ranking...
-        #pragma omp parallel for
-        for (int i = 0; i < top_hamming.size(); i++)
-        {
-            postrank[i] = mypairf(0.0f,top_hamming[i].second);
-            float* data_feature = (float*)top_feature_mat.data+feature_dim*i;
-            for (int j=0;j<feature_dim;j++)
-            {
-                postrank[i].first += pow(query_feature[j]-data_feature[j],2);
-            }
-            postrank[i].first = postrank[i].first/2.0;
-        }
-    }
+    
     // Should we time separately this sort?
     std::sort(postrank.begin(), postrank.end(), comparatorf);
     t[6] += get_wall_time() - t_start;
@@ -413,6 +394,7 @@ int HasherObject::read_update_files() {
     }
     else
     {
+        cout << "Reading from update file " << pm.update_files_list << endl;
         // Read all update infos
         string line;
         while (getline(fu, line)) {
