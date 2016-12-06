@@ -242,6 +242,7 @@ class HasherObject {
 
         void init_output_files();
         void close_output_files();
+        void print_timing();
         void init_output_files(string outname);
         void write_to_output_file(vector<mypairf> postrank, vector<mypair> hamming);
         vector<mypair> compute_hamming_dist_onehash(unsigned int* query);
