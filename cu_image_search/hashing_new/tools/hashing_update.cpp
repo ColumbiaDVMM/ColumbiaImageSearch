@@ -108,7 +108,7 @@ int main(int argc, char** argv){
     write_out.write((char*)query_mat.data, write_size);
     write_out.close();
 
-    string itq_name = filename + "_itq_" + pm.str_norm + pm.bit_string;
+    string itq_name = filename + pm.update_hash_suffix;
     write_out.open(itq_name,ios::out|ios::binary);
     if (!write_out.is_open())
     {

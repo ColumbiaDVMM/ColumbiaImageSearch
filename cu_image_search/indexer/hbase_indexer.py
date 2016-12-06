@@ -222,6 +222,7 @@ class HBaseIndexer(GenericIndexer):
             try:
                 with self.pool.connection() as connection:
                     table_sha1infos = connection.table(self.table_sha1infos_name)
+                    # this throws a socket timeout?...
                     rows = table_sha1infos.rows(list_sha1s)
             except (timeout or TTransportException or IOError) as inst:
                 self.refresh_hbase_conn("get_full_sha1_rows")
