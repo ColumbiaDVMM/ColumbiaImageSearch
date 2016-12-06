@@ -1,8 +1,11 @@
 %module hasher_obj_py
 
-%include <std_string.i>
-%include "typemaps.i"
-%include "stl.i"
+//%include "typemaps.i"
+//%include "stl.i"
+
+%include "std_string.i"
+%include "std_vector.i"
+%include "std_pair.i"
 
 %{
  #define SWIG_PYTHON_EXTRA_NATIVE_CONTAINERS 
@@ -12,9 +15,9 @@
 
 namespace std
 {
-  %template(PairF) std::pair<float,int>;
-  %template(InnerResVector) std::vector< std::pair<float,int> >;
-  %template(ResVector) std::vector< std::vector< std::pair<float,int> > >;
+  %template(PairF) pair<float,int>;
+  %template(InnerResVector) vector< pair<float,int> >;
+  %template(ResVector) vector< vector< pair<float,int> > >;
 }
 
 

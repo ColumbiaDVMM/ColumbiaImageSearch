@@ -6,10 +6,11 @@ import json
 import shutil
 import subprocess
 import numpy as np
+from .generic_hasher import GenericHasher
 from ..memex_tools.image_dl import mkpath
 from ..memex_tools.binary_file import read_binary_file
 
-class HasherCmdLine():
+class HasherCmdLine(GenericHasher):
 
     def __init__(self,global_conf_filename):
         self.global_conf = json.load(open(global_conf_filename,'rt'))
@@ -148,12 +149,12 @@ class HasherCmdLine():
         """
         return self.get_precomp_X(list_feats_id,"hashcodes",self.bits_num/8,np.uint8)
 
-    @staticmethod
-    def demote(user_uid, user_gid):
-        def result():
-            os.setgid(user_gid)
-            os.setuid(user_uid)
-        return result
+    # @staticmethod
+    # def demote(user_uid, user_gid):
+    #     def result():
+    #         os.setgid(user_gid)
+    #         os.setuid(user_uid)
+    #     return result
 
 
     def get_similar_images_from_featuresfile(self, featurefilename, ratio, demote=False):

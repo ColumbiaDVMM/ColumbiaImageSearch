@@ -6,17 +6,17 @@ import json
 import shutil
 import subprocess
 import numpy as np
+from .generic_hasher import GenericHasher
 from ..memex_tools.image_dl import mkpath
 from ..memex_tools.binary_file import read_binary_file
 # should me move the _hasher_obj_py.so?
 #from ..hashing_new.python import _hasher_obj_py
 import _hasher_obj_py as hop
 
-class HasherSwig():
+class HasherSwig(GenericHasher):
 
     def __init__(self,global_conf_filename):
         self.global_conf = json.load(open(global_conf_filename,'rt'))
-        self.hasher = hop.new_HasherObjectPy()
         self.base_update_path = os.path.dirname(__file__)
         if 'LI_base_update_path' in self.global_conf:
             self.base_update_path = self.global_conf['LI_base_update_path']
@@ -31,22 +31,8 @@ class HasherSwig():
         else:
             self.hashing_execfile = 'hashing'
         self.features_dim = self.global_conf['FE_features_dim']
-        hop.HasherObjectPy_set_feature_dim(self.hasher, self.features_dim)
         self.bits_num = self.global_conf['HA_bits_num']
-        hop.HasherObjectPy_set_bit_num(self.hasher, self.bits_num)
-        # set_paths is called internally in this
-        print(type(self.base_update_path)) # unicode...
-        hop.HasherObjectPy_set_base_updatepath(self.hasher, str(self.base_update_path))
-        up_path = hop.HasherObjectPy_get_base_updatepath(self.hasher)
-        print(up_path)
-        # base_model_path from conf too?
-        hop.HasherObjectPy_set_base_modelpath(self.hasher, "/home/ubuntu/memex/data/")
-        status = hop.HasherObjectPy_initialize(self.hasher)
-        if status != 0:
-            print("Hasher was not able to initialize")
-            sys.exit(-1)
-        #HasherObjectPy_load_itq_model(hasher)
-        #HasherObjectPy_load_hashcodes(hasher)
+
         self.hashing_outpath = os.path.join(self.base_update_path,'hash_bits/')
         mkpath(self.hashing_outpath)
         # need to be able to set/get master_update file in HasherObjectPy too.
@@ -56,10 +42,24 @@ class HasherSwig():
             sys.exit(-1)
             self.master_update_file = self.global_conf['HA_master_update_file']
 
+        self.hasher = hop.new_HasherObjectPy()
+        hop.HasherObjectPy_set_feature_dim(self.hasher, self.features_dim)
+        hop.HasherObjectPy_set_bit_num(self.hasher, self.bits_num)
+        hop.HasherObjectPy_set_base_updatepath(self.hasher, str(self.base_update_path))
+        hop.HasherObjectPy_set_base_modelpath(self.hasher, "/home/ubuntu/memex/data/")
+        self.init_hasher()
+
 
     def __del__(self):
         # clean exit deleting SWIG object
         hop.delete_HasherObjectPy(self.hasher)
+
+
+    def init_hasher(self):
+        status = hop.HasherObjectPy_initialize(self.hasher)
+        if status != 0:
+            print("Hasher was not able to initialize")
+            sys.exit(-1)
 
 
     def compute_hashcodes(self,features_filename,ins_num,startid):

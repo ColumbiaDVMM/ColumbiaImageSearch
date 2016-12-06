@@ -316,6 +316,7 @@ class APIResponder(Resource):
 
 
     def refresh(self):
+        self.searcher.indexer.hasher.init_hasher()
         if not self.searcher.indexer.initializing:
             self.searcher.indexer.initialize_sha1_mapping()
             return {'refresh': 'just run a new refresh'}
