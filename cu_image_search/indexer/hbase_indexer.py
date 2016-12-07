@@ -13,7 +13,7 @@ from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 from ..memex_tools.binary_file import read_binary_file, write_binary_file
 
 TTransportException = happybase._thriftpy.transport.TTransportException
-max_errors = 10
+max_errors = 5
 batch_size = 100
 
 class HBaseIndexer(GenericIndexer):
@@ -46,7 +46,7 @@ class HBaseIndexer(GenericIndexer):
         self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
             raise ValueError("[HBaseIngester.read_conf: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
-        self.nb_threads = 2
+        self.nb_threads = 1
         if 'HBI_pool_thread' in self.global_conf:
             self.nb_threads = self.global_conf['HBI_pool_thread']
         self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
@@ -138,9 +138,13 @@ class HBaseIndexer(GenericIndexer):
 
 
     def initialize_hasher(self):
-        if self.hasher_type=="hasher_cmdline":
+        if self.hasher_type == "hasher_cmdline":
             from ..hasher.hasher_cmdline import HasherCmdLine
             self.hasher = HasherCmdLine(self.global_conf_filename)
+            self.init_master_uf_fn = os.path.join(self.hasher.base_update_path, self.hasher.master_update_file)
+        elif self.hasher_type == "hasher_swig":
+            from ..hasher.hasher_swig import HasherSwig
+            self.hasher = HasherSwig(self.global_conf_filename)
             self.init_master_uf_fn = os.path.join(self.hasher.base_update_path, self.hasher.master_update_file)
         else:
             raise ValueError("[HBaseIndexer.initialize_hasher: error] Unknown hasher_type: {}.".format(self.hasher_type))
@@ -170,8 +174,8 @@ class HBaseIndexer(GenericIndexer):
 
 
     def refresh_hbase_conn(self, calling_function, sleep_time=2):
-        # Should we first try to close all connections from the pool?
-        print("[HBaseIndexer.{}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function))
+        dt_iso = datetime.utcnow().isoformat()
+        print("[HBaseIndexer.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function, dt_iso))
         time.sleep(sleep_time)
         self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
 
@@ -193,6 +197,27 @@ class HBaseIndexer(GenericIndexer):
             raise Exception("[HBaseIndexer: error] function {} reached maximum number of error {}. Error was: {}".format(function_name, max_errors, inst))
         return None
 
+
+    def get_rows_by_batch(self, list_queries, table_name, columns=None, previous_err=0, inst=None):
+        # still get timeout, TTransportException and IOError issues
+        self.check_errors(previous_err, "get_rows_by_batch", inst)
+        try:
+            with self.pool.connection() as connection:
+                hbase_table = connection.table(table_name)
+                # slice list_queries in batches of batch_size to query
+                rows = []
+                nb_batch = 0
+                for batch_start in range(0,len(list_queries),batch_size):
+                    batch_list_queries = list_queries[batch_start:min(batch_start+batch_size,len(list_queries))]
+                    rows.extend(hbase_table.rows(batch_list_queries, columns=columns))
+                    nb_batch += 1
+                print("[get_rows_by_batch] got {} rows using {} batches.".format(len(rows), nb_batch))
+                return rows
+        except (timeout or TTransportException or IOError) as inst:
+            # try to force longer sleep time...
+            self.refresh_hbase_conn("get_rows_by_batch", sleep_time=4)
+            return self.get_rows_by_batch(list_queries, table_name, columns, previous_err+1, inst)
+        
 
     def get_ids_from_sha1s_hbase(self, list_sha1s, previous_err=0, inst=None):
         found_ids = []
@@ -216,9 +241,11 @@ class HBaseIndexer(GenericIndexer):
         self.check_errors(previous_err, "get_full_sha1_rows", inst)
         if list_sha1s:
             try:
-                with self.pool.connection() as connection:
-                    table_sha1infos = connection.table(self.table_sha1infos_name)
-                    rows = table_sha1infos.rows(list_sha1s)
+                rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name)
+                # with self.pool.connection() as connection:
+                #     table_sha1infos = connection.table(self.table_sha1infos_name)
+                #     # this throws a socket timeout?...
+                #     rows = table_sha1infos.rows(list_sha1s)
             except (timeout or TTransportException or IOError) as inst:
                 self.refresh_hbase_conn("get_full_sha1_rows")
                 return self.get_full_sha1_rows(list_sha1s, previous_err+1, inst)
@@ -230,10 +257,11 @@ class HBaseIndexer(GenericIndexer):
         self.check_errors(previous_err, "get_columns_from_sha1_rows", inst)
         if list_sha1s:
             try:
-                with self.pool.connection() as connection:
-                    table_sha1infos = connection.table(self.table_sha1infos_name)
-                    # this throws a socket timeout?...
-                    rows = table_sha1infos.rows(list_sha1s, columns=columns)
+                rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name, columns=columns)
+                # with self.pool.connection() as connection:
+                #     table_sha1infos = connection.table(self.table_sha1infos_name)
+                #     # this throws a socket timeout?...
+                #     rows = table_sha1infos.rows(list_sha1s, columns=columns)
             except (timeout or TTransportException or IOError) as inst:
                 self.refresh_hbase_conn("get_columns_from_sha1_rows")
                 return self.get_columns_from_sha1_rows(list_sha1s, columns, previous_err+1, inst)
@@ -310,11 +338,13 @@ class HBaseIndexer(GenericIndexer):
             # where entries in the dict are key-value pairs as {'column_name': column_value}
             with self.pool.connection() as connection:
                 tab_out = connection.table(tab_out_name)
+                # this will write out every batch_size automatically
                 batch_write = tab_out.batch(batch_size=batch_size)
                 #print "Pushing batch from {}.".format(batch[0][0])
                 for row in batch:
                     #print "[HBaseIndexer.write_batch: log] Pushing row {} with keys {}".format(row[0],row[1].keys())
                     batch_write.put(row[0], row[1])
+                # send last batch
                 batch_write.send()
         except (timeout or TTransportException or IOError) as inst:
             self.refresh_hbase_conn("write_batch")
@@ -476,7 +506,7 @@ class HBaseIndexer(GenericIndexer):
         try:
             with self.pool.connection() as connection:
                 table_sha1infos = connection.table(self.table_sha1infos_name)
-                with table_sha1infos.batch() as b:
+                with table_sha1infos.batch(batch_size=batch_size) as b:
                     for i, sha1 in enumerate(rows_update):
                         b.put(sha1, {self.cu_feat_id_column: str(cu_feat_ids[i])})
                 b.send()
@@ -660,7 +690,7 @@ class HBaseIndexer(GenericIndexer):
                     return self.get_next_batch(True)
                 batch = (None, None)
         except timeout as inst:
-            self.refresh_hbase_conn("get_next_batch")
+            self.refresh_hbase_conn("get_next_batch", sleep_time=4)
             return self.get_next_batch()
         return batch
 

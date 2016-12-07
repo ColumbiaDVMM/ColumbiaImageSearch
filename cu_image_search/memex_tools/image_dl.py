@@ -2,11 +2,14 @@ import os
 import requests
 import shutil
 import time
+import warnings
 import numpy as np
 
 imagedltimeout = 3
 session = requests.Session()
 session.trust_env = False
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 def mkpath(outpath):
     pos_slash=[pos for pos,c in enumerate(outpath) if c=="/"]
@@ -33,6 +36,7 @@ def dlimage_basepath(url,basepath,logf=None):
     try:
         #r = requests.get(url, stream=True, timeout=imagedltimeout)
         # still slow with session.trust_env
+        # verify=False induces a InsecureRequestWarning
         r = session.get(url, stream=True, timeout=imagedltimeout, verify=False)
         uptorequest_time = time.time()
         if r.status_code == 200:
@@ -51,7 +55,7 @@ def dlimage_basepath(url,basepath,logf=None):
         else:
             print "Download failed for img that should be saved at {} from url {}.".format(outpath,url)
         print inst 
-        return None
+    return None
 
 
 def dlimage_basepath_integritycheck(url, basepath, logf=None):
@@ -68,6 +72,7 @@ def dlimage_basepath_integritycheck(url, basepath, logf=None):
     #print "Downloading image from {} to {}.".format(url,outpath)
     try:
         #r = requests.get(url, stream=True, timeout=imagedltimeout)
+        # verify=False induces a InsecureRequestWarning
         r = session.get(url, stream=True, timeout=imagedltimeout, verify=False)
         if r.status_code == 200:
             if int(r.headers['content-length']) == 0:
@@ -89,7 +94,7 @@ def dlimage_basepath_integritycheck(url, basepath, logf=None):
             logf.write("[dlimage_basepath_integritycheck: error] Download failed for img that should be saved at {} from url {}. {}\n".format(outpath, url, inst))
         else:
             print "[dlimage_basepath_integritycheck: error] Download failed for img that should be saved at {} from url {}. {}".format(outpath, url, inst)
-        return None
+    return None
 
 
 def dlimage(url,logf=None):

@@ -1,68 +1,11 @@
 #include "header.h"
-//#include <omp.h>
-//#include <vl/generic.h>
+#include "iotools.h"
 
 #include <opencv2/opencv.hpp>
-
-//#include <math.h>
 #include <fstream>
 
 using namespace std;
 using namespace cv;
-
-string base_modelpath;
-string base_updatepath;
-string update_files_listname;
-string update_hash_folder;
-string update_feature_folder;
-string update_compfeature_folder;
-string update_compidx_folder;
-string update_files_list;
-string update_hash_prefix;
-string update_feature_prefix;
-string update_compfeature_prefix;
-string update_compidx_prefix;
-
-// acutally in iotools.h
-template<class ty>
-void normalize(ty *X, size_t dim)
-{
-    ty sum = 0;
-    for (int i=0;i<dim;i++)
-    {
-        sum +=X[i]*X[i];
-    }
-    sum = sqrt(sum);
-    ty n = 1 / sum;
-    for (int i=0;i<dim;i++)
-    {
-        X[i] *= n;
-    }
-}
-
-// acutally in iotools.cpp
-ifstream::pos_type filesize(string filename)
-{
-    ifstream in(filename, ios::ate | ios::binary);
-    return in.tellg();
-}
-
-
-// Now in header.h
-// int NumberOfSetBits(unsigned int i)
-// {
-//     i = i - ((i >> 1) & 0x55555555);
-//     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-//     return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
-// }
-
-// Actually not used?
-// int count_bits(unsigned int n) {
-//     unsigned int c; // c accumulates the total bits set in v
-//     for (c = 0; n; c++)
-//         n &= n - 1; // clear the least significant bit set
-//     return c;
-// }
 
 
 int main(int argc, char** argv){
@@ -73,26 +16,21 @@ int main(int argc, char** argv){
         cout << "Usage: hashing feature_file_name feature_number [base_modelpath base_updatepath hashing_bits]" << std::endl;
         return -1;
     }
-    //omp_set_num_threads(omp_get_max_threads());
-    // hardcoded
+    
+    // Deal with parameters
+    PathManager pm;
     int feature_dim = 4096;
     int bit_num = 256;
     int norm = true;
     if (argc>3)
-        base_modelpath = argv[3];
+        pm.base_modelpath = argv[3];
     if (argc>4)
-        base_updatepath = argv[4];
-    set_paths();
+        pm.base_updatepath = argv[4];
     if (argc>5)
         bit_num = atoi(argv[5]);
     int int_num = bit_num/32;
-    string bit_string = to_string((long long)bit_num);
-    string str_norm = "";
-    if (norm)
-        str_norm = "norm_";
-    string W_name = base_modelpath + "W_" + str_norm + bit_string;
-    string mvec_name = base_modelpath + "mvec_" + str_norm + bit_string;
-
+    pm.set_paths(norm, bit_num);
+    
     //read in query
     int query_num = atoi(argv[2]);
     ifstream read_in(argv[1],ios::in|ios::binary);
@@ -107,11 +45,10 @@ int main(int argc, char** argv){
     read_in.close();
 
     //read in model
-
-    read_in.open(W_name,ios::in|ios::binary);
+    read_in.open(pm.W_name,ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        std::cout << "Cannot load the W model!" << std::endl;
+        std::cout << "Cannot load the W model from: " << pm.W_name << std::endl;
         return -1;
     }
     Mat W(feature_dim,bit_num,CV_64F);
@@ -119,10 +56,10 @@ int main(int argc, char** argv){
     read_in.read((char*)W.data, read_size);
     read_in.close();
 
-    read_in.open(mvec_name,ios::in|ios::binary);
+    read_in.open(pm.mvec_name,ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        std::cout << "Cannot load the mvec model!" << std::endl;
+        std::cout << "Cannot load the mvec model " << pm.mvec_name << std::endl;
         return -1;
     }
     Mat mvec(1,bit_num,CV_64F);
@@ -132,11 +69,6 @@ int main(int argc, char** argv){
 
 
     runtimes[0]=(float)(get_wall_time() - t[0]);
-
-    //demo
-    //int query_idx = 76;
-    //float * query_feature = (float*)feature.data+feature_dim*query_idx;
-    //unsigned int * query= (unsigned int*)itq.data+int_num*query_idx;
 
     //hashing init
     t[1]=get_wall_time();
@@ -176,11 +108,11 @@ int main(int argc, char** argv){
     write_out.write((char*)query_mat.data, write_size);
     write_out.close();
 
-    string itq_name = filename+ "_itq_" + str_norm + bit_string;
+    string itq_name = filename + pm.update_hash_suffix;
     write_out.open(itq_name,ios::out|ios::binary);
     if (!write_out.is_open())
     {
-        std::cout << "Cannot open the output hashing file for writing!" << std::endl;
+        std::cout << "Cannot open the output hashing file " << itq_name << " for writing " << std::endl;
         return -1;
     }
     write_size = sizeof(int)*query_num*int_num;

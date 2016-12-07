@@ -35,8 +35,9 @@ def after_request(response):
   response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
   return response
 
-global_conf_file = '../../conf/global_var_remotehbase_release.json'
+#global_conf_file = '../../conf/global_var_remotehbase_release.json'
 #global_conf_file = '../../conf/global_var_remotehbase.json'
+global_conf_file = '../../conf/global_var_remotehbase_dev.json'
 global_searcher = None
 global_start_time = None
 
@@ -47,6 +48,8 @@ class APIResponder(Resource):
         #self.searcher = searcher_hbaseremote.Searcher(global_conf_file)
         self.searcher = global_searcher
         self.start_time = global_start_time
+        # "no_diskout" not yet supported. Issue with managing SWIG output
+        #self.valid_options = ["near_dup", "near_dup_th", "no_blur", "no_diskout"]
         self.valid_options = ["near_dup", "near_dup_th", "no_blur"]
         # dl_pool_size could be set to a big value for the update process, overwrite here
         self.searcher.indexer.image_downloader.dl_pool_size = 2
@@ -192,9 +195,13 @@ class APIResponder(Resource):
                     out.write(tmp_feat)
                 except TypeError as inst:
                     print("[search_bySHA1_nocache: error] tmp_feat was {}. Error was: {}".format(tmp_feat, inst))
-        simname = self.searcher.indexer.hasher.get_similar_images_from_featuresfile(featuresfile, self.searcher.ratio)
         options_dict, errors = self.get_options_dict(options)
-        outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
+        if "no_diskout" in options_dict:
+            out_res = self.searcher.indexer.hasher.get_similar_images_from_featuresfile_nodiskout(featuresfile, self.searcher.ratio)
+            outp = self.searcher.format_output_nodiskout(out_res, len(query_sha1s), corrupted, query_sha1s, options_dict)
+        else:
+            simname = self.searcher.indexer.hasher.get_similar_images_from_featuresfile(featuresfile, self.searcher.ratio)
+            outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
         outp_we = self.append_errors(outp, errors)
         # cleanup
         #os.remove(simname)
@@ -311,6 +318,7 @@ class APIResponder(Resource):
 
 
     def refresh(self):
+        self.searcher.indexer.hasher.init_hasher()
         if not self.searcher.indexer.initializing:
             self.searcher.indexer.initialize_sha1_mapping()
             return {'refresh': 'just run a new refresh'}
@@ -390,20 +398,26 @@ class APIResponder(Resource):
     def view_similar_query_response(self, query_type, query, query_response, options=None):
         if query_type == 'URL':
             query_urls = query.split(',')
-            options_dict, errors = self.get_options_dict(options)
+            options_dict, errors_options = self.get_options_dict(options)
             sim_images = query_response["images"]
+            errors_search = None
+            if "errors" in query_response:
+                errors_search = query_response["errors"]
         # preprend for base64 image query: data:image/jpeg;base64 or whatever is the actually type of image
         else:
             return None
         similar_images_response = []
         for i in range(len(query_urls)):
-            one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
-            one_sims = []
-            for j,sim_sha1 in enumerate(sim_images[i]["similar_images"]["sha1"]):
-                one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1, sim_images[i]["similar_images"]["distance"][j]),)
-            one_res.append(one_sims)
+            if sim_images and len(sim_images)>=i:
+                one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
+                one_sims = []
+                for j,sim_sha1 in enumerate(sim_images[i]["similar_images"]["sha1"]):
+                    one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1, sim_images[i]["similar_images"]["distance"][j]),)
+                one_res.append(one_sims)
+            else:
+                one_res = [(query_urls[i], ""), [('','','')]]
             #print("[view_similar_query_response] one_res: {}.".format(one_res))
-            sys.stdout.flush()
+            #sys.stdout.flush()
             #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
             similar_images_response.append(one_res)
         if not similar_images_response:
@@ -414,6 +428,7 @@ class APIResponder(Resource):
         flash(flash_message,'message')
         headers = {'Content-Type': 'text/html'}
         sys.stdout.flush()
+        # pass named arguments instead of flash messages 
         return make_response(render_template('view_similar_images.html'),200,headers)
 
 

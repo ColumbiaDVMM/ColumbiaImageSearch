@@ -6,6 +6,7 @@ import struct
 import numpy as np
 from collections import OrderedDict
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
+from ..hasher import _hasher_obj_py as hop
 
 
 class DictOutput():
@@ -57,6 +58,9 @@ class Searcher():
         self.near_dup_th =  self.global_conf['SE_near_dup_th']
         self.get_dup = self.global_conf['SE_get_dup']
         self.ratio = self.global_conf['SE_ratio']
+        self.topfeature = 0
+        if "SE_topfeature" in self.global_conf:
+            self.topfeature = int(self.global_conf['SE_topfeature'])
 
     def init_ingester(self):
         """ Initialize `SE_ingester` from `global_conf['ingester']` value.
@@ -99,6 +103,13 @@ class Searcher():
         else:
             raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
+    def compute_features_listimgfiles(self, listimgfiles, search_id):
+        features_filename, ins_num = self.indexer.feature_extractor.compute_features(listimgfiles, search_id)
+        if ins_num != len(listimgfiles):
+            print_err = "[Searcher.compute_features_listimgfiles: error] We did not get enough features ({}) from list of {} images."
+            raise ValueError(print_err.format(ins_num,len(listimgfiles)))
+        return features_filename
+        
 
     def filter_near_dup(self, nums, near_dup_th=None):
         # nums is a list of ids then distances
@@ -132,6 +143,46 @@ class Searcher():
         for line in f:
             #sim_index.append([])
             nums = line.replace(' \n','').split(' ')
+            #filter near duplicate here
+            if (self.near_dup and "near_dup" not in options_dict) or ("near_dup" in options_dict and options_dict["near_dup"]):
+                if "near_dup_th" in options_dict:
+                    near_dup_th = options_dict["near_dup_th"]
+                else:
+                    near_dup_th = self.near_dup_th
+                nums = self.filter_near_dup(nums, near_dup_th)
+            #print nums
+            onum = len(nums)/2
+            n = min(self.sim_limit,onum)
+            #print n
+            if n==0: # no returned images, e.g. no near duplicate
+                sim.append(())
+                sim_score.append([])
+                continue
+            # just get the sha1 at this point
+            sim_infos = self.indexer.get_sim_infos(nums[0:n])
+            # beware, need to make sure sim and sim_score are still aligned
+            print("[read_sim] got {} sim_infos from {} samples".format(len(sim_infos), n))
+            sim.append(sim_infos)
+            sim_score.append(nums[onum:onum+n])
+            count = count + 1
+            if count == nb_query:
+                break
+        f.close()
+        return sim,sim_score
+
+
+    def read_sim_nodiskout(self, out_res, nb_query, options_dict=dict()):
+        # intialization
+        sim = []
+        sim_score = []
+        
+        # read similar images
+        count = 0
+        for one_res in out_res:
+            print("[read_sim_nodiskout: log] type(one_res): {}".format(type(one_res)))
+            print("[read_sim_nodiskout: log] one_res: {}".format(one_res))
+            # one_res would ned to be a numpy array
+            nums = [one_res[1::2], one_res[::2]]
             #filter near duplicate here
             if (self.near_dup and "near_dup" not in options_dict) or ("near_dup" in options_dict and options_dict["near_dup"]):
                 if "near_dup_th" in options_dict:
@@ -197,30 +248,14 @@ class Searcher():
         return sim,sim_score
 
 
-    def format_output(self, simname, nb_query, corrupted, list_sha1_id, options_dict=dict()):
-    	# read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
-        print "[Searcher.format_output: log] options are: {}".format(options_dict)
-        output = []
-        do = DictOutput()
-        if 'sha1_sim' in options_dict:
-            sha1sim = options_dict['sha1_sim']
-        else:
-            sha1sim = False
-        try:
-            if sha1sim:
-                sim,sim_score = self.read_sim_sha1(simname, nb_query, options_dict)
-            else:
-                sim,sim_score = self.read_sim(simname, nb_query, options_dict)
-        except Exception as inst:
-            errors = dict()
-            errors['search'] = "[format_output ERROR] could not prepare output. Error was: {}".format(inst)
-            outp = OrderedDict([[do.map['number'],nb_query],[do.map['images'],output],['errors',errors]])
-            return outp
-
+    def build_output(self, nb_query, corrupted, list_sha1_id, sim, sim_score, options_dict=dict()):
+        # method that takes as input: nb_query, corrupted, list_sha1_id, sim, sim_score, options_dict=dict()
         #print "[Searcher.format_output: log] sim: {}".format(sim)
         # build final output
         # options_dict could be used to request more output infos 'cdr_ids' etc
         dec = 0
+        output = []
+        do = DictOutput()
         #needed_columns = ['info:s3_url', 'info:all_cdr_ids', 'info:all_parent_ids']
         needed_columns = ['info:s3_url']
         for i in range(0,nb_query):    
@@ -254,10 +289,49 @@ class Searcher():
                 #else:
                 #    print "[Searcher.format_output: log] Found invalid image: {}. found_columns: {}".format(simj[0],found_columns)
             output[i][do.map['similar_images']][do.map['distance']]=[sim_score[ii][jj] for jj in ok_sims]
-        #print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([[do.map['number'],nb_query],[do.map['images'],output]])
         return outp
 
+
+    def build_error_output(self, nb_query, inst):
+        errors = dict()
+        errors['search'] = "[format_output ERROR] could not prepare output. Error was: {}".format(inst)
+        output = []
+        do = DictOutput()
+        outp = OrderedDict([[do.map['number'],nb_query],[do.map['images'],output],['errors',errors]])
+        return outp
+
+
+    def format_output(self, simname, nb_query, corrupted, list_sha1_id, options_dict=dict()):
+        # read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
+        print "[Searcher.format_output: log] options are: {}".format(options_dict)
+        if 'sha1_sim' in options_dict:
+            sha1sim = options_dict['sha1_sim']
+        else:
+            sha1sim = False
+        try:
+            if sha1sim:
+                sim,sim_score = self.read_sim_sha1(simname, nb_query, options_dict)
+            else:
+                sim,sim_score = self.read_sim(simname, nb_query, options_dict)
+        except Exception as inst:
+            return self.build_error_output(nb_query, inst)
+
+        outp = self.build_output(nb_query, corrupted, list_sha1_id, sim, sim_score, options_dict)
+        #print "[Searcher.format_output: log] output {}".format(output)
+        
+        return outp
+
+    def format_output_nodiskout(self, out_res, nb_query, corrupted, list_sha1_id, options_dict=dict()):
+        # read similarity results from memory
+        print "[Searcher.format_output_nodiskout: log] options are: {}".format(options_dict)
+        try:
+            sim, sim_score = self.read_sim_nodiskout(out_res, nb_query, options_dict)
+        except Exception as inst:
+            return self.build_error_output(nb_query, inst)
+
+        outp = self.build_output(nb_query, corrupted, list_sha1_id, sim, sim_score, options_dict)
+        return outp
 
     def search_one_imagepath(self,image_path):
     	# initilization
@@ -293,13 +367,21 @@ class Searcher():
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
+        print("[search_image_filelist: log] options_dict: {}".format(options_dict))
+        if "no_diskout" in options_dict and options_dict["no_diskout"]:
+            # print("[search_image_filelist: log] using no_diskout")
+            # outp, outputname = self.search_from_image_filenames_nodiskout(all_img_filenames, search_id, options_dict)
+            print("[search_image_filelist: log] using no_diskout is not yet fully supported. calling search_from_image_filenames anyway")
+            outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
+        else:
+            outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
         return outputname
 
         
     def search_image_list(self, image_list, options_dict=dict()):
         # initilization
-        search_id = str(time.time())
+        start_search = time.time()
+        search_id = str(start_search)
         i = 0
         # read all images
         dl_images = []
@@ -326,7 +408,15 @@ class Searcher():
                 dl_pos = dl_images.index(img_tup[0])
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
+        print "[Searcher.search_image_filelist: log] Search prepared in {}s.".format(time.time() - start_search)
+        #outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
+        print("[Searcher.search_image_filelist: log] options_dict: {}".format(options_dict))
+        if "no_diskout" in options_dict:
+            print("[search_image_filelist: log] using no_diskout")
+            outp, outputname = self.search_from_image_filenames_nodiskout(all_img_filenames, search_id, options_dict)
+        else:
+            outp, outputname = self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
+        
         return outp
 
     def search_from_image_filenames_nocache(self, all_img_filenames, search_id, options_dict=dict()):
@@ -348,9 +438,10 @@ class Searcher():
                 # need to deal with that in output formatting too
                 corrupted.append(i)
         if valid_img_filenames:
-            features_filename, ins_num = self.indexer.feature_extractor.compute_features(valid_img_filenames, search_id)
-            if ins_num!=len(valid_img_filenames):
-                raise ValueError("[Searcher.search_from_image_filenames_nocache: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
+            features_filename = self.compute_features_listimgfiles(valid_img_filenames, search_id)
+            #features_filename, ins_num = self.indexer.feature_extractor.compute_features(valid_img_filenames, search_id)
+            #if ins_num!=len(valid_img_filenames):
+            #    raise ValueError("[Searcher.search_from_image_filenames_nocache: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
             # query with features_filename
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(features_filename, self.ratio)
             outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
@@ -409,9 +500,10 @@ class Searcher():
         # check images are jpeg (and convert them here?)
         print "[Searcher.search_from_image_filenames: log] all_valid_images {}".format(all_valid_images)
         print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
-        features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
-        if ins_num!=len(new_files):
-            raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
+        features_filename = self.compute_features_listimgfiles(new_files, search_id)
+        #features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
+        #if ins_num!=len(new_files):
+        #    raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
         # merge feats with features_filename
         final_featuresfile = search_id+'.dat'
         read_dim = self.features_dim*4
@@ -432,6 +524,7 @@ class Searcher():
                 print "[Searcher.search_from_image_filenames: log] tmp_feat for image {} has norm {} and is: {}".format(image_name,np.linalg.norm(tmp_feat),tmp_feat)
                 out.write(tmp_feat)
                 features_wrote += 1
+        print "[Searcher.search_from_image_filenames: log] Search prepared in {}s".format(time.time() - start_search)
         if features_wrote:
             # query with merged features_filename
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
@@ -443,3 +536,94 @@ class Searcher():
         json.dump(outp, open(outputname,'w'), indent=4, sort_keys=False)    
         print "[Searcher.search_from_image_filenames: log] Search done in {}s".format(time.time() - start_search)
         return outp, outputname
+
+
+    # # this is not yet working.
+    # def search_from_image_filenames_nodiskout(self, all_img_filenames, search_id, options_dict=dict()):
+    #     # compute all sha1s
+    #     start_search = time.time()
+    #     corrupted = []
+    #     list_sha1_id = []
+    #     valid_images = []
+    #     for i,image_name in enumerate(all_img_filenames):
+    #         if image_name[0:4]!="http":
+    #             sha1 = get_SHA1_from_file(image_name)
+    #             if sha1:
+    #                 list_sha1_id.append(sha1)
+    #                 valid_images.append((i,sha1,image_name))
+    #             else:
+    #                 print("[Searcher.search_from_image_filenames_nodiskout: log] image {} is corrupted.".format(image_name))
+    #                 corrupted.append(i)
+    #         else: # we did not manage to download image
+    #             # need to deal with that in output formatting too
+    #             corrupted.append(i)
+    #     #print "[Searcher.search_from_image_filenames: log] valid_images {}".format(valid_images)
+    #     # get indexed images
+    #     list_ids_sha1_found = self.indexer.get_ids_from_sha1s(list_sha1_id)
+    #     print "[Searcher.search_from_image_filenames_nodiskout: log] list_ids_sha1_found {}".format(list_ids_sha1_found)
+    #     tmp_list_ids_found = [x[0] for x in list_ids_sha1_found if x[0] is not None]
+    #     list_sha1_found = [x[1] for x in list_ids_sha1_found if x[0] is not None]
+    #     #print "[Searcher.search_from_image_filenames: log] list_sha1_id {}".format(list_sha1_id)
+    #     #print "[Searcher.search_from_image_filenames: log] list_sha1_found {}".format(list_sha1_found)
+    #     # this is to keep proper ordering
+    #     list_ids_found = [tmp_list_ids_found[list_sha1_found.index(sha1)] for sha1 in list_sha1_id if sha1 in list_sha1_found]
+    #     #print "[Searcher.search_from_image_filenames: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
+    #     print "[Searcher.search_from_image_filenames_nodiskout: log] list_ids_found {}".format(list_ids_found)
+    #     if list_ids_found:
+    #         # get the features, hasher starts to count at 1
+    #         feats,ok_ids = self.indexer.hasher.get_precomp_feats([x+1 for x in list_ids_found])
+    #         if len(ok_ids)!=len(list_ids_found):
+    #             raise ValueError("[Searcher.search_from_image_filenames_nodiskout: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
+    #     # compute new images features
+    #     not_indexed_sha1 = set(list_sha1_id)-set(list_sha1_found)
+    #     #res = self.indexer.get_precomp_from_sha1(list_ids_sha1_found)
+    #     new_files = []
+    #     all_valid_images = []
+    #     precomp_img_filenames=[]
+    #     for i,sha1,image_name in valid_images:
+    #         if sha1 in list_sha1_found: # image is indexed
+    #             precomp_img_filenames.append(image_name)
+    #         else:
+    #             new_files.append(image_name)
+    #         all_valid_images.append(all_img_filenames[i])
+    #     # check images are jpeg (and convert them here?)
+    #     print "[Searcher.search_from_image_filenames_nodiskout: log] all_valid_images {}".format(all_valid_images)
+    #     print "[Searcher.search_from_image_filenames_nodiskout: log] new_files {}".format(new_files)
+    #     features_filename = self.compute_features_listimgfiles(new_files, search_id)
+    #     #features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
+    #     #if ins_num!=len(new_files):
+    #     #    raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
+    #     # merge feats with features_filename
+    #     final_featuresfile = search_id+'.dat'
+    #     read_dim = self.features_dim*4
+    #     read_type = np.float32
+    #     features_wrote = 0
+    #     #print "[Searcher.search_from_image_filenames: log] feats {}".format(feats)
+    #     with open(features_filename,'rb') as new_feats, open(final_featuresfile,'wb') as out:
+    #         for image_name in all_valid_images:
+    #             #print "[Searcher.search_from_image_filenames: log] saving feature of image {}".format(image_name)
+    #             if image_name in precomp_img_filenames:
+    #                 # select precomputed 
+    #                 precomp_pos = precomp_img_filenames.index(image_name)
+    #                 #print "[Searcher.search_from_image_filenames: log] getting precomputed feature at position {}".format(precomp_pos)
+    #                 tmp_feat = feats[precomp_pos][:]
+    #             else:
+    #                 # read from new feats
+    #                 tmp_feat = np.frombuffer(new_feats.read(read_dim),dtype=read_type)
+    #             print "[Searcher.search_from_image_filenames_nodiskout: log] tmp_feat for image {} has norm {} and is: {}".format(image_name,np.linalg.norm(tmp_feat),tmp_feat)
+    #             out.write(tmp_feat)
+    #             features_wrote += 1
+    #     print "[Searcher.search_from_image_filenames_nodiskout: log] Search prepared in {}s".format(time.time() - start_search)
+    #     if features_wrote:
+    #         # how to properly interact with out_res?
+    #         out_res = hop.ResVector(self.indexer.hasher.get_similar_images_from_featuresfile_nodiskout(final_featuresfile, self.ratio))
+    #     start_format = time.time()
+    #     outp = self.format_output_nodiskout(out_res, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
+    #     print "[Searcher.search_from_image_filenames_nodiskout: log] Formatting done in {}s".format(time.time() - start_format)
+    #     outputname = str(search_id)+"-sim.json"
+    #     print "[Searcher.search_from_image_filenames_nodiskout: log] Saving output to {}".format(outputname)
+    #     json.dump(outp, open(outputname,'w'), indent=4, sort_keys=False)    
+    #     print "[Searcher.search_from_image_filenames_nodiskout: log] Search done in {}s".format(time.time() - start_search)
+    #     return outp, outputname
+
+

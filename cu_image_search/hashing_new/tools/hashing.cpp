@@ -1,5 +1,6 @@
 #include "header.h"
 #include "iotools.h"
+
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
 #include <fstream>
@@ -7,62 +8,41 @@
 using namespace std;
 using namespace cv;
 
-// This needs to be in any "main"
-string base_modelpath;
-string base_updatepath;
-string update_files_listname;
-string update_hash_folder;
-string update_feature_folder;
-string update_compfeature_folder;
-string update_compidx_folder;
-string update_files_list;
-string update_hash_prefix;
-string update_feature_prefix;
-string update_compfeature_prefix;
-string update_compidx_prefix;
-
 int main(int argc, char** argv){
     double t[2]; // timing
     t[0] = get_wall_time(); // Start Time
-    float runtimes[7] = {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
+    float runtimes[8] = {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
     if (argc < 2){
         cout << "Usage: hashing feature_file_name [base_modelpath base_updatepath hashing_bits post_ranking_ratio normalize_features read_threshold]" << std::endl;
         return -1;
     }
     //omp_set_num_threads(omp_get_max_threads());
 
+    PathManager pm;
     // hardcoded
-    set_default_paths();
+    //set_default_paths();
     int feature_dim = 4096;
     float ratio = 0.001f;
     int bit_num = 256;
     int norm = true;
     if (argc>2)
-        base_modelpath = argv[2];
+        pm.base_modelpath = argv[2];
     if (argc>3)
-        base_updatepath = argv[3];
-    set_paths();
+        pm.base_updatepath = argv[3];
     if (argc>4)
         bit_num = atoi(argv[4]);
     if (argc>5)
         ratio = (float)atof(argv[5]);
     if (argc>6)
         norm = atoi(argv[6]);
-
+    pm.set_paths(norm, bit_num);
     // Is actually never used? To deal with very large queries?
     int read_thres = (int)(1.0f/ratio);
     if (argc>7)
         read_thres =  atoi(argv[7]);
 
     int int_num = bit_num/32;
-    string bit_string = to_string((long long)bit_num);
-    string str_norm = "";
-    if (norm)
-        str_norm = "_norm";
-    string itq_name = "itq" + str_norm + "_" + bit_string;
-    string W_name = base_modelpath + "W" + str_norm + "_" + bit_string;
-    string mvec_name = base_modelpath + "mvec" + str_norm + "_" + bit_string;
-
+    
     //read in query
     int query_num = (int)filesize(argv[1])/4/feature_dim;
     std::cout << "Hashing for " << query_num << " queries." << std::endl;
@@ -76,6 +56,7 @@ int main(int argc, char** argv){
     size_t read_size = sizeof(float)*feature_dim*query_num;
     read_in.read((char*)query_mat.data, read_size);
     std::cout << "Read " << read_size <<  " bytes for " << query_num << " queries." << std::endl;
+    cout << "Features first value are: " << query_mat.at<double>(0,0) << " " << query_mat.at<double>(0,1) << endl;
     read_in.close();
     // 1. Time reading query
     runtimes[0]=(float)(get_wall_time() - t[0]);
@@ -87,28 +68,21 @@ int main(int argc, char** argv){
     //vector<string> update_feature_files;
     vector<string> update_compfeature_files;
     vector<string> update_compidx_files;
-    string update_feature_suffix = "" + str_norm;
-    string update_compfeature_suffix = "_comp" + str_norm;
-    string update_compidx_suffix = "_compidx" + str_norm;
-    string update_hash_suffix = "";
-    if (norm)
-    {
-        update_hash_suffix = "_" + itq_name;
-    }
-    ifstream fu(update_files_list.c_str(),ios::in);
+
+    ifstream fu(pm.update_files_list.c_str(),ios::in);
     if (!fu.is_open())
     {
-        std::cout << "No update! Was looking for " << update_files_list << std::endl;
+        std::cout << "No update! Was looking for " << pm.update_files_list << std::endl;
         perror("");
         return -1;
     }
     else
     {
         while (getline(fu, line)) {
-            update_hash_files.push_back(update_hash_prefix+line+update_hash_suffix);
+            update_hash_files.push_back(pm.update_hash_prefix+line+pm.update_hash_suffix);
             //update_feature_files.push_back(update_feature_prefix+line+update_feature_suffix);
-            update_compfeature_files.push_back(update_compfeature_prefix+line+update_compfeature_suffix);
-            update_compidx_files.push_back(update_compidx_prefix+line+update_compidx_suffix);
+            update_compfeature_files.push_back(pm.update_compfeature_prefix+line+pm.update_compfeature_suffix);
+            update_compidx_files.push_back(pm.update_compidx_prefix+line+pm.update_compidx_suffix);
         }
     }
     // read in itq
@@ -138,28 +112,29 @@ int main(int argc, char** argv){
         read_in.close();
         read_pos +=read_size;
     }
-
-    read_in.open(W_name.c_str(),ios::in|ios::binary);
+    cout << "DB Hashcodes first values are " << itq.at<unsigned int>(0,0) << " " <<  itq.at<unsigned int>(0,1) << endl;
+    read_in.open(pm.W_name.c_str(),ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        std::cout << "Cannot load the W model! " << W_name << std::endl;
+        std::cout << "Cannot load the W model from: " << pm.W_name << std::endl;
         return -1;
     }
     Mat W(feature_dim,bit_num,CV_64F);
     read_size = sizeof(double)*feature_dim*bit_num;
     read_in.read((char*)W.data, read_size);
     read_in.close();
-
-    read_in.open(mvec_name.c_str(),ios::in|ios::binary);
+    cout << "W first value are: " << W.at<double>(0,0) << " " << W.at<double>(0,1) << endl;
+    read_in.open(pm.mvec_name.c_str(),ios::in|ios::binary);
     if (!read_in.is_open())
     {
-        std::cout << "Cannot load the mvec model!" << std::endl;
+        std::cout << "Cannot load the mvec model from " << pm.mvec_name << std::endl;
         return -1;
     }
     Mat mvec(1,bit_num,CV_64F);
     read_size = sizeof(double)*bit_num;
     read_in.read((char*)mvec.data, read_size);
     read_in.close();
+    cout << "mvec first value are: " << mvec.at<double>(0,0) << " " << mvec.at<double>(0,1) << endl;
     // 3.1 Time reading all hashcodes
     runtimes[7]=(float)(get_wall_time() - t[1]);
     t[1] = get_wall_time();
@@ -171,13 +146,7 @@ int main(int argc, char** argv){
     vector<ifstream*> read_in_compfeatures;
     vector<ifstream*> read_in_compidx;
     int status = 0;
-    /*vector<ifstream*> read_in_features;
-    status = fill_vector_files(read_in_features,update_feature_files);
-    if (status==-1) {
-          std::cout << "Could not load features properly. Exiting." << std::endl;
-          // TODO: We should clean here
-          return -1;
-    }*/
+    
     status = fill_vector_files(read_in_compfeatures,update_compfeature_files);
     if (status==-1) {
         std::cout << "Could not load compressed features properly. Exiting." << std::endl;
@@ -241,7 +210,10 @@ int main(int argc, char** argv){
         t[1] = get_wall_time();
         std::cout <<  "Looking for similar images of query #" << k+1 << std::endl;
         // Compute hamming distances between query k and all DB hashcodes
-        unsigned int * hash_data= (unsigned int*)itq.data;
+        unsigned int * hash_data = (unsigned int*)itq.data;
+
+        cout << "Hash code first value are: " << query[0] << " " << query[1] << endl;
+
         for (int i=0;i<data_num;i++)
         {
             hamming[i] = mypair(0,i);
@@ -256,6 +228,14 @@ int main(int argc, char** argv){
             hash_data += int_num;
         }
         std::sort(hamming.begin(),hamming.end(),comparator);
+
+        unsigned long long out_size = min((unsigned long long)top_feature, (unsigned long long)hamming.size());
+
+        int small_hd_sort = hamming[0].first;
+        int big_hd_sort = hamming[out_size-1].first;
+        cout << "Top " << out_size << " sorted hamming distances range is [" << small_hd_sort << ", " << big_hd_sort << "]" << endl;
+
+
         query += int_num;
         // 5. Hamming distances (accumulate for all queries)
         runtimes[4]+=(float)(get_wall_time() - t[1]);
