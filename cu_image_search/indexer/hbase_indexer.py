@@ -13,7 +13,7 @@ from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 from ..memex_tools.binary_file import read_binary_file, write_binary_file
 
 TTransportException = happybase._thriftpy.transport.TTransportException
-max_errors = 10
+max_errors = 5
 batch_size = 100
 
 class HBaseIndexer(GenericIndexer):
