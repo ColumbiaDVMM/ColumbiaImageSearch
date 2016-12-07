@@ -422,6 +422,7 @@ int HasherObject::read_update_files() {
 }
 
 void HasherObject::fill_data_nums_accum() {
+    data_nums.clear();
     data_num = fill_data_nums(update_hash_files, data_nums, bit_num);
     cout << "[fill_data_nums_accum] We have " << data_num << " images indexed." << endl;
     // This induces a segfault when called from swig?
