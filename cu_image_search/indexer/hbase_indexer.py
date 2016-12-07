@@ -4,6 +4,7 @@ import time
 import base64
 import shutil
 import happybase
+import datetime
 import numpy as np
 from datetime import datetime
 from generic_indexer import GenericIndexer
@@ -174,8 +175,8 @@ class HBaseIndexer(GenericIndexer):
 
 
     def refresh_hbase_conn(self, calling_function, sleep_time=2):
-        # Should we first try to close all connections from the pool?
-        print("[HBaseIndexer.{}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function))
+        dt_iso = datetime.datetime.utcnow().isoformat()
+        print("[HBaseIndexer.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function, dt_iso))
         time.sleep(sleep_time)
         self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
 

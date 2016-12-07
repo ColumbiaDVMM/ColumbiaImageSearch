@@ -58,6 +58,9 @@ class Searcher():
         self.near_dup_th =  self.global_conf['SE_near_dup_th']
         self.get_dup = self.global_conf['SE_get_dup']
         self.ratio = self.global_conf['SE_ratio']
+        self.topfeature = 0
+        if "SE_topfeature" in self.global_conf:
+            self.topfeature = int(self.global_conf['SE_topfeature'])
 
     def init_ingester(self):
         """ Initialize `SE_ingester` from `global_conf['ingester']` value.
