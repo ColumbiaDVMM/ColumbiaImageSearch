@@ -506,7 +506,7 @@ class HBaseIndexer(GenericIndexer):
         try:
             with self.pool.connection() as connection:
                 table_sha1infos = connection.table(self.table_sha1infos_name)
-                with table_sha1infos.batch() as b:
+                with table_sha1infos.batch(batch_size=batch_size) as b:
                     for i, sha1 in enumerate(rows_update):
                         b.put(sha1, {self.cu_feat_id_column: str(cu_feat_ids[i])})
                 b.send()
