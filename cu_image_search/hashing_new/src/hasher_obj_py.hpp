@@ -42,6 +42,7 @@ class HasherObjectPy {
             hobj->find_knn();
         };
 
+        // Not yet working.
         vector< vector< pair<float, int> > > find_knn_nodiskout() {
             return hobj->find_knn_nodiskout();
         };
