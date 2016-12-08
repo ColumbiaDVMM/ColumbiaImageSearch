@@ -9,7 +9,7 @@ import sys
 print(sys.version)
 import subprocess
 
-dev = False
+dev = True
 
 if dev:
     dev_release_suffix = "_dev"
@@ -28,6 +28,7 @@ from hbase_manager import HbaseManager
 #query_ts_minmax = True # Otherwise get everything after es_ts_start
 day_gap = 86400000 # One day
 ts_gap = day_gap
+time_sleep_update_out = 10
 #ts_gap = 10000000
 #ts_gap = 10000
 
@@ -93,6 +94,8 @@ def save_rdd_json(basepath_save, rdd_name, rdd, incr_update_id, hbase_man_update
         save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", rdd_name+"_path")
 
 
+# is this inducing respawn when called twice within short timespan?
+# should we reinstantiate a different hbase_man_update_out every time?
 def save_info_incremental_update(hbase_man_update_out, incr_update_id, info_value, info_name):
     print("[save_info_incremental_update] saving update info {}: {}".format(info_name, info_value))
     incr_update_infos_list = []
@@ -1156,7 +1159,7 @@ if __name__ == '__main__':
     hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=join_columns_list)
     hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
     hbase_man_cdrinfos_out = HbaseManager(sc, conf, hbase_host, tab_cdrid_infos_name)
-    hbase_man_update_out = HbaseManager(sc, conf, hbase_host, tab_update_name)
+    hbase_man_update_out = HbaseManager(sc, conf, hbase_host, tab_update_name, time_sleep=time_sleep_update_out)
     # actually  only needed if join_s3url is True
     hbase_man_s3url_sha1_in = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
     hbase_man_s3url_sha1_out = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
