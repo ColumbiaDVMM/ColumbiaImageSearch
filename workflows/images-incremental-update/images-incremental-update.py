@@ -993,11 +993,15 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdr
         return None
 
     ## update cdr_ids, and parents cdr_ids for these new sha1s
+    print("[compute_out_rdd] reading from hbase_man_sha1infos_join to get sha1_infos_rdd.")
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
     # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
+        print("[compute_out_rdd] partitioning update_rdd.")
         update_rdd_partitioned = update_rdd.partitionBy(nb_partitions)
+        print("[compute_out_rdd] partitioning sha1_infos_rdd.")
         sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions)
+        print("[compute_out_rdd] joining sha1_infos_rdd and update_rdd.")
         join_rdd = update_rdd_partitioned.leftOuterJoin(sha1_infos_rdd_json).flatMap(flatten_leftjoin)
         out_rdd_amandeep = join_rdd
     else: # first update
