@@ -1,0 +1,10 @@
+<html>
+  <head>
+    <title>Images viewer</title>
+  </head>
+  <body>
+    {% for images in get_flashed_messages() %}
+    {{ images|safe }}
+    {% endfor %}
+  </body>
+</html>

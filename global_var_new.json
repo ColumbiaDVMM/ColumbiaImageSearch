@@ -1,8 +1,0 @@
-{
-	"demo":0,
-	"fast_ratio":"0.00001",
-	"ratio":"0.0001",
-	"neardup_th_strict":0.1,
-	"neardup_th_loose":0.2,
-	"neardup_th_balanced":0.15
-}

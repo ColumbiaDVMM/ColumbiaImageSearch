@@ -1,0 +1,5 @@
+{
+    "hbase_host": "zk04.xdata.data-tactics-corp.com:2181",
+    "tab_name": "escorts_images_cdrid_infos",
+    "tab_hash_name": "image_hash"
+}

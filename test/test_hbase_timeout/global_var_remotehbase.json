@@ -1,0 +1,7 @@
+{
+        "HBI_host":"10.1.94.57",
+        "HBI_table_sha1infos":"escorts_images_sha1_infos_ext_dev",
+        "HBI_table_updatesinfos":"escorts_images_updates_dev",
+        "HBI_pool_thread":2
+}
+

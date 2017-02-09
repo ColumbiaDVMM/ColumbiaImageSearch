@@ -1,0 +1,24 @@
+<html>
+  <head>
+    <title>Images viewer</title>
+    {#<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">#}
+    <link rel="stylesheet" href="../static/style.css">
+  </head>
+  <body>
+    {% with messages = get_flashed_messages() %}
+    {% set noblur = messages[0][0] %}
+    {% if noblur %}
+      {% set img_style = "img_vis" %}
+    {% else %}
+      {% set img_style = "img_blur" %}
+    {% endif %}
+    {% set responses = messages[0][1] %}
+    {% for query_image,similar_images in responses %}
+    <h2>Query image:</h2>
+    <img src="{{query_image[0]}}" title="{{query_image[1]}}" class="{{img_style}}">
+    <h2>Query results:</h2>
+    {% for url,sha1,dist in similar_images %}<img src="{{url}}" alt="{{sha1}}" class="{{img_style}}" title="{{dist}}"> {% endfor %}
+    {% endfor %}
+    {% endwith %}
+  </body>
+</html>
