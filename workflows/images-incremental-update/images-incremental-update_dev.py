@@ -958,6 +958,7 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdr
             if hdfs_file_exist(out_rdd_path):
                 out_rdd_amandeep = sc.sequenceFile(out_rdd_path).mapValues(amandeep_dict_str_to_out)
         except Exception as inst:
+            # would mean file existed but corrupted?
             pass
         if out_rdd_amandeep is not None:
             # consider already processed
