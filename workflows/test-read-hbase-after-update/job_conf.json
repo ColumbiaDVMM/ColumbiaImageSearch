@@ -1,0 +1,8 @@
+{
+    "hbase_host": "zk04.xdata.data-tactics-corp.com:2181",
+    "tab_name": "escorts_images_missing_sha1_dev",
+    "out_file": "/user/skaraman/data/test_read_hbase"
+}
+
+
+
