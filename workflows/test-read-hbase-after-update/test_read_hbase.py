@@ -19,7 +19,8 @@ if __name__ == '__main__':
     # HBase Conf
     hbase_host = job_conf["hbase_host"]
     tab_name = job_conf["tab_name"]
-    hbase_man = HbaseManager(sc, conf, hbase_host, tab_name)
+    columns_list_str = job_conf["columns_list"]
+    hbase_man = HbaseManager(sc, conf, hbase_host, tab_name, columns_list=[x[1:-1] for x in columns_list_str.split(',')])
 
     # Out conf
     out_file = job_conf["out_file"]
