@@ -17,7 +17,7 @@ def check_hdfs_file(hdfs_file_path):
 
 def hdfs_file_exist(hdfs_file_path):
     out, err = check_hdfs_file(hdfs_file_path)
-    hdfs_file_exist = "_SUCCESS" in out and not "_temporary" in out and not err
+    hdfs_file_exist = "_SUCCESS" in out
     return hdfs_file_exist
 
 ## MAIN
