@@ -5,6 +5,9 @@ import json
 from pyspark import SparkContext, SparkConf
 from hbase_manager import HbaseManager
 
+fields_list = [("info","all_cdr_ids"), ("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded"), ("info","cu_feat_id")]
+join_columns_list = [':'.join(x) for x in fields_list]
+
 ## MAIN
 if __name__ == '__main__':
     
@@ -19,12 +22,8 @@ if __name__ == '__main__':
     # HBase Conf
     hbase_host = job_conf["hbase_host"]
     tab_name = job_conf["tab_name"]
-    columns_list_str = job_conf["columns_list"]
-    hbase_man = HbaseManager(sc, conf, hbase_host, tab_name, columns_list=[x[1:-1] for x in columns_list_str.split(',')])
-
-    # Out conf
-    out_file = job_conf["out_file"]
+    hbase_man = HbaseManager(sc, conf, hbase_host, tab_name, columns_list=join_columns_list)
 
     # Run test
     in_rdd = hbase_man.read_hbase_table()
-    in_rdd.saveAsSequenceFile(out_file)
+    print in_rdd.first()
