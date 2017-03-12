@@ -28,6 +28,7 @@ from hbase_manager import HbaseManager
 #query_ts_minmax = True # Otherwise get everything after es_ts_start
 day_gap = 86400000 # One day
 ts_gap = day_gap
+time_sleep_update_out = 10
 #ts_gap = 10000000
 #ts_gap = 10000
 
@@ -93,6 +94,8 @@ def save_rdd_json(basepath_save, rdd_name, rdd, incr_update_id, hbase_man_update
         save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", rdd_name+"_path")
 
 
+# is this inducing respawn when called twice within short timespan?
+# should we reinstantiate a different hbase_man_update_out every time?
 def save_info_incremental_update(hbase_man_update_out, incr_update_id, info_value, info_name):
     print("[save_info_incremental_update] saving update info {}: {}".format(info_name, info_value))
     incr_update_infos_list = []
@@ -956,6 +959,8 @@ def get_update_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdri
     # save to disk
     if c_options.save_inter_rdd:
         save_rdd_json(basepath_save, rdd_name, update_rdd, incr_update_id, hbase_man_update_out)
+
+    # also return update_rdd_count to allows dynamic partitioning?
     return update_rdd
 
 
@@ -972,6 +977,7 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdr
             if hdfs_file_exist(out_rdd_path):
                 out_rdd_amandeep = sc.sequenceFile(out_rdd_path).mapValues(amandeep_dict_str_to_out)
         except Exception as inst:
+            # would mean file existed but corrupted?
             pass
         if out_rdd_amandeep is not None:
             # consider already processed
@@ -990,11 +996,15 @@ def compute_out_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_cdr
         return None
 
     ## update cdr_ids, and parents cdr_ids for these new sha1s
+    print("[compute_out_rdd] reading from hbase_man_sha1infos_join to get sha1_infos_rdd.")
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
     # we may need to merge some 'all_cdr_ids' and 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
+        print("[compute_out_rdd] partitioning update_rdd.")
         update_rdd_partitioned = update_rdd.partitionBy(nb_partitions)
+        print("[compute_out_rdd] partitioning sha1_infos_rdd.")
         sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions)
+        print("[compute_out_rdd] joining sha1_infos_rdd and update_rdd.")
         join_rdd = update_rdd_partitioned.leftOuterJoin(sha1_infos_rdd_json).flatMap(flatten_leftjoin)
         out_rdd_amandeep = join_rdd
     else: # first update
@@ -1156,7 +1166,7 @@ if __name__ == '__main__':
     hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=join_columns_list)
     hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
     hbase_man_cdrinfos_out = HbaseManager(sc, conf, hbase_host, tab_cdrid_infos_name)
-    hbase_man_update_out = HbaseManager(sc, conf, hbase_host, tab_update_name)
+    hbase_man_update_out = HbaseManager(sc, conf, hbase_host, tab_update_name, time_sleep=time_sleep_update_out)
     # actually  only needed if join_s3url is True
     hbase_man_s3url_sha1_in = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
     hbase_man_s3url_sha1_out = HbaseManager(sc, conf, hbase_host, tab_s3url_sha1_name)
