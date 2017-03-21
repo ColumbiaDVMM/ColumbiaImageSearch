@@ -1,0 +1,6 @@
+{
+    "hbase_host": "zk04.xdata.data-tactics-corp.com:2181",
+    "tab_name": "escorts_images_sha1_infos_from_ts",
+    "out_file": "/user/skaraman/data/test_read_hbase",
+    "columns_list": "'info:s3_url','info:image_id','info:s3_url|corrupted','info:s3_url','info:image_id|missing'"
+}

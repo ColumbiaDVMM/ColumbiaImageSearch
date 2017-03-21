@@ -38,9 +38,6 @@ class HbaseManager(object):
         # 1) saveAsNewAPIHadoopDataset seems to fail sometime with errors like:
         # - Container [pid=7897,containerID=container_1459636669274_6150_01_000002] is running beyond physical memory limits. Current usage: 8.0 GB of 8 GB physical memory used; 41.7 GB of 16.8 GB virtual memory used. Killing container.
         # - anyway to set some parameters to fix this?
-        # 2) saveAsNewAPIHadoopDataset seems to be related to respawn issue:
-        # - connected with multiple saves to the same table close to each other in time
-        # - use time_sleep
         print("[HbaseManager.rdd2hbase] Will save to HBase in {}s using conf: {}".format(self.time_sleep, self.hbase_conf))
         if self.time_sleep:
             time.sleep(self.time_sleep)

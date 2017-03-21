@@ -1,0 +1,5 @@
+{
+    "hbase_host": "zk04.xdata.data-tactics-corp.com:2181",
+    "file_exist": "/user/worker/dig2/incremental/2017-03-04/images/info/out_rdd",
+    "file_notexist": "/user/worker/dig2/incremental/2018-03-05/images/info/out_rdd"
+}
