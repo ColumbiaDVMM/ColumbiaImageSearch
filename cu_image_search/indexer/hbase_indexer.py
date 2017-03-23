@@ -283,7 +283,7 @@ class HBaseIndexer(GenericIndexer):
         return rows
 
 
-    def get_sim_infos(self, list_ids):
+    def get_sim_infos(self, list_ids, columns=None):
         #print("[HBaseIndexer.get_sim_infos: log] list_ids: {}".format(list_ids))
         # we could also discard id in list_ids if it is out of range...
         try:
@@ -297,7 +297,9 @@ class HBaseIndexer(GenericIndexer):
             #    time.sleep(1)
             # something else (bad) is happening if this fails again
             list_sha1s = [self.sha1_featid_mapping[int(i)] for i in list_ids]
-        return self.get_full_sha1_rows(list_sha1s)
+        # we don't really need the full rows, especially if they contain features etc.
+        #return self.get_full_sha1_rows(list_sha1s)
+        return self.get_columns_from_sha1_rows(list_sha1s, columns)
 
 
     def get_precomp_from_sha1(self, list_sha1s, list_type):

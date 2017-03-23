@@ -49,6 +49,7 @@ class Searcher():
         self.read_conf()
         self.init_indexer()
         self.init_ingester() # just for expand metada
+        self.needed_output_columns = ['info:s3_url']
 
     def read_conf(self):
     	# these parameters may be overwritten by web call
@@ -159,7 +160,7 @@ class Searcher():
                 sim_score.append([])
                 continue
             # just get the sha1 at this point
-            sim_infos = self.indexer.get_sim_infos(nums[0:n])
+            sim_infos = self.indexer.get_sim_infos(nums[0:n], columns=self.needed_output_columns)
             # beware, need to make sure sim and sim_score are still aligned
             print("[read_sim] got {} sim_infos from {} samples".format(len(sim_infos), n))
             sim.append(sim_infos)
@@ -199,7 +200,7 @@ class Searcher():
                 sim_score.append([])
                 continue
             # just get the sha1 at this point
-            sim_infos = self.indexer.get_sim_infos(nums[0:n])
+            sim_infos = self.indexer.get_sim_infos(nums[0:n], columns=self.needed_output_columns)
             # beware, need to make sure sim and sim_score are still aligned
             print("[read_sim] got {} sim_infos from {} samples".format(len(sim_infos), n))
             sim.append(sim_infos)
@@ -257,7 +258,7 @@ class Searcher():
         output = []
         do = DictOutput()
         #needed_columns = ['info:s3_url', 'info:all_cdr_ids', 'info:all_parent_ids']
-        needed_columns = ['info:s3_url']
+        
         for i in range(0,nb_query):    
             output.append(dict())
             if i in corrupted:
@@ -279,8 +280,8 @@ class Searcher():
             output[i][do.map['query_sha1']] = list_sha1_id[ii]
             ok_sims = []
             for jj,simj in enumerate(sim[ii]):
-                found_columns = [c in simj[1] for c in needed_columns]
-                if found_columns.count(True) == len(needed_columns):
+                found_columns = [c in simj[1] for c in self.needed_output_columns]
+                if found_columns.count(True) == len(self.needed_output_columns):
                     output[i][do.map['similar_images']][do.map['sha1']].append(simj[0].strip())
                     output[i][do.map['similar_images']][do.map['cached_image_urls']].append(simj[1]['info:s3_url'].strip())
                     #output[i]['similar_images']['cdr_ids'].append(simj[1]['info:all_cdr_ids'].strip())
