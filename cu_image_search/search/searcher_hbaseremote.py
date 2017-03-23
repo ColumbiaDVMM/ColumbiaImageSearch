@@ -161,7 +161,7 @@ class Searcher():
                 sim.append(())
                 sim_score.append([])
                 continue
-            # just get the sha1 at this point
+            # get the needed_output_columns and sha1s
             sim_infos = self.indexer.get_sim_infos(nums[0:n], columns=self.needed_output_columns)
             # beware, need to make sure sim and sim_score are still aligned
             print("[read_sim] got {} sim_infos from {} samples".format(len(sim_infos), n))
