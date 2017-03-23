@@ -242,7 +242,8 @@ class Searcher():
                 continue
             # just get the sha1 at this point
             # beware, need to make sure sim and sim_score are still aligned
-            sim.append(self.indexer.get_full_sha1_rows(nums[0:n]))
+            #sim.append(self.indexer.get_full_sha1_rows(nums[0:n]))
+            sim.append(self.indexer.get_columns_from_sha1_rows(nums[0:n], columns=self.needed_output_columns))
             sim_score.append(nums[onum:onum+n])
             count = count + 1
             if count == nb_query:
