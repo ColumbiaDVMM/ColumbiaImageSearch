@@ -316,6 +316,7 @@ class Searcher():
             else:
                 sim,sim_score = self.read_sim(simname, nb_query, options_dict)
         except Exception as inst:
+            print "[Searcher.format_output: error] {}".format(inst)
             return self.build_error_output(nb_query, inst)
 
         outp = self.build_output(nb_query, corrupted, list_sha1_id, sim, sim_score, options_dict)
