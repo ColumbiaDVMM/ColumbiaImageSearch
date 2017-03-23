@@ -16,7 +16,7 @@ class SentiBankCmdLine():
         self.features_dim = self.global_conf["FE_features_dim"]
         mkpath(self.features_path)
 
-    def compute_features(self, new_files, startid):
+    def compute_features(self, new_files, startid, device='GPU'):
         import subprocess as sub
         # create file listing images to be processed
         img_filename = os.path.join(self.features_path, str(startid)+'.txt')
@@ -38,7 +38,7 @@ class SentiBankCmdLine():
         print "[SentiBankCmdLine.compute_features: log] features_path is {}.".format(self.features_path)
 
         # set parameters and filenames for feature extraction process
-        device = 'GPU'
+        #device = 'GPU'
         feature_num = self.features_dim
         testname = img_filename[:-4] + '-test.txt'
         protoname = img_filename[:-4] + '-test.prototxt'

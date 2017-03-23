@@ -105,7 +105,9 @@ class Searcher():
             raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
     def compute_features_listimgfiles(self, listimgfiles, search_id):
-        features_filename, ins_num = self.indexer.feature_extractor.compute_features(listimgfiles, search_id)
+        # we could switch between GPU and CPU based on number of images.
+        # TEMPORARY USE ONLY CPU as GPU card will be changed soon
+        features_filename, ins_num = self.indexer.feature_extractor.compute_features(listimgfiles, search_id, 'CPU')
         if ins_num != len(listimgfiles):
             print_err = "[Searcher.compute_features_listimgfiles: error] We did not get enough features ({}) from list of {} images."
             raise ValueError(print_err.format(ins_num,len(listimgfiles)))
