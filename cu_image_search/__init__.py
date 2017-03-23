@@ -1,1 +1,1 @@
-dev = False
+dev = True
