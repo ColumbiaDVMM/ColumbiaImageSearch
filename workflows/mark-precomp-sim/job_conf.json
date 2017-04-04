@@ -1,0 +1,5 @@
+{
+    "hbase_host": "zk01.xdata.data-tactics-corp.com:2181",
+    "tab_sha1_infos": "escorts_images_sha1_infos_from_ts",
+    "tab_sim": "escorts_images_similar_row_from_ts"
+}

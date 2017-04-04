@@ -5,7 +5,7 @@ import happybase
 # [Errno 32] Broken pipe
 
 if __name__ == "__main__":
-	pool = happybase.ConnectionPool(size=1,host="10.1.94.57")
+	pool = happybase.ConnectionPool(size=8,host="10.1.94.57")
 	with pool.connection() as conn:
 		table_name = "escorts_images_sha1_infos_dev"
 		hbase_table = conn.table(table_name)
