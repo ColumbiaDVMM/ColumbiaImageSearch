@@ -13,6 +13,7 @@ from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 from ..memex_tools.binary_file import read_binary_file, write_binary_file
 
 TTransportException = happybase._thriftpy.transport.TTransportException
+TTTransportException = happybase._thriftpy.transport.TTransport.TTransportException
 max_errors = 5
 batch_size = 100
 
@@ -213,7 +214,7 @@ class HBaseIndexer(GenericIndexer):
                     nb_batch += 1
                 print("[get_rows_by_batch] got {} rows using {} batches.".format(len(rows), nb_batch))
                 return rows
-        except (timeout or TTransportException or IOError) as inst:
+        except (timeout or TTransportException or TTTransportException or IOError) as inst:
             # try to force longer sleep time...
             self.refresh_hbase_conn("get_rows_by_batch", sleep_time=4)
             return self.get_rows_by_batch(list_queries, table_name, columns, previous_err+1, inst)
@@ -230,7 +231,7 @@ class HBaseIndexer(GenericIndexer):
                     for row in rows:
                         if "info:cu_feat_id" in row[1]:
                             found_ids.append((long(row[1]["info:cu_feat_id" ]),str(row[0])))
-            except (timeout or TTransportException or IOError) as inst:
+            except (timeout or TTransportException or TTTransportException or IOError) as inst:
                 self.refresh_hbase_conn("get_ids_from_sha1s_hbase")
                 return self.get_ids_from_sha1s_hbase(list_sha1s, previous_err+1, inst)
         return found_ids
@@ -265,6 +266,7 @@ class HBaseIndexer(GenericIndexer):
                 #     # this throws a socket timeout?...
                 #     rows = table_sha1infos.rows(list_sha1s, columns=columns)
             #except (timeout or TTransportException or IOError) as inst:
+            #except (timeout or TTransportException or TTTransportException or IOError) as inst:
             except Exception as inst: # try to catch any exception
                 print "[get_columns_from_sha1_rows: error] {}".format(inst)
                 self.refresh_hbase_conn("get_columns_from_sha1_rows")
@@ -516,7 +518,9 @@ class HBaseIndexer(GenericIndexer):
                     for i, sha1 in enumerate(rows_update):
                         b.put(sha1, {self.cu_feat_id_column: str(cu_feat_ids[i])})
                 b.send()
-        except (timeout or TTransportException or IOError) as inst:
+        # TTransportException not caught since update of happybase, 
+        # Define TTTransportException as happybase._thriftpy.transport.TTransport.TTransportException?
+        except (timeout or TTransportException or TTTransportException or IOError) as inst:
             self.refresh_hbase_conn("push_cu_feats_id")
             self.push_cu_feats_id(rows_update, cu_feat_ids, previous_err+1, inst)
         
