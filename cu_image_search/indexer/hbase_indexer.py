@@ -247,7 +247,7 @@ class HBaseIndexer(GenericIndexer):
                 #     table_sha1infos = connection.table(self.table_sha1infos_name)
                 #     # this throws a socket timeout?...
                 #     rows = table_sha1infos.rows(list_sha1s)
-            #except (timeout or TTransportException or IOError) as inst:
+            #except (timeout, TTransportException, IOError) as inst:
             except Exception as inst: # try to catch any exception
                 print "[get_full_sha1_rows: error] {}".format(inst)
                 self.refresh_hbase_conn("get_full_sha1_rows")
@@ -283,7 +283,8 @@ class HBaseIndexer(GenericIndexer):
                 with self.pool.connection() as connection:
                     table_sha1_sim = connection.table(self.table_sim_name)
                     rows = table_sha1_sim.rows(list_sha1s)
-            except (timeout or TTransportException or IOError) as inst:
+            #except (timeout, TTransportException, TException, IOError) as inst:
+            except Exception as inst: # try to catch any exception
                 self.refresh_hbase_conn("get_similar_images_from_sha1")
                 return self.get_similar_images_from_sha1(list_sha1s, previous_err+1, inst)
         return rows
