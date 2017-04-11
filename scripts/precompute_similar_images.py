@@ -24,8 +24,8 @@ def process_one_update(up_obj):
 	if update_id:
 		# mark info:precomp_started in escorts_images_updates_dev
 		up_obj.indexer.write_batch([(update_id, {up_obj.indexer.precomp_started: 'True'})], up_obj.indexer.table_updateinfos_name)
-		
-		# precompute similarities using searcher [need to write a search from sha1 method, just precomp part of search_from_image_filenames]
+
+		# precompute similarities using searcher [need to finalize search from sha1 method search_from_sha1_list, just precomp part of search_from_image_filenames]
 		# push similarities to escorts_images_similar_row_dev
 		# push similarities to an hbase table escorts_images_similar_row_dev_2017_weekXX for Amandeep?
 		# mark precomp_sim true in escorts_images_sha1_infos_dev

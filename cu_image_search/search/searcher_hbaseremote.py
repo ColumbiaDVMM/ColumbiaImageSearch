@@ -543,6 +543,84 @@ class Searcher():
         return outp, outputname
 
 
+    def search_from_sha1_list(self, all_img_sha1s, search_id, options_dict=dict()):
+        # compute all sha1s
+        start_search = time.time()
+        corrupted = []
+        list_sha1_id = []
+        valid_images = []
+        
+        #print "[Searcher.search_from_image_filenames: log] valid_images {}".format(valid_images)
+        # get indexed images
+        list_ids_sha1_found = self.indexer.get_ids_from_sha1s(all_img_sha1s)
+        if len(all_img_sha1s) != len(list_ids_sha1_found):
+            print 
+        print "[Searcher.search_from_sha1_list: log] list_ids_sha1_found {} vs. ".format(list_ids_sha1_found)
+        tmp_list_ids_found = [x[0] for x in list_ids_sha1_found if x[0] is not None]
+        list_sha1_found = [x[1] for x in list_ids_sha1_found if x[0] is not None]
+        #print "[Searcher.search_from_sha1_list: log] list_sha1_id {}".format(list_sha1_id)
+        #print "[Searcher.search_from_sha1_list: log] list_sha1_found {}".format(list_sha1_found)
+        # this is to keep proper ordering
+        list_ids_found = [tmp_list_ids_found[list_sha1_found.index(sha1)] for sha1 in list_sha1_id if sha1 in list_sha1_found]
+        #print "[Searcher.search_from_sha1_list: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
+        print "[Searcher.search_from_sha1_list: log] list_ids_found {}".format(list_ids_found)
+        if list_ids_found:
+            # get the features, hasher starts to count at 1
+            feats,ok_ids = self.indexer.hasher.get_precomp_feats([x+1 for x in list_ids_found])
+            if len(ok_ids)!=len(list_ids_found):
+                raise ValueError("[Searcher.search_from_sha1_list: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
+        # compute new images features
+        not_indexed_sha1 = set(list_sha1_id)-set(list_sha1_found)
+        #res = self.indexer.get_precomp_from_sha1(list_ids_sha1_found)
+        new_files = []
+        all_valid_images = []
+        precomp_img_filenames=[]
+        for i,sha1,image_name in valid_images:
+            if sha1 in list_sha1_found: # image is indexed
+                precomp_img_filenames.append(image_name)
+            else:
+                new_files.append(image_name)
+            all_valid_images.append(all_img_filenames[i])
+        # check images are jpeg (and convert them here?)
+        print "[Searcher.search_from_sha1_list: log] all_valid_images {}".format(all_valid_images)
+        print "[Searcher.search_from_sha1_list: log] new_files {}".format(new_files)
+        features_filename = self.compute_features_listimgfiles(new_files, search_id)
+        #features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
+        #if ins_num!=len(new_files):
+        #    raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
+        # merge feats with features_filename
+        final_featuresfile = search_id+'.dat'
+        read_dim = self.features_dim*4
+        read_type = np.float32
+        features_wrote = 0
+        #print "[Searcher.search_from_image_filenames: log] feats {}".format(feats)
+        with open(features_filename,'rb') as new_feats, open(final_featuresfile,'wb') as out:
+            for image_name in all_valid_images:
+                #print "[Searcher.search_from_image_filenames: log] saving feature of image {}".format(image_name)
+                if image_name in precomp_img_filenames:
+                    # select precomputed 
+                    precomp_pos = precomp_img_filenames.index(image_name)
+                    #print "[Searcher.search_from_image_filenames: log] getting precomputed feature at position {}".format(precomp_pos)
+                    tmp_feat = feats[precomp_pos][:]
+                else:
+                    # read from new feats
+                    tmp_feat = np.frombuffer(new_feats.read(read_dim),dtype=read_type)
+                print "[Searcher.search_from_sha1_list: log] tmp_feat for image {} has norm {} and is: {}".format(image_name,np.linalg.norm(tmp_feat),tmp_feat)
+                out.write(tmp_feat)
+                features_wrote += 1
+        print "[Searcher.search_from_sha1_list: log] Search prepared in {}s".format(time.time() - start_search)
+        if features_wrote:
+            # query with merged features_filename
+            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+        outputname = simname[:-4]+".json"
+        start_format = time.time()
+        outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
+        print "[Searcher.search_from_sha1_list: log] Formatting done in {}s".format(time.time() - start_format)
+        print "[Searcher.search_from_sha1_list: log] saving output to {}".format(outputname)
+        json.dump(outp, open(outputname,'w'), indent=4, sort_keys=False)    
+        print "[Searcher.search_from_sha1_list: log] Search done in {}s".format(time.time() - start_search)
+        return outp, outputname
+
     # # this is not yet working.
     # def search_from_image_filenames_nodiskout(self, all_img_filenames, search_id, options_dict=dict()):
     #     # compute all sha1s
