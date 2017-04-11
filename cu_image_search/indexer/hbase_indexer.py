@@ -60,6 +60,13 @@ class HBaseIndexer(GenericIndexer):
         self.initializing = False
         self.refresh_inqueue = False
         self.index_batches = []
+        # similarities precompuptation
+        self.precomp_batches = []
+        # TODO: markers could be defined in conf?
+        self.precomp_valid_marker = "info:indexed"
+        self.precomp_start_marker = "info:precomp_start"
+        self.precomp_end_marker = "info:precomp_finish"
+        
         self.sha1_featid_mapping = []
         self.initialize_sha1_mapping()
 
@@ -174,7 +181,7 @@ class HBaseIndexer(GenericIndexer):
         return nb_indexed
 
 
-    def refresh_hbase_conn(self, calling_function, sleep_time=2):
+    def refresh_hbase_conn(self, calling_function, sleep_time=0):
         dt_iso = datetime.utcnow().isoformat()
         print("[HBaseIndexer.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function, dt_iso))
         time.sleep(sleep_time)
@@ -677,11 +684,12 @@ class HBaseIndexer(GenericIndexer):
         return True
 
 
-    def get_next_batch(self, only_not_indexed=False):
+    def get_next_batch(self, only_not_indexed=False, previous_err=0, inst=None):
         """ Get next update batch. 
 
         :returns (update_id, list_sha1s): returns a batch to be indexed.
         """
+        self.check_errors(previous_err, "get_next_batch", inst)
         try:
             if not self.index_batches:
                 with self.pool.connection() as connection:
@@ -702,12 +710,63 @@ class HBaseIndexer(GenericIndexer):
             else:
                 # look for the ones marked as 'info:started' if they are not finished
                 if not only_not_indexed:
-                    return self.get_next_batch(True)
+                    return self.get_next_batch(True, previous_err, inst)
                 batch = (None, None)
-        except timeout as inst:
-            self.refresh_hbase_conn("get_next_batch", sleep_time=4)
-            return self.get_next_batch()
+        except Exception as inst:
+            self.refresh_hbase_conn("get_next_batch")
+            return self.get_next_batch(only_not_indexed, previous_err+1, inst)
         return batch
+
+
+    def get_next_batch_precomp_sim(self, only_not_precomp=False, previous_err=0, inst=None):
+        """ Get next batch to precompute similarities. 
+
+        :returns (update_id, list_sha1s): returns a batch to precompute similarities for.
+        """
+        self.check_errors(previous_err, "get_next_batch_precomp_sim", inst)
+        try:
+            if not self.precomp_batches:
+                with self.pool.connection() as connection:
+                    table_updateinfos = connection.table(self.table_updateinfos_name)
+                    # need to specify batch size to avoid timeout
+                    for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~', batch_size=batch_size):
+                        if self.precomp_valid_marker in row[1] and self.precomp_end_marker not in row[1]:
+                            if only_not_precomp:
+                                self.precomp_batches.append((row[0], row[1]["info:list_sha1s"]))
+                            else:
+                                # batch as corrupted when dimensions mismatch during indexing
+                                if self.precomp_start_marker not in row[1] and 'info:corrupted' not in row[1]:
+                                    self.precomp_batches.append((row[0], row[1]["info:list_sha1s"]))
+                        #if "info:indexed" not in row[1] and 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
+                        #    self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
+            if self.precomp_batches:
+                batch = self.precomp_batches.pop()
+            else:
+                # look for the ones marked as 'info:started' if they are not finished?
+                # risk to start twice the same one? run only if started a while ago e.g. more than 24h?
+                if not only_not_precomp:
+                    return self.get_next_batch_precomp_sim(True, previous_err, inst)
+                batch = (None, None)
+        except Exception as inst:
+            self.refresh_hbase_conn("get_next_batch_precomp_sim")
+            return self.get_next_batch_precomp_sim(only_not_precomp, previous_err+1, inst)
+        return batch
+
+
+    def get_create_table(table_name, families={'info': dict()}):
+        with self.pool.connection() as connection:
+            try:
+                table = connection.table(table_name)
+                return table
+            # what exception would be raised if table does not exist
+            except Exception as inst:
+                print inst
+                # connection.create_table(table_name, families)
+                # table = connection.table(table_name)
+                # return table
+
+
+
 
 
     ### Deprecated. Was used when ingesting form CDR was done in a python script and not with a Spark job.
