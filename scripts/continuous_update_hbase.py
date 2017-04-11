@@ -24,23 +24,23 @@ if __name__=="__main__":
             time_lapse = ctime - lasttime
             if time_lapse < interval:
                 if up_obj.has_indexed:
+                    print('[continuous_update_hbase] Update took {} seconds.'.format(time.time()-lasttime))
                     # we should refresh the API, only call that when totally finished update?
-                    print('[continuous_update_hbase] refreshing the API.')
+                    print('[continuous_update_hbase] Refreshing the API.')
                     up_obj.refresh_API()
-                    print('[continuous_update_hbase] refreshed the API.')
+                    print('[continuous_update_hbase] Refreshed the API.')
                     # need to call ../cache.sh also
-                    print('[continuous_update_hbase] refreshing cache.')
+                    print('[continuous_update_hbase] Refreshing cache.')
                     proc = subprocess.Popen('../cache.sh', stdout=subprocess.PIPE)
                     (out, err) = proc.communicate()
-                    print('[continuous_update_hbase] refreshed cache. output was: {}, error was: {}'.format(out, err))
+                    print('[continuous_update_hbase] Refreshed cache. output was: {}, error was: {}'.format(out, err))
                     up_obj.has_indexed = False
                 else:
-                    print('[continuous_update_hbase] sleeping for {} seconds...'.format(interval-time_lapse))
+                    print('[continuous_update_hbase] Sleeping for {} seconds...'.format(interval-time_lapse))
                     sys.stdout.flush()
                     time.sleep(interval-time_lapse)
             lasttime = time.time()
             up_obj.run_update()
-            print('[continuous_update_hbase] Update took {} seconds.'.format(time.time()-lasttime))            
         except Exception as inst:
             print "Update failed at {} with error {}.".format(datetime.now(),inst)
 
