@@ -41,7 +41,7 @@ def check_indexed_noprecomp(up_obj, list_sha1s):
     return valid_sha1s, not_indexed_sha1s, precomp_sim_sha1s
 
 
-def read_sim_precomp(simname, up_obj):
+def read_sim_precomp(simname, up_obj, near_dup_th):
     # intialization
     sim = []
     sim_score = []
@@ -54,12 +54,7 @@ def read_sim_precomp(simname, up_obj):
             #sim_index.append([])
             nums = line.replace(' \n','').split(' ')
             #filter near duplicate here
-            if (self.near_dup and "near_dup" not in options_dict) or ("near_dup" in options_dict and options_dict["near_dup"]):
-                if "near_dup_th" in options_dict:
-                    near_dup_th = options_dict["near_dup_th"]
-                else:
-                    near_dup_th = self.near_dup_th
-                nums = self.filter_near_dup(nums, near_dup_th)
+            nums = self.filter_near_dup(nums, near_dup_th)
             #print nums
             onum = len(nums)/2
             n = min(self.sim_limit,onum)
@@ -82,8 +77,8 @@ def read_sim_precomp(simname, up_obj):
 
     
 
-def format_batch_sim(simname, valid_sha1s, corrupted, up_obj):
-    sim, sim_score = read_sim_precomp(simname, up_obj)
+def format_batch_sim(simname, valid_sha1s, corrupted, up_obj, near_dup_th):
+    sim, sim_score = read_sim_precomp(simname, up_obj, near_dup_th)
     # batch_sim: should be a list of sha1 row key, dict of all "s:similar_sha1": dist_value
     batch_sim = []
     # batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
@@ -128,7 +123,7 @@ def process_one_update(up_obj, searcher):
         # format for saving in HBase:
         # - batch_sim: should be a list of sha1 row key, dict of "s:similar_sha1": dist_value
         # - batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
-        batch_sim, batch_mark_precomp_sim = format_batch_sim(simname, valid_sha1s, corrupted, up_obj)
+        batch_sim, batch_mark_precomp_sim = format_batch_sim(simname, valid_sha1s, corrupted, up_obj, searcher.near_dup_th)
 
         # push similarities to HBI_table_sim (escorts_images_similar_row_dev) using up_obj.indexer.write_batch
         up_obj.indexer.write_batch(batch_sim, up_obj.indexer.table_sim_name)
