@@ -563,7 +563,7 @@ class Searcher():
         # this should not be empty
         corrupted = list(set(all_img_sha1s)-set(list_sha1_found))
         if not corrupted:
-            print "[Searcher.search_from_sha1_list_get_simname: log] some sha1s were not found: {}".format(not_indexed_sha1)
+            print "[Searcher.search_from_sha1_list_get_simname: log] some sha1s were not found: {}".format(corrupted)
         final_featuresfile = search_id+'.dat'
         read_dim = self.features_dim*4
         read_type = np.float32
