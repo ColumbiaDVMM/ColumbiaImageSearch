@@ -43,6 +43,7 @@ class HBaseIndexer(GenericIndexer):
         self.bits_num = self.global_conf['HA_bits_num']
         self.sha1_featid_mapping_filename = self.global_conf['HBI_sha1_featid_mapping_filename']
         self.cu_feat_id_column = "info:cu_feat_id" # could be loaded from conf
+        self.precomp_sim_column = "info:precomp_sim" # could be loaded from conf
         self.discarded_column = "image_discarded" # could be loaded from conf
         self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
@@ -237,8 +238,8 @@ class HBaseIndexer(GenericIndexer):
                     table_sha1infos = connection.table(self.table_sha1infos_name)
                     rows = table_sha1infos.rows(list_sha1s)
                     for row in rows:
-                        if "info:cu_feat_id" in row[1]:
-                            found_ids.append((long(row[1]["info:cu_feat_id" ]),str(row[0])))
+                        if self.cu_feat_id_column in row[1]:
+                            found_ids.append((long(row[1][self.cu_feat_id_column]),str(row[0])))
             #except (timeout, TTransportException, TException, IOError) as inst:
             except Exception as inst:
                 self.refresh_hbase_conn("get_ids_from_sha1s_hbase")
