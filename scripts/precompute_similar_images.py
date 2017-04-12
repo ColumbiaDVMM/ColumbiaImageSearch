@@ -57,9 +57,9 @@ def read_sim_precomp(simname, up_obj, searcher):
             nums = searcher.filter_near_dup(nums, searcher.near_dup_th)
             #print nums
             onum = len(nums)/2
-            n = min(self.sim_limit,onum)
+            n = onum
             #print n
-            if n==0: # no returned images, e.g. no near duplicate
+            if onum==0: # no returned images, e.g. no near duplicate
                 sim.append(())
                 sim_score.append([])
                 continue
