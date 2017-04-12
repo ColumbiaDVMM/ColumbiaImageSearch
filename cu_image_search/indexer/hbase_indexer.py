@@ -754,17 +754,17 @@ class HBaseIndexer(GenericIndexer):
         return batch
 
 
-    def get_create_table(table_name, families={'info': dict()}):
+    def get_create_table(self, table_name, families={'info': dict()}):
         with self.pool.connection() as connection:
             try:
                 table = connection.table(table_name)
                 return table
             # what exception would be raised if table does not exist
             except Exception as inst:
-                print inst
-                # connection.create_table(table_name, families)
-                # table = connection.table(table_name)
-                # return table
+                print("[get_create_table: err] {}".format(inst))
+                connection.create_table(table_name, families)
+                table = connection.table(table_name)
+                return table
 
 
 
