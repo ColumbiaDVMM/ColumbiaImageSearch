@@ -146,6 +146,8 @@ def process_one_update(up_obj, searcher):
         # mark info:precomp_finish in escorts_images_updates_dev
         if not corrupted: # do not mark finished if we faced some issue? mark as corrupted?
         	up_obj.indexer.write_batch([(update_id, {up_obj.indexer.precomp_finished: 'True'})], up_obj.indexer.table_updateinfos_name)
+        # TODO clean up
+        # remove simname and features file
 
 
 if __name__ == "__main__":
