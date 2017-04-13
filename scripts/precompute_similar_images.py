@@ -145,13 +145,14 @@ def process_one_update(up_obj, searcher):
             up_obj.indexer.write_batch([(update_id, {up_obj.indexer.precomp_end_marker: 'True'})], up_obj.indexer.table_updateinfos_name)
         print("[process_one_update: log] Processed update {} in {}s.".format(update_id, time.time() - start_precomp))
         # TODO clean up
-        # remove simname 
-        os.remove(simname)
-        # remove features file
-        featfirst = simname.split('-')[0]
-        featfn = featfirst+'.dat'
-        print featfn
-        os.remove(featfn)
+        if simname:
+            # remove simname 
+            os.remove(simname)
+            # remove features file
+            featfirst = simname.split('-')[0]
+            featfn = featfirst+'.dat'
+            print featfn
+            os.remove(featfn)
 
 
 if __name__ == "__main__":
