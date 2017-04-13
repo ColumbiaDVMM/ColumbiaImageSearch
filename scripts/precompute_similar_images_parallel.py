@@ -33,7 +33,7 @@ def producer(global_conf_file, queueIn, queueProducer):
             start_precomp = time.time()
             searcher_producer.indexer.write_batch([(update_id, {searcher_producer.indexer.precomp_start_marker: 'True'})], searcher_producer.indexer.table_updateinfos_name)
             # push updates to be processed in queueIn
-            print "[producer: log] Pushing update {} at {}.".format(update_id, get_now())
+            print "[producer: log] Pushing update {} in queue containing {} items at {}.".format(update_id, queueIn.qsize(), get_now())
             sys.stdout.flush()
             queueIn.put((update_id, str_list_sha1s, start_precomp))
 
@@ -42,13 +42,15 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
     print "[consumer: log] Started a consumer worker (pid: {}) at {}".format(os.getpid(), get_now())
     sys.stdout.flush()
     searcher_consumer = searcher_hbaseremote.Searcher(global_conf_file)
-    print "[consumer: log] Consumer worker ready at {}".format(get_now())
+    print "[consumer: log] Consumer worker (pid: {}) ready at {}".format(os.getpid(), get_now())
     queueConsumer.put("Consumer ready")
     sys.stdout.flush()
     while True:
         ## reads from queueIn
+        print "[consumer: log] Consumer worker (pid: {}) waiting for update at {}".format(os.getpid(), get_now())
+        sys.stdout.flush()
         update_id, str_list_sha1s, start_precomp = queueIn.get()
-        print "[consumer: log] Got update {} to process at {}".format(update_id, get_now())
+        print "[consumer: log] Consumer worker (pid: {}) got update {} to process at {}".format(os.getpid(), update_id, get_now())
         sys.stdout.flush()
         ## search
         start_search = time.time()
@@ -58,7 +60,7 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
         simname, corrupted = searcher_consumer.search_from_sha1_list_get_simname(valid_sha1s, update_id)
         elapsed_search = time.time() - start_search
         print "[consumer: log] Processed update {} at {}. Search performed in {}s.".format(update_id, get_now(), elapsed_search)
-
+        sys.stdout.flush()
         ## push to queueOut
         queueOut.put((update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search))
         queueIn.task_done()
@@ -68,12 +70,12 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
     print "[finalizer: log] Started a finalizer worker (pid: {}) at {}".format(os.getpid(), get_now())
     sys.stdout.flush()
     searcher_finalizer = searcher_hbaseremote.Searcher(global_conf_file)
-    print "[finalizer: log] Finalizer worker ready at {}".format(get_now())
+    print "[finalizer: log] Finalizer worker (pid: {}) ready at {}".format(os.getpid(), get_now())
     queueFinalizer.put("Finalizer ready")
     while True:
         ## Read from queueOut
         update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search = queueOut.get()
-        print "[finalizer: log] Got update {} to finalize at {}".format(update_id, get_now())
+        print "[finalizer: log] Finalizer worker (pid: {}) got update {} to finalize at {}".format(os.getpid(), update_id, get_now())
         sys.stdout.flush()
         ## Push computed similarities
         # format for saving in HBase:
@@ -237,6 +239,8 @@ def parallel_precompute(global_conf_file):
     finalizerOK = queueFinalizer.get()
     for i in range(nb_workers):
     	consumerOK = queueConsumer.get()
+    print "[parallel_precompute: log] All workers are ready."
+    sys.stdout.flush()
     # Wait for everything to be finished
     time.sleep(time_sleep)
     queueIn.join()
