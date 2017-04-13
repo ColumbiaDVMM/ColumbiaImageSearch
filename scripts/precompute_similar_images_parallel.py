@@ -15,12 +15,18 @@ from cu_image_search.search import searcher_hbaseremote
 nb_workers = 8
 time_sleep = 60
 
-def producer(global_conf_file, queueIn):
+def producer(global_conf_file, queueIn, queueProducer):
     print "[producer: log] Started a producer worker at {}".format(get_now())
     sys.stdout.flush()
     searcher_producer = searcher_hbaseremote.Searcher(global_conf_file)
+    print "[producer: log] Producer worker ready at {}".format(get_now())
+    queueProducer.put("Producer ready")
     while True:
+    	start_get_batch = time.time()
         update_id, str_list_sha1s = searcher_producer.indexer.get_next_batch_precomp_sim()
+        #queueProducer.put("Producer got batch")
+        print "[producer: log] Got batch in {}s at {}".format(time.time() - start_get_batch, get_now())
+        sys.stdout.flush()
         if update_id is None:
             print "[producer: log] No more update to process."
         else:
@@ -32,11 +38,12 @@ def producer(global_conf_file, queueIn):
             queueIn.put((update_id, str_list_sha1s, start_precomp))
 
 
-def consumer(global_conf_file, queueIn, queueOut):
+def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
     print "[consumer: log] Started a consumer worker at {}".format(get_now())
     sys.stdout.flush()
     searcher_consumer = searcher_hbaseremote.Searcher(global_conf_file)
     print "[consumer: log] Consumer worker ready at {}".format(get_now())
+    queueConsumer.put("Consumer ready")
     sys.stdout.flush()
     while True:
         ## reads from queueIn
@@ -57,10 +64,12 @@ def consumer(global_conf_file, queueIn, queueOut):
         queueIn.task_done()
 
 
-def finalizer(global_conf_file, queueOut):
+def finalizer(global_conf_file, queueOut, queueFinalizer):
     print "[finalizer: log] Started a finalizer worker at {}".format(get_now())
     sys.stdout.flush()
     searcher_finalizer = searcher_hbaseremote.Searcher(global_conf_file)
+    print "[finalizer: log] Finalizer worker ready at {}".format(get_now())
+    queueFinalizer.put("Finalizer ready")
     while True:
         ## Read from queueOut
         update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search = queueOut.get()
@@ -205,21 +214,29 @@ def parallel_precompute(global_conf_file):
     # Define queues
     queueIn = Queue(nb_workers*2)
     queueOut = Queue(nb_workers*2)
+    queueProducer = Queue()
+    queueFinalizer = Queue()
+    queueConsumer = Queue(nb_workers)
 
     # Start finalizer
-    t = Thread(target=finalizer, args=(global_conf_file, queueOut))
+    t = Thread(target=finalizer, args=(global_conf_file, queueOut, queueFinalizer))
     t.daemon = True
     t.start()
     # Start consumers
     for i in range(nb_workers):
-        t = Thread(target=consumer, args=(global_conf_file, queueIn, queueOut))
+        t = Thread(target=consumer, args=(global_conf_file, queueIn, queueOut, queueConsumer))
         t.daemon = True
         t.start()
     # Start producer
-    t = Thread(target=producer, args=(global_conf_file, queueIn))
+    t = Thread(target=producer, args=(global_conf_file, queueIn, queueProducer))
     t.daemon = True
     t.start()
 
+    # Wait for everything to be started properly
+    producerOK = queueProducer.get()
+    finalizerOK = queueFinalizer.get()
+    for i in range(nb_workers):
+    	consumerOK = queueConsumer.get()
     # Wait for everything to be finished
     time.sleep(time_sleep)
     queueIn.join()
