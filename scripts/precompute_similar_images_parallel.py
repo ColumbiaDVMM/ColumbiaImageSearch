@@ -6,7 +6,7 @@ import happybase
 
 # parallel
 from Queue import Queue
-from threading import Thread
+from multiprocessing import Process
 
 sys.path.append('..')
 import cu_image_search
@@ -16,7 +16,7 @@ nb_workers = 8
 time_sleep = 60
 
 def producer(global_conf_file, queueIn, queueProducer):
-    print "[producer: log] Started a producer worker at {}".format(get_now())
+    print "[producer: log] Started a producer worker (pid: {}) at {}".format(os.getpid(), get_now())
     sys.stdout.flush()
     searcher_producer = searcher_hbaseremote.Searcher(global_conf_file)
     print "[producer: log] Producer worker ready at {}".format(get_now())
@@ -39,7 +39,7 @@ def producer(global_conf_file, queueIn, queueProducer):
 
 
 def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
-    print "[consumer: log] Started a consumer worker at {}".format(get_now())
+    print "[consumer: log] Started a consumer worker (pid: {}) at {}".format(os.getpid(), get_now())
     sys.stdout.flush()
     searcher_consumer = searcher_hbaseremote.Searcher(global_conf_file)
     print "[consumer: log] Consumer worker ready at {}".format(get_now())
@@ -65,7 +65,7 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
 
 
 def finalizer(global_conf_file, queueOut, queueFinalizer):
-    print "[finalizer: log] Started a finalizer worker at {}".format(get_now())
+    print "[finalizer: log] Started a finalizer worker (pid: {}) at {}".format(os.getpid(), get_now())
     sys.stdout.flush()
     searcher_finalizer = searcher_hbaseremote.Searcher(global_conf_file)
     print "[finalizer: log] Finalizer worker ready at {}".format(get_now())
@@ -219,16 +219,16 @@ def parallel_precompute(global_conf_file):
     queueConsumer = Queue(nb_workers)
 
     # Start finalizer
-    t = Thread(target=finalizer, args=(global_conf_file, queueOut, queueFinalizer))
+    t = Process(target=finalizer, args=(global_conf_file, queueOut, queueFinalizer))
     t.daemon = True
     t.start()
     # Start consumers
     for i in range(nb_workers):
-        t = Thread(target=consumer, args=(global_conf_file, queueIn, queueOut, queueConsumer))
+        t = Process(target=consumer, args=(global_conf_file, queueIn, queueOut, queueConsumer))
         t.daemon = True
         t.start()
     # Start producer
-    t = Thread(target=producer, args=(global_conf_file, queueIn, queueProducer))
+    t = Process(target=producer, args=(global_conf_file, queueIn, queueProducer))
     t.daemon = True
     t.start()
 
