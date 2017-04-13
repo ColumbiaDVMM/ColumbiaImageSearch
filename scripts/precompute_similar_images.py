@@ -98,7 +98,7 @@ def format_batch_sim(simname, valid_sha1s, corrupted, searcher):
         batch_sim.append(sim_row)
         batch_mark_precomp_sim.append((sha1,{searcher.indexer.precomp_sim_column: 'True'}))
         i_img += 1
-    print batch_sim
+    #print batch_sim
     #print batch_mark_precomp_sim
     return batch_sim, batch_mark_precomp_sim
 
@@ -116,9 +116,6 @@ def process_one_update(searcher):
         valid_sha1s, not_indexed_sha1s, precomp_sim_sha1s = check_indexed_noprecomp(searcher, str_list_sha1s.split(','))
 
         # precompute similarities using searcher 
-        # [need to finalize search from sha1 method search_from_sha1_list, just precomp part of search_from_image_filenames]
-        # we don't need the formatting step (especially the s3 urls). 
-        # we just need sha1q, sha1sim, dist. get simname and do something like in read_sim?
         simname, corrupted = searcher.search_from_sha1_list_get_simname(valid_sha1s, update_id)
         #print corrupted
         # format for saving in HBase:
@@ -150,7 +147,7 @@ def process_one_update(searcher):
             # remove features file
             featfirst = simname.split('-')[0]
             featfn = featfirst+'.dat'
-            print featfn
+            #print "[process_one_update: log] Removing file {}".format(featfn)
             os.remove(featfn)
 
 
