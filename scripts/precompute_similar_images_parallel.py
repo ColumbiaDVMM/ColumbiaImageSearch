@@ -105,17 +105,20 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
         if not corrupted: # do not mark finished if we faced some issue? mark as corrupted?
             searcher_finalizer.indexer.write_batch([(update_id, {searcher_finalizer.indexer.precomp_end_marker: 'True'})],
                                                    searcher_finalizer.indexer.table_updateinfos_name)
-        print("[finalizer: log] Finalize update {} at {} in {}s total.".format(update_id, get_now(), time.time() - start_precomp))
+        print "[finalizer: log] Finalize update {} at {} in {}s total.".format(update_id, get_now(), time.time() - start_precomp)
         sys.stdout.flush()
         ## Cleanup
         if simname:
-            # remove simname 
-            os.remove(simname)
-            # remove features file
-            featfirst = simname.split('-')[0]
-            featfn = featfirst+'.dat'
-            #print "[process_one_update: log] Removing file {}".format(featfn)
-            os.remove(featfn)
+            try:
+                # remove simname 
+                os.remove(simname)
+                # remove features file
+                featfirst = simname.split('sim')[0]
+                featfn = featfirst[:-1]+'.dat'
+                #print "[process_one_update: log] Removing file {}".format(featfn)
+                os.remove(featfn)
+            except Exception as inst:
+                print "[finalizer: error] Could not cleanup. Error was: {}".format(inst)
         queueOut.task_done()
 
 
