@@ -33,7 +33,7 @@ def producer(global_conf_file, queueIn, queueProducer):
             start_precomp = time.time()
             # check that sha1s of batch have no precomputed similarities already in sha1_infos table
             valid_sha1s, not_indexed_sha1s, precomp_sim_sha1s = check_indexed_noprecomp(searcher_producer, str_list_sha1s.split(','))
-        
+            # should we split valid_sha1s in batches of 100 or something smaller than 10K currently?
             searcher_producer.indexer.write_batch([(update_id, {searcher_producer.indexer.precomp_start_marker: 'True'})], searcher_producer.indexer.table_updateinfos_name)
             # push updates to be processed in queueIn
             # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Queue.qsize
@@ -221,8 +221,12 @@ def format_batch_sim(simname, valid_sha1s, corrupted, searcher):
             if sha1 in corrupted:
                 continue
             sim_columns = dict()
+
             for i_sim,sim_img in enumerate(sim[i_img]):
                 sim_columns["s:"+str(sim_img)] = str(sim_score[i_img][i_sim])
+                sim_reverse = dict()
+                sim_reverse["s:"+sha1] = str(sim_score[i_img][i_sim])
+                batch_sim.append((str(sim_img), sim_reverse))
             sim_row = (sha1, sim_columns)
             batch_sim.append(sim_row)
             batch_mark_precomp_sim.append((sha1,{searcher.indexer.precomp_sim_column: 'True'}))
