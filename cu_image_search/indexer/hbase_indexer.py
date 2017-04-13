@@ -758,6 +758,8 @@ class HBaseIndexer(GenericIndexer):
         with self.pool.connection() as connection:
             try:
                 table = connection.table(table_name)
+                # this would fail if table does not exist
+                fam = table.families()
                 return table
             # what exception would be raised if table does not exist
             except Exception as inst:
