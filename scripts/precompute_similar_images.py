@@ -109,7 +109,7 @@ def process_one_update(up_obj, searcher):
         print("[process_one_update: log] Processing update {}".format(update_id))
         #print str_list_sha1s
         # mark info:precomp_started in escorts_images_updates_dev
-        #up_obj.indexer.write_batch([(update_id, {up_obj.indexer.precomp_started: 'True'})], up_obj.indexer.table_updateinfos_name)
+        up_obj.indexer.write_batch([(update_id, {up_obj.indexer.precomp_start_marker: 'True'})], up_obj.indexer.table_updateinfos_name)
 
         # check that sha1s of batch have no precomputed similarities already in sha1_infos table
         valid_sha1s, not_indexed_sha1s, precomp_sim_sha1s = check_indexed_noprecomp(up_obj, str_list_sha1s.split(','))
@@ -140,7 +140,7 @@ def process_one_update(up_obj, searcher):
         up_obj.indexer.write_batch(batch_mark_precomp_sim, up_obj.indexer.table_sha1infos_name)
         # mark info:precomp_finish in escorts_images_updates_dev
         if not corrupted: # do not mark finished if we faced some issue? mark as corrupted?
-        	up_obj.indexer.write_batch([(update_id, {up_obj.indexer.precomp_finished: 'True'})], up_obj.indexer.table_updateinfos_name)
+        	up_obj.indexer.write_batch([(update_id, {up_obj.indexer.precomp_end_marker: 'True'})], up_obj.indexer.table_updateinfos_name)
         # TODO clean up
         # remove simname and features file
 
