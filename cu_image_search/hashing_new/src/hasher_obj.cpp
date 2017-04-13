@@ -118,8 +118,9 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     // Allocate temporary matrices
     Mat feats_mat_double;
     feats_mat.convertTo(feats_mat_double, CV_64F);
-    int feats_num = feats_mat.rows;
-    cout << "[compute_hashcodes_from_feats] Computing hashcodes for " << feats_num << " features." << endl;
+    int feats_num = feats_mat_double.rows;
+    int feats_dim = feats_mat_double.cols;
+    cout << "[compute_hashcodes_from_feats] Computing hashcodes for " << feats_num << " features (dim: " << feats_dim << ")." << endl;
     mvec = repeat(mvec, feats_num, 1);
     // Project features
     Mat realvalued_hash = feats_mat_double*W-mvec;
@@ -206,7 +207,7 @@ void HasherObject::find_knn() {
         t[7] += get_wall_time() - t_start;
         query += int_num;
         query_feature += feature_dim;
-        if ((k % query_num/10 == 0) && (k > 0)) {
+        if ((k % (query_num/10) == 0) && (k > 0)) {
             cout <<  "[find_knn] Looking for similar images. Processed " << k << " images over " << query_num << "queries." << endl;
         }
     }

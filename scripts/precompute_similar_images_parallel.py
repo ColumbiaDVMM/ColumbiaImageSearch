@@ -160,7 +160,7 @@ def check_indexed_noprecomp(searcher, list_sha1s):
             print "[check_indexed_noprecomp: log] found image {} with already precomputed similar images".format(str(row[0]))
             sys.stdout.flush()
             continue
-        valid_sha1s.append((int(row[1][searcher.indexer.cu_feat_id_column]), str(row[0])))
+        valid_sha1s.append((long(row[1][searcher.indexer.cu_feat_id_column]), str(row[0])))
     # v1 was:
     #valid_sha1s = list(set(list_sha1s) - set(not_indexed_sha1s) - set(precomp_sim_sha1s))
     msg = "{} valid sha1s, {} not indexed sha1s, {} already precomputed similarities sha1s."
@@ -217,7 +217,9 @@ def format_batch_sim(simname, valid_sha1s, corrupted, searcher):
             print "[format_batch_sim: warning] corrupted is: {}.".format(corrupted)
         # deal with corrupted
         i_img = 0
-        for i,sha1 in enumerate(valid_sha1s):
+        for i,id_sha1 in enumerate(valid_sha1s):
+            # now valid_sha1s is a list of id and sha1 tuples
+            img_id, sha1 = id_sha1
             if sha1 in corrupted:
                 continue
             sim_columns = dict()

@@ -701,7 +701,7 @@ class HBaseIndexer(GenericIndexer):
                     table_updateinfos = connection.table(self.table_updateinfos_name)
                     # need to specify batch size to avoid timeout
                     for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~', batch_size=batch_size):
-                        if "info:indexed" not in row[1]:
+                        if self.index_end_marker not in row[1]:
                             if only_not_indexed:
                                 self.index_batches.append((row[0], row[1][self.batch_list_sha1_column]))
                             else:
