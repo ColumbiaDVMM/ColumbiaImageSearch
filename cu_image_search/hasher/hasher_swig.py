@@ -4,6 +4,7 @@ import sys
 import time
 import json
 import shutil
+import random
 import subprocess
 import numpy as np
 from .generic_hasher import GenericHasher
@@ -124,7 +125,7 @@ class HasherSwig(GenericHasher):
         import struct
         query_time = time.time()
         # save queries id in binary file
-        query_precomp_fn = "{}_query_{}_p{}".format(str_precomp, query_time, os.getpid())
+        query_precomp_fn = "{}_query_{}_p{}_{}".format(str_precomp, query_time, os.getpid(), random.random())
         X_fn = "{}_{}".format(str_precomp,query_time)
         with open(query_precomp_fn,"wb") as f_prein:
             for feat_id in list_feats_id:
