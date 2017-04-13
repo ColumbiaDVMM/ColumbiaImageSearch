@@ -5,7 +5,7 @@ import datetime
 import happybase
 
 # parallel
-from Queue import Queue
+from multiprocessing import JoinableQueue as Queue
 from multiprocessing import Process
 
 sys.path.append('..')
@@ -33,7 +33,10 @@ def producer(global_conf_file, queueIn, queueProducer):
             start_precomp = time.time()
             searcher_producer.indexer.write_batch([(update_id, {searcher_producer.indexer.precomp_start_marker: 'True'})], searcher_producer.indexer.table_updateinfos_name)
             # push updates to be processed in queueIn
-            print "[producer: log] Pushing update {} in queue containing {} items at {}.".format(update_id, queueIn.qsize(), get_now())
+            # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Queue.qsize
+            # qsize raises NotImplemented Error on OS X...
+            #print "[producer: log] Pushing update {} in queue containing {} items at {}.".format(update_id, queueIn.qsize(), get_now())
+            print "[producer: log] Pushing update {} at {}.".format(update_id, get_now())
             sys.stdout.flush()
             queueIn.put((update_id, str_list_sha1s, start_precomp))
 
