@@ -12,7 +12,7 @@ sys.path.append('..')
 import cu_image_search
 from cu_image_search.search import searcher_hbaseremote
 
-nb_workers = 2
+nb_workers = 16
 time_sleep = 60
 
 def producer(global_conf_file, queueIn, queueProducer):
