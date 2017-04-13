@@ -121,9 +121,11 @@ unsigned int* HasherObject::compute_hashcodes_from_feats(Mat feats_mat) {
     int feats_num = feats_mat_double.rows;
     int feats_dim = feats_mat_double.cols;
     cout << "[compute_hashcodes_from_feats] Computing hashcodes for " << feats_num << " features (dim: " << feats_dim << ")." << endl;
-    mvec = repeat(mvec, feats_num, 1);
     // Project features
-    Mat realvalued_hash = feats_mat_double*W-mvec;
+    Mat mvec_rep;
+    mvec_rep = repeat(mvec, feats_num, 1);
+    Mat realvalued_hash = feats_mat_double*W-mvec_rep;
+    mvec_rep.release();
     // Binarizing features
     unsigned int * hash_mat = new unsigned int[int_num*feats_num];
     for  (int k=0; k < feats_num; k++)
@@ -190,7 +192,7 @@ void HasherObject::find_knn() {
     init_output_files();
     double t_start;
     int k;
-    cout <<  "[find_knn] Looking for similar images of " << query_num << "queries..." << endl;
+    cout <<  "[find_knn] Looking for similar images of " << query_num << " queries..." << endl;
     for (k=0; k < query_num; k++)
     {
         //cout <<  "[find_knn] Looking for similar images of query #" << k+1 << endl;
@@ -208,7 +210,7 @@ void HasherObject::find_knn() {
         query += int_num;
         query_feature += feature_dim;
         if ((k % (query_num/10) == 0) && (k > 0)) {
-            cout <<  "[find_knn] Looking for similar images. Processed " << k << " images over " << query_num << "queries." << endl;
+            cout <<  "[find_knn] Looking for similar images. Processed " << k << " images over " << query_num << " queries." << endl;
         }
     }
     cout <<  "[find_knn] Done searching knn for " << query_num << " queries." << endl;
