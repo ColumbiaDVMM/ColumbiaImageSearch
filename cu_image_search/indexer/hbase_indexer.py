@@ -44,6 +44,7 @@ class HBaseIndexer(GenericIndexer):
         self.sha1_featid_mapping_filename = self.global_conf['HBI_sha1_featid_mapping_filename']
         self.cu_feat_id_column = "info:cu_feat_id" # could be loaded from conf
         self.precomp_sim_column = "info:precomp_sim" # could be loaded from conf
+        self.batch_list_sha1_column = "info:list_sha1s" # could be loaded from conf
         self.discarded_column = "image_discarded" # could be loaded from conf
         self.refresh_batch_size = self.global_conf['batch_size']
         if len(self.extractions_columns) != len(self.extractions_types):
@@ -64,7 +65,9 @@ class HBaseIndexer(GenericIndexer):
         # similarities precompuptation
         self.precomp_batches = []
         # TODO: markers could be defined in conf?
-        self.precomp_valid_marker = "info:indexed"
+        self.index_end_marker = "info:indexed"
+        self.index_start_marker = "info:started"
+        self.precomp_valid_marker = self.index_end_marker
         self.precomp_start_marker = "info:precomp_start"
         self.precomp_end_marker = "info:precomp_finish"
         
@@ -700,11 +703,11 @@ class HBaseIndexer(GenericIndexer):
                     for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~', batch_size=batch_size):
                         if "info:indexed" not in row[1]:
                             if only_not_indexed:
-                                self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
+                                self.index_batches.append((row[0], row[1][self.batch_list_sha1_column]))
                             else:
                                 # batch as corrupted when dimensions mismatch during indexing
                                 if 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
-                                    self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
+                                    self.index_batches.append((row[0], row[1][self.batch_list_sha1_column]))
                         #if "info:indexed" not in row[1] and 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
                         #    self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
             if self.index_batches:
@@ -734,11 +737,11 @@ class HBaseIndexer(GenericIndexer):
                     for row in table_updateinfos.scan(row_start='index_update_', row_stop='index_update_~', batch_size=batch_size):
                         if self.precomp_valid_marker in row[1] and self.precomp_end_marker not in row[1]:
                             if only_not_precomp:
-                                self.precomp_batches.append((row[0], row[1]["info:list_sha1s"]))
+                                self.precomp_batches.append((row[0], row[1][self.batch_list_sha1_column]))
                             else:
                                 # batch as corrupted when dimensions mismatch during indexing
                                 if self.precomp_start_marker not in row[1] and 'info:corrupted' not in row[1]:
-                                    self.precomp_batches.append((row[0], row[1]["info:list_sha1s"]))
+                                    self.precomp_batches.append((row[0], row[1][self.batch_list_sha1_column]))
                         #if "info:indexed" not in row[1] and 'info:started' not in row[1] and 'info:corrupted' not in row[1]:
                         #    self.index_batches.append((row[0], row[1]["info:list_sha1s"]))
             if self.precomp_batches:
