@@ -546,7 +546,7 @@ class Searcher():
     def search_from_sha1_list_get_simname(self, all_img_sha1s, search_id):
         # get indexed images
         list_ids_sha1_found = self.indexer.get_ids_from_sha1s(all_img_sha1s)
-        print list_ids_sha1_found
+        #print list_ids_sha1_found
         if len(all_img_sha1s) != len(list_ids_sha1_found):
             print "[Searcher.search_from_sha1_list_get_simname: warning] #list_ids_sha1_found {} vs. #img_sha1s {}".format(len(list_ids_sha1_found), len(all_img_sha1s))
         tmp_list_ids_found = [x[0] for x in list_ids_sha1_found if x[0] is not None]
@@ -554,7 +554,7 @@ class Searcher():
         # this is to keep proper ordering
         list_ids_found = [tmp_list_ids_found[list_sha1_found.index(sha1)] for sha1 in all_img_sha1s if sha1 in list_sha1_found]
         #print "[Searcher.search_from_sha1_list: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
-        print "[Searcher.search_from_sha1_list_get_simname: log] list_ids_found {}".format(list_ids_found)
+        #print "[Searcher.search_from_sha1_list_get_simname: log] list_ids_found {}".format(list_ids_found)
         if list_ids_found:
             # get the features, hasher starts to count at 1
             feats, ok_ids = self.indexer.hasher.get_precomp_feats([x+1 for x in list_ids_found])
@@ -562,7 +562,7 @@ class Searcher():
                 raise ValueError("[Searcher.search_from_sha1_list_get_simname: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
         # this should not be empty
         corrupted = list(set(all_img_sha1s)-set(list_sha1_found))
-        if not corrupted:
+        if corrupted:
             print "[Searcher.search_from_sha1_list_get_simname: log] some sha1s were not found: {}".format(corrupted)
         final_featuresfile = search_id+'.dat'
         read_dim = self.features_dim*4
@@ -572,7 +572,7 @@ class Searcher():
         with open(final_featuresfile,'wb') as out:
             for precomp_pos,img_id in enumerate(list_ids_found):
                 tmp_feat = feats[precomp_pos][:]
-                print "[Searcher.search_from_sha1_list_get_simname: log] tmp_feat for image {} has norm {} and is: {}".format(img_id, np.linalg.norm(tmp_feat), tmp_feat)
+                #print "[Searcher.search_from_sha1_list_get_simname: log] tmp_feat for image {} has norm {} and is: {}".format(img_id, np.linalg.norm(tmp_feat), tmp_feat)
                 out.write(tmp_feat)
                 features_wrote += 1
         if features_wrote:
