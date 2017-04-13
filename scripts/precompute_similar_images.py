@@ -10,17 +10,19 @@ from cu_image_search.update import updater_hbase
 from cu_image_search.search import searcher_hbaseremote
 
 
-
 def get_week(today=datetime.datetime.now()):
     return today.strftime("%W")
 
+
 def get_year(today=datetime.datetime.now()):
     return today.strftime("%Y")
+
 
 def get_week_year(today=datetime.datetime.now()):
     week = get_week(today)
     year = get_year(today)
     return week, year
+
 
 def check_indexed_noprecomp(up_obj, list_sha1s):
     columns_check = [up_obj.indexer.cu_feat_id_column, up_obj.indexer.precomp_sim_column]
@@ -73,7 +75,6 @@ def read_sim_precomp(simname, nb_query, up_obj, searcher):
                 break
         f.close()
     return sim, sim_score
-
     
 
 def format_batch_sim(simname, valid_sha1s, corrupted, up_obj, searcher):
@@ -84,14 +85,14 @@ def format_batch_sim(simname, valid_sha1s, corrupted, up_obj, searcher):
     # batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
     batch_mark_precomp_sim = []
     if len(sim) != len(valid_sha1s) or len(sim_score) != len(valid_sha1s):
-    	print "[format_batch_sim: warning] similarities and queries count are different."
-    	print "[format_batch_sim: warning] corrupted is: {}.".format(corrupted)
+        print "[format_batch_sim: warning] similarities and queries count are different."
+        print "[format_batch_sim: warning] corrupted is: {}.".format(corrupted)
     # deal with corrupted
     i_img = 0
     for i,sha1 in enumerate(valid_sha1s):
-    	if sha1 in corrupted:
-    		continue
-    	sim_columns = dict()
+        if sha1 in corrupted:
+            continue
+        sim_columns = dict()
         for i_sim,sim_img in enumerate(sim[i_img]):
             sim_columns["s:"+str(sim_img)] = str(sim_score[i_img][i_sim])
         sim_row = (sha1, sim_columns)
@@ -106,6 +107,7 @@ def format_batch_sim(simname, valid_sha1s, corrupted, up_obj, searcher):
 def process_one_update(up_obj, searcher):
     update_id, str_list_sha1s = up_obj.indexer.get_next_batch_precomp_sim()
     if update_id:
+        start_precomp = time.time()
         print("[process_one_update: log] Processing update {}".format(update_id))
         #print str_list_sha1s
         # mark info:precomp_started in escorts_images_updates_dev
@@ -140,9 +142,16 @@ def process_one_update(up_obj, searcher):
         up_obj.indexer.write_batch(batch_mark_precomp_sim, up_obj.indexer.table_sha1infos_name)
         # mark info:precomp_finish in escorts_images_updates_dev
         if not corrupted: # do not mark finished if we faced some issue? mark as corrupted?
-        	up_obj.indexer.write_batch([(update_id, {up_obj.indexer.precomp_end_marker: 'True'})], up_obj.indexer.table_updateinfos_name)
+            up_obj.indexer.write_batch([(update_id, {up_obj.indexer.precomp_end_marker: 'True'})], up_obj.indexer.table_updateinfos_name)
+        print("[process_one_update: log] Processed update {} in {}s.".format(update_id, time.time() - start_precomp))
         # TODO clean up
-        # remove simname and features file
+        # remove simname 
+        os.remove(simname)
+        # remove features file
+        featfirst = simname.split('-')[0]
+        featfn = featfirst+'.dat'
+        print featfn
+        os.remove(featfn)
 
 
 if __name__ == "__main__":
