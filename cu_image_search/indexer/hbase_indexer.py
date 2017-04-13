@@ -758,19 +758,26 @@ class HBaseIndexer(GenericIndexer):
         return batch
 
 
-    def get_create_table(self, table_name, families={'info': dict()}):
-        with self.pool.connection() as connection:
-            try:
-                table = connection.table(table_name)
-                # this would fail if table does not exist
-                fam = table.families()
-                return table
-            # what exception would be raised if table does not exist
-            except Exception as inst:
-                print("[get_create_table: err] {}".format(inst))
-                connection.create_table(table_name, families)
-                table = connection.table(table_name)
-                return table
+    def get_create_table(self, table_name, families={'info': dict()}, previous_err=0, inst=None):
+        self.check_errors(previous_err, "get_create_table", inst)
+        try:
+            with self.pool.connection() as connection:
+                try:
+                    table = connection.table(table_name)
+                    # this would fail if table does not exist
+                    fam = table.families()
+                    return table
+                # what exception would be raised if table does not exist, actually none.
+                # need to try to access families to get error
+                except Exception as inst:
+                    print("[get_create_table: err] {}".format(inst))
+                    connection.create_table(table_name, families)
+                    table = connection.table(table_name)
+                    return table
+        except Exception as inst:
+            self.refresh_hbase_conn("get_create_table")
+            return self.get_create_table(table_name, families, previous_err+1, inst)
+        
 
 
 

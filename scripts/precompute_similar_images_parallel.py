@@ -15,6 +15,8 @@ from cu_image_search.search import searcher_hbaseremote
 nb_workers = 16
 time_sleep = 60
 
+# should we try/except main loop of producer, consumer and finalizer?
+
 def producer(global_conf_file, queueIn, queueProducer):
     print "[producer: log] Started a producer worker (pid: {}) at {}".format(os.getpid(), get_now())
     sys.stdout.flush()
