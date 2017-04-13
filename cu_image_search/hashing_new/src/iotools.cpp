@@ -188,9 +188,10 @@ int get_n_features(int* query_ids, int query_num, int norm, int bit_num, size_t 
     fill_accum(data_nums, accum);
 
     // Get query feature(s)
+    cout << "Looking for " << query_num << " features..." << endl;
     for (int i=0;i<query_num;i++)
     {
-        cout << "Looking for feature #" << query_ids[i] << endl;
+        //cout << "Looking for feature #" << query_ids[i] << endl;
         // BEWARE: we consider here ids are python/db, so in C they are ids+1...
         // TODO: maybe define a flag python id or not
         status = get_onefeatcomp(query_ids[i]-1,read_size,accum,read_in_compfeatures,read_in_compidx,feature_cp);
@@ -201,7 +202,7 @@ int get_n_features(int* query_ids, int query_num, int norm, int bit_num, size_t 
         }
         feature_cp +=read_size;
     }
-
+    //cout << "Finished looking for " << query_num << " features." << endl;
     // clean exit
     delete[] accum;
     for (int i = 1; i<data_nums.size();i++)
