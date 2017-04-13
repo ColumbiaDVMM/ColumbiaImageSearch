@@ -22,7 +22,7 @@ def producer(global_conf_file, queueIn, queueProducer):
     print "[producer: log] Producer worker ready at {}".format(get_now())
     queueProducer.put("Producer ready")
     while True:
-    	start_get_batch = time.time()
+        start_get_batch = time.time()
         update_id, str_list_sha1s = searcher_producer.indexer.get_next_batch_precomp_sim()
         #queueProducer.put("Producer got batch")
         print "[producer: log] Got batch in {}s at {}".format(time.time() - start_get_batch, get_now())
@@ -135,7 +135,10 @@ def get_week_year(today=datetime.datetime.now()):
 
 
 def check_indexed_noprecomp(searcher, list_sha1s):
+    print "[check_indexed_noprecomp: log] verifying validity of list_sha1s."
+    sys.stdout.flush()
     columns_check = [searcher.indexer.cu_feat_id_column, searcher.indexer.precomp_sim_column]
+    # Is this blocking in parallel mode?
     rows = searcher.indexer.get_columns_from_sha1_rows(list_sha1s, columns=columns_check)
     not_indexed_sha1s = []
     precomp_sim_sha1s = []
@@ -144,12 +147,17 @@ def check_indexed_noprecomp(searcher, list_sha1s):
         # check searcher.indexer.cu_feat_id_column exists
         if searcher.indexer.cu_feat_id_column not in row[1]:
             not_indexed_sha1s.append(str(row[0]))
+            print "[check_indexed_noprecomp: log] found unindexed image {}".format(str(row[0]))
+            sys.stdout.flush()
         # check searcher.indexer.precomp_sim_column does not exist
         if searcher.indexer.precomp_sim_column in row[1]:
             precomp_sim_sha1s.append(str(row[0]))
+            print "[check_indexed_noprecomp: log] found image {} with already precomputed similar images".format(str(row[0]))
+            sys.stdout.flush()
     valid_sha1s = list(set(list_sha1s) - set(not_indexed_sha1s) - set(precomp_sim_sha1s))
     msg = "{} valid sha1s, {} not indexed sha1s, {} already precomputed similarities sha1s."
     print("[check_indexed_noprecomp: log] "+msg.format(len(valid_sha1s), len(not_indexed_sha1s), len(precomp_sim_sha1s)))
+    sys.stdout.flush()
     return valid_sha1s, not_indexed_sha1s, precomp_sim_sha1s
 
 
@@ -188,7 +196,7 @@ def read_sim_precomp(simname, nb_query, searcher):
     
 
 def format_batch_sim(simname, valid_sha1s, corrupted, searcher):
-	# format similarities for HBase output
+    # format similarities for HBase output
     nb_query = len(valid_sha1s) - len(corrupted)
     sim, sim_score = read_sim_precomp(simname, nb_query, searcher)
     # batch_sim: should be a list of sha1 row key, dict of all "s:similar_sha1": dist_value
@@ -241,7 +249,7 @@ def parallel_precompute(global_conf_file):
     producerOK = queueProducer.get()
     finalizerOK = queueFinalizer.get()
     for i in range(nb_workers):
-    	consumerOK = queueConsumer.get()
+        consumerOK = queueConsumer.get()
     print "[parallel_precompute: log] All workers are ready."
     sys.stdout.flush()
     # Wait for everything to be finished
