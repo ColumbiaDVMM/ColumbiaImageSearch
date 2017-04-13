@@ -70,8 +70,9 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
         print "[consumer: log] Processed update {} at {}. Search performed in {}s.".format(update_id, get_now(), elapsed_search)
         sys.stdout.flush()
         ## push to queueOut
-        queueOut.put((update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search))
         queueIn.task_done()
+        queueOut.put((update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search))
+
 
 
 def finalizer(global_conf_file, queueOut, queueFinalizer):
@@ -82,6 +83,7 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
     queueFinalizer.put("Finalizer ready")
     while True:
         ## Read from queueOut
+        print "[finalizer: log] Finalizer worker (pid: {}) waiting for an update at {}".format(os.getpid(), get_now())
         update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search = queueOut.get()
         print "[finalizer: log] Finalizer worker (pid: {}) got update {} to finalize at {}".format(os.getpid(), update_id, get_now())
         sys.stdout.flush()
