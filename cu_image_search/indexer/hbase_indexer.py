@@ -190,6 +190,7 @@ class HBaseIndexer(GenericIndexer):
 
 
     def get_ids_from_sha1s(self, list_sha1s):
+        # this could be slow, prefered method is get_ids_from_sha1s
         found_ids = []
         for sha1 in list_sha1s:
             pos = None

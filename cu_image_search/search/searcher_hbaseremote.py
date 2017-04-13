@@ -543,12 +543,49 @@ class Searcher():
         return outp, outputname
 
 
+    def search_from_listid_get_simname(self, list_ids_sha1, search_id):
+        # list_ids_sha1 will be list of tuples (integer_id, sha1)
+        # sanity check
+        nb_imgs = len(self.indexer.sha1_featid_mapping)
+        valid_ids_sha1 = []
+        corrupted = []
+        for img_id,sha1 in list_ids_sha1:
+            if img_id < nb_imgs:
+                if sha1 != self.indexer.sha1_featid_mapping[img_id]:
+                    print "[Searcher.search_from_listid_get_simname: error] misaligned image {} vs. {} id {}".format(sha1, self.indexer.sha1_featid_mapping[img_id], img_id)
+                    corrupted.append(sha1)
+                else:
+                    valid_ids_sha1.append((img_id, sha1))
+            else:
+                print "[Searcher.search_from_listid_get_simname] trying to access image {} when searching image {} while we have only {} images".format(img_id, sha1, nb_imgs)
+                corrupted.append(sha1)
+        if valid_ids_sha1:
+            # get the features, hasher starts to count at 1
+            feats, ok_ids = self.indexer.hasher.get_precomp_feats([x[0]+1 for x in valid_ids_sha1])
+            if len(ok_ids) != len(valid_ids_sha1):
+                raise ValueError("[Searcher.search_from_sha1_list_get_simname: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
+        final_featuresfile = search_id+'.dat'
+        read_dim = self.features_dim*4
+        read_type = np.float32
+        features_wrote = 0
+        #print "[Searcher.search_from_image_filenames: log] feats {}".format(feats)
+        with open(final_featuresfile,'wb') as out:
+            for precomp_pos,img_id in enumerate(valid_ids_sha1):
+                tmp_feat = feats[precomp_pos][:]
+                #print "[Searcher.search_from_sha1_list_get_simname: log] tmp_feat for image {} has norm {} and is: {}".format(img_id, np.linalg.norm(tmp_feat), tmp_feat)
+                out.write(tmp_feat)
+                features_wrote += 1
+        if features_wrote:
+            # query with merged features_filename
+            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+        else:
+            simname = None
+        return simname, corrupted
+
+
     def search_from_sha1_list_get_simname(self, all_img_sha1s, search_id):
         # get indexed images
         list_ids_sha1_found = self.indexer.get_ids_from_sha1s(all_img_sha1s)
-        #print list_ids_sha1_found
-        if len(all_img_sha1s) != len(list_ids_sha1_found):
-            print "[Searcher.search_from_sha1_list_get_simname: warning] #list_ids_sha1_found {} vs. #img_sha1s {}".format(len(list_ids_sha1_found), len(all_img_sha1s))
         tmp_list_ids_found = [x[0] for x in list_ids_sha1_found if x[0] is not None]
         list_sha1_found = [x[1] for x in list_ids_sha1_found if x[0] is not None]
         # this is to keep proper ordering

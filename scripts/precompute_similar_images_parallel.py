@@ -12,7 +12,7 @@ sys.path.append('..')
 import cu_image_search
 from cu_image_search.search import searcher_hbaseremote
 
-nb_workers = 8
+nb_workers = 2
 time_sleep = 60
 
 def producer(global_conf_file, queueIn, queueProducer):
@@ -31,6 +31,9 @@ def producer(global_conf_file, queueIn, queueProducer):
             print "[producer: log] No more update to process."
         else:
             start_precomp = time.time()
+            # check that sha1s of batch have no precomputed similarities already in sha1_infos table
+            valid_sha1s, not_indexed_sha1s, precomp_sim_sha1s = check_indexed_noprecomp(searcher_producer, str_list_sha1s.split(','))
+        
             searcher_producer.indexer.write_batch([(update_id, {searcher_producer.indexer.precomp_start_marker: 'True'})], searcher_producer.indexer.table_updateinfos_name)
             # push updates to be processed in queueIn
             # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Queue.qsize
@@ -38,7 +41,7 @@ def producer(global_conf_file, queueIn, queueProducer):
             #print "[producer: log] Pushing update {} in queue containing {} items at {}.".format(update_id, queueIn.qsize(), get_now())
             print "[producer: log] Pushing update {} at {}.".format(update_id, get_now())
             sys.stdout.flush()
-            queueIn.put((update_id, str_list_sha1s, start_precomp))
+            queueIn.put((update_id, valid_sha1s, start_precomp))
 
 
 def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
@@ -52,15 +55,15 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
         ## reads from queueIn
         print "[consumer: log] Consumer worker (pid: {}) waiting for update at {}".format(os.getpid(), get_now())
         sys.stdout.flush()
-        update_id, str_list_sha1s, start_precomp = queueIn.get()
-        print "[consumer: log] Consumer worker (pid: {}) got update {} to process at {}".format(os.getpid(), update_id, get_now())
-        sys.stdout.flush()
+        update_id, valid_sha1s, start_precomp = queueIn.get()
         ## search
+        print "[consumer: log] Consumer worker (pid: {}) computing similarities for {} valid sha1s of update {} at {}".format(os.getpid(), len(valid_sha1s), update_id, get_now())
+        sys.stdout.flush()
         start_search = time.time()
-        # check that sha1s of batch have no precomputed similarities already in sha1_infos table
-        valid_sha1s, not_indexed_sha1s, precomp_sim_sha1s = check_indexed_noprecomp(searcher_consumer, str_list_sha1s.split(','))
         # precompute similarities using searcher 
-        simname, corrupted = searcher_consumer.search_from_sha1_list_get_simname(valid_sha1s, update_id)
+        # for v1 check_indexed_noprecomp
+        #simname, corrupted = searcher_consumer.search_from_sha1_list_get_simname(valid_sha1s, update_id)
+        simname, corrupted = searcher_consumer.search_from_listid_get_simname(valid_sha1s, update_id)
         elapsed_search = time.time() - start_search
         print "[consumer: log] Processed update {} at {}. Search performed in {}s.".format(update_id, get_now(), elapsed_search)
         sys.stdout.flush()
@@ -142,6 +145,7 @@ def check_indexed_noprecomp(searcher, list_sha1s):
     rows = searcher.indexer.get_columns_from_sha1_rows(list_sha1s, columns=columns_check)
     not_indexed_sha1s = []
     precomp_sim_sha1s = []
+    valid_sha1s = []
     for row in rows:
         #print row
         # check searcher.indexer.cu_feat_id_column exists
@@ -149,12 +153,16 @@ def check_indexed_noprecomp(searcher, list_sha1s):
             not_indexed_sha1s.append(str(row[0]))
             print "[check_indexed_noprecomp: log] found unindexed image {}".format(str(row[0]))
             sys.stdout.flush()
+            continue
         # check searcher.indexer.precomp_sim_column does not exist
         if searcher.indexer.precomp_sim_column in row[1]:
             precomp_sim_sha1s.append(str(row[0]))
             print "[check_indexed_noprecomp: log] found image {} with already precomputed similar images".format(str(row[0]))
             sys.stdout.flush()
-    valid_sha1s = list(set(list_sha1s) - set(not_indexed_sha1s) - set(precomp_sim_sha1s))
+            continue
+        valid_sha1s.append((int(row[1][searcher.indexer.cu_feat_id_column]), str(row[0])))
+    # v1 was:
+    #valid_sha1s = list(set(list_sha1s) - set(not_indexed_sha1s) - set(precomp_sim_sha1s))
     msg = "{} valid sha1s, {} not indexed sha1s, {} already precomputed similarities sha1s."
     print("[check_indexed_noprecomp: log] "+msg.format(len(valid_sha1s), len(not_indexed_sha1s), len(precomp_sim_sha1s)))
     sys.stdout.flush()
@@ -203,21 +211,22 @@ def format_batch_sim(simname, valid_sha1s, corrupted, searcher):
     batch_sim = []
     # batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
     batch_mark_precomp_sim = []
-    if len(sim) != len(valid_sha1s) or len(sim_score) != len(valid_sha1s):
-        print "[format_batch_sim: warning] similarities and queries count are different."
-        print "[format_batch_sim: warning] corrupted is: {}.".format(corrupted)
-    # deal with corrupted
-    i_img = 0
-    for i,sha1 in enumerate(valid_sha1s):
-        if sha1 in corrupted:
-            continue
-        sim_columns = dict()
-        for i_sim,sim_img in enumerate(sim[i_img]):
-            sim_columns["s:"+str(sim_img)] = str(sim_score[i_img][i_sim])
-        sim_row = (sha1, sim_columns)
-        batch_sim.append(sim_row)
-        batch_mark_precomp_sim.append((sha1,{searcher.indexer.precomp_sim_column: 'True'}))
-        i_img += 1
+    if sim:
+        if len(sim) != len(valid_sha1s) or len(sim_score) != len(valid_sha1s):
+            print "[format_batch_sim: warning] similarities and queries count are different."
+            print "[format_batch_sim: warning] corrupted is: {}.".format(corrupted)
+        # deal with corrupted
+        i_img = 0
+        for i,sha1 in enumerate(valid_sha1s):
+            if sha1 in corrupted:
+                continue
+            sim_columns = dict()
+            for i_sim,sim_img in enumerate(sim[i_img]):
+                sim_columns["s:"+str(sim_img)] = str(sim_score[i_img][i_sim])
+            sim_row = (sha1, sim_columns)
+            batch_sim.append(sim_row)
+            batch_mark_precomp_sim.append((sha1,{searcher.indexer.precomp_sim_column: 'True'}))
+            i_img += 1
     #print batch_sim
     #print batch_mark_precomp_sim
     return batch_sim, batch_mark_precomp_sim
