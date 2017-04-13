@@ -41,11 +41,10 @@ def check_indexed_noprecomp(up_obj, list_sha1s):
     return valid_sha1s, not_indexed_sha1s, precomp_sim_sha1s
 
 
-def read_sim_precomp(simname, up_obj, searcher):
+def read_sim_precomp(simname, nb_query, up_obj, searcher):
     # intialization
     sim = []
     sim_score = []
-    
     if simname is not None:
         # read similar images
         count = 0
@@ -78,7 +77,8 @@ def read_sim_precomp(simname, up_obj, searcher):
     
 
 def format_batch_sim(simname, valid_sha1s, corrupted, up_obj, searcher):
-    sim, sim_score = read_sim_precomp(simname, up_obj, searcher)
+    nb_query = len(valid_sha1s) - len(corrupted)
+    sim, sim_score = read_sim_precomp(simname, nb_query, up_obj, searcher)
     # batch_sim: should be a list of sha1 row key, dict of all "s:similar_sha1": dist_value
     batch_sim = []
     # batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
