@@ -267,15 +267,25 @@ def parallel_precompute(global_conf_file):
 
     # Wait for everything to be started properly
     producerOK = queueProducer.get()
+    queueProducer.task_done()
     finalizerOK = queueFinalizer.get()
+    queueFinalizer.task_done()
     for i in range(nb_workers):
         consumerOK = queueConsumer.get()
+        queueConsumer.task_done()
     print "[parallel_precompute: log] All workers are ready."
     sys.stdout.flush()
+    queueProducer.join()
+    queueFinalizer.join()
+    queueConsumer.join()
+    print "[parallel_precompute: log] Queues for workers creation joined."
     # Wait for everything to be finished
     time.sleep(time_sleep)
+    print "[parallel_precompute: log] Join queues."
     queueIn.join()
     queueOut.join()
+    print "[parallel_precompute: log] Queues joined."
+    
 
 
 if __name__ == "__main__":
