@@ -297,8 +297,8 @@ def format_batch_sim(simname, valid_sha1s, corrupted, searcher):
 
 def parallel_precompute(global_conf_file):
     # Define queues
-    queueIn = Queue(nb_workers*2)
-    queueOut = Queue(nb_workers*2)
+    queueIn = Queue(nb_workers+2)
+    queueOut = Queue(nb_workers+4)
     queueProducer = Queue()
     queueFinalizer = Queue()
     queueConsumer = Queue(nb_workers)
