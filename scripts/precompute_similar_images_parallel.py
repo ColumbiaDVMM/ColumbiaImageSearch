@@ -31,6 +31,8 @@ def producer(global_conf_file, queueIn, queueProducer):
         sys.stdout.flush()
         if update_id is None:
             print "[producer: log] No more update to process."
+            queueIn.close()
+            break
         else:
             start_precomp = time.time()
             # check that sha1s of batch have no precomputed similarities already in sha1_infos table
@@ -248,7 +250,7 @@ def format_batch_sim(simname, valid_sha1s, corrupted, searcher):
 def parallel_precompute(global_conf_file):
     # Define queues
     queueIn = Queue(nb_workers*2)
-    queueOut = Queue(nb_workers*2)
+    queueOut = Queue(nb_workers)
     queueProducer = Queue()
     queueFinalizer = Queue()
     queueConsumer = Queue(nb_workers)
@@ -285,7 +287,7 @@ def parallel_precompute(global_conf_file):
     time.sleep(time_sleep)
     print "[parallel_precompute: log] Join queues."
     queueIn.join()
-    queueOut.join()
+    #queueOut.join()
     print "[parallel_precompute: log] Queues joined."
     
 
