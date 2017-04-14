@@ -625,7 +625,7 @@ class HBaseIndexer(GenericIndexer):
             set_new_sha1 = set_check_images_sha1 - self.set_sha1_indexed
             set_existing_sha1 = set_check_images_sha1 - set_new_sha1
             print "[HBaseIndexer.index_batch_sha1: log] set_existing_sha1: {}".format(set_existing_sha1)
-            found_ids_existing_sha1 = get_ids_from_sha1s_hbase(list(set_existing_sha1))
+            found_ids_existing_sha1 = self.get_ids_from_sha1s_hbase(list(set_existing_sha1))
             print "[HBaseIndexer.index_batch_sha1: log] found_ids_existing_sha1: {}".format(found_ids_existing_sha1)
             found_sha1_existing_sha1 = [x[1] for x in found_ids_existing_sha1]
             print "[HBaseIndexer.index_batch_sha1: log] found_sha1_existing_sha1: {}".format(found_sha1_existing_sha1)
