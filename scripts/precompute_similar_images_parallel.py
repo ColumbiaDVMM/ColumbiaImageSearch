@@ -17,6 +17,7 @@ time_sleep = 60
 
 # should we try/except main loop of producer, consumer and finalizer?
 def end_producer(queueIn):
+    print "ending producer"
     for i in range(nb_workers):
         # sentinel value, one for each worker
         queueIn.put((None, None, None))
@@ -57,7 +58,7 @@ def producer(global_conf_file, queueIn, queueProducer):
 
 
 def end_consumer(queueIn, queueOut):
-    queueIn.task_done()
+    #queueIn.task_done()
     queueOut.put((None, None, None, None, None, None))
             
 
@@ -91,7 +92,7 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
             print "[consumer: log] Processed update {} at {}. Search performed in {}s.".format(update_id, get_now(), elapsed_search)
             sys.stdout.flush()
             ## push to queueOut
-            queueIn.task_done()
+            #queueIn.task_done()
             queueOut.put((update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search))
         except Exception as inst:
             print "[consumer: error] Consumer worker (pid: {}) caught error at {}. Leaving. Error was {}".format(os.getpid(), get_now(), inst)
@@ -101,7 +102,7 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
 def end_finalizer(queueOut, queueFinalizer):
     print "Pushing 'Finalizer ended' to queueFinalizer"
     queueFinalizer.put("Finalizer ended")
-    queueOut.close()
+    #queueOut.close()
 
 
 def finalizer(global_conf_file, queueOut, queueFinalizer):
@@ -120,7 +121,7 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
             if update_id is None:
                 count_workers_ended += 1
                 print "[finalizer: log] {} consumer workers ended out of {} at {}.".format(count_workers_ended, nb_workers, get_now())
-                queueOut.task_done()
+                #queueOut.task_done()
                 if count_workers_ended == nb_workers:
                     # fully done
                     print "[finalizer: log] All consumer workers ended at {}. Leaving.".format(get_now())
@@ -136,23 +137,27 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
             batch_sim, batch_mark_precomp_sim = format_batch_sim(simname, valid_sha1s, corrupted, searcher_finalizer)
 
             # push similarities to HBI_table_sim (escorts_images_similar_row_dev) using searcher.indexer.write_batch
-            searcher_finalizer.indexer.write_batch(batch_sim, searcher_finalizer.indexer.table_sim_name)
-            # push to weekly update table for Amandeep to integrate in DIG
-            week, year = get_week_year()
-            weekly_sim_table_name = searcher_finalizer.indexer.table_sim_name+"_Y{}W{}".format(year, week)
-            print "[finalizer: log] weekly table name: {}".format(weekly_sim_table_name)
-            weekly_sim_table = searcher_finalizer.indexer.get_create_table(weekly_sim_table_name, families={'s': dict()})
-            searcher_finalizer.indexer.write_batch(batch_sim, weekly_sim_table_name)
+            if batch_sim:
+                searcher_finalizer.indexer.write_batch(batch_sim, searcher_finalizer.indexer.table_sim_name)
+                # push to weekly update table for Amandeep to integrate in DIG
+                week, year = get_week_year()
+                weekly_sim_table_name = searcher_finalizer.indexer.table_sim_name+"_Y{}W{}".format(year, week)
+                print "[finalizer: log] weekly table name: {}".format(weekly_sim_table_name)
+                weekly_sim_table = searcher_finalizer.indexer.get_create_table(weekly_sim_table_name, families={'s': dict()})
+                searcher_finalizer.indexer.write_batch(batch_sim, weekly_sim_table_name)
 
-            ## Mark as done
-            # mark precomp_sim true in escorts_images_sha1_infos_dev
-            searcher_finalizer.indexer.write_batch(batch_mark_precomp_sim, searcher_finalizer.indexer.table_sha1infos_name)
+                ## Mark as done
+                # mark precomp_sim true in escorts_images_sha1_infos_dev
+                searcher_finalizer.indexer.write_batch(batch_mark_precomp_sim, searcher_finalizer.indexer.table_sha1infos_name)
+            
             # mark info:precomp_finish in escorts_images_updates_dev
             if not corrupted: # do not mark finished if we faced some issue? mark as corrupted?
                 searcher_finalizer.indexer.write_batch([(update_id, {searcher_finalizer.indexer.precomp_end_marker: 'True'})],
                                                        searcher_finalizer.indexer.table_updateinfos_name)
+            
             print "[finalizer: log] Finalize update {} at {} in {}s total.".format(update_id, get_now(), time.time() - start_precomp)
             sys.stdout.flush()
+            
             ## Cleanup
             if simname:
                 try:
@@ -165,7 +170,7 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
                     os.remove(featfn)
                 except Exception as inst:
                     print "[finalizer: error] Could not cleanup. Error was: {}".format(inst)
-            queueOut.task_done()
+            #queueOut.task_done()
         except Exception as inst:
             print "[finalizer: error] Caught error at {}. Leaving. Error was: {}".format(get_now(), inst)
             return end_finalizer(queueOut, queueFinalizer)
