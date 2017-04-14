@@ -196,16 +196,15 @@ void HasherObject::find_knn() {
     cout <<  "[find_knn] Looking for similar images of " << query_num << " queries..." << endl;
     for (k=0; k < query_num; k++)
     {
-        try {
         //cout <<  "[find_knn] Looking for similar images of query #" << k+1 << endl;
         // Compute hamming distances between query k and all DB hashcodes
-        cout <<  "[find_knn] Computing hamming distances for query #" << k+1 << " of " << query_num << endl;
+        //cout <<  "[find_knn] Computing hamming distances for query #" << k+1 << " of " << query_num << endl;
         top_hamming = compute_hamming_dist_onehash(query);
         // Rerank based on real valued features
-        cout <<  "[find_knn] Reranking for query #" << k+1 << " of " << query_num << endl;
+        //cout <<  "[find_knn] Reranking for query #" << k+1 << " of " << query_num << endl;
         postrank = rerank_knn_onesample(query_feature, top_hamming);
         // Write out results
-        cout <<  "[find_knn] Writing output for query #" << k+1 << " of " << query_num << endl;
+        //cout <<  "[find_knn] Writing output for query #" << k+1 << " of " << query_num << endl;
         t_start = get_wall_time();
         // Cannot write out more than 2??
         write_to_output_file(postrank, hamming);
@@ -214,10 +213,6 @@ void HasherObject::find_knn() {
         query_feature += feature_dim;
         if (((query_num/10)>0) && (k % (query_num/10) == 0) && (k > 0)) {
             cout <<  "[find_knn] Looking for similar images. Processed " << k << " images over " << query_num << " queries." << endl;
-        }
-        }
-        catch (exception& e) {
-            cout << "[find_knn: error] " << e.what() << endl;
         }
     }
     cout <<  "[find_knn] Done searching knn for " << query_num << " queries." << endl;
