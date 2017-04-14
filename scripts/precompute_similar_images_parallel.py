@@ -115,6 +115,7 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
         try:
             ## Read from queueOut
             print "[finalizer: log] Finalizer worker (pid: {}) waiting for an update at {}".format(os.getpid(), get_now())
+            sys.stdout.flush()
             update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search = queueOut.get()
             if update_id is None:
                 count_workers_ended += 1
