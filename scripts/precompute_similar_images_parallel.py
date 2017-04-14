@@ -129,6 +129,7 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
             print "[finalizer: log] Finalizer worker (pid: {}) got update {} to finalize at {}".format(os.getpid(), update_id, get_now())
             sys.stdout.flush()
             ## Push computed similarities
+            print simname
             # format for saving in HBase:
             # - batch_sim: should be a list of sha1 row key, dict of "s:similar_sha1": dist_value
             # - batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
@@ -292,7 +293,7 @@ def format_batch_sim(simname, valid_sha1s, corrupted, searcher):
 def parallel_precompute(global_conf_file):
     # Define queues
     queueIn = Queue(nb_workers*2)
-    queueOut = Queue(nb_workers)
+    queueOut = Queue(nb_workers*2)
     queueProducer = Queue()
     queueFinalizer = Queue()
     queueConsumer = Queue(nb_workers)

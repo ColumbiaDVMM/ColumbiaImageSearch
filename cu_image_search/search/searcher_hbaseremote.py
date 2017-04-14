@@ -565,6 +565,7 @@ class Searcher():
             if len(ok_ids) != len(valid_ids_sha1):
                 raise ValueError("[Searcher.search_from_sha1_list_get_simname: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
         final_featuresfile = search_id+'.dat'
+        print "[Searcher.search_from_listid_get_simname: log] writing {} features to {}".format(len(valid_ids_sha1), final_featuresfile)
         read_dim = self.features_dim*4
         read_type = np.float32
         features_wrote = 0
@@ -577,8 +578,10 @@ class Searcher():
                 features_wrote += 1
         if features_wrote:
             # query with merged features_filename
+            print "[Searcher.search_from_listid_get_simname: log] searching for similar images from features file {}".format(final_featuresfile)
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
         else:
+            print "[Searcher.search_from_listid_get_simname: log] no features to search for similar images."
             simname = None
         return simname, corrupted
 
