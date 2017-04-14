@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
 #include <fstream>
+#include <exception>
 
 using namespace std;
 using namespace cv;
@@ -195,6 +196,7 @@ void HasherObject::find_knn() {
     cout <<  "[find_knn] Looking for similar images of " << query_num << " queries..." << endl;
     for (k=0; k < query_num; k++)
     {
+        try {
         //cout <<  "[find_knn] Looking for similar images of query #" << k+1 << endl;
         // Compute hamming distances between query k and all DB hashcodes
         //cout <<  "[find_knn] Computing hamming distances for query #" << k+1 << endl;
@@ -211,6 +213,10 @@ void HasherObject::find_knn() {
         query_feature += feature_dim;
         if ((k % (query_num/10) == 0) && (k > 0)) {
             cout <<  "[find_knn] Looking for similar images. Processed " << k << " images over " << query_num << " queries." << endl;
+        }
+        }
+        catch (exception& e) {
+            cout << "[find_knn: error] " << e.what() << endl;
         }
     }
     cout <<  "[find_knn] Done searching knn for " << query_num << " queries." << endl;
