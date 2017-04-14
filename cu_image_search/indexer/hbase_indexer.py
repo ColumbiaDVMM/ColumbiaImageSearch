@@ -623,17 +623,30 @@ class HBaseIndexer(GenericIndexer):
             check_images_sha1 = [image[0].rstrip() for image in readable_images]
             set_check_images_sha1 = set(check_images_sha1)
             set_new_sha1 = set_check_images_sha1 - self.set_sha1_indexed
+            set_existing_sha1 = set_check_images_sha1 - set_new_sha1
+            print "[HBaseIndexer.index_batch_sha1: log] set_existing_sha1: {}".format(set_existing_sha1)
+            found_ids_existing_sha1 = get_ids_from_sha1s_hbase(list(set_existing_sha1))
+            print "[HBaseIndexer.index_batch_sha1: log] found_ids_existing_sha1: {}".format(found_ids_existing_sha1)
+            found_sha1_existing_sha1 = [x[1] for x in found_ids_existing_sha1]
+            print "[HBaseIndexer.index_batch_sha1: log] found_sha1_existing_sha1: {}".format(found_sha1_existing_sha1)
             for i,sha1 in enumerate(check_images_sha1):
                 if sha1 in set_new_sha1:
                     new_sb_files.append(readable_images[i][-1])
                     new_files_id.append(sha1)
                 else:
-                    print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}".format(sha1)
-                    # will call push_cu_feats_id for these images to make sure they are marked as indexed.
                     if update_existing:
-                        # this is slow...
                         start_one_find_existing = time.time()
+                        # first check is we managed to get a cu_feat_id from this sha1 in hbase
+                        if sha1 in found_sha1_existing_sha1:
+                            # we can check if sha1 is actually indexed at this position
+                            sha1_exist_pos = found_sha1_existing_sha1.index(sha1)
+                            sha1_exist_idx = found_ids_existing_sha1[sha1_exist_pos][0]
+                            if sha1 == self.sha1_featid_mapping[sha1_exist_idx]:
+                                continue
+                            # otherwise there is a mismatch, we really need to update...
+                        # but this is slow...
                         existing_cu_feat_ids.append(self.sha1_featid_mapping.index(sha1))
+                        print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}. Updating cu_feat_id to: {}".format(sha1, existing_cu_feat_ids[-1])
                         existing_sha1.append(sha1)
                         time_find_existing += time.time() - start_one_find_existing
         if update_existing and existing_sha1 and existing_cu_feat_ids:

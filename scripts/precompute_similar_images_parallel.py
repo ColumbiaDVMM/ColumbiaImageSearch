@@ -176,6 +176,8 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
                     print "[finalizer: error] Could not cleanup. Error was: {}".format(inst)
             #queueOut.task_done()
         except Exception as inst:
+            #??
+            #[finalizer: error] Caught error at 2017-04-14:04.29.23. Leaving. Error was: list index out of range
             print "[finalizer: error] Caught error at {}. Leaving. Error was: {}".format(get_now(), inst)
             return end_finalizer(queueOut, queueFinalizer)
 
