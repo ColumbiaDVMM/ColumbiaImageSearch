@@ -199,13 +199,13 @@ void HasherObject::find_knn() {
         try {
         //cout <<  "[find_knn] Looking for similar images of query #" << k+1 << endl;
         // Compute hamming distances between query k and all DB hashcodes
-        //cout <<  "[find_knn] Computing hamming distances for query #" << k+1 << endl;
+        cout <<  "[find_knn] Computing hamming distances for query #" << k+1 << endl;
         top_hamming = compute_hamming_dist_onehash(query);
         // Rerank based on real valued features
-        //cout <<  "[find_knn] Reranking for query #" << k+1 << endl;
+        cout <<  "[find_knn] Reranking for query #" << k+1 << endl;
         postrank = rerank_knn_onesample(query_feature, top_hamming);
         // Write out results
-        //cout <<  "[find_knn] Writing output for query #" << k+1 << endl;
+        cout <<  "[find_knn] Writing output for query #" << k+1 << endl;
         t_start = get_wall_time();
         write_to_output_file(postrank, hamming);
         t[7] += get_wall_time() - t_start;
