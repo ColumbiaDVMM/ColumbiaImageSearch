@@ -652,7 +652,7 @@ class HBaseIndexer(GenericIndexer):
                         time_find_existing += time.time() - start_one_find_existing
         if update_existing:
             print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed in {} seconds.".format(len(found_sha1_existing_sha1), time_find_existing))
-            if existing_sha1 and existing_cu_feat_ids
+            if existing_sha1 and existing_cu_feat_ids:
                 print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed with a wrong id. Updating id.".format(len(existing_sha1)))
                 self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
         print("[HBaseIndexer.index_batch_sha1: log] Checked existing images in {}s.".format(time.time()-start_check_new_time))
