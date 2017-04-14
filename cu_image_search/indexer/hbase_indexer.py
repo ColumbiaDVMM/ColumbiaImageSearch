@@ -642,16 +642,19 @@ class HBaseIndexer(GenericIndexer):
                             sha1_exist_pos = found_sha1_existing_sha1.index(sha1)
                             sha1_exist_idx = found_ids_existing_sha1[sha1_exist_pos][0]
                             if sha1 == self.sha1_featid_mapping[sha1_exist_idx]:
+                                time_find_existing += time.time() - start_one_find_existing
                                 continue
-                            # otherwise there is a mismatch, we really need to update...
+                        # otherwise there is a mismatch, we really need to update...
                         # but this is slow...
                         existing_cu_feat_ids.append(self.sha1_featid_mapping.index(sha1))
                         print "[HBaseIndexer.index_batch_sha1: warning] tried to re-index image with sha1: {}. Updating cu_feat_id to: {}".format(sha1, existing_cu_feat_ids[-1])
                         existing_sha1.append(sha1)
                         time_find_existing += time.time() - start_one_find_existing
-        if update_existing and existing_sha1 and existing_cu_feat_ids:
-            print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed in {} seconds.".format(len(existing_sha1), time_find_existing))
-            self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
+        if update_existing:
+            print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed in {} seconds.".format(len(found_sha1_existing_sha1), time_find_existing))
+            if existing_sha1 and existing_cu_feat_ids
+                print("[HBaseIndexer.index_batch_sha1: warning] Found {} images already indexed with a wrong id. Updating id.".format(len(existing_sha1)))
+                self.push_cu_feats_id(existing_sha1, existing_cu_feat_ids)
         print("[HBaseIndexer.index_batch_sha1: log] Checked existing images in {}s.".format(time.time()-start_check_new_time))
         sys.stdout.flush()
         if new_sb_files:
