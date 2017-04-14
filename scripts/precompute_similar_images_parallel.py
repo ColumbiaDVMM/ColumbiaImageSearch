@@ -52,6 +52,8 @@ def producer(global_conf_file, queueIn, queueProducer):
                 print "[producer: log] Pushing update {} at {}.".format(update_id, get_now())
                 sys.stdout.flush()
                 queueIn.put((update_id, valid_sha1s, start_precomp))
+                print "[producer: log] Pushed update {} to queueIn at {}.".format(update_id, get_now())
+                sys.stdout.flush()
         except Exception as inst:
             print "[producer: error] Error at {}. Leaving. Error was: {}".format(get_now(), inst)
             return end_producer(queueIn)
@@ -94,6 +96,8 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
             ## push to queueOut
             #queueIn.task_done()
             queueOut.put((update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search))
+            print "[consumer: log] Pushed update {} to queueOut at {}.".format(update_id, get_now())
+            sys.stdout.flush()
         except Exception as inst:
             print "[consumer: error] Consumer worker (pid: {}) caught error at {}. Leaving. Error was {}".format(os.getpid(), get_now(), inst)
             return end_consumer(queueIn, queueOut)
