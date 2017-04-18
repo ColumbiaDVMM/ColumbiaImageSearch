@@ -373,6 +373,7 @@ class Searcher():
                 all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
         #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
         print("[search_image_filelist: log] options_dict: {}".format(options_dict))
+        print "[search_image_filelist: log] Searching for {} query images.".format(all_img_filenames)
         if "no_diskout" in options_dict and options_dict["no_diskout"]:
             # print("[search_image_filelist: log] using no_diskout")
             # outp, outputname = self.search_from_image_filenames_nodiskout(all_img_filenames, search_id, options_dict)

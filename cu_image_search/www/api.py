@@ -27,6 +27,19 @@ app.config['SESSION_TYPE'] = 'filesystem'
 api = Api(app)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
+
+def get_clean_urls_from_query(query):
+    """ To deal with comma in URLs
+    """
+    tmp_query_urls = ['http'+x for x in query.split('http') if x]
+    query_urls = []
+    for x in tmp_query_urls:
+        if x[-1]==',':
+            query_urls.append(x[:-1])
+        else:
+            query_urls.append(x)
+    return query_urls
+
 @app.after_request
 def after_request(response):
   #response.headers.add('Access-Control-Allow-Origin', '*')
@@ -122,8 +135,10 @@ class APIResponder(Resource):
             return self.search_byB64_nocache(query, options)
         elif mode == "view_image_sha1":
             return self.view_image_sha1(query, options)
-        elif mode == "view_similar_images_sha1":
-            return self.view_similar_images_sha1(query, options)
+        elif mode == "view_similar_bySHA1":
+            query_reponse = self.search_bySHA1(query, options)
+            return self.view_similar_query_response('SHA1', query, query_reponse, options)
+            #return self.view_similar_images_sha1(query, options)
         else:
             return {'error': 'unknown_mode: '+str(mode)}
 
@@ -158,7 +173,7 @@ class APIResponder(Resource):
 
 
     def search_byURL(self, query, options=None):
-        query_urls = query.split(',')
+        query_urls = get_clean_urls_from_query(query)
         options_dict, errors = self.get_options_dict(options)
         
         # look for s3url in s3url sha1 mapping?
@@ -171,7 +186,7 @@ class APIResponder(Resource):
 
 
     def search_byURL_nocache(self, query, options=None):
-        query_urls = query.split(',')
+        query_urls = get_clean_urls_from_query(query)
         options_dict, errors = self.get_options_dict(options)
         return self.searcher.search_image_list(query_urls, options_dict)
 
@@ -400,16 +415,23 @@ class APIResponder(Resource):
 
 
     def view_similar_query_response(self, query_type, query, query_response, options=None):
+        print "[view_similar_query_response: log] query_type: {}".format(query_type)
         if query_type == 'URL':
-            query_urls = query.split(',')
-            options_dict, errors_options = self.get_options_dict(options)
-            sim_images = query_response["images"]
-            errors_search = None
-            if "errors" in query_response:
-                errors_search = query_response["errors"]
-        # preprend for base64 image query: data:image/jpeg;base64 or whatever is the actually type of image
+            query_urls = get_clean_urls_from_query(query)
+        elif query_type == 'SHA1':
+            # need to get url for each sha1 query
+            query_urls = []
+            for one_query in query_response["images"]:
+                query_image_row = self.searcher.indexer.get_columns_from_sha1_rows([str(one_query["query_sha1"])], ["info:s3_url"])
+                query_urls.append(query_image_row[0][1]["info:s3_url"])
+        # TODO for base64 image query as no URL: prepend data:image/jpeg;base64 or whatever is the actually type of image
         else:
             return None
+        options_dict, errors_options = self.get_options_dict(options)
+        sim_images = query_response["images"]
+        errors_search = None
+        if "errors" in query_response:
+            errors_search = query_response["errors"]
         similar_images_response = []
         for i in range(len(query_urls)):
             if sim_images and len(sim_images)>=i:
@@ -420,9 +442,6 @@ class APIResponder(Resource):
                 one_res.append(one_sims)
             else:
                 one_res = [(query_urls[i], ""), [('','','')]]
-            #print("[view_similar_query_response] one_res: {}.".format(one_res))
-            #sys.stdout.flush()
-            #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
             similar_images_response.append(one_res)
         if not similar_images_response:
             similar_images_response.append([('','No results'),[('','','')]])
@@ -432,7 +451,7 @@ class APIResponder(Resource):
         flash(flash_message,'message')
         headers = {'Content-Type': 'text/html'}
         sys.stdout.flush()
-        # pass named arguments instead of flash messages 
+        # TODO: pass named arguments instead of flash messages 
         return make_response(render_template('view_similar_images.html'),200,headers)
 
 
