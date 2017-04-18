@@ -433,6 +433,7 @@ class APIResponder(Resource):
         if "errors" in query_response:
             errors_search = query_response["errors"]
         similar_images_response = []
+        print "[view_similar_query_response: log] len(query_urls): {}, len(sim_images): {}".format(len(query_urls), len(sim_images))
         for i in range(len(query_urls)):
             if sim_images and len(sim_images)>=i:
                 one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
