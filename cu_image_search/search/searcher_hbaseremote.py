@@ -553,6 +553,11 @@ class Searcher():
             if img_id < nb_imgs:
                 if sha1 != self.indexer.sha1_featid_mapping[img_id]:
                     print "[Searcher.search_from_listid_get_simname: error] misaligned image {} vs. {} id {}".format(sha1, self.indexer.sha1_featid_mapping[img_id], img_id)
+                    try:
+                        sha1_pos = self.indexer.sha1_featid_mapping.index(sha1)
+                        print "[Searcher.search_from_listid_get_simname: info] image {} can actually be found at {}".format(sha1, sha1_pos)
+                    except Exception:
+                        print "[Searcher.search_from_listid_get_simname: info] image {} cannot be found in index.".format(sha1)
                     corrupted.append(sha1)
                 else:
                     valid_ids_sha1.append((img_id, sha1))
