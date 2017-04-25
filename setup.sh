@@ -8,6 +8,7 @@ cd cu_image_search/hashing_new && make;
 echo "Compiling hashing python wrapper code"
 cd python && ./comp.sh;
 
-echo "Testing hashing python wrapper"
-python test_hashobjpy.py
+
+#echo "Testing hashing python wrapper"
+#python test_hashobjpy.py
 
