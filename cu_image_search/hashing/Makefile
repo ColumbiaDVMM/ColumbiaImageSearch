@@ -1,8 +1,8 @@
 INCLUDE_DIRS=/opt/local/include/
 LIB_DIRS=/opt/local/lib/
-#CC=g++
+CC=g++
 #CC=g++-mp-5
-CC=g++-mp-4.9
+#CC=g++-mp-4.9
 
 INCLUDE_DIRS=/usr/local/include/
 LIB_DIRS=/usr/local/lib/

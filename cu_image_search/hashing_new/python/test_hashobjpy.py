@@ -1,11 +1,12 @@
 import _hasher_obj_py as hop
 import sys
 
+# TODO:
+# - Get paths from conf file
+# - Add one sample .dat file to test this
+
 if __name__ == "__main__":
     hasher = hop.new_HasherObjectPy()
-    # setters are not working?
-    up_path = hop.HasherObjectPy_get_base_updatepath(hasher)
-    print(up_path)
     hop.HasherObjectPy_set_base_updatepath(hasher, "/home/ubuntu/memex/update/indexing/")
     up_path = hop.HasherObjectPy_get_base_updatepath(hasher)
     print(up_path)
@@ -19,6 +20,10 @@ if __name__ == "__main__":
     hop.HasherObjectPy_set_query_feats_from_disk(hasher, featurefilename)
     hop.HasherObjectPy_set_outputfile(hasher, featurefilename[:-4])
     hop.HasherObjectPy_find_knn(hasher)
-    hop.HasherObjectPy_set_query_feats_from_disk(hasher, featurefilename)
-    out_res = hop.HasherObjectPy_find_knn_nodiskout(hasher)
-    #delete_HasherObjectPy(hasher)
+
+    # this is actually not working yet.
+    #hop.HasherObjectPy_set_query_feats_from_disk(hasher, featurefilename)
+    #out_res = hop.HasherObjectPy_find_knn_nodiskout(hasher)
+
+    # cleanup
+    delete_HasherObjectPy(hasher)

@@ -9,7 +9,7 @@ import sys
 print(sys.version)
 import subprocess
 
-dev = True
+dev = False
 
 if dev:
     dev_release_suffix = "_dev"
