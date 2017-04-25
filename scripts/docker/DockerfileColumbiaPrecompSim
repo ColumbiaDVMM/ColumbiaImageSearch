@@ -1,0 +1,48 @@
+#
+# Ubuntu Dockerfile
+#
+# https://github.com/dockerfile/ubuntu
+#
+
+# Pull base image.
+#FROM ubuntu:trusty
+FROM ubuntu:xenial
+
+# Setup and configure
+ENV DEBIAN_FRONTEND noninteractive
+RUN \
+  apt-get update && \
+  apt-get -y upgrade && \
+  apt-get install -y --no-install-recommends apt-utils
+RUN apt-get install locales
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
+# Get general dev pacakges: C++, make
+RUN \
+  apt-get install -y build-essential     
+
+# Get specific dev packages
+RUN \
+  apt-get update && \
+  apt-get install -y git swig libopencv-dev python-dev python-pip
+
+# Dev tools
+RUN \
+  apt-get update && \
+  apt-get install -y nano
+
+# Set environment variables.
+RUN mkdir /home/ubuntu
+ENV HOME /home/ubuntu
+
+# Define working directory.
+RUN mkdir /home/ubuntu/memex
+RUN mkdir /home/ubuntu/memex
+RUN mkdir /home/ubuntu/memex/update
+RUN mkdir /home/ubuntu/memex/ColumbiaImageSearch
+
+# Define default command.
+CMD ["bash"]
