@@ -18,7 +18,7 @@ RUN \
   locale-gen en_US.UTF-8 && \
   apt-get install -y build-essential --no-install-recommends && \
   apt-get install -y git swig jpeginfo libopencv-dev python-dev python-pip --no-install-recommends && \
-  apt-get install -y nano less
+  apt-get install -y nano less screen
 
 #ENV LANG en_US.UTF-8
 #ENV LANGUAGE en_US:en
