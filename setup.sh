@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# install required python packages
+echo "Installing python packages"
+pip install --upgrade pip
+pip install -U -r ./requirements.txt
+
 # compile hashing C++ code
 echo "Compiling hashing C++ code"
 cd cu_image_search/hashing_new && make;

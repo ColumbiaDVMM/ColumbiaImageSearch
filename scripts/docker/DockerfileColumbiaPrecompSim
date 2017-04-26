@@ -29,13 +29,11 @@ RUN \
 # Get specific dev packages
 #RUN apt-get update && apt-get install -y git swig libopencv-dev python-dev python-pip && \
 # Dev tools
-#RUN apt-get update && apt-get install -y nano less
+#RUN apt-get update && apt-get install -y nano less screen
 
 # Create needed directories
 RUN mkdir /home/ubuntu && mkdir /home/ubuntu/memex && mkdir /home/ubuntu/memex/update && \
-    mkdir /home/ubuntu/memex/ColumbiaImageSearch && mkdir /home/ubuntu/memex/data
-
-# Add data files, namely hahs models
+    mkdir /home/ubuntu/memex/ColumbiaImageSearch 
 
 #ENV HOME /home/ubuntu
 # One line ENV setting
