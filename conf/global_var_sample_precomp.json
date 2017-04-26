@@ -19,6 +19,7 @@
         "FE_features_dim":4096,
         "HA_bits_num":256,
 	"HA_base_update_path":"/home/ubuntu/memex/update/indexing/indexing-2017-04-04/",
+        "HA_path":"../hashing_new/",
         "SE_sim_limit":1000,
         "SE_near_dup":true,
         "SE_near_dup_th":0.15,
