@@ -24,8 +24,10 @@ if __name__=="__main__":
     if len(sys.argv) == 4:
         final_outputname = sys.argv[3]
     #search_obj = searcher_mysqllocal.Searcher(global_conf_file)
+    print '[search] Creating searcher from configuration {}'.format(global_conf_file)
     search_obj = searcher_hbaseremote.Searcher(global_conf_file)
     start_time = time.time()
+    print '[search] Searching for images in {}'.format(image_list)
     outputname = search_obj.search_image_filelist(image_list)
     if final_outputname:
         print '[search] Moving {} to {}.'.format(outputname, final_outputname)

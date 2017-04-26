@@ -18,7 +18,7 @@ RUN \
   locale-gen en_US.UTF-8 && \
   apt-get install -y build-essential --no-install-recommends && \
   apt-get install -y git swig libopencv-dev python-dev python-pip --no-install-recommends && \
-  apt-get install -y nano
+  apt-get install -y nano less
 
 #ENV LANG en_US.UTF-8
 #ENV LANGUAGE en_US:en
@@ -26,16 +26,16 @@ RUN \
 
 # Get general dev pacakges: C++, make
 #RUN apt-get install -y build-essential
-
 # Get specific dev packages
 #RUN apt-get update && apt-get install -y git swig libopencv-dev python-dev python-pip && \
-
 # Dev tools
-#RUN apt-get update && apt-get install -y nano
+#RUN apt-get update && apt-get install -y nano less
 
 # Create needed directories
 RUN mkdir /home/ubuntu && mkdir /home/ubuntu/memex && mkdir /home/ubuntu/memex/update && \
-    mkdir /home/ubuntu/memex/ColumbiaImageSearch
+    mkdir /home/ubuntu/memex/ColumbiaImageSearch && mkdir /home/ubuntu/memex/data
+
+# Add data files, namely hahs models
 
 #ENV HOME /home/ubuntu
 # One line ENV setting
