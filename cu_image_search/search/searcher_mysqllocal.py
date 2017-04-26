@@ -3,10 +3,12 @@ import sys
 import time
 import json
 import struct
-import MySQLdb
 import numpy as np
-from collections import OrderedDict 
+from collections import OrderedDict
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
+import cu_image_search
+if cu_image_search.use_MySQL:
+  import MySQLdb
 
 class Searcher():
 
