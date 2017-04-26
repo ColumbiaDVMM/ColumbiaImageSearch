@@ -8,9 +8,6 @@ docker_file="DockerfileColumbiaPrecompSim"
 repo_path=$(dirname $(dirname $(pwd)))
 echo "repo_path is:"${repo_path}
 
-echo -n 'Please enter update path: '
-read update_path
-
 ## Docker requires sudo privilege, check if we already have them
 SUDO=''
 if (( $EUID != 0 )); then
@@ -32,7 +29,8 @@ buildDocker() {
 
 # build if needed
 testDockerExists
-if [[ ${docker_exists} == 0 ]];
+echo ${docker_exists}
+if [[ ${docker_exists} -eq 0 ]];
 then
         echo "Building docker image "${docker_image}" from docker file: "${docker_file}
 	buildDocker
@@ -45,4 +43,8 @@ echo "Starting docker "${docker_name}" from image "${docker_image}":"${docker_im
 
 docker stop ${docker_name}
 docker rm ${docker_name}
+
+echo -n 'Please enter update path: '
+read update_path
+
 docker run -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash

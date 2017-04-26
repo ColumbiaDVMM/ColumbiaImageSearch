@@ -11,13 +11,13 @@ FROM ubuntu:xenial
 # Setup and configure
 ENV DEBIAN_FRONTEND noninteractive
 RUN \
-  apt-get install -y --no-install-recommends apt-utils && \
   apt-get update && \
+  apt-get install -y --no-install-recommends apt-utils && \
   apt-get -y upgrade && \
   apt-get install locales && \
   locale-gen en_US.UTF-8 && \
-  apt-get install -y build-essential && \
-  apt-get install -y git swig libopencv-dev python-dev python-pip && \
+  apt-get install -y build-essential --no-install-recommends && \
+  apt-get install -y git swig libopencv-dev python-dev python-pip --no-install-recommends && \
   apt-get install -y nano
 
 #ENV LANG en_US.UTF-8
