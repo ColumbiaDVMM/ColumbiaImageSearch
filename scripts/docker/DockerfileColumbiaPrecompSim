@@ -11,38 +11,35 @@ FROM ubuntu:xenial
 # Setup and configure
 ENV DEBIAN_FRONTEND noninteractive
 RUN \
+  apt-get install -y --no-install-recommends apt-utils && \
   apt-get update && \
   apt-get -y upgrade && \
-  apt-get install -y --no-install-recommends apt-utils
-RUN apt-get install locales
-RUN locale-gen en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
-
-# Get general dev pacakges: C++, make
-RUN \
-  apt-get install -y build-essential     
-
-# Get specific dev packages
-RUN \
-  apt-get update && \
-  apt-get install -y git swig libopencv-dev python-dev python-pip
-
-# Dev tools
-RUN \
-  apt-get update && \
+  apt-get install locales && \
+  locale-gen en_US.UTF-8 && \
+  apt-get install -y build-essential && \
+  apt-get install -y git swig libopencv-dev python-dev python-pip && \
   apt-get install -y nano
 
-# Set environment variables.
-RUN mkdir /home/ubuntu
-ENV HOME /home/ubuntu
+#ENV LANG en_US.UTF-8
+#ENV LANGUAGE en_US:en
+#ENV LC_ALL en_US.UTF-8
 
-# Define working directory.
-RUN mkdir /home/ubuntu/memex
-RUN mkdir /home/ubuntu/memex
-RUN mkdir /home/ubuntu/memex/update
-RUN mkdir /home/ubuntu/memex/ColumbiaImageSearch
+# Get general dev pacakges: C++, make
+#RUN apt-get install -y build-essential
+
+# Get specific dev packages
+#RUN apt-get update && apt-get install -y git swig libopencv-dev python-dev python-pip && \
+
+# Dev tools
+#RUN apt-get update && apt-get install -y nano
+
+# Create needed directories
+RUN mkdir /home/ubuntu && mkdir /home/ubuntu/memex && mkdir /home/ubuntu/memex/update && \
+    mkdir /home/ubuntu/memex/ColumbiaImageSearch
+
+#ENV HOME /home/ubuntu
+# One line ENV setting
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 HOME=/home/ubuntu
 
 # Define default command.
 CMD ["bash"]
