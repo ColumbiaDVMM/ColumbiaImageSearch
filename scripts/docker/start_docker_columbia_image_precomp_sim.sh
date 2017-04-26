@@ -22,7 +22,7 @@ fi
 testDockerExists() {
     #cmd_test_docker="${SUDO} docker images | grep ${docker_image} | grep ${docker_image_tag} | wc -l"
     #echo ${cmd_test_docker}
-    ${SUDO} docker images | grep ${docker_image} | grep ${docker_image_tag} | wc -l
+    docker_exists=$(${SUDO} docker images | grep ${docker_image} | grep ${docker_image_tag} | wc -l)
 }
 
 # build docker image from docker file
@@ -31,7 +31,8 @@ buildDocker() {
 }
 
 # build if needed
-if [[ testDockerExists == 0 ]];
+testDockerExists
+if [[ ${docker_exists} == 0 ]];
 then
         echo "Building docker image "${docker_image}" from docker file: "${docker_file}
 	buildDocker
