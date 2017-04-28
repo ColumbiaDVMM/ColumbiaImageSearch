@@ -3,6 +3,7 @@
 # install required python packages
 echo "Installing python packages"
 pip install --upgrade pip
+pip install -U setuptools
 pip install -U -r ./requirements.txt
 
 # compile hashing C++ code

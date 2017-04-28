@@ -1,5 +1,8 @@
-setuptools
+#setuptools # should be installed first before calling pip install -r requirements.txt
+
 numpy
 requests
 happybase
-pillow
+
+# not needed for precomp
+#pillow
