@@ -342,7 +342,7 @@ void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair>
     // iterator version is not really faster...
     for (vector<mypairf>::iterator it = postrank.begin(), end = postrank.end(); it != end; it++) {
         //outputfile << postrank[i].second << ' ';
-        if ((near_dup_th<0) || ((near_dup_th>0) && (it->first>near_dup_th))) {
+        if ((near_dup_th<0.0) || ((near_dup_th>0.0) && (it->first<near_dup_th))) {
             outputfile << it->second << ' ';
             // Also output to detailed hamming file (for debugging)
             if (DEMO == 0) {
@@ -356,7 +356,7 @@ void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair>
     }
     // Then distances
     for (int i=0; i < postrank.size(); i++) {
-        if ((near_dup_th<0) || ((near_dup_th>0) && (postrank[i].first>near_dup_th))) {
+        if ((near_dup_th<0.0) || ((near_dup_th>0.0) && (postrank[i].first<near_dup_th))) {
             outputfile << postrank[i].first << ' ';
             // Also output hamming distances (for debugging)
             if (DEMO == 0) {

@@ -534,7 +534,7 @@ class Searcher():
         if features_wrote:
             # query with merged features_filename
             #simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
-            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio, near_dup_th=self.near_dup_th)
+            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio, near_dup_th=float(self.near_dup_th))
         outputname = simname[:-4]+".json"
         start_format = time.time()
         outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id, options_dict)

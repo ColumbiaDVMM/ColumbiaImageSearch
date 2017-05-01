@@ -19,7 +19,7 @@ class HasherSwig(GenericHasher):
     def __init__(self,global_conf_filename):
         self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.base_update_path = os.path.dirname(__file__)
-	self.base_model_path = os.path.join(os.path.dirname(__file__),'../../data/')
+        self.base_model_path = os.path.join(os.path.dirname(__file__),'../../data/')
         if 'LI_base_update_path' in self.global_conf:
             self.base_update_path = self.global_conf['LI_base_update_path']
         if 'HA_base_update_path' in self.global_conf:
