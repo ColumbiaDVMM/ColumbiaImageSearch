@@ -15,8 +15,9 @@ if __name__ == "__main__":
     if status != 0:
         print("Hasher was not able to initialize")
         sys.exit(-1)
-    featurefilename = "/home/ubuntu/memex/DeepSentiBank_memex/cu_image_search/www/1480830128.81.dat"
-    featurefilename = "../../../scripts/index_update_8525658676137_5411457.dat"
+    #featurefilename = "/home/ubuntu/memex/DeepSentiBank_memex/cu_image_search/www/1480830128.81.dat"
+    #featurefilename = "../../../scripts/index_update_8525658676137_5411457.dat"
+    featurefilename = "./1493667095.1.dat"
     hop.HasherObjectPy_set_query_feats_from_disk(hasher, featurefilename)
     hop.HasherObjectPy_set_outputfile(hasher, featurefilename[:-4])
     hop.HasherObjectPy_find_knn(hasher)
