@@ -2,7 +2,7 @@
 
 ## Variables than could be changed
 docker_image="columbiaprecompimagesim"
-docker_image_tag="1.2"
+docker_image_tag="1.3"
 docker_name="columbia_university_precompute_similar_images"
 docker_file="DockerfileColumbiaPrecompSim"
 repo_path=$(dirname $(dirname $(pwd)))
