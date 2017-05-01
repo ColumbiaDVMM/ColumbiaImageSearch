@@ -1,2 +1,2 @@
-dev = True
+dev = False
 use_MySQL = False
