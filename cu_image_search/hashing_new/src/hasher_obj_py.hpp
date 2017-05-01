@@ -59,6 +59,10 @@ class HasherObjectPy {
             hobj->set_ratio(_ratio);
         };
 
+        void set_near_dup_th(float _near_dup_th) {
+            hobj->set_near_dup_th(_near_dup_th);
+        };
+
         void set_bit_num(int _bit_num) {
             hobj->set_bit_num(_bit_num);
         };

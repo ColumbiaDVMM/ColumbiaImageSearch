@@ -342,21 +342,38 @@ void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair>
     // iterator version is not really faster...
     for (vector<mypairf>::iterator it = postrank.begin(), end = postrank.end(); it != end; it++) {
         //outputfile << postrank[i].second << ' ';
-        outputfile << it->second << ' ';
-        // Also output to detailed hamming file (for debugging)
-        if (DEMO == 0) {
-            //outputfile_hamming << postrank[i].second << ' ';
-            outputfile_hamming << it->second << ' ';
+        if ((near_dup_th<0) || ((near_dup_th>0) && (it->first>near_dup_th))) {
+            outputfile << it->second << ' ';
+            // Also output to detailed hamming file (for debugging)
+            if (DEMO == 0) {
+                //outputfile_hamming << postrank[i].second << ' ';
+                outputfile_hamming << it->second << ' ';
+            }
+        }
+        else {
+            break;
         }
     }
     // Then distances
     for (int i=0; i < postrank.size(); i++) {
-        outputfile << postrank[i].first << ' ';
-        // Also output hamming distances (for debugging)
-        if (DEMO == 0) {
-            outputfile_hamming << hamming[i].first << ' ';
+        if ((near_dup_th<0) || ((near_dup_th>0) && (postrank[i].first>near_dup_th))) {
+            outputfile << postrank[i].first << ' ';
+            // Also output hamming distances (for debugging)
+            if (DEMO == 0) {
+                outputfile_hamming << hamming[i].first << ' ';
+            }
+        }
+        else {
+            break;
         }
     }
+    // for (int i=0; i < postrank.size(); i++) {
+    //     outputfile << postrank[i].first << ' ';
+    //     // Also output hamming distances (for debugging)
+    //     if (DEMO == 0) {
+    //         outputfile_hamming << hamming[i].first << ' ';
+    //     }
+    // }
     // Write end of lines to both files
     outputfile << endl;
     if (DEMO==0) {

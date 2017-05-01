@@ -26,6 +26,8 @@ class HasherObject {
             // number of features to retrieve for reranking
             // would be overwritten based on ratio and data_num
             top_feature = 2000;
+            // Use negative near_dup_th when not set.
+            near_dup_th = -1.0;
             ratio = 0.001f;
             // number of features indexed
             data_num = 0;
@@ -94,7 +96,7 @@ class HasherObject {
         // use member query_feats, assumes set_query_feats_from_disk have been called before
         void find_knn();
 
-	// How to properly access this in python
+	    // How to properly access this in python
         std::vector< std::vector< std::pair<float,int> > > find_knn_nodiskout();
 
         void find_knn_from_feats(Mat query_feats);
@@ -113,6 +115,10 @@ class HasherObject {
         void set_ratio(float _ratio) {
             ratio = _ratio;
             set_top_feature();
+        };
+
+        void set_near_dup_th(float _near_dup_th) {
+            near_dup_th = _near_dup_th;
         };
 
         void set_bit_num(int _bit_num) {
@@ -166,6 +172,7 @@ class HasherObject {
     private:
         // parameters values
         float ratio;
+        float near_dup_th;
         int feature_dim;
         int int_num;
         // only these two parameters influence filenames

@@ -156,19 +156,22 @@ class HasherSwig(GenericHasher):
         return self.get_precomp_X(list_feats_id,"hashcodes",self.bits_num/8,np.uint8)
 
 
-    def get_similar_images_from_featuresfile(self, featurefilename, ratio, demote=False):
+    def get_similar_images_from_featuresfile(self, featurefilename, ratio, near_dup_th=-1.0):
         """ Get similar images of the images with features in 'featurefilename'.
 
         :param featurefilename: features of the query images.
         :type featurefilename: string
         :param ratio: ratio of images retrieved with hashing that will be reranked.
         :type ratio: float
+        :param near_dup_th: near dup threshold, if positive, only images below this distance value will be returned.
+        :type near_dup_th: float
         :returns simname: filename of the simname text file.
         """
 
         hop.HasherObjectPy_set_ratio(self.hasher, ratio)
         # needed?
         sys.stdout = sys.stderr
+        hop.HasherObjectPy_set_near_dup_th(self.hasher, near_dup_th)
         hop.HasherObjectPy_set_query_feats_from_disk(self.hasher, featurefilename)
         hop.HasherObjectPy_set_outputfile(self.hasher, featurefilename[:-4])
         hop.HasherObjectPy_find_knn(self.hasher)
