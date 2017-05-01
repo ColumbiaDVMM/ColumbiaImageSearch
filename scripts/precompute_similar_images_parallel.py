@@ -175,11 +175,11 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
                     #print "[process_one_update: log] Removing file {}".format(featfn)
                     os.remove(featfn)
                 except Exception as inst:
-                    print "[finalizer-pid({}): error] Could not cleanup. Error was: {}".format(inst)
+                    print "[finalizer-pid({}): error] Could not cleanup. Error was: {}".format(os.getpid(), inst)
             #queueOut.task_done()
         except Exception as inst:
             #[finalizer: error] Caught error at 2017-04-14:04.29.23. Leaving. Error was: list index out of range
-            print "[finalizer-pid({}): error] Caught error at {}. Error was: {}".format(get_now(), inst)
+            print "[finalizer-pid({}): error] Caught error at {}. Error was: {}".format(os.getpid(), get_now(), inst)
             # now we catch timeout too, so we are no longer leaving...
             #return end_finalizer(queueOut, queueFinalizer)
 
