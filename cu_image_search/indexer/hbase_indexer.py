@@ -152,10 +152,12 @@ class HBaseIndexer(GenericIndexer):
     def initialize_hasher(self):
         if self.hasher_type == "hasher_cmdline":
             from ..hasher.hasher_cmdline import HasherCmdLine
+            print "[HBaseIndexer.initialize_hasher: log] Setting hasher_type to hasher_cmdline."
             self.hasher = HasherCmdLine(self.global_conf_filename)
             self.init_master_uf_fn = os.path.join(self.hasher.base_update_path, self.hasher.master_update_file)
         elif self.hasher_type == "hasher_swig":
             from ..hasher.hasher_swig import HasherSwig
+            print "[HBaseIndexer.initialize_hasher: log] Setting hasher_type to hasher_swig."
             self.hasher = HasherSwig(self.global_conf_filename)
             self.init_master_uf_fn = os.path.join(self.hasher.base_update_path, self.hasher.master_update_file)
         else:
