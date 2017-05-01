@@ -51,6 +51,7 @@ def check_hdfs_file(hdfs_file_path):
     if "Filesystem closed" in err:
         print("[check_hdfs_file: WARNING] Beware got error '{}' when checking for file: {}.".format(err, hdfs_file_path))
         sys.stdout.flush()
+    print "[check_hdfs_file] out: {}, err: {}".format(out, err)
     return out, err
 
 
