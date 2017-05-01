@@ -15,6 +15,7 @@ from cu_image_search.search import searcher_hbaseremote
 
 nb_workers = 16
 time_sleep = 60
+queue_timeout = 600
 
 # should we try/except main loop of producer, consumer and finalizer?
 def end_producer(queueIn):
@@ -78,7 +79,7 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
             ## reads from queueIn
             print "[consumer-pid({}): log] Consumer worker waiting for update at {}".format(os.getpid(), get_now())
             sys.stdout.flush()
-            update_id, valid_sha1s, start_precomp = queueIn.get()
+            update_id, valid_sha1s, start_precomp = queueIn.get(True, queue_timeout)
             if update_id is None:
                 # declare worker ended
                 print "[consumer-pid({}): log] Consumer worker ending at {}".format(os.getpid(), get_now())
@@ -90,7 +91,7 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
             # precompute similarities using searcher 
             # for v1 check_indexed_noprecomp
             #simname, corrupted = searcher_consumer.search_from_sha1_list_get_simname(valid_sha1s, update_id)
-            simname, corrupted = searcher_consumer.search_from_listid_get_simname(valid_sha1s, update_id)
+            simname, corrupted = searcher_consumer.search_from_listid_get_simname(valid_sha1s, update_id, check_already_computed=True)
             elapsed_search = time.time() - start_search
             print "[consumer-pid({}): log] Consumer worker processed update {} at {}. Search performed in {}s.".format(os.getpid(), update_id, get_now(), elapsed_search)
             sys.stdout.flush()
@@ -100,8 +101,8 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
             print "[consumer-pid({}): log] Consumer worker pushed update {} to queueOut at {}.".format(os.getpid(), update_id, get_now())
             sys.stdout.flush()
         except Exception as inst:
-            print "[consumer-pid({}): error] Consumer worker caught error at {}. Leaving. Error was {}".format(os.getpid(), get_now(), inst)
-            return end_consumer(queueIn, queueOut)
+            print "[consumer-pid({}): error] Consumer worker caught error at {}. Error was {}".format(os.getpid(), get_now(), inst)
+            #return end_consumer(queueIn, queueOut)
 
 
 def end_finalizer(queueOut, queueFinalizer):
@@ -122,7 +123,7 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
             ## Read from queueOut
             print "[finalizer-pid({}): log] Finalizer worker waiting for an update at {}".format(os.getpid(), get_now())
             sys.stdout.flush()
-            update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search = queueOut.get(True, 600)
+            update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search = queueOut.get(True, queue_timeout)
             if update_id is None:
                 count_workers_ended += 1
                 print "[finalizer-pid({}): log] {} consumer workers ended out of {} at {}.".format(os.getpid(), count_workers_ended, nb_workers, get_now())

@@ -544,8 +544,9 @@ class Searcher():
         return outp, outputname
 
 
-    def search_from_listid_get_simname(self, list_ids_sha1, search_id):
+    def search_from_listid_get_simname(self, list_ids_sha1, search_id, check_already_computed=False):
         # list_ids_sha1 will be list of tuples (integer_id, sha1)
+        final_featuresfile = search_id+'.dat'
         # sanity check
         nb_imgs = len(self.indexer.sha1_featid_mapping)
         valid_ids_sha1 = []
@@ -565,12 +566,17 @@ class Searcher():
             else:
                 print "[Searcher.search_from_listid_get_simname] trying to access image {} when searching image {} while we have only {} images".format(img_id, sha1, nb_imgs)
                 corrupted.append(sha1)
+        if check_already_computed:
+            simname = final_featuresfile[:-4] + '-sim_'+str(self.ratio)+'.txt'
+            if os.path.isfile(simname):
+                print "[Searcher.search_from_listid_get_simname: log] found already existing output. Returning it."
+                # we could check we have len(valid_ids_sha1) lines, but the renaming to sim_ratio happens when the search is done...
+                return simname, corrupted
         if valid_ids_sha1:
             # get the features, hasher starts to count at 1
             feats, ok_ids = self.indexer.hasher.get_precomp_feats([x[0]+1 for x in valid_ids_sha1])
             if len(ok_ids) != len(valid_ids_sha1):
                 raise ValueError("[Searcher.search_from_sha1_list_get_simname: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
-        final_featuresfile = search_id+'.dat'
         print "[Searcher.search_from_listid_get_simname: log] writing {} features to {}".format(len(valid_ids_sha1), final_featuresfile)
         read_dim = self.features_dim*4
         read_type = np.float32
