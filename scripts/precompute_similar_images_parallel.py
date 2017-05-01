@@ -13,7 +13,7 @@ sys.path.append('..')
 import cu_image_search
 from cu_image_search.search import searcher_hbaseremote
 
-nb_workers = 16
+nb_workers = 20
 time_sleep = 60
 queue_timeout = 600
 
