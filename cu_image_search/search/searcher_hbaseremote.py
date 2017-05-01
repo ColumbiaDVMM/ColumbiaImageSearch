@@ -596,7 +596,8 @@ class Searcher():
         if features_wrote:
             # query with merged features_filename
             print "[Searcher.search_from_listid_get_simname: log] searching for similar images from features file {}".format(final_featuresfile)
-            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+            #simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio, near_dup_th=float(self.near_dup_th))
         else:
             print "[Searcher.search_from_listid_get_simname: log] no features to search for similar images."
             simname = None
