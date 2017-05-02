@@ -193,6 +193,7 @@ void HasherObject::find_knn() {
     init_output_files();
     double t_start;
     int k;
+    int print_div=100;
     cout <<  "[find_knn] Looking for similar images of " << query_num << " queries..." << endl;
     for (k=0; k < query_num; k++)
     {
@@ -211,8 +212,9 @@ void HasherObject::find_knn() {
         t[7] += get_wall_time() - t_start;
         query += int_num;
         query_feature += feature_dim;
-        if (((query_num/10)>0) && (k % (query_num/10) == 0) && (k > 0)) {
+        if (((query_num/print_div)>0) && (k % (query_num/print_div) == 0) && (k > 0)) {
             cout <<  "[find_knn] Looking for similar images. Processed " << k << " images over " << query_num << " queries." << endl;
+            print_timing();
         }
     }
     cout <<  "[find_knn] Done searching knn for " << query_num << " queries." << endl;
