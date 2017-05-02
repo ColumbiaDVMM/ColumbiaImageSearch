@@ -270,7 +270,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
     // Reranking
     t_start = get_wall_time();
     //cout << "[rerank_knn_onesample] reraking using euclidean distance" << endl;
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(4)
     for (int i = 0; i < top_hamming.size(); i++)
     {
         postrank[i] = mypairf(0.0f,top_hamming[i].second);
@@ -295,7 +295,7 @@ vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
     unsigned int * tmp_hash_data = hash_data;
 
     // Compute distance for each sample of the DB
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(4)
     for (int i=0; i < data_num; i++)
     {
         // Pointer to ith DB hashcode
@@ -471,7 +471,7 @@ void HasherObject::clean_compfeat_files() {
         if (read_in_compidx[i]->is_open())
             read_in_compidx[i]->close();
         delete read_in_compfeatures[i];
-        delete read_in_compidx[i];
+        delete read_in_compidx[i];#
     }
 }
 
