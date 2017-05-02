@@ -471,7 +471,7 @@ void HasherObject::clean_compfeat_files() {
         if (read_in_compidx[i]->is_open())
             read_in_compidx[i]->close();
         delete read_in_compfeatures[i];
-        delete read_in_compidx[i];#
+        delete read_in_compidx[i];
     }
 }
 
