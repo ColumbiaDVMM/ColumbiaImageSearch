@@ -24,7 +24,7 @@
         "SE_near_dup":true,
         "SE_near_dup_th":0.15,
         "SE_get_dup":true,
-        "SE_ratio":0.0001,
+        "SE_ratio":0.00005,
         "SE_indexer":"hbase_indexer",
         "SE_ingester":"hbase_ingester",
         "indexer_verbose":1
