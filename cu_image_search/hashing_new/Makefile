@@ -10,10 +10,10 @@ CC=g++
 
 INCLUDE_DIRS_CMD=$(foreach d,$(INCLUDE_DIRS),-I$d)
 
-#OPEN_MP=-fopenmp
-OPEN_MP=
+OPEN_MP=-fopenmp
+#OPEN_MP=
 
-CFLAGS=-c 
+CFLAGS=-c
 CXXFLAGS=-std=c++0x -O2
 CVLIBS=-lopencv_core -lopencv_highgui -lz
 
