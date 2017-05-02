@@ -1,0 +1,30 @@
+#
+# Ubuntu Dockerfile
+#
+# https://github.com/dockerfile/ubuntu
+#
+
+# Pull base image.
+FROM ubuntu:xenial
+
+# Setup and configure
+ENV DEBIAN_FRONTEND noninteractive
+RUN \
+  apt-get update && \
+  apt-get install -y --no-install-recommends apt-utils && \
+  apt-get -y upgrade && \
+  apt-get install locales && \
+  locale-gen en_US.UTF-8 && \
+  apt-get install -y build-essential --no-install-recommends && \
+  apt-get install -y psmisc git swig jpeginfo libopencv-dev python-dev python-pip nvidia-375 --no-install-recommends && \
+  apt-get install -y nano less screen openssh-client
+
+# Create needed directories
+RUN mkdir /home/ubuntu && mkdir /home/ubuntu/memex && mkdir /home/ubuntu/memex/update && \
+    mkdir /home/ubuntu/memex/ColumbiaImageSearch && mkdir /home/ubuntu/caffe_gpu
+
+# One line ENV setting
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 HOME=/home/ubuntu
+
+# Define default command.
+CMD ["bash"]

@@ -1,16 +1,21 @@
 #!/bin/bash
 
-## Variables than could be changed
-docker_image="columbiaprecompimagesim"
-docker_image_tag="1.3"
-docker_name="columbia_university_precompute_similar_images"
-docker_file="DockerfileColumbiaPrecompSim"
+## Variables that could be changed
+docker_image="columbiaimagesearch"
+docker_image_tag="0.1"
+docker_name="columbia_university_search_similar_images"
+docker_file="DockerfileColumbiaImageSearch"
+#docker_nvidia_devices="--device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm"
+# while testing without an actual GPU
+docker_nvidia_devices=""
+ports_mapping="-p 85:5000"
 repo_path=$(dirname $(dirname $(pwd)))
 echo "repo_path is:"${repo_path}
 
 ## Docker requires sudo privilege, check if we already have them
 SUDO=''
 if (( $EUID != 0 )); then
+
     SUDO='sudo'
 fi
 
@@ -44,7 +49,8 @@ echo "Starting docker "${docker_name}" from image "${docker_image}":"${docker_im
 docker stop ${docker_name}
 docker rm ${docker_name}
 
+# We should store that for re-use
 echo -n 'Please enter update path: '
-read update_path
+read search_update_path
 
-docker run -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
