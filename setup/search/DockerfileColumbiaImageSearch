@@ -37,7 +37,7 @@ ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 HOME=/home/ubuntu
 # apt-get update && apt-get -y install cuda --no-install-recommends
 
 # Try with ubuntu14.04
-COPY cuda-repo-ubuntu1404_8.0.61-1_amd64.deb /home/ubuntu/setup_cuda/
+#COPY cuda-repo-ubuntu1404_8.0.61-1_amd64.deb /home/ubuntu/setup_cuda/
 #RUN echo "Installing cuda (this may take a while)" && dpkg -i /home/ubuntu/setup_cuda/cuda-repo-ubuntu1404_8.0.61-1_amd64.deb && \
 # apt-get update && apt-get -y install cuda --no-install-recommends
 
