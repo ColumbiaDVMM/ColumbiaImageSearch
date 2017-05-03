@@ -27,8 +27,8 @@ caffe_dir="caffe_gpu"
 caffe_path=${caffe_base_path}${caffe_dir}
 caffe_repo="https://github.com/BVLC/caffe"
 caffe_commit="e3c895b"
-#cd ${caffe_base_path}; git clone ${caffe_repo} ${caffe_dir}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
-cd ${caffe_base_path}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
+cd ${caffe_base_path}; git clone ${caffe_repo} ${caffe_dir}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
+#cd ${caffe_base_path}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
 # copy file to extract multiple features
 cp ${repo_path}/cu_image_search/feature_extractor/sentibank/extract_nfeatures.cpp ${caffe_path}/tools
 # compile
