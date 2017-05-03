@@ -2,7 +2,7 @@
 
 ## Variables that could be changed
 docker_image="columbiaimagesearch"
-docker_image_tag="0.2"
+docker_image_tag="0.4"
 docker_name="columbia_university_search_similar_images"
 docker_file="DockerfileColumbiaImageSearch"
 docker_nvidia_devices="--device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm"
