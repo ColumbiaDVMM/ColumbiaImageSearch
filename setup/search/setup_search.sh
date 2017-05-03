@@ -15,17 +15,7 @@ pip install -U setuptools
 pip install -U -r ${repo_path}/requirements.txt
 
 ## Caffe
-# install cuda
-# will download nvidia-375 even if already installed?
-#error?
-#Preparing to unpack .../nvidia-375_375.51-0ubuntu1_amd64.deb ...
-#Failed to connect to bus: No such file or directory
-#Removing all DKMS Modules
-
-# echo "Installing cuda (this may take a while)"
-# dpkg -i ${repo_path}/setup/search/cuda-repo-ubuntu1404_8.0.61-1_amd64.deb
-# apt-get update
-# apt-get -y install cuda --no-install-recommends
+# assuming cuda was installed before
 
 # download version of caffe that is known to work (commit e3c895b https://github.com/BVLC/caffe)
 # a folder /home/ubuntu/caffe_gpu should have been created from the docker file
@@ -34,11 +24,11 @@ caffe_base_path="/home/ubuntu/"
 caffe_dir="caffe_gpu"
 caffe_path=${caffe_base_path}${caffe_dir}
 caffe_repo="https://github.com/BVLC/caffe"
-#caffe_commit="e3c895b"
-#caffe_commit="1856bb2d89ecbabe84cbf0a647de7a2ab6c29207"
 caffe_commit="b963008a6591600e60ed6746d208e82e107f6a89"
-#cd ${caffe_base_path}; git clone ${caffe_repo} ${caffe_dir}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
-cd ${caffe_base_path}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
+
+cd ${caffe_base_path}; git clone ${caffe_repo} ${caffe_dir}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
+#cd ${caffe_base_path}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
+
 # copy file to extract multiple features
 cp ${repo_path}/cu_image_search/feature_extractor/sentibank/extract_nfeatures.cpp ${caffe_path}/tools
 # compile
