@@ -14,10 +14,10 @@ repo_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../.. && pwd )"
 #Failed to connect to bus: No such file or directory
 #Removing all DKMS Modules
 
-echo "Installing cuda (this may take a while)"
-dpkg -i ${repo_path}/setup/search/cuda-repo-ubuntu1404_8.0.61-1_amd64.deb
-apt-get update
-apt-get -y install cuda --no-install-recommends
+# echo "Installing cuda (this may take a while)"
+# dpkg -i ${repo_path}/setup/search/cuda-repo-ubuntu1404_8.0.61-1_amd64.deb
+# apt-get update
+# apt-get -y install cuda --no-install-recommends
 
 # download version of caffe that is known to work (commit e3c895b https://github.com/BVLC/caffe)
 # a folder /home/ubuntu/caffe_gpu should have been created from the docker file
