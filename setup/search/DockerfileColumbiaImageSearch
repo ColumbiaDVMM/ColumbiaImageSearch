@@ -5,7 +5,8 @@
 #
 
 # Pull base image.
-FROM ubuntu:xenial
+#FROM ubuntu:xenial
+FROM ubuntu:trusty
 
 # Setup and configure
 ENV DEBIAN_FRONTEND noninteractive
@@ -29,10 +30,22 @@ RUN mkdir /home/ubuntu && mkdir /home/ubuntu/memex && mkdir /home/ubuntu/memex/u
 # One line ENV setting
 ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 HOME=/home/ubuntu
 
+# Cuda install not working: Driver/Library mismatch... 
+# Will try installing with run file: cuda_8.0.61_375.26_linux-run.
 # Install cuda
-COPY cuda-repo-ubuntu1604_8.0.61-1_amd64.deb /home/ubuntu/setup_cuda/
-RUN echo "Installing cuda (this may take a while)" && dpkg -i /home/ubuntu/setup_cuda/cuda-repo-ubuntu1604_8.0.61-1_amd64.deb && \
-  apt-get update && apt-get -y install cuda --no-install-recommends
+#COPY cuda-repo-ubuntu1604_8.0.61-1_amd64.deb /home/ubuntu/setup_cuda/
+#RUN echo "Installing cuda (this may take a while)" && dpkg -i /home/ubuntu/setup_cuda/cuda-repo-ubuntu1604_8.0.61-1_amd64.deb && \
+# apt-get update && apt-get -y install cuda --no-install-recommends
+
+# Try with ubuntu14.04
+COPY cuda-repo-ubuntu1404_8.0.61-1_amd64.deb /home/ubuntu/setup_cuda/
+RUN echo "Installing cuda (this may take a while)" && dpkg -i /home/ubuntu/setup_cuda/cuda-repo-ubuntu1404_8.0.61-1_amd64.deb && \
+ apt-get update && apt-get -y install cuda --no-install-recommends
+
+# need to install with the devices connected?
+# apt-get -y --purge remove cuda nvidia-375 && dpkg -i /home/ubuntu/setup_cuda/cuda-repo-ubuntu1604_8.0.61-1_amd64.deb && apt-get update && apt-get -y --reinstall install cuda nvidia-375 --no-install-recommends
+
+# We could test cuda
 
 # Clone and compile caffe
 
