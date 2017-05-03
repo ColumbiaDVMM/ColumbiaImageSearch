@@ -16,7 +16,7 @@ RUN \
   apt-get install locales && \
   locale-gen en_US.UTF-8 && \
   apt-get install -y build-essential --no-install-recommends && \
-  apt-get install -y psmisc git swig jpeginfo libopencv-dev python-dev python-pip nvidia-375 --no-install-recommends && \
+  apt-get install -y cmake psmisc git swig wget jpeginfo libopencv-dev python-dev python-pip nvidia-375 --no-install-recommends && \
   apt-get install -y nano less screen openssh-client
 
 # Create needed directories
