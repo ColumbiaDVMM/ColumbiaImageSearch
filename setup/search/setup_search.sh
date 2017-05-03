@@ -6,6 +6,14 @@
 # get path of repo root
 repo_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../.. && pwd )"
 
+
+## Python
+# install required python packages
+echo "Installing python packages"
+pip install --upgrade pip
+pip install -U setuptools
+pip install -U -r ${repo_path}/requirements.txt
+
 ## Caffe
 # install cuda
 # will download nvidia-375 even if already installed?
@@ -26,7 +34,9 @@ caffe_base_path="/home/ubuntu/"
 caffe_dir="caffe_gpu"
 caffe_path=${caffe_base_path}${caffe_dir}
 caffe_repo="https://github.com/BVLC/caffe"
-caffe_commit="e3c895b"
+#caffe_commit="e3c895b"
+#caffe_commit="1856bb2d89ecbabe84cbf0a647de7a2ab6c29207"
+caffe_commit="b963008a6591600e60ed6746d208e82e107f6a89"
 #cd ${caffe_base_path}; git clone ${caffe_repo} ${caffe_dir}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
 cd ${caffe_base_path}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
 # copy file to extract multiple features
@@ -38,12 +48,6 @@ cd ${caffe_path}; mkdir build; cd build; cmake ..; make -j8
 
 # test sentibank?
 
-# ## Python
-# # install required python packages
-# echo "Installing python packages"
-# pip install --upgrade pip
-# pip install -U setuptools
-# pip install -U -r ${repo_path}/requirements.txt
 
 # ## Compile hashing related code
 # # compile hashing C++ code
