@@ -1,21 +1,27 @@
 #!/bin/bash
 
 #NB: This script has to be called WITHIN the docker
+install_python_pkgs=0
+install_caffe=0
 
 ## Initialization
 # get path of repo root
 repo_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../.. && pwd )"
 
-
 ## Python
+if [[ $install_python_pkgs -eq 1 ]];
+then
 # install required python packages
 echo "Installing python packages"
 pip install --upgrade pip
 pip install -U setuptools
 pip install -U -r ${repo_path}/requirements.txt
+fi
 
 ## Caffe
-# assuming cuda was installed before
+if [[ $install_caffe -eq 1 ]];
+then
+# assuming nvidia drivers and cuda were properly installed before
 
 # download version of caffe that is known to work (commit e3c895b https://github.com/BVLC/caffe)
 # a folder /home/ubuntu/caffe_gpu should have been created from the docker file
@@ -38,15 +44,16 @@ cd ${caffe_path}; mkdir build; cd build; cmake ..; make -j8
 
 # test sentibank?
 
+fi
 
-# ## Compile hashing related code
-# # compile hashing C++ code
-# echo "Compiling hashing C++ code"
-# cd ${repo_path}/cu_image_search/hashing_new && make;
+## Compile hashing related code
+# compile hashing C++ code
+echo "Compiling hashing C++ code"
+cd ${repo_path}/cu_image_search/hashing_new && make;
 
-# # compile python wrapper
-# echo "Compiling hashing python wrapper code"
-# cd ${repo_path}/cu_image_search/hashing_new/python && ./comp.sh;
+# compile python wrapper
+echo "Compiling hashing python wrapper code"
+cd ${repo_path}/cu_image_search/hashing_new/python && ./comp.sh;
 
 
 # #echo "Testing hashing python wrapper"

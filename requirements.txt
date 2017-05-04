@@ -5,4 +5,11 @@ requests
 happybase
 
 # not needed for precomp
-#pillow
+pillow
+# for the API
+gevent
+flask
+flask_restful
+
+# only for dev purposes
+ipython

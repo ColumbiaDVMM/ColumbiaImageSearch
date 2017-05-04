@@ -9,8 +9,10 @@
     #ServerName www.example.com
 
     ServerAdmin webmaster@localhost
+    DocumentRoot /srv/tchen/
 
     # Always set these headers.
+    #Header always set Access-Control-Allow-Origin "http://localhost:5009"
     Header always set Access-Control-Allow-Methods "POST, GET, OPTIONS, DELETE, PUT"
     Header always set Access-Control-Max-Age "1000"
     Header always set Access-Control-Allow-Headers "x-requested-with, Content-Type, origin, authorization, accept, client-security-token"
@@ -20,6 +22,9 @@
     RewriteCond %{REQUEST_METHOD} OPTIONS
     RewriteRule ^(.*)$ $1 [R=200,L]
 
+
+Alias /HOST /srv/tchen/
+<Directory "/srv/tchen/">
 
 #
 # Possible values for the Options directive are "None", "All",
@@ -45,21 +50,22 @@
 #
 # Controls who can get stuff from this server.
 #
-#   Order allow,deny
-#   Allow from all
-
+ #   Order allow,deny
+ #   Allow from all
     Deny from all
     
-<FilesMatch "\.(zip|tgz)$">  
-  Require all granted
+    <FilesMatch "\.(zip|tgz)$">  
+        Require all granted
+
   Order allow,deny
   Allow from all
-</FilesMatch>
+
+    </FilesMatch>
 <FilesMatch "\.(gif|jpe?g|png|html)$">
-  AuthName "Authentication Required"
-  AuthType Basic
-  AuthUserFile /etc/htpasswd/.htpasswd
-  require valid-user
+AuthName "Authentication Required"
+AuthType Basic
+AuthUserFile /etc/htpasswd/.htpasswd
+require valid-user
   Order allow,deny
   Allow from all
 </FilesMatch>
@@ -82,6 +88,33 @@
 ProxyRequests Off
 ProxyPreserveHost On
 
+<Proxy *>
+    # Auth changes in 2.4 - see http://httpd.apache.org/docs/2.4/upgrading.html#run-time
+    Require all granted
+</Proxy>
+ProxyPass /HOST !
+
+ProxyPass /ATF http://localhost:81/
+ProxyPassReverse /ATF http://localhost:81/
+<Location /ATF>
+    # Auth changes in 2.4 - see http://httpd.apache.org/docs/2.4/upgrading.html#run-time
+    Require all granted
+</Location>
+
+ProxyPass /HT_DEMO  http://localhost:880/
+ProxyPassReverse /HT_DEMO http://localhost:880/
+<Location /HT_DEMO>
+    # Auth changes in 2.4 - see http://httpd.apache.org/docs/2.4/upgrading.html#run-time
+    Require all granted
+</Location>
+
+ProxyPass /HT_DEV  http://localhost:84/
+ProxyPassReverse /HT_DEV http://localhost:84/
+<Location /HT_DEV>
+    # Auth changes in 2.4 - see http://httpd.apache.org/docs/2.4/upgrading.html#run-time
+    Require all granted
+</Location>
+
 ProxyPass /ESCORTS/  http://localhost:85/
 ProxyPassReverse /ESCORTS/ http://localhost:85/
 #ProxyPassReverse /ESCORTS https://isi.memexproxy.com/ESCORTS
@@ -97,9 +130,9 @@ ProxyPassReverse /ESCORTS_DEV/ http://localhost:86/
     Require all granted
 </Location>
 
-ProxyPass /ESCORTS_NEW/  http://localhost:88/
-ProxyPassReverse /ESCORTS_NEW/ http://localhost:88/
-<Location /ESCORTS_NEW>
+ProxyPass / http://localhost:82/
+ProxyPassReverse / http://localhost:82/
+<Location />
     # Auth changes in 2.4 - see http://httpd.apache.org/docs/2.4/upgrading.html#run-time
     Require all granted
 </Location>
