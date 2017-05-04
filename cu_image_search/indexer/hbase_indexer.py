@@ -188,6 +188,7 @@ class HBaseIndexer(GenericIndexer):
 
 
     def refresh_hbase_conn(self, calling_function, sleep_time=0):
+        # this can take 4 seconds...
         start_refresh = time.time()
         dt_iso = datetime.utcnow().isoformat()
         print("[HBaseIndexer.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function, dt_iso))
