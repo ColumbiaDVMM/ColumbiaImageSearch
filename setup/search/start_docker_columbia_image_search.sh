@@ -2,8 +2,8 @@
 
 ## Variables that could be changed
 docker_image="columbiaimagesearch"
-#docker_image_tag="0.6" # build 0.6, install cuda, commit as 0.7
-docker_image_tag="0.7"
+#docker_image_tag="0.7" # build 0.7, install cuda, run setup_search.sh, commit as 0.8
+docker_image_tag="0.8"
 docker_name="columbia_university_search_similar_images"
 docker_file="DockerfileColumbiaImageSearch"
 nvidia_install_dir="/srv/NVIDIA"

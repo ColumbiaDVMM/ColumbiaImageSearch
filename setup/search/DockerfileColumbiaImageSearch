@@ -5,6 +5,7 @@
 #
 
 # NB: to make NVIDIA drivers and cuda work in docker, it seems you need the exact same versions installled in the exact same way in both the host and the docker. Edit accordingly.
+# Need to re-install nvidia-375 driver after installing cuda?
 
 # Pull base image.
 #FROM ubuntu:xenial
@@ -21,7 +22,7 @@ RUN \
   apt-get install locales && \
   locale-gen en_US.UTF-8 && \
   apt-get install -y build-essential --no-install-recommends && \
-  apt-get install -y initramfs-tools libprotobuf-dev libleveldb-dev libsnappy-dev libopencv-dev libhdf5-serial-dev protobuf-compiler libgflags-dev libgoogle-glog-dev liblmdb-dev libatlas-base-dev libblas-dev liblapack-dev cmake psmisc git swig wget jpeginfo libopencv-dev python-dev python-pip nvidia-375 --no-install-recommends && \
+  apt-get install -y initramfs-tools libprotobuf-dev libleveldb-dev libsnappy-dev libopencv-dev libhdf5-serial-dev protobuf-compiler libgflags-dev libgoogle-glog-dev liblmdb-dev libatlas-base-dev libboost-all-dev libblas-dev liblapack-dev cmake psmisc git swig wget jpeginfo libopencv-dev python-dev python-pip nvidia-375 --no-install-recommends && \
   apt-get install -y nano less screen openssh-client
 
 # line without nvidia-375
