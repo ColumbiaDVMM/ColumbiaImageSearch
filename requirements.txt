@@ -1,0 +1,15 @@
+#setuptools # should be installed first before calling pip install -r requirements.txt
+
+numpy
+requests
+happybase
+
+# not needed for precomp
+pillow
+# for the API
+gevent
+flask
+flask_restful
+
+# only for dev purposes
+ipython

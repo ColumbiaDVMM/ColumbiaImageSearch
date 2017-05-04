@@ -193,6 +193,7 @@ void HasherObject::find_knn() {
     init_output_files();
     double t_start;
     int k;
+    int print_div=100;
     cout <<  "[find_knn] Looking for similar images of " << query_num << " queries..." << endl;
     for (k=0; k < query_num; k++)
     {
@@ -211,8 +212,9 @@ void HasherObject::find_knn() {
         t[7] += get_wall_time() - t_start;
         query += int_num;
         query_feature += feature_dim;
-        if (((query_num/10)>0) && (k % (query_num/10) == 0) && (k > 0)) {
+        if (((query_num/print_div)>0) && (k % (query_num/print_div) == 0) && (k > 0)) {
             cout <<  "[find_knn] Looking for similar images. Processed " << k << " images over " << query_num << " queries." << endl;
+            print_timing();
         }
     }
     cout <<  "[find_knn] Done searching knn for " << query_num << " queries." << endl;
@@ -268,7 +270,7 @@ vector<mypairf> HasherObject::rerank_knn_onesample(float* query_feature, vector<
     // Reranking
     t_start = get_wall_time();
     //cout << "[rerank_knn_onesample] reraking using euclidean distance" << endl;
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(4)
     for (int i = 0; i < top_hamming.size(); i++)
     {
         postrank[i] = mypairf(0.0f,top_hamming[i].second);
@@ -293,7 +295,7 @@ vector<mypair> HasherObject::compute_hamming_dist_onehash(unsigned int* query) {
     unsigned int * tmp_hash_data = hash_data;
 
     // Compute distance for each sample of the DB
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(4)
     for (int i=0; i < data_num; i++)
     {
         // Pointer to ith DB hashcode
@@ -342,21 +344,38 @@ void HasherObject::write_to_output_file(vector<mypairf> postrank, vector<mypair>
     // iterator version is not really faster...
     for (vector<mypairf>::iterator it = postrank.begin(), end = postrank.end(); it != end; it++) {
         //outputfile << postrank[i].second << ' ';
-        outputfile << it->second << ' ';
-        // Also output to detailed hamming file (for debugging)
-        if (DEMO == 0) {
-            //outputfile_hamming << postrank[i].second << ' ';
-            outputfile_hamming << it->second << ' ';
+        if ((near_dup_th<0.0) || ((near_dup_th>0.0) && (it->first<near_dup_th))) {
+            outputfile << it->second << ' ';
+            // Also output to detailed hamming file (for debugging)
+            if (DEMO == 0) {
+                //outputfile_hamming << postrank[i].second << ' ';
+                outputfile_hamming << it->second << ' ';
+            }
+        }
+        else {
+            break;
         }
     }
     // Then distances
     for (int i=0; i < postrank.size(); i++) {
-        outputfile << postrank[i].first << ' ';
-        // Also output hamming distances (for debugging)
-        if (DEMO == 0) {
-            outputfile_hamming << hamming[i].first << ' ';
+        if ((near_dup_th<0.0) || ((near_dup_th>0.0) && (postrank[i].first<near_dup_th))) {
+            outputfile << postrank[i].first << ' ';
+            // Also output hamming distances (for debugging)
+            if (DEMO == 0) {
+                outputfile_hamming << hamming[i].first << ' ';
+            }
+        }
+        else {
+            break;
         }
     }
+    // for (int i=0; i < postrank.size(); i++) {
+    //     outputfile << postrank[i].first << ' ';
+    //     // Also output hamming distances (for debugging)
+    //     if (DEMO == 0) {
+    //         outputfile_hamming << hamming[i].first << ' ';
+    //     }
+    // }
     // Write end of lines to both files
     outputfile << endl;
     if (DEMO==0) {

@@ -118,21 +118,23 @@ class APIResponder(Resource):
 
 
     def process_query(self, mode, query, options=None):
+        start = time.time()
         if mode == "byURL":
-            return self.search_byURL(query, options)
+            resp = self.search_byURL(query, options)
+        elif mode == "byURL_nocache":
+            resp = self.search_byURL_nocache(query, options)
+        elif mode == "bySHA1":
+            resp = self.search_bySHA1(query, options)
+        elif mode == "bySHA1_nocache":
+            resp = self.search_bySHA1_nocache(query, options)
+        elif mode == "byB64":
+            resp = self.search_byB64(query, options)
+        elif mode == "byB64_nocache":
+            resp = self.search_byB64_nocache(query, options)
+        # view modes
         elif mode == "view_similar_byURL":
             query_reponse = self.search_byURL(query, options)
             return self.view_similar_query_response('URL', query, query_reponse, options)
-        elif mode == "byURL_nocache":
-            return self.search_byURL_nocache(query, options)
-        elif mode == "bySHA1":
-            return self.search_bySHA1(query, options)
-        elif mode == "bySHA1_nocache":
-            return self.search_bySHA1_nocache(query, options)
-        elif mode == "byB64":
-            return self.search_byB64(query, options)
-        elif mode == "byB64_nocache":
-            return self.search_byB64_nocache(query, options)
         elif mode == "view_image_sha1":
             return self.view_image_sha1(query, options)
         elif mode == "view_similar_bySHA1":
@@ -141,6 +143,9 @@ class APIResponder(Resource):
             #return self.view_similar_images_sha1(query, options)
         else:
             return {'error': 'unknown_mode: '+str(mode)}
+        # finalize resp
+        resp['timing'] = time.time()-start
+        return resp
 
 
     def get_options_dict(self, options):

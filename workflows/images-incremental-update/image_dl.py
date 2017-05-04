@@ -56,10 +56,12 @@ def get_SHA1_from_URL_StringIO(url,verbose=0):
         if r.status_code == 200:
             r_sio = StringIO(r.content)
             if int(r.headers['content-length']) == 0:
+                del r
                 raise ValueError("Empty image.")
             else:
                 data = r_sio.read()
                 sha1hash = get_SHA1_from_data(data)
+                del r,r_sio,data
                 return sha1hash
         else:
             raise ValueError("Incorrect status_code: {}.".format(r.status_code))

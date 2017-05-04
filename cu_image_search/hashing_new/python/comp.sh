@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #-- conf
-BASEDIR=/opt/local
+BASEDIR=/usr/local
 CC=g++
 OPENMP=-fopenmp
 # local
-#BASEDIR=/usr/local
+#BASEDIR=/opt/local
 #CC=g++-mp-4.9
 #OPENMP=
 #-- end conf

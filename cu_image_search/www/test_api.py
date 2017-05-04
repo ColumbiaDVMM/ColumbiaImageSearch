@@ -21,7 +21,8 @@ def get_b64(url, imagedltimeout = 2):
 
 if __name__ == "__main__":
     import requests
-    test_remote = True
+    #test_remote = True
+    test_remote = False
     if test_remote:
         import json
         auth_json = json.load(open('auth_token.json','rt'))

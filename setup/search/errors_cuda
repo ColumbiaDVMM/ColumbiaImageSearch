@@ -1,0 +1,82 @@
+Errors were encountered while processing:
+ nvidia-375
+ nvidia-375-dev
+ libcuda1-375
+ nvidia-opencl-icd-375
+ cuda-drivers
+ cuda-runtime-8-0
+ cuda-demo-suite-8-0
+ cuda-8-0
+ cuda
+
+update-alternatives: renaming x86_64-linux-gnu_nvidia_app_profile slave link from /usr/share/nvidia/nvidia-application-profiles-375.39-rc to /usr/share/nvidia/nvidia-application-profiles-375.51-rc
+update-alternatives: renaming x86_64-linux-gnu_nvidia_app_profile_keys slave link from /usr/share/nvidia/nvidia-application-profiles-375.39-key-documentation to /usr/share/nvidia/nvidia-application-profiles-375.51-key-documentation
+update-alternatives: updating alternative /usr/lib/nvidia-375/ld.so.conf because link group x86_64-linux-gnu_gl_conf has changed slave links
+dpkg: warning: version '*-*' has bad syntax: version number does not start with digit
+/var/lib/dpkg/info/nvidia-375.postinst: 217: /var/lib/dpkg/info/nvidia-375.postinst: update-initramfs: not found
+dpkg: error processing package nvidia-375 (--configure):
+ subprocess installed post-installation script returned error exit status 127
+dpkg: dependency problems prevent configuration of nvidia-375-dev:
+ nvidia-375-dev depends on nvidia-375 (>= 375.51); however:
+  Package nvidia-375 is not configured yet.
+
+dpkg: error processing package nvidia-375-dev (--configure):
+ dependency problems - leaving unconfigured
+dpkg: dependency problems prevent configuration of libcuda1-375:
+ libcuda1-375 depends on nvidia-375; however:
+  Package nvidia-375 is not configured yet.
+
+dpkg: error processing package libcuda1-375 (--configure):
+ dependency problems - leaving unconfigured
+Setting up nvidia-modprobe (375.51-0ubuntu1) ...
+Setting up libpolkit-agent-1-0:amd64 (0.105-14.1) ...
+Setting up libpolkit-backend-1-0:amd64 (0.105-14.1) ...
+Setting up policykit-1 (0.105-14.1) ...
+Setting up libvdpau1:amd64 (1.1.1-3ubuntu1) ...
+Setting up libjansson4:amd64 (2.7-3) ...
+Setting up libxnvctrl0 (375.51-0ubuntu1) ...
+Setting up ocl-icd-libopencl1:amd64 (2.2.8-1) ...
+dpkg: dependency problems prevent configuration of nvidia-opencl-icd-375:
+ nvidia-opencl-icd-375 depends on nvidia-375; however:
+  Package nvidia-375 is not configured yet.
+
+dpkg: error processing package nvidia-opencl-icd-375 (--configure):
+ dependency problems - leaving unconfigured
+dpkg: dependency problems prevent configuration of cuda-drivers:
+ cuda-drivers depends on nvidia-375 (>= 375.51); however:
+  Package nvidia-375 is not configured yet.
+ cuda-drivers depends on nvidia-375-dev (>= 375.51); however:
+  Package nvidia-375-dev is not configured yet.
+ cuda-drivers depends on libcuda1-375 (>= 375.51); however:
+  Package libcuda1-375 is not configured yet.
+ cuda-drivers depends on nvidia-opencl-icd-375 (>= 375.51); however:
+  Package nvidia-opencl-icd-375 is not configured yet.
+
+dpkg: error processing package cuda-drivers (--configure):
+ dependency problems - leaving unconfigured
+dpkg: dependency problems prevent configuration of cuda-runtime-8-0:
+ cuda-runtime-8-0 depends on cuda-drivers (>= 375.26); however:
+  Package cuda-drivers is not configured yet.
+
+dpkg: error processing package cuda-runtime-8-0 (--configure):
+ dependency problems - leaving unconfigured
+dpkg: dependency problems prevent configuration of cuda-demo-suite-8-0:
+ cuda-demo-suite-8-0 depends on cuda-runtime-8-0; however:
+  Package cuda-runtime-8-0 is not configured yet.
+
+dpkg: error processing package cuda-demo-suite-8-0 (--configure):
+ dependency problems - leaving unconfigured
+dpkg: dependency problems prevent configuration of cuda-8-0:
+ cuda-8-0 depends on cuda-runtime-8-0 (>= 8.0.61); however:
+  Package cuda-runtime-8-0 is not configured yet.
+ cuda-8-0 depends on cuda-demo-suite-8-0 (>= 8.0.61); however:
+  Package cuda-demo-suite-8-0 is not configured yet.
+
+dpkg: error processing package cuda-8-0 (--configure):
+ dependency problems - leaving unconfigured
+dpkg: dependency problems prevent configuration of cuda:
+ cuda depends on cuda-8-0 (>= 8.0.61); however:
+  Package cuda-8-0 is not configured yet.
+
+dpkg: error processing package cuda (--configure):
+ dependency problems - leaving unconfigured

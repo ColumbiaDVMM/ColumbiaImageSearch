@@ -309,6 +309,7 @@ class Searcher():
     def format_output(self, simname, nb_query, corrupted, list_sha1_id, options_dict=dict()):
         # read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
         print "[Searcher.format_output: log] options are: {}".format(options_dict)
+        start_read_sim = time.time()
         if 'sha1_sim' in options_dict:
             sha1sim = options_dict['sha1_sim']
         else:
@@ -321,8 +322,11 @@ class Searcher():
         except Exception as inst:
             print "[Searcher.format_output: error] {}".format(inst)
             return self.build_error_output(nb_query, inst)
+        print "[Searcher.format_output: log] read_sim took: {}".format(time.time() - start_read_sim)
 
+        start_build_output = time.time()
         outp = self.build_output(nb_query, corrupted, list_sha1_id, sim, sim_score, options_dict)
+        print "[Searcher.format_output: log] build_output took: {}".format(time.time() - start_build_output)
         #print "[Searcher.format_output: log] output {}".format(output)
         
         return outp
@@ -533,7 +537,12 @@ class Searcher():
         print "[Searcher.search_from_image_filenames: log] Search prepared in {}s".format(time.time() - start_search)
         if features_wrote:
             # query with merged features_filename
-            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+            #simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+            if "near_dup_th" in options_dict:
+                near_dup_th = options_dict["near_dup_th"]
+            else:
+                near_dup_th = self.near_dup_th
+            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio, near_dup_th=float(near_dup_th))
         outputname = simname[:-4]+".json"
         start_format = time.time()
         outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
@@ -544,8 +553,9 @@ class Searcher():
         return outp, outputname
 
 
-    def search_from_listid_get_simname(self, list_ids_sha1, search_id):
+    def search_from_listid_get_simname(self, list_ids_sha1, search_id, check_already_computed=False):
         # list_ids_sha1 will be list of tuples (integer_id, sha1)
+        final_featuresfile = search_id+'.dat'
         # sanity check
         nb_imgs = len(self.indexer.sha1_featid_mapping)
         valid_ids_sha1 = []
@@ -565,12 +575,17 @@ class Searcher():
             else:
                 print "[Searcher.search_from_listid_get_simname] trying to access image {} when searching image {} while we have only {} images".format(img_id, sha1, nb_imgs)
                 corrupted.append(sha1)
+        if check_already_computed:
+            simname = final_featuresfile[:-4] + '-sim_'+str(self.ratio)+'.txt'
+            if os.path.isfile(simname):
+                print "[Searcher.search_from_listid_get_simname: log] found already existing output. Returning it."
+                # we could check we have len(valid_ids_sha1) lines, but the renaming to sim_ratio happens when the search is done...
+                return simname, corrupted
         if valid_ids_sha1:
             # get the features, hasher starts to count at 1
             feats, ok_ids = self.indexer.hasher.get_precomp_feats([x[0]+1 for x in valid_ids_sha1])
             if len(ok_ids) != len(valid_ids_sha1):
                 raise ValueError("[Searcher.search_from_sha1_list_get_simname: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
-        final_featuresfile = search_id+'.dat'
         print "[Searcher.search_from_listid_get_simname: log] writing {} features to {}".format(len(valid_ids_sha1), final_featuresfile)
         read_dim = self.features_dim*4
         read_type = np.float32
@@ -585,7 +600,8 @@ class Searcher():
         if features_wrote:
             # query with merged features_filename
             print "[Searcher.search_from_listid_get_simname: log] searching for similar images from features file {}".format(final_featuresfile)
-            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+            #simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+            simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio, near_dup_th=float(self.near_dup_th))
         else:
             print "[Searcher.search_from_listid_get_simname: log] no features to search for similar images."
             simname = None

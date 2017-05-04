@@ -1,0 +1,57 @@
+#
+# Ubuntu Dockerfile
+#
+# https://github.com/dockerfile/ubuntu
+#
+
+# NB: to make NVIDIA drivers and cuda work in docker, it seems you need the exact same versions installled in the exact same way in both the host and the docker. Edit accordingly.
+# Need to re-install nvidia-375 driver after installing cuda?
+
+# Pull base image.
+#FROM ubuntu:xenial
+FROM ubuntu:trusty
+
+# Setup and configure
+ENV DEBIAN_FRONTEND noninteractive
+# NB: nvidia-375 should not be installed in following command if NVIDIA drivers were not 
+# installed as a pacakge in host.
+RUN \
+  apt-get update && \
+  apt-get install -y --no-install-recommends apt-utils && \
+  apt-get -y upgrade && \
+  apt-get install locales && \
+  locale-gen en_US.UTF-8 && \
+  apt-get install -y build-essential --no-install-recommends && \
+  apt-get install -y initramfs-tools libprotobuf-dev libleveldb-dev libsnappy-dev libopencv-dev libhdf5-serial-dev protobuf-compiler libgflags-dev libgoogle-glog-dev liblmdb-dev libatlas-base-dev libboost-all-dev libblas-dev liblapack-dev cmake psmisc git swig wget jpeginfo libopencv-dev python-dev python-pip nvidia-375 --no-install-recommends && \
+  apt-get install -y nano less screen openssh-client
+
+# line without nvidia-375
+#apt-get install -y cmake psmisc git swig wget jpeginfo libopencv-dev python-dev python-pip --no-install-recommends && \
+
+# Create needed directories
+RUN mkdir /home/ubuntu && mkdir /home/ubuntu/memex && mkdir /home/ubuntu/memex/update && \
+    mkdir /home/ubuntu/memex/ColumbiaImageSearch && mkdir /home/ubuntu/setup_cuda
+
+# One line ENV setting
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 HOME=/home/ubuntu
+
+# Different ways of installing cuda. The important thing is to install in the same way in host and docker.
+# These ways do not work for me giving a "Driver/Library mismatch" error on a nvidia-smi call 
+# Install cuda (xenial) .deb
+#COPY cuda-repo-ubuntu1604_8.0.61-1_amd64.deb /home/ubuntu/setup_cuda/
+#RUN echo "Installing cuda (this may take a while)" && dpkg -i /home/ubuntu/setup_cuda/cuda-repo-ubuntu1604_8.0.61-1_amd64.deb && \
+# apt-get update && apt-get -y install cuda --no-install-recommends
+
+# Install cuda (trusty) from .deb
+#COPY cuda-repo-ubuntu1404_8.0.61-1_amd64.deb /home/ubuntu/setup_cuda/
+#RUN echo "Installing cuda (this may take a while)" && dpkg -i /home/ubuntu/setup_cuda/cuda-repo-ubuntu1404_8.0.61-1_amd64.deb && \
+# apt-get update && apt-get -y install cuda --no-install-recommends
+
+# I installed cuda manually with the shell script "cuda_8.0.61_375.26_linux-run" but NOT the drivers as I used the nvidia-375 package.
+
+# We could test cuda
+
+# Clone and compile caffe
+
+# Define default command.
+CMD ["bash"]
