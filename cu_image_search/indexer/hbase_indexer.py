@@ -188,10 +188,12 @@ class HBaseIndexer(GenericIndexer):
 
 
     def refresh_hbase_conn(self, calling_function, sleep_time=0):
+        start_refresh = time.time()
         dt_iso = datetime.utcnow().isoformat()
         print("[HBaseIndexer.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function, dt_iso))
         time.sleep(sleep_time)
         self.pool = happybase.ConnectionPool(size=self.nb_threads,host=self.hbase_host)
+        print("[HBaseIndexer.refresh_hbase_conn: log] Refreshed connection pool in {}s.".format(time.time()-start_refresh))
 
 
     def get_ids_from_sha1s(self, list_sha1s):
