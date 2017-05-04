@@ -309,6 +309,7 @@ class Searcher():
     def format_output(self, simname, nb_query, corrupted, list_sha1_id, options_dict=dict()):
         # read hashing similarity results and get 'cached_image_urls', 'cdr_ids', 'ads_cdr_ids'
         print "[Searcher.format_output: log] options are: {}".format(options_dict)
+        start_read_sim = time.time()
         if 'sha1_sim' in options_dict:
             sha1sim = options_dict['sha1_sim']
         else:
@@ -321,8 +322,11 @@ class Searcher():
         except Exception as inst:
             print "[Searcher.format_output: error] {}".format(inst)
             return self.build_error_output(nb_query, inst)
+        print "[Searcher.format_output: log] read_sim took: {}".format(time.time() - start_read_sim)
 
+        start_build_output = time.time()
         outp = self.build_output(nb_query, corrupted, list_sha1_id, sim, sim_score, options_dict)
+        print "[Searcher.format_output: log] build_output took: {}".format(time.time() - start_build_output)
         #print "[Searcher.format_output: log] output {}".format(output)
         
         return outp
