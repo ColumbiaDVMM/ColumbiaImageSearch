@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #NB: This script has to be called WITHIN the docker
-install_python_pkgs=1
-install_caffe=1
+install_python_pkgs=0
+install_caffe=0
 compile_hashing=1
 
 ## Initialization
