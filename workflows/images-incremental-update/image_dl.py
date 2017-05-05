@@ -70,6 +70,39 @@ def get_SHA1_from_URL_StringIO(url,verbose=0):
     return None
 
 
+def get_SHA1_imginfo_from_URL_StringIO(url,verbose=0):
+    from cStringIO import StringIO
+    from PIL import Image
+    import sys
+    import requests
+    if verbose>1:
+        print "Downloading image from {}.".format(url)
+    try:
+        r = requests.get(url, timeout=imagedltimeout)
+        if r.status_code == 200:
+            r_sio = StringIO(r.content)
+            if int(r.headers['content-length']) == 0:
+                del r
+                raise ValueError("Empty image.")
+            else:
+                img = Image.open(r_sio)
+                data = r_sio.read()
+                # use a dict for img info so we can store any other info we may need
+                img_info = dict()
+                img_info['size'] = dict()
+                w,h = img.size
+                img_info['size']['width'] = w
+                img_info['size']['height'] = h
+                img_info['format'] = img.format
+                sha1hash = get_SHA1_from_data(data)
+                del r,r_sio,data
+                return sha1hash,img_info
+        else:
+            raise ValueError("Incorrect status_code: {}.".format(r.status_code))
+    except Exception as inst:
+        print "Download failed from url {}. [{}]".format(url, inst)
+    return None
+
 def get_SHA1_from_URL(url,verbose=False):
     if verbose:
         print "Downloading image from {}.".format(url)

@@ -3,6 +3,7 @@
 numpy
 requests
 happybase
+urllib3[secure]
 
 # not needed for precomp
 pillow
