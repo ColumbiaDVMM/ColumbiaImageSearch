@@ -534,6 +534,12 @@ def split_sha1_kv_images_discarded_wimginfo(x):
         for field in tmp_fields_list:
             if field[1]=="s3_url":
                 out.append((x[0], [x[0], field[0], field[1], unicode(x[1][field[0]+":"+field[1]][0])]))
+            elif field[1]=="img_info": 
+                # deal with an older update that does not have this field.
+                try:
+                    out.append((x[0], [x[0], field[0], field[1], x[1][field[0]+":"+field[1]][0]]))
+                except Exception:
+                    pass
             else:
                 out.append((x[0], [x[0], field[0], field[1], ','.join(x[1][field[0]+":"+field[1]])]))
     return out
