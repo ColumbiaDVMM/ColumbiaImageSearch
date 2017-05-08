@@ -9,7 +9,7 @@ import sys
 print(sys.version)
 import subprocess
 
-dev = True
+dev = False
 
 if dev:
     dev_release_suffix = "_dev"
@@ -124,46 +124,28 @@ def clean_up_s3url_sha1(data):
         return []
 #-
 
-def get_SHA1_from_URL(URL):
+def get_SHA1_imginfo_from_URL(URL,verbose=0):
     import image_dl
-    sha1hash = image_dl.get_SHA1_from_URL_StringIO(URL,1) # 1 is verbose level
-    return sha1hash
+    import json
+    sha1hash,img_info = image_dl.get_SHA1_imginfo_from_URL_StringIO(URL,verbose) # 1 is verbose level
+    return sha1hash,json.dumps(img_info)
 
-def get_SHA1_imginfo_from_URL(URL):
-    import image_dl
-    sha1hash,img_info = image_dl.get_SHA1_imginfo_from_URL_StringIO(URL,1) # 1 is verbose level
-    return sha1hash,img_info
-
-def get_row_sha1(URL_S3,verbose=False):
-    row_sha1 = None
-    if type(URL_S3) == unicode and URL_S3 != u'None' and URL_S3.startswith('https://s3'):
-        row_sha1 = get_SHA1_from_URL(URL_S3)
-    if row_sha1 and verbose:
-        print "Got new SHA1 {} from_url {}.".format(row_sha1,URL_S3)
-    return row_sha1
-
-
-def check_get_sha1_s3url(data):
-    URL_S3 = data[0]
-    row_sha1 = get_row_sha1(unicode(URL_S3),0)
-    if row_sha1:
-        return [(URL_S3, (list(data[1][0]), row_sha1))]
-    return []
 
 def check_get_sha1_imginfo_s3url(data):
     URL_S3 = data[0]
-    row_sha1,img_info = get_SHA1_imginfo_from_URL(unicode(URL_S3),0)
+    row_sha1,img_info = get_SHA1_imginfo_from_URL(unicode(URL_S3),1)
     if row_sha1:
         # data[1][0] is a list (reduced in reduce_s3url_infos) of dicts built in to_cdr_id_dict
         # add "img_info" to each as it is easier to propagate down without changing too many things
         # but it is actually more related to the sha1...
         list_v_in = data[1][0]
         list_v_out = []
-        for v in list_v:
+        for v in list_v_in:
             v["info:img_info"] = img_info
             list_v_out.append(v)
         return [(URL_S3, (list_v_out, row_sha1))]
     return []
+
 
 def reduce_s3url_infos(a,b):
     a.extend(b)
@@ -403,6 +385,7 @@ def cdrid_key_to_sha1_key_wimginfo(data):
     sha1 = None
     obj_stored_url = None
     obj_parent = None
+    img_info = None
     try:
         sha1_val = json_x["info:sha1"]
         if type(sha1_val)==list and len(sha1_val)==1:
@@ -411,11 +394,11 @@ def cdrid_key_to_sha1_key_wimginfo(data):
             sha1 = sha1_val.strip()
         obj_stored_url = unicode(json_x["info:obj_stored_url"].strip())
         obj_parent = json_x["info:obj_parent"].strip()
-        img_info = json_x["img_info"]
+        img_info = json_x["info:img_info"]
     except Exception as inst2:
         print("[cdrid_key_to_sha1_key_wimginfo] could not read sha1, obj_stored_url or obj_parent for cdr_id {}".format(cdr_id))
         pass
-    if cdr_id and sha1 and obj_stored_url and obj_parent:
+    if cdr_id and sha1 and obj_stored_url and obj_parent and img_info:
         return [(sha1, {"info:all_cdr_ids": [cdr_id], "info:s3_url": [obj_stored_url], "info:all_parent_ids": [obj_parent], "info:img_info": [img_info]})]
     return []
 
@@ -924,7 +907,7 @@ def get_cdr_ids_infos_rdd_new_sha1(basepath_save, es_man, es_ts_start, es_ts_end
             s3url_infos_rdd_no_sha1 = s3url_infos_rdd_join
         s3url_infos_rdd_no_sha1_count = s3url_infos_rdd_no_sha1.count()
         print("[get_cdr_ids_infos_rdd_new_sha1: info] starting to download images to get new sha1s for {} URLs.".format(s3url_infos_rdd_no_sha1_count))
-        s3url_infos_rdd_new_sha1 = s3url_infos_rdd_no_sha1.partitionBy(nb_partitions).flatMap(check_get_sha1_s3url)
+        s3url_infos_rdd_new_sha1 = s3url_infos_rdd_no_sha1.partitionBy(nb_partitions).flatMap(check_get_sha1_imginfo_s3url)
         # why can't we go to sha1 based RDD directly here? because we need to store mapping cdr_id -> sha1?
         cdr_ids_infos_rdd_new_sha1 = s3url_infos_rdd_new_sha1.flatMap(s3url_dict_list_to_cdr_id_wsha1)
     else:

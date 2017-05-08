@@ -211,7 +211,7 @@ def get_SHA1_imginfo_from_URL_StringIO(url,verbose=0):
             raise ValueError("Incorrect status_code: {}.".format(r.status_code))
     except Exception as inst:
         print "Download failed from url {}. [{}]".format(url, inst)
-    return None
+    return None,None
 
 def get_SHA1_from_URL(url,verbose=False):
     if verbose:
