@@ -1,5 +1,7 @@
 # v1 has an issue with queueOut.
-# Finalizer is not always getting the processed update, seems to hang for a long time.
+# Finalizer is not always getting the processed update, seems to hang for a long time. 
+# Unclear why, seems to work fine with fake work.
+# Workaround in this v2, look for files on disk...
 
 import os
 import sys
@@ -15,11 +17,15 @@ sys.path.append('..')
 import cu_image_search
 from cu_image_search.search import searcher_hbaseremote
 
-nb_workers = 20
-time_sleep = 60
+nb_workers = 10
+
+# how much time do we wait before re-trying to finalizer an update if none were found
+time_sleep_noupdate = 60 
+# queue timeout when trying to get an update to process
 queue_timeout = 600
+
 debug_sleep = 10
-debug = True
+debug = False
 
 producer_end_signal = (None, None, None)
 consumer_end_signal = "consumer_ended"
@@ -116,12 +122,12 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
     import glob
     searcher_finalizer = searcher_hbaseremote.Searcher(global_conf_file)
     print "[finalizer-pid({}): log] Finalizer worker ready at {}".format(os.getpid(), get_now())
+    sys.stdout.flush()
     queueFinalizer.put("Finalizer ready")
     count_workers_ended = 0
     sim_pattern = '*-sim_'+str(searcher_finalizer.ratio)+'.txt'
     while True:
         try:
-            ## Read from queueOut
             print "[finalizer-pid({}): log] Finalizer worker waiting for an update at {}".format(os.getpid(), get_now())
             sys.stdout.flush()
             found_update = False
@@ -130,16 +136,12 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
             list_simfiles = glob.glob(sim_pattern)
 
             for simname in list_simfiles:
+                # parse update_id
                 found_update = True
                 start_finalize = time.time()
-
-                # parse update_id
                 update_id = simname.split('-')[0]
-                
                 print "[finalizer-pid({}): log] Finalizer worker found update {} to finalize at {}".format(os.getpid(), update_id, get_now())
                 sys.stdout.flush()
-
-                ## Check if update was not already finished by another finalizer?
 
                 ## Push computed similarities
                 
@@ -159,9 +161,11 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
                     searcher_finalizer.indexer.write_batch(batch_sim, weekly_sim_table_name)
 
                     ## Mark as done
-                    # mark precomp_sim true in escorts_images_sha1_infos_dev
+                    # mark precomp_sim true in escorts_images_sha1_infos
                     searcher_finalizer.indexer.write_batch(batch_mark_precomp_sim, searcher_finalizer.indexer.table_sha1infos_name)
-
+                    # mark update has processed 
+                    searcher_finalizer.indexer.write_batch([(update_id, {searcher_finalizer.indexer.precomp_end_marker: 'True'})],
+                                                       searcher_finalizer.indexer.table_updateinfos_name)
                 
                 ## Cleanup
                 try:
@@ -173,14 +177,8 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
                 except Exception as inst:
                     print "[finalizer-pid({}): error] Could not cleanup. Error was: {}".format(os.getpid(), inst)
 
-                # We don't have start_precomp anymore
-                #print "[finalizer-pid({}): log] Finalize update {} at {} in {}s total.".format(os.getpid(), update_id, get_now(), time.time() - start_precomp)
-                print "[finalizer-pid({}): log] Finalize update {} at {} in {}s.".format(os.getpid(), update_id, get_now(), time.time() - start_finalize)
+                print "[finalizer-pid({}): log] Finalized update {} at {} in {}s.".format(os.getpid(), update_id, get_now(), time.time() - start_finalize)
                 sys.stdout.flush()
-                if debug:
-                    print "Sleeping for {}s.".format(debug_sleep)
-                    sys.stdout.flush()
-                    time.sleep(debug_sleep)
             
             # Check if consumers have ended
             try:
@@ -200,7 +198,7 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
 
             # Sleep if no updates where found in this loop cycle?
             if not found_update:
-                time.sleep(time_sleep)
+                time.sleep(time_sleep_noupdate)
 
         except Exception as inst:
             #[finalizer: error] Caught error at 2017-04-14:04.29.23. Leaving. Error was: list index out of range
@@ -297,6 +295,8 @@ def read_sim_precomp_v2(simname, searcher, nb_query=None):
 def format_batch_sim_v2(simname, searcher):
     # format similarities for HBase output
     sim, sim_score = read_sim_precomp_v2(simname, searcher)
+    print "[format_batch_sim_v2: log] {} has {} images with precomputed similarities.".format(simname, len(sim))
+    sys.stdout.flush()
     # batch_sim: should be a list of sha1 row key, dict of all "s:similar_sha1": dist_value
     batch_sim = []
     # batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
@@ -306,9 +306,7 @@ def format_batch_sim_v2(simname, searcher):
             # query sha1
             sha1 = list_sim[0]
             list_score = sim_score[i_img]
-            if debug:
-                print "[format_batch_sim_v2: log] {} is similar to: {}".format(sha1, list_sim)
-            # to store query -> similar images
+            
             sim_columns = dict()
             for i_sim,sim_img in enumerate(list_sim):
                 sim_columns["s:"+str(sim_img)] = str(list_score[i_sim])
@@ -319,17 +317,15 @@ def format_batch_sim_v2(simname, searcher):
             sim_row = (sha1, sim_columns)
             batch_sim.append(sim_row)
             batch_mark_precomp_sim.append((sha1,{searcher.indexer.precomp_sim_column: 'True'}))
-    if debug:
-        print "[format_batch_sim_v2: log] batch_sim: {}".format(batch_sim)
-        print "[format_batch_sim_v2: log] batch_mark_precomp_sim: {}".format(batch_mark_precomp_sim)
-        time.sleep(debug_sleep)
+    
     return batch_sim, batch_mark_precomp_sim
 
 
 def parallel_precompute(global_conf_file):
     # Define queues
     queueIn = Queue(nb_workers+2)
-    queueOut = Queue(nb_workers+8)
+    # Only to signal end now
+    queueOut = Queue(nb_workers)
     queueProducer = Queue()
     queueFinalizer = Queue()
     queueConsumer = Queue(nb_workers)
@@ -370,7 +366,7 @@ if __name__ == "__main__":
     """ Run precompute similar images based on `conf_file` given as parameter
     """
     if len(sys.argv)<2:
-        print "python precompute_similar_images_parallel.py conf_file"
+        print "python precompute_similar_images_parallel_v2.py conf_file"
         exit(-1)
     global_conf_file = sys.argv[1]
     
