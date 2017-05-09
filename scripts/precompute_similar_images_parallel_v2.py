@@ -1,3 +1,6 @@
+# v1 has an issue with queueOut.
+# Finalizer is not always getting the processed update, seems to hang for a long time.
+
 import os
 import sys
 import time
@@ -5,7 +8,6 @@ import datetime
 import happybase
 
 # parallel
-#from multiprocessing import JoinableQueue as Queue
 from multiprocessing import Queue
 from multiprocessing import Process
 
@@ -16,13 +18,19 @@ from cu_image_search.search import searcher_hbaseremote
 nb_workers = 20
 time_sleep = 60
 queue_timeout = 600
+debug_sleep = 10
+debug = True
+
+producer_end_signal = (None, None, None)
+consumer_end_signal = "consumer_ended"
+finalizer_end_signal = "finalizer_ended"
 
 # should we try/except main loop of producer, consumer and finalizer?
 def end_producer(queueIn):
     print "[producer-pid({}): log] ending producer at {}".format(os.getpid(), get_now())
     for i in range(nb_workers):
         # sentinel value, one for each worker
-        queueIn.put((None, None, None))
+        queueIn.put(producer_end_signal)
 
 
 def producer(global_conf_file, queueIn, queueProducer):
@@ -63,8 +71,7 @@ def producer(global_conf_file, queueIn, queueProducer):
 
 def end_consumer(queueIn, queueOut):
     print "[consumer-pid({}): log] ending consumer at {}".format(os.getpid(), get_now())
-    #queueIn.task_done()
-    queueOut.put((None, None, None, None, None, None))
+    queueOut.put(consumer_end_signal)
             
 
 
@@ -90,100 +97,111 @@ def consumer(global_conf_file, queueIn, queueOut, queueConsumer):
             sys.stdout.flush()
             start_search = time.time()
             # precompute similarities using searcher 
-            # for v1 check_indexed_noprecomp
-            #simname, corrupted = searcher_consumer.search_from_sha1_list_get_simname(valid_sha1s, update_id)
             simname, corrupted = searcher_consumer.search_from_listid_get_simname(valid_sha1s, update_id, check_already_computed=True)
             elapsed_search = time.time() - start_search
             print "[consumer-pid({}): log] Consumer worker processed update {} at {}. Search performed in {}s.".format(os.getpid(), update_id, get_now(), elapsed_search)
             sys.stdout.flush()
-            ## push to queueOut
-            #queueIn.task_done()
-            start_push = time.time()
-            queueOut.put((update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search))
-            print "[consumer-pid({}): log] Consumer worker pushed update {} to queueOut in {}s at {}.".format(os.getpid(), update_id, time.time()-start_push, get_now())
-            sys.stdout.flush()
         except Exception as inst:
             print "[consumer-pid({}): error] Consumer worker caught error at {}. Error was {}".format(os.getpid(), get_now(), inst)
-            #return end_consumer(queueIn, queueOut)
 
 
-def end_finalizer(queueOut, queueFinalizer):
+def end_finalizer(queueFinalizer):
     print "[finalizer-pid({}): log] ending finalizer at {}".format(os.getpid(), get_now())
     queueFinalizer.put("Finalizer ended")
-    #queueOut.close()
 
 
 def finalizer(global_conf_file, queueOut, queueFinalizer):
     print "[finalizer-pid({}): log] Started a finalizer worker at {}".format(os.getpid(), get_now())
     sys.stdout.flush()
+    import glob
     searcher_finalizer = searcher_hbaseremote.Searcher(global_conf_file)
     print "[finalizer-pid({}): log] Finalizer worker ready at {}".format(os.getpid(), get_now())
     queueFinalizer.put("Finalizer ready")
     count_workers_ended = 0
+    sim_pattern = '*-sim_'+str(searcher_finalizer.ratio)+'.txt'
     while True:
         try:
             ## Read from queueOut
             print "[finalizer-pid({}): log] Finalizer worker waiting for an update at {}".format(os.getpid(), get_now())
             sys.stdout.flush()
-            # This seems to block (or not getting updates info) even if there are items that have been pushed to the queueOut??
-            update_id, simname, valid_sha1s, corrupted, start_precomp, elapsed_search = queueOut.get(block=True, timeout=queue_timeout)
-            if update_id is None:
-                count_workers_ended += 1
-                print "[finalizer-pid({}): log] {} consumer workers ended out of {} at {}.".format(os.getpid(), count_workers_ended, nb_workers, get_now())
-                #queueOut.task_done()
-                if count_workers_ended == nb_workers:
-                    # fully done
-                    print "[finalizer-pid({}): log] All consumer workers ended at {}. Leaving.".format(os.getpid(), get_now())
-                    return end_finalizer(queueOut, queueFinalizer)
-                continue
-            print "[finalizer-pid({}): log] Finalizer worker got update {} from queueOut to finalize at {}".format(os.getpid(), update_id, get_now())
-            sys.stdout.flush()
+            found_update = False
 
-            ## Check if update was not already finished by another finalizer?
+            ## Use glob to list of files that would match the simname pattern.
+            list_simfiles = glob.glob(sim_pattern)
 
+            for simname in list_simfiles:
+                found_update = True
+                start_finalize = time.time()
 
-            ## Push computed similarities
-            print simname
-            # format for saving in HBase:
-            # - batch_sim: should be a list of sha1 row key, dict of "s:similar_sha1": dist_value
-            # - batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
-            batch_sim, batch_mark_precomp_sim = format_batch_sim(simname, valid_sha1s, corrupted, searcher_finalizer)
+                # parse update_id
+                update_id = simname.split('-')[0]
+                
+                print "[finalizer-pid({}): log] Finalizer worker found update {} to finalize at {}".format(os.getpid(), update_id, get_now())
+                sys.stdout.flush()
 
-            # push similarities to HBI_table_sim (escorts_images_similar_row_dev) using searcher.indexer.write_batch
-            if batch_sim:
-                searcher_finalizer.indexer.write_batch(batch_sim, searcher_finalizer.indexer.table_sim_name)
-                # push to weekly update table for Amandeep to integrate in DIG
-                week, year = get_week_year()
-                weekly_sim_table_name = searcher_finalizer.indexer.table_sim_name+"_Y{}W{}".format(year, week)
-                print "[finalizer-pid({}): log] weekly table name: {}".format(os.getpid(), weekly_sim_table_name)
-                weekly_sim_table = searcher_finalizer.indexer.get_create_table(weekly_sim_table_name, families={'s': dict()})
-                searcher_finalizer.indexer.write_batch(batch_sim, weekly_sim_table_name)
+                ## Check if update was not already finished by another finalizer?
 
-                ## Mark as done
-                # mark precomp_sim true in escorts_images_sha1_infos_dev
-                searcher_finalizer.indexer.write_batch(batch_mark_precomp_sim, searcher_finalizer.indexer.table_sha1infos_name)
-            
-            # mark info:precomp_finish in escorts_images_updates_dev
-            if not corrupted: # do not mark finished if we faced some issue? mark as corrupted?
-                searcher_finalizer.indexer.write_batch([(update_id, {searcher_finalizer.indexer.precomp_end_marker: 'True'})],
-                                                       searcher_finalizer.indexer.table_updateinfos_name)
-            
-            print "[finalizer-pid({}): log] Finalize update {} at {} in {}s total.".format(os.getpid(), update_id, get_now(), time.time() - start_precomp)
-            sys.stdout.flush()
-            
-            ## Cleanup
-            if simname:
+                ## Push computed similarities
+                
+                # format for saving in HBase:
+                # - batch_sim: should be a list of sha1 row key, dict of "s:similar_sha1": dist_value
+                # - batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
+                batch_sim, batch_mark_precomp_sim = format_batch_sim_v2(simname, searcher_finalizer)
+
+                # push similarities to HBI_table_sim (escorts_images_similar_row_dev) using searcher.indexer.write_batch
+                if batch_sim:
+                    searcher_finalizer.indexer.write_batch(batch_sim, searcher_finalizer.indexer.table_sim_name)
+                    # push to weekly update table for Amandeep to integrate in DIG
+                    week, year = get_week_year()
+                    weekly_sim_table_name = searcher_finalizer.indexer.table_sim_name+"_Y{}W{}".format(year, week)
+                    print "[finalizer-pid({}): log] weekly table name: {}".format(os.getpid(), weekly_sim_table_name)
+                    weekly_sim_table = searcher_finalizer.indexer.get_create_table(weekly_sim_table_name, families={'s': dict()})
+                    searcher_finalizer.indexer.write_batch(batch_sim, weekly_sim_table_name)
+
+                    ## Mark as done
+                    # mark precomp_sim true in escorts_images_sha1_infos_dev
+                    searcher_finalizer.indexer.write_batch(batch_mark_precomp_sim, searcher_finalizer.indexer.table_sha1infos_name)
+
+                
+                ## Cleanup
                 try:
                     # remove simname 
                     os.remove(simname)
                     # remove features file
-                    featfirst = simname.split('sim')[0]
-                    featfn = featfirst[:-1]+'.dat'
-                    #print "[process_one_update: log] Removing file {}".format(featfn)
+                    featfn = update_id+'.dat'
                     os.remove(featfn)
                 except Exception as inst:
                     print "[finalizer-pid({}): error] Could not cleanup. Error was: {}".format(os.getpid(), inst)
-            #queueOut.task_done()
+
+                # We don't have start_precomp anymore
+                #print "[finalizer-pid({}): log] Finalize update {} at {} in {}s total.".format(os.getpid(), update_id, get_now(), time.time() - start_precomp)
+                print "[finalizer-pid({}): log] Finalize update {} at {} in {}s.".format(os.getpid(), update_id, get_now(), time.time() - start_finalize)
+                sys.stdout.flush()
+                if debug:
+                    print "Sleeping for {}s.".format(debug_sleep)
+                    sys.stdout.flush()
+                    time.sleep(debug_sleep)
+            
+            # Check if consumers have ended
+            try:
+                end_signal = queueOut.get(block=False)
+                if end_signal == consumer_end_signal:
+                    count_workers_ended += 1
+                    print "[finalizer-pid({}): log] {} consumer workers ended out of {} at {}.".format(os.getpid(), count_workers_ended, nb_workers, get_now())
+                    if count_workers_ended == nb_workers:
+                        # should we check for intermediate sim patterns to know if consumers are actually still running, or failed?
+                        # sim_pattern = '*-sim.txt'
+                        # fully done
+                        print "[finalizer-pid({}): log] All consumer workers ended at {}. Leaving.".format(os.getpid(), get_now())
+                        return end_finalizer(queueFinalizer)
+                    continue
+            except Exception as inst: #timeout
+                pass
+
+            # Sleep if no updates where found in this loop cycle?
+            if not found_update:
+                time.sleep(time_sleep)
+
         except Exception as inst:
             #[finalizer: error] Caught error at 2017-04-14:04.29.23. Leaving. Error was: list index out of range
             print "[finalizer-pid({}): error] Caught error at {}. Error {} was: {}".format(os.getpid(), get_now(), type(inst), inst)
@@ -241,7 +259,7 @@ def check_indexed_noprecomp(searcher, list_sha1s):
     return valid_sha1s, not_indexed_sha1s, precomp_sim_sha1s
 
 
-def read_sim_precomp(simname, nb_query, searcher):
+def read_sim_precomp_v2(simname, searcher, nb_query=None):
     # intialization
     sim = []
     sim_score = []
@@ -258,6 +276,7 @@ def read_sim_precomp(simname, nb_query, searcher):
             onum = len(nums)/2
             n = onum
             #print n
+            # this is not really possible since we are querying with DB images here.
             if onum==0: # no returned images, e.g. no near duplicate
                 sim.append(())
                 sim_score.append([])
@@ -269,45 +288,41 @@ def read_sim_precomp(simname, nb_query, searcher):
             sim.append(sim_infos)
             sim_score.append(nums[onum:onum+n])
             count = count + 1
-            if count == nb_query:
+            if nb_query and count == nb_query:
                 break
         f.close()
     return sim, sim_score
     
 
-def format_batch_sim(simname, valid_sha1s, corrupted, searcher):
+def format_batch_sim_v2(simname, searcher):
     # format similarities for HBase output
-    nb_query = len(valid_sha1s) - len(corrupted)
-    sim, sim_score = read_sim_precomp(simname, nb_query, searcher)
+    sim, sim_score = read_sim_precomp_v2(simname, searcher)
     # batch_sim: should be a list of sha1 row key, dict of all "s:similar_sha1": dist_value
     batch_sim = []
     # batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
     batch_mark_precomp_sim = []
     if sim:
-        if len(sim) != len(valid_sha1s) or len(sim_score) != len(valid_sha1s):
-            print "[format_batch_sim: warning] similarities and queries count are different."
-            print "[format_batch_sim: warning] corrupted is: {}.".format(corrupted)
-            return
-        # deal with corrupted
-        i_img = 0
-        for i,id_sha1 in enumerate(valid_sha1s):
-            # now valid_sha1s is a list of id and sha1 tuples
-            img_id, sha1 = id_sha1
-            if sha1 in corrupted:
-                continue
+        for i_img,list_sim in enumerate(sim):
+            # query sha1
+            sha1 = list_sim[0]
+            list_score = sim_score[i_img]
+            if debug:
+                print "[format_batch_sim_v2: log] {} is similar to: {}".format(sha1, list_sim)
+            # to store query -> similar images
             sim_columns = dict()
-
-            for i_sim,sim_img in enumerate(sim[i_img]):
-                sim_columns["s:"+str(sim_img)] = str(sim_score[i_img][i_sim])
+            for i_sim,sim_img in enumerate(list_sim):
+                sim_columns["s:"+str(sim_img)] = str(list_score[i_sim])
+                # to store similar image -> query
                 sim_reverse = dict()
-                sim_reverse["s:"+sha1] = str(sim_score[i_img][i_sim])
+                sim_reverse["s:"+sha1] = str(list_score[i_sim])
                 batch_sim.append((str(sim_img), sim_reverse))
             sim_row = (sha1, sim_columns)
             batch_sim.append(sim_row)
             batch_mark_precomp_sim.append((sha1,{searcher.indexer.precomp_sim_column: 'True'}))
-            i_img += 1
-    #print batch_sim
-    #print batch_mark_precomp_sim
+    if debug:
+        print "[format_batch_sim_v2: log] batch_sim: {}".format(batch_sim)
+        print "[format_batch_sim_v2: log] batch_mark_precomp_sim: {}".format(batch_mark_precomp_sim)
+        time.sleep(debug_sleep)
     return batch_sim, batch_mark_precomp_sim
 
 
