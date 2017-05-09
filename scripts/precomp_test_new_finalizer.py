@@ -37,6 +37,7 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
     import glob
     searcher_finalizer = searcher_hbaseremote.Searcher(global_conf_file)
     print "[finalizer-pid({}): log] Finalizer worker ready at {}".format(os.getpid(), get_now())
+    sys.stdout.flush()
     queueFinalizer.put("Finalizer ready")
     count_workers_ended = 0
     sim_pattern = '*-sim_'+str(searcher_finalizer.ratio)+'.txt'
@@ -195,8 +196,8 @@ def format_batch_sim_v2(simname, searcher):
             # query sha1
             sha1 = list_sim[0]
             list_score = sim_score[i_img]
-            if debug:
-                print "[format_batch_sim_v2: log] {} is similar to: {}".format(sha1, list_sim)
+            # if debug:
+            #     print "[format_batch_sim_v2: log] {} is similar to: {}".format(sha1, list_sim)
             # to store query -> similar images
             sim_columns = dict()
             for i_sim,sim_img in enumerate(list_sim):
@@ -208,17 +209,17 @@ def format_batch_sim_v2(simname, searcher):
             sim_row = (sha1, sim_columns)
             batch_sim.append(sim_row)
             batch_mark_precomp_sim.append((sha1,{searcher.indexer.precomp_sim_column: 'True'}))
-    if debug:
-        print "[format_batch_sim_v2: log] batch_sim: {}".format(batch_sim)
-        print "[format_batch_sim_v2: log] batch_mark_precomp_sim: {}".format(batch_mark_precomp_sim)
-        time.sleep(debug_sleep)
+    # if debug:
+    #     print "[format_batch_sim_v2: log] batch_sim: {}".format(batch_sim)
+    #     print "[format_batch_sim_v2: log] batch_mark_precomp_sim: {}".format(batch_mark_precomp_sim)
+    #     time.sleep(debug_sleep)
     return batch_sim, batch_mark_precomp_sim
 
 
 def parallel_precompute(global_conf_file):
     # Define queues
     queueOut = Queue(1)
-    queueFinalizer = Queue()
+    queueFinalizer = Queue(1)
     
 
     # Start finalizer
