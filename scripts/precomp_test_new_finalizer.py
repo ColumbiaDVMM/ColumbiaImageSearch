@@ -81,8 +81,11 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
                     searcher_finalizer.indexer.write_batch(batch_sim, weekly_sim_table_name)
 
                     ## Mark as done
-                    # mark precomp_sim true in escorts_images_sha1_infos_dev
+                    # mark precomp_sim true in escorts_images_sha1_infos
                     searcher_finalizer.indexer.write_batch(batch_mark_precomp_sim, searcher_finalizer.indexer.table_sha1infos_name)
+                    # mark updated has processed 
+                    searcher_finalizer.indexer.write_batch([(update_id, {searcher_finalizer.indexer.precomp_end_marker: 'True'})],
+                                                       searcher_finalizer.indexer.table_updateinfos_name)
 
                 
                 ## Cleanup
@@ -97,12 +100,12 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
 
                 # We don't have start_precomp anymore
                 #print "[finalizer-pid({}): log] Finalize update {} at {} in {}s total.".format(os.getpid(), update_id, get_now(), time.time() - start_precomp)
-                print "[finalizer-pid({}): log] Finalize update {} at {} in {}s.".format(os.getpid(), update_id, get_now(), time.time() - start_finalize)
+                print "[finalizer-pid({}): log] Finalized update {} at {} in {}s.".format(os.getpid(), update_id, get_now(), time.time() - start_finalize)
                 sys.stdout.flush()
-                if debug:
-                    print "Sleeping for {}s.".format(debug_sleep)
-                    sys.stdout.flush()
-                    time.sleep(debug_sleep)
+                # if debug:
+                #     print "Sleeping for {}s.".format(debug_sleep)
+                #     sys.stdout.flush()
+                #     time.sleep(debug_sleep)
             
             # Check if consumers have ended
             try:
@@ -187,6 +190,8 @@ def read_sim_precomp_v2(simname, searcher, nb_query=None):
 def format_batch_sim_v2(simname, searcher):
     # format similarities for HBase output
     sim, sim_score = read_sim_precomp_v2(simname, searcher)
+    print "[format_batch_sim_v2: log] {} has {} images with precomputed similarities.".format(simname, len(sim))
+    sys.stdout.flush()
     # batch_sim: should be a list of sha1 row key, dict of all "s:similar_sha1": dist_value
     batch_sim = []
     # batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
