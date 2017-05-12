@@ -116,6 +116,56 @@ def end_finalizer(queueFinalizer):
     queueFinalizer.put("Finalizer ended")
 
 
+def finalize_udpate_list(list_simfiles, searcher_finalizer, partial=True):
+    found_update = False
+    for simname in list_simfiles:
+        # parse update_id
+        found_update = True
+        start_finalize = time.time()
+        update_id = simname.split('-')[0]
+        print "[finalizer-pid({}): log] Finalizer worker found update {} to finalize at {}".format(os.getpid(), update_id, get_now())
+        sys.stdout.flush()
+
+        ## Push computed similarities
+        
+        # format for saving in HBase:
+        # - batch_sim: should be a list of sha1 row key, dict of "s:similar_sha1": dist_value
+        # - batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
+        batch_sim, batch_mark_precomp_sim = format_batch_sim_v2(simname, searcher_finalizer)
+
+        # push similarities to HBI_table_sim (escorts_images_similar_row_dev) using searcher.indexer.write_batch
+        if batch_sim:
+            searcher_finalizer.indexer.write_batch(batch_sim, searcher_finalizer.indexer.table_sim_name)
+            # push to weekly update table for Amandeep to integrate in DIG
+            week, year = get_week_year()
+            weekly_sim_table_name = searcher_finalizer.indexer.table_sim_name+"_Y{}W{}".format(year, week)
+            print "[finalizer-pid({}): log] weekly table name: {}".format(os.getpid(), weekly_sim_table_name)
+            weekly_sim_table = searcher_finalizer.indexer.get_create_table(weekly_sim_table_name, families={'s': dict()})
+            searcher_finalizer.indexer.write_batch(batch_sim, weekly_sim_table_name)
+
+            ## Mark as done
+            # mark precomp_sim true in escorts_images_sha1_infos
+            searcher_finalizer.indexer.write_batch(batch_mark_precomp_sim, searcher_finalizer.indexer.table_sha1infos_name)
+            # mark update has processed 
+            if not partial:
+                searcher_finalizer.indexer.write_batch([(update_id, {searcher_finalizer.indexer.precomp_end_marker: 'True'})],
+                                               searcher_finalizer.indexer.table_updateinfos_name)
+        
+        ## Cleanup
+        try:
+            # remove simname 
+            os.remove(simname)
+            # remove features file
+            featfn = update_id+'.dat'
+            os.remove(featfn)
+        except Exception as inst:
+            print "[finalizer-pid({}): error] Could not cleanup. Error was: {}".format(os.getpid(), inst)
+
+        print "[finalizer-pid({}): log] Finalized update {} at {} in {}s.".format(os.getpid(), update_id, get_now(), time.time() - start_finalize)
+        sys.stdout.flush()
+    return found_update
+    
+
 def finalizer(global_conf_file, queueOut, queueFinalizer):
     print "[finalizer-pid({}): log] Started a finalizer worker at {}".format(os.getpid(), get_now())
     sys.stdout.flush()
@@ -126,6 +176,7 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
     queueFinalizer.put("Finalizer ready")
     count_workers_ended = 0
     sim_pattern = '*-sim_'+str(searcher_finalizer.ratio)+'.txt'
+    sim_partial_pattern = '*-sim_partial.txt'
     while True:
         try:
             print "[finalizer-pid({}): log] Finalizer worker waiting for an update at {}".format(os.getpid(), get_now())
@@ -134,51 +185,11 @@ def finalizer(global_conf_file, queueOut, queueFinalizer):
 
             ## Use glob to list of files that would match the simname pattern.
             list_simfiles = glob.glob(sim_pattern)
+            found_update = finalize_udpate_list(list_simfiles, searcher_finalizer, partial=False)
 
-            for simname in list_simfiles:
-                # parse update_id
-                found_update = True
-                start_finalize = time.time()
-                update_id = simname.split('-')[0]
-                print "[finalizer-pid({}): log] Finalizer worker found update {} to finalize at {}".format(os.getpid(), update_id, get_now())
-                sys.stdout.flush()
-
-                ## Push computed similarities
-                
-                # format for saving in HBase:
-                # - batch_sim: should be a list of sha1 row key, dict of "s:similar_sha1": dist_value
-                # - batch_mark_precomp_sim: should be a list of sha1 row key, dict of precomp_sim_column: True
-                batch_sim, batch_mark_precomp_sim = format_batch_sim_v2(simname, searcher_finalizer)
-
-                # push similarities to HBI_table_sim (escorts_images_similar_row_dev) using searcher.indexer.write_batch
-                if batch_sim:
-                    searcher_finalizer.indexer.write_batch(batch_sim, searcher_finalizer.indexer.table_sim_name)
-                    # push to weekly update table for Amandeep to integrate in DIG
-                    week, year = get_week_year()
-                    weekly_sim_table_name = searcher_finalizer.indexer.table_sim_name+"_Y{}W{}".format(year, week)
-                    print "[finalizer-pid({}): log] weekly table name: {}".format(os.getpid(), weekly_sim_table_name)
-                    weekly_sim_table = searcher_finalizer.indexer.get_create_table(weekly_sim_table_name, families={'s': dict()})
-                    searcher_finalizer.indexer.write_batch(batch_sim, weekly_sim_table_name)
-
-                    ## Mark as done
-                    # mark precomp_sim true in escorts_images_sha1_infos
-                    searcher_finalizer.indexer.write_batch(batch_mark_precomp_sim, searcher_finalizer.indexer.table_sha1infos_name)
-                    # mark update has processed 
-                    searcher_finalizer.indexer.write_batch([(update_id, {searcher_finalizer.indexer.precomp_end_marker: 'True'})],
-                                                       searcher_finalizer.indexer.table_updateinfos_name)
-                
-                ## Cleanup
-                try:
-                    # remove simname 
-                    os.remove(simname)
-                    # remove features file
-                    featfn = update_id+'.dat'
-                    os.remove(featfn)
-                except Exception as inst:
-                    print "[finalizer-pid({}): error] Could not cleanup. Error was: {}".format(os.getpid(), inst)
-
-                print "[finalizer-pid({}): log] Finalized update {} at {} in {}s.".format(os.getpid(), update_id, get_now(), time.time() - start_finalize)
-                sys.stdout.flush()
+            ## Push previously computed similarities for batches that did not complete
+            list_simfiles = glob.glob(sim_partial_pattern)
+            found_update_partial = finalize_udpate_list(list_simfiles, searcher_finalizer, partial=True)
             
             # Check if consumers have ended
             try:

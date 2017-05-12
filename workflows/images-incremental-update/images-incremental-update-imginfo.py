@@ -396,7 +396,7 @@ def cdrid_key_to_sha1_key_wimginfo(data):
         obj_parent = json_x["info:obj_parent"].strip()
         img_info = json_x["info:img_info"]
     except Exception as inst2:
-        print("[cdrid_key_to_sha1_key_wimginfo] could not read sha1, obj_stored_url or obj_parent for cdr_id {}".format(cdr_id))
+        print("[cdrid_key_to_sha1_key_wimginfo] could not read sha1, obj_stored_url, obj_parent or img_info for cdr_id {}".format(cdr_id))
         pass
     if cdr_id and sha1 and obj_stored_url and obj_parent and img_info:
         return [(sha1, {"info:all_cdr_ids": [cdr_id], "info:s3_url": [obj_stored_url], "info:all_parent_ids": [obj_parent], "info:img_info": [img_info]})]
@@ -454,11 +454,11 @@ def safe_reduce_infos(a, b, c, field):
     except Exception as inst:
         try:
             c[field] = a[field]
-            print("[safe_reduce_infos: error] key error for '{}' for b".format(field))
+            #print("[safe_reduce_infos: error] key error for '{}' for a".format(field))
         except Exception as inst2:
             try:
                 c[field] = b[field]
-                print("[safe_reduce_infos: error] key error for '{}' for a".format(field))
+                #print("[safe_reduce_infos: error] key error for '{}' for b".format(field))
             except Exception as inst3:
                 c[field] = []
                 print("[safe_reduce_infos: error] key error for '{}' for both a and b".format(field))
@@ -478,7 +478,7 @@ def test_info_s3_url(dict_img):
     return "info:s3_url" in dict_img and dict_img["info:s3_url"] and dict_img["info:s3_url"][0]!=u'None' and dict_img["info:s3_url"][0].startswith('https://s3') 
 
 
-def reduce_sha1_infos_discarding_wimginfo(a,b):
+def reduce_sha1_infos_discarding_wimginfo(a, b):
     c = dict()
     if b:  # sha1 already existed
         if "info:image_discarded" in a or "info:image_discarded" in b:
