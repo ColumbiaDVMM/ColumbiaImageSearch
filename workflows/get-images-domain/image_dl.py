@@ -105,6 +105,18 @@ def get_SHA1_imginfo_from_URL_StringIO(url,verbose=0):
     return None,None
 
 
+def get_SHA1_from_data(data):
+    import hashlib
+    sha1hash = None
+    try:
+        sha1 = hashlib.sha1()
+        sha1.update(data)
+        sha1hash = sha1.hexdigest().upper()
+    except:
+        print "Could not read data to compute SHA1."
+    return sha1hash
+
+
 def get_b64_from_data(data):
     import base64
     b64_from_data = None

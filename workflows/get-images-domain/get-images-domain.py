@@ -7,34 +7,63 @@ import sys
 print(sys.version)
 import subprocess
 
-from optparse import OptionParser
+#from optparse import OptionParser, OptionGroup
+from argparse import ArgumentParser
 from pyspark import SparkContext, SparkConf, StorageLevel
 from elastic_manager import ES
 from hbase_manager import HbaseManager
+import happybase
 
 dev = True
 
 # Some parameters
 default_identifier = None
 default_batch_update_size = 10000
-time_sleep_update_out = 10
 max_ts = 9999999999999
+max_ads_image_dig = 20000
+max_ads_image_hbase = 20000
+max_ads_image = 20000
 valid_url_start = 'https://s3' 
 
-fields_cdr = ["obj_stored_url", "obj_parent"]
+fields_cdr = ["obj_stored_url", "obj_parent", "content_type"]
 fields_list = [("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded"), ("info","cu_feat_id"), ("info","img_info")]
 
 
 if dev:
     dev_release_suffix = "_dev"
-    base_incremental_path = '/user/skaraman/data/images_incremental_update_dev/'
+    #base_incremental_path = '/user/skaraman/data/images_incremental_update_dev/'
+    base_incremental_path = "/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/tmpdata/"
 else:
     dev_release_suffix = "_release"
     base_incremental_path = '/user/worker/dig2/incremental/'
 
+##-- Hbase (happybase)
+
+def get_create_table(table_name, options, families={'info': dict()}):
+    try:
+        from happybase.connection import Connection
+        conn = Connection(options.hbase_ip)
+        try:
+            table = conn.table(table_name)
+            # this would fail if table does not exist
+            fam = table.families()
+            return table
+        # what exception would be raised if table does not exist, actually none.
+        # need to try to access families to get error
+        except Exception as inst:
+            print "[get_create_table: info] table {} does not exist (yet)".format(table_name)
+            conn.create_table(table_name, families)
+            table = conn.table(table_name)
+            print "[get_create_table: info] created table {}".format(table_name)
+            return table
+    except Exception as inst:
+        print inst
 
 ##-- General RDD I/O
 ##------------------
+
+
+
 def get_list_value(json_x,field_tuple):
     return [x["value"] for x in json_x if x["columnFamily"]==field_tuple[0] and x["qualifier"]==field_tuple[1]]
 
@@ -147,9 +176,9 @@ def s3url_listadid_sha1_imginfo_to_sha1_alldict(data):
         print("[s3url_listadid_imginfo_to_sha1_alldict] incorrect data: {}".format(data))
         return []
     s3_url = data[0]
-    list_v = data[1][0]
+    listadid = data[1][0]
     sha1 = data[1][1]
-    imginfo = data[1][2]
+    img_info = data[1][2]
     tup_list = []
     all_parent_ids = []
     # if we have a valid sha1
@@ -183,7 +212,7 @@ def s3url_adid_to_s3_url_listadid(data):
     s3_url = unicode(data[0])
     ad_id = data[1]
     # format output
-    if s3url.startswith('https://s3'):
+    if s3_url.startswith('https://s3'):
         # put ad_id as a list so we can extend it when we reduce in reduce_s3url_listadid
         tup_list.append( (s3_url, [ad_id]) )
     return tup_list
@@ -201,7 +230,7 @@ def CDRv3_to_s3url_adid(data):
     # look for images in objects field
     for obj in json_x["objects"]:
         # check that content_type corresponds to an image
-        if obj["content_type"].startswith("image/"):
+        if obj["content_type"][0].startswith("image/"):
             # get url, some url may need unicode characters
             s3_url = unicode(obj["obj_stored_url"])
             tup_list.append( (s3_url, ad_id) )
@@ -215,7 +244,8 @@ def CDRv2_to_s3url_adid(data):
     tup_list = []
     # parse JSON
     json_x = json.loads(data[1])
-    if json_x["content_type"].startswith("image/"):
+    #print json_x
+    if json_x["content_type"][0].startswith("image/"):
         # get url, some url may need unicode characters
         s3_url = unicode(json_x["obj_stored_url"][0])
         ad_id = str(json_x["obj_parent"][0])
@@ -318,7 +348,7 @@ def reduce_sha1_infos_discarding_wimginfo(a, b):
     if b:  # sha1 already existed
         if "info:image_discarded" in a or "info:image_discarded" in b:
             c["info:all_parent_ids"] = []
-            c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images_reduce)
+            c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_ads_image)
         else:
             c = safe_reduce_infos(a, b, c, "info:img_info")
             c = safe_reduce_infos(a, b, c, "info:all_parent_ids")
@@ -337,11 +367,11 @@ def reduce_sha1_infos_discarding_wimginfo(a, b):
         c = safe_assign(a, c, "info:s3_url", [None])
         c = safe_assign(a, c, "info:all_parent_ids", [])
         c = safe_assign(a, c, "info:img_info", [])
-    # should discard if bigger than max(max_images_hbase, max_images_dig)...
-    if len(c["info:all_parent_ids"]) > max_images_reduce:
+    # should discard if bigger than max_ads_image...
+    if len(c["info:all_parent_ids"]) > max_ads_image:
         print("[reduce_sha1_infos_discarding_wimginfo: log] Discarding image with URL: {}".format(c["info:s3_url"][0]))
         c["info:all_parent_ids"] = []
-        c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images_reduce)
+        c["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_ads_image)
     return c
 
 
@@ -349,9 +379,9 @@ def split_sha1_kv_images_discarded_wimginfo(x):
     # this prepares data to be saved in HBase
     tmp_fields_list = [("info","s3_url"), ("info","all_parent_ids"), ("info","img_info")]
     out = []
-    if "info:image_discarded" in x[1] or or len(x[1]["info:all_parent_ids"]) > max_images_hbase:
+    if "info:image_discarded" in x[1] or len(x[1]["info:all_parent_ids"]) > max_ads_image_hbase:
         if "info:image_discarded" not in x[1]:
-            x[1]["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_images_hbase)
+            x[1]["info:image_discarded"] = 'discarded because has more than {} cdr_ids'.format(max_ads_image_hbase)
         out.append((x[0], [x[0], "info", "image_discarded", x[1]["info:image_discarded"]]))
         str_s3url_value = None
         s3url_value = x[1]["info:s3_url"][0]
@@ -510,7 +540,7 @@ def amandeep_dict_str_to_out_wimginfo(x):
 
 
 def filter_out_rdd(x):
-    return "info:image_discarded" not in x[1] and and len(x[1]["info:all_parent_ids"]) <= max_images_dig
+    return "info:image_discarded" not in x[1] and len(x[1]["info:all_parent_ids"]) <= max_ads_image_dig
 
 ##-- END Amandeep RDDs I/O
 ##---------------
@@ -533,11 +563,12 @@ def build_query_CDR(es_ts_start, es_ts_end, c_options):
     # build range ts
     range_timestamp = "{\"range\" : {\"_timestamp\" : {"+",".join([gte_range, lt_range])+"}}}"
     # build query
+    # will depend on c_options.cdr_format too
     query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": "+range_timestamp+"}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     return query
 
 
-def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, nb_partitions, c_options, start_time):
+def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, options, start_time):
     rdd_name = "s3url_adid_rdd"
     prefnout = "get_s3url_adid_rdd: "
 
@@ -560,7 +591,7 @@ def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_
 
     # es_rdd_nopart is likely to be underpartitioned
     # should we partition based on count?
-    es_rdd = es_rdd_nopart.partitionBy(nb_partitions)
+    es_rdd = es_rdd_nopart.partitionBy(options.nb_partitions)
 
     # save ingestion infos
     ingestion_infos_list = []
@@ -573,19 +604,20 @@ def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_
 
     # transform to (s3_url, adid) format
     s3url_adid_rdd = None
-    if c_options.cdr_format = 'v2':
+    if c_options.cdr_format == 'v2':
         s3url_adid_rdd = es_rdd.flatMap(CDRv2_to_s3url_adid)
-    elif c_options.cdr_format = 'v3':
+    elif c_options.cdr_format == 'v3':
         s3url_adid_rdd = es_rdd.flatMap(CDRv3_to_s3url_adid)
     else:
-        print "[get_s3url_adid_rdd: ERROR] Unkown CDR format: {}".format(c_options.cdr_format)
+        print "[get_s3url_adid_rdd: ERROR] Unkown CDR format: {}".format(options.cdr_format)
 
     if c_options.save_inter_rdd:
         save_rdd_json(basepath_save, rdd_name, s3url_adid_rdd, ingestion_id, hbase_man_update_out)
     return s3url_adid_rdd
 
 
-def save_out_rdd_to_hdfs(out_rdd, out_rdd_path, hbase_man_update_out, ingestion_id, rdd_name):
+def save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, rdd_name):
+    out_rdd_path = basepath_save + "/" + rdd_name
     if not hdfs_file_exist(out_rdd_path):
         out_rdd_save = out_rdd.filter(filter_out_rdd).map(out_to_amandeep_dict_str_wimginfo)
         if not out_rdd_save.isEmpty():
@@ -629,7 +661,9 @@ def join_ingestion(hbase_man_sha1infos_join, ingest_rdd, nb_partitions):
 
 
 def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_update_out, ingestion_id, es_ts_start, es_ts_end, c_options):
-        
+    
+    print max_ads_image
+
     restart = c_options.restart
     batch_update_size = c_options.batch_update_size
 
@@ -638,7 +672,7 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
     
     # get images from CDR, output format should be (s3_url, ad_id)
     # NB: later on we will load from disk from another job
-    s3url_adid_rdd = get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, nb_partitions, c_options, start_time)
+    s3url_adid_rdd = get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, c_options, start_time)
     # reduce by key to download each image once
     s3url_adid_rdd_red = s3url_adid_rdd.flatMap(s3url_adid_to_s3_url_listadid).reduceByKey(reduce_s3url_listadid)
 
@@ -656,8 +690,8 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
         save_rdd_json(basepath_save, "ingest_rdd", ingest_rdd, ingestion_id, hbase_man_update_out)
 
     # join with existing sha1
-    out_rdd = join_ingestion(hbase_man_sha1infos_join, ingest_rdd, nb_partitions)
-    save_out_rdd_to_hdfs(out_rdd, out_rdd_path, hbase_man_update_out, ingestion_id, "out_rdd")
+    out_rdd = join_ingestion(hbase_man_sha1infos_join, ingest_rdd, c_options.nb_partitions)
+    save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, "out_rdd")
     save_out_rdd_to_hbase(out_rdd, hbase_man_sha1infos_out)
 
     if out_rdd is not None and not out_rdd.isEmpty():
@@ -688,7 +722,7 @@ def get_ingestion_start_end_id(c_options):
     if es_ts_end is None:
         es_ts_end = max_ts
     # form ingestion id
-    ingestion_id = '-'.join([c_options.es_domain, es_ts_start, es_ts_end])
+    ingestion_id = '-'.join([c_options.es_domain, str(es_ts_start), str(es_ts_end)])
 
     return es_ts_start, es_ts_end, ingestion_id
 
@@ -697,52 +731,58 @@ def get_ingestion_start_end_id(c_options):
 if __name__ == '__main__':
     start_time = time.time()
 
-    # Setup parser for options
-    parser = OptionParser()
+    # Setup parser for arguments options
+    parser = ArgumentParser()
 
-    # Define options group
-    job_group = OptionGroup(parser, "Job related parameters",
-                    "To define job parameters.")
-    hbase_group = OptionGroup(parser, "HBase related parameters",
-                    "To define HBase hosts and tables name.")
-    es_group = OptionGroup(parser, "ElasticSearch related parameters",
-                    "To define ES hosts, credentials, index and other query parameters.")
+    # Define groups
+    job_group = parser.add_argument_group("job", "Job related parameters")
+    hbase_group = parser.add_argument_group("hbase", "HBase related parameters")
+    es_group = parser.add_argument_group("es", "ElasticSearch related parameters")
 
-    # Define job related options
-    job_group.add_option("-r", "--restart", dest="restart", default=False, action="store_true")
-    job_group.add_option("-i", "--identifier", dest="identifier")
-    job_group.add_option("-s", "--save", dest="save_inter_rdd", default=False, action="store_true")
-    job_group.add_option("-b", "--batch_update_size", dest="batch_update_size", default=default_batch_update_size)
-    job_group.add_option("-m", "--max_images_dig", dest="max_images_dig", default=50000)
-    # should this be estimated from RDD counts actually?
-    job_group.add_option("-p", "--nb_partitions", dest="nb_partitions", default=480)
-    job_group.add_option("-d", "--day_to_process", dest="day_to_process", default=None)
-    # should we still allow the input of day to process and estimate ts start and end from it?
-    parser.add_option_group(job_group)
-
-    # Define HBase related options
-    hbase_group.add_option("--hbase_host", dest="hbase_host")
+    # Define HBase related arguments
+    hbase_group.add_argument("--hbase_host", dest="hbase_host", required=True)
+    hbase_group.add_argument("--hbase_port", dest="hbase_port", default=2181)
+    hbase_group.add_argument("--hbase_ip", dest="hbase_ip", default="10.1.94.57")
     # BEWARE: these tables should be already created
     # we could just have a table_prefix
-    hbase_group.add_option("--table_sha1", dest="tab_sha1_infos_name")
-    hbase_group.add_option("--table_update", dest="tab_update_name")
-    parser.add_option_group(hbase_group)
+    hbase_group.add_argument("--table_sha1", dest="tab_sha1_infos_name", required=True)
+    hbase_group.add_argument("--table_update", dest="tab_update_name", required=True)
 
     # Define ES related options
-    es_group.add_option("--es_host", dest="es_host")
-    es_group.add_option("--es_domain", dest="es_domain")
-    es_group.add_option("--es_port",  dest="es_port")
-    es_group.add_option("--es_user",  dest="es_user")
-    es_group.add_option("--es_pass",  dest="es_pass")
+    es_group.add_argument("--es_host", dest="es_host", required=True)
+    es_group.add_argument("--es_domain", dest="es_domain", required=True)
+    es_group.add_argument("--es_user",  dest="es_user", required=True)
+    es_group.add_argument("--es_pass",  dest="es_pass", required=True)
+    es_group.add_argument("--es_port",  dest="es_port", default=9200)
+    es_group.add_argument("--es_index", dest="es_index", default='memex-domains')
+    es_group.add_argument("--es_ts_start",  dest="es_ts_start", default=None)
+    es_group.add_argument("--es_ts_end",  dest="es_ts_end", default=None)
+    es_group.add_argument("--cdr_format",  dest="cdr_format", choices=['v2', 'v3'], default='v2')
+    
+    # Define job related options
+    job_group.add_argument("-r", "--restart", dest="restart", default=False, action="store_true")
+    job_group.add_argument("-i", "--identifier", dest="identifier")
+    job_group.add_argument("-s", "--save", dest="save_inter_rdd", default=False, action="store_true")
+    job_group.add_argument("-b", "--batch_update_size", dest="batch_update_size", type=int, default=default_batch_update_size)
+    job_group.add_argument("--max_ads_image_dig", dest="max_ads_image_dig", type=int, default=max_ads_image_dig)
+    job_group.add_argument("--max_ads_image_hbase", dest="max_ads_image_hbase", type=int, default=max_ads_image_hbase)
+    # should this be estimated from RDD counts actually?
+    job_group.add_argument("-p", "--nb_partitions", dest="nb_partitions", type=int, default=480)
+    job_group.add_argument("-d", "--day_to_process", dest="day_to_process", help="using format YYYY-MM-DD", default=None)
     # should we still allow the input of day to process and estimate ts start and end from it?
-    es_group.add_option("--es_ts_start",  dest="es_ts_start", default=None)
-    es_group.add_option("--es_ts_end",  dest="es_ts_end", default=None)
-    parser.add_option_group(es_group)
-
-
+    
     # Parse
-    (c_options, args) = parser.parse_args()
-    print "Got options:", c_options
+    
+    try:
+        c_options = parser.parse_args()
+        print "Got options:", c_options
+        max_ads_image_dig = c_options.max_ads_image_dig
+        max_ads_image_hbase = c_options.max_ads_image_hbase
+        max_ads_image = max(max_ads_image_dig, max_ads_image_hbase)
+    except Exception as inst:
+        print inst
+        parser.print_help()
+    
     es_ts_start, es_ts_end, ingestion_id = get_ingestion_start_end_id(c_options)
 
 
@@ -754,9 +794,12 @@ if __name__ == '__main__':
     
     # Setup HBase managers
     join_columns_list = [':'.join(x) for x in fields_list]
-    hbase_man_sha1infos_join = HbaseManager(sc, conf, c_options.hbase_host, c_options.tab_sha1_infos_name, columns_list=join_columns_list)
-    hbase_man_sha1infos_out = HbaseManager(sc, conf, c_options.hbase_host, c_options.tab_sha1_infos_name)
-    hbase_man_update_out = HbaseManager(sc, conf, c_options.hbase_host, c_options.tab_update_name, time_sleep=time_sleep_update_out)
+    get_create_table(c_options.tab_sha1_infos_name, c_options)
+    hbase_fullhost = c_options.hbase_host+':'+str(c_options.hbase_port)
+    hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_fullhost, c_options.tab_sha1_infos_name, columns_list=join_columns_list)
+    hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_fullhost, c_options.tab_sha1_infos_name)
+    get_create_table(c_options.tab_update_name, c_options)
+    hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, c_options.tab_update_name)
     
     # Setup ES manager
     es_man = ES(sc, conf, c_options.es_index, c_options.es_domain, c_options.es_host, c_options.es_port, c_options.es_user, c_options.es_pass)
@@ -764,7 +807,7 @@ if __name__ == '__main__':
     es_man.set_read_metadata()
 
     # Run update
-    print("[START] Starting ingestion {}".format(ingestion_id)
+    print "[START] Starting ingestion {}".format(ingestion_id)
     run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_update_out, ingestion_id, es_ts_start, es_ts_end, c_options)
-    print("[DONE] Ingestion {} done in {}s.".format(ingestion_id, time.time() - start_time))
+    print "[DONE] Ingestion {} done in {}s.".format(ingestion_id, time.time() - start_time)
 
