@@ -1,9 +1,7 @@
 import os
 import json
 import time
-import calendar
 import datetime
-import dateutil.parser
 
 import sys
 print(sys.version)
@@ -667,7 +665,33 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
 
     update_elapsed_time = time.time() - start_time 
     save_info_incremental_update(hbase_man_update_out, ingestion_id, str(update_elapsed_time), "update_elapsed_time")
-    
+
+
+def get_ingestion_start_end_id(c_options):
+    # Get es_ts_start and es_ts_end
+    es_ts_start = None
+    es_ts_end = None
+    if c_options.es_ts_start is not None:
+        es_ts_start = c_options.es_ts_start
+    if c_options.es_ts_end is not None:
+        es_ts_end = c_options.es_ts_end
+    if c_options.es_ts_start is None and c_options.es_ts_end is None and c_options.day_to_process is not None:
+        # Compute for day to process
+        import calendar
+        import dateutil.parser
+        start_date = dateutil.parser.parse(c_options.day_to_process)
+        es_ts_end = calendar.timegm(start_date.utctimetuple())*1000
+        es_ts_start = es_ts_end - day_gap
+    # Otherwise we want ALL images
+    if es_ts_start is None:
+        es_ts_start = 0
+    if es_ts_end is None:
+        es_ts_end = max_ts
+    # form ingestion id
+    ingestion_id = '-'.join([c_options.es_domain, es_ts_start, es_ts_end])
+
+    return es_ts_start, es_ts_end, ingestion_id
+
 
 ## MAIN
 if __name__ == '__main__':
@@ -692,6 +716,7 @@ if __name__ == '__main__':
     job_group.add_option("-m", "--max_images_dig", dest="max_images_dig", default=50000)
     # should this be estimated from RDD counts actually?
     job_group.add_option("-p", "--nb_partitions", dest="nb_partitions", default=480)
+    job_group.add_option("-d", "--day_to_process", dest="day_to_process", default=None)
     # should we still allow the input of day to process and estimate ts start and end from it?
     parser.add_option_group(job_group)
 
@@ -718,13 +743,10 @@ if __name__ == '__main__':
     # Parse
     (c_options, args) = parser.parse_args()
     print "Got options:", c_options
+    es_ts_start, es_ts_end, ingestion_id = get_ingestion_start_end_id(c_options)
 
-    # Get es_ts_start and es_ts_end, potentially by computing them from day to process?
-    es_ts_start = c_options.es_ts_start
-    es_ts_end = c_options.es_ts_end
 
-    # Setup SparkContext
-    ingestion_id = '-'.join([c_options.es_domain, es_ts_start, es_ts_end])
+    # Setup SparkContext    
     sc = SparkContext(appName="getimages-"+ingestion_id+dev_release_suffix)
     conf = SparkConf()
     log4j = sc._jvm.org.apache.log4j
