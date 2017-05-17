@@ -9,7 +9,12 @@ import sys
 print(sys.version)
 import subprocess
 
-dev = False
+from optparse import OptionParser
+from pyspark import SparkContext, SparkConf, StorageLevel
+from elastic_manager import ES
+from hbase_manager import HbaseManager
+
+dev = True
 
 # Some parameters
 default_identifier = None
@@ -28,13 +33,6 @@ if dev:
 else:
     dev_release_suffix = "_release"
     base_incremental_path = '/user/worker/dig2/incremental/'
-
-
-from optparse import OptionParser
-from pyspark import SparkContext, SparkConf, StorageLevel
-from elastic_manager import ES
-from hbase_manager import HbaseManager
-
 
 
 ##-- General RDD I/O
@@ -95,8 +93,6 @@ def save_rdd_json(basepath_save, rdd_name, rdd, incr_update_id, hbase_man_update
         save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", rdd_name+"_path")
 
 
-# is this inducing respawn when called twice within short timespan?
-# should we reinstantiate a different hbase_man_update_out every time?
 def save_info_incremental_update(hbase_man_update_out, incr_update_id, info_value, info_name):
     print("[save_info_incremental_update] saving update info {}: {}".format(info_name, info_value))
     incr_update_infos_list = []
@@ -172,22 +168,6 @@ def s3url_listadid_sha1_imginfo_to_sha1_alldict(data):
 
 ##-------------------
 ##-- END S3 URL functions
-
-
-## SHA1 and CDR ids related functions
-def expand_info(data):
-    """ Prepare data for insertion in HBase. 
-
-    Assumes data is (key, dict_values), where the keys of the dictionary are formed
-    as 'family:field'.
-    """
-    key = data[0]
-    json_x = data[1]
-    out = []
-    for field in json_x:
-        fs = field.split(':')
-        out.append((key, [key, fs[0], fs[1], json_x[field]]))
-    return out
 
 ###-------------
 ### Transformers
@@ -461,7 +441,9 @@ def save_new_sha1s_for_index_update_batchwrite(new_sha1s_rdd, hbase_man_update_o
     print("[save_new_sha1s_for_index_update_batchwrite] DONE in {}s".format(time.time() - start_save_time))
 
 
-def save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, incr_update_id, batch_update_size, c_options, new_images_to_index_str):
+def save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, incr_update_id, c_options, new_images_to_index_str):
+    batch_update_size = c_options.batch_update_size
+
     # save images without cu_feat_id that have not been discarded for indexing
     new_images_to_index = out_rdd.filter(lambda x: "info:image_discarded" not in x[1] and "info:cu_feat_id" not in x[1])
     
@@ -539,11 +521,21 @@ def filter_out_rdd(x):
 ##-- Incremental update get RDDs main functions
 ##---------------
 def build_query_CDR(es_ts_start, es_ts_end, c_options):
-    # TODO: deal with daily query, up to now, everything
-    if not c_options.uptonow and es_ts_end is not None:
-        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+", \"lt\": "+str(es_ts_end)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+    print("Will query CDR from {} to {}".format(es_ts_start, es_ts_end))
+
+    if es_ts_start is not None:
+        gte_range = "\"gte\" : "+str(es_ts_start)
     else:
-        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": {\"range\" : {\"_timestamp\" : {\"gte\" : "+str(es_ts_start)+"}}}}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+        gte_range = "\"gte\" : "+str(0)
+    if es_ts_end is not None:
+        lt_range = "\"lt\": "+str(es_ts_end)
+    else:
+        # max_ts or ts of now?
+        lt_range = "\"lt\": "+str(max_ts)
+    # build range ts
+    range_timestamp = "{\"range\" : {\"_timestamp\" : {"+",".join([gte_range, lt_range])+"}}}"
+    # build query
+    query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": "+range_timestamp+"}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     return query
 
 
@@ -594,6 +586,7 @@ def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_
         save_rdd_json(basepath_save, rdd_name, s3url_adid_rdd, ingestion_id, hbase_man_update_out)
     return s3url_adid_rdd
 
+
 def save_out_rdd_to_hdfs(out_rdd, out_rdd_path, hbase_man_update_out, ingestion_id, rdd_name):
     if not hdfs_file_exist(out_rdd_path):
         out_rdd_save = out_rdd.filter(filter_out_rdd).map(out_to_amandeep_dict_str_wimginfo)
@@ -639,11 +632,7 @@ def join_ingestion(hbase_man_sha1infos_join, ingest_rdd, nb_partitions):
 
 def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_update_out, ingestion_id, es_ts_start, es_ts_end, c_options):
         
-    print("Will query CDR from {} to {}".format(es_ts_start, es_ts_end))
-    # We should propagate down es_ts_start AND es_ts_end
-
     restart = c_options.restart
-    save_inter_rdd = c_options.save_inter_rdd
     batch_update_size = c_options.batch_update_size
 
     start_time = time.time()
