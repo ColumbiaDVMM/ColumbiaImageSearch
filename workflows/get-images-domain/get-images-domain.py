@@ -157,7 +157,9 @@ def check_get_sha1_imginfo_s3url(data):
     URL_S3 = data[0]
     row_sha1, img_info = get_SHA1_imginfo_from_URL(URL_S3, 1)
     if row_sha1:
-        return [(URL_S3, (data[1][0], row_sha1, img_info))]
+        out = [(URL_S3, (list([data[1][0]]), row_sha1, img_info))]
+        #print out
+        return out
     return []
 
 
@@ -176,21 +178,22 @@ def s3url_listadid_sha1_imginfo_to_sha1_alldict(data):
         print("[s3url_listadid_imginfo_to_sha1_alldict] incorrect data: {}".format(data))
         return []
     s3_url = data[0]
-    listadid = data[1][0]
+    listadid = list(data[1][0])
     sha1 = data[1][1]
     img_info = data[1][2]
-    tup_list = []
     all_parent_ids = []
     # if we have a valid sha1
     if sha1:
         # add each ad_id containing this s3_url to all_parent_ids
-        for ad_id in listadid:
-            all_parent_ids.append(ad_id)
+        for ad_id in listadid: # could this split an ad_id into charachters?
+            if len(ad_id)>1:
+                all_parent_ids.append(ad_id)
     if sha1 and s3_url and all_parent_ids and img_info:
-        return [(sha1, {"info:s3_url": [s3_url], "info:all_parent_ids": all_parent_ids, "info:img_info": [img_info]})]
+        out = [(sha1, {"info:s3_url": [s3_url], "info:all_parent_ids": all_parent_ids, "info:img_info": [img_info]})]
+        #print out
+        return out
     return []
 
-    return tup_list
 
 
 ##-------------------
@@ -253,48 +256,6 @@ def CDRv2_to_s3url_adid(data):
     else:
         print "[CDRv2_to_s3url_adid: warning] {} not an image document!".format(data[0])
     return tup_list
-
-
-def cdrid_key_to_sha1_key_wimginfo(data):
-    cdr_id = data[0]
-    json_x = data[1]
-    sha1 = None
-    obj_stored_url = None
-    obj_parent = None
-    img_info = None
-    try:
-        sha1_val = json_x["info:sha1"]
-        if type(sha1_val)==list and len(sha1_val)==1:
-            sha1 = sha1_val[0].strip()
-        else:
-            sha1 = sha1_val.strip()
-        obj_stored_url = unicode(json_x["info:obj_stored_url"].strip())
-        obj_parent = json_x["info:obj_parent"].strip()
-        img_info = json_x["info:img_info"]
-    except Exception as inst2:
-        print("[cdrid_key_to_sha1_key_wimginfo] could not read sha1, obj_stored_url, obj_parent or img_info for cdr_id {}".format(cdr_id))
-        pass
-    if cdr_id and sha1 and obj_stored_url and obj_parent and img_info:
-        return [(sha1, {"info:all_cdr_ids": [cdr_id], "info:s3_url": [obj_stored_url], "info:all_parent_ids": [obj_parent], "info:img_info": [img_info]})]
-    return []
-
-
-def cdrid_key_to_s3url_key_sha1_val(data):
-    json_x = data[1]
-    sha1 = None
-    obj_stored_url = None
-    try:
-        sha1_val = json_x["info:sha1"]
-        if type(sha1_val)==list and len(sha1_val)==1:
-            sha1 = sha1_val[0].strip()
-        else:
-            sha1 = sha1_val.strip()
-        obj_stored_url = unicode(json_x["info:obj_stored_url"].strip())
-    except Exception as inst2:
-        pass
-    if obj_stored_url and sha1:
-        return [(obj_stored_url, sha1)]
-    return []
 
 
 def sha1_key_json(data):
