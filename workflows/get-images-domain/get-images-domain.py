@@ -7,7 +7,6 @@ import sys
 print(sys.version)
 import subprocess
 
-#from optparse import OptionParser, OptionGroup
 from argparse import ArgumentParser
 from pyspark import SparkContext, SparkConf, StorageLevel
 from elastic_manager import ES
@@ -23,19 +22,22 @@ max_ts = 9999999999999
 max_ads_image_dig = 20000
 max_ads_image_hbase = 20000
 max_ads_image = 20000
+max_samples_per_partition = 10000
+default_partitions_nb = 240
+day_gap = 86400000 # One day
 valid_url_start = 'https://s3' 
 
 fields_cdr = ["obj_stored_url", "obj_parent", "content_type"]
 fields_list = [("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded"), ("info","cu_feat_id"), ("info","img_info")]
 
-
+# the base_hdfs_path could be set with a parameter too
 if dev:
     dev_release_suffix = "_dev"
-    #base_incremental_path = '/user/skaraman/data/images_incremental_update_dev/'
-    base_incremental_path = "/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/tmpdata/"
+    base_hdfs_path = '/user/skaraman/data/images_incremental_update_dev/'
+    #base_hdfs_path = "/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/tmpdata/"
 else:
     dev_release_suffix = "_release"
-    base_incremental_path = '/user/worker/dig2/incremental/'
+    base_hdfs_path = '/user/worker/dig2/incremental/'
 
 ##-- Hbase (happybase)
 
@@ -62,6 +64,20 @@ def get_create_table(table_name, options, families={'info': dict()}):
 ##-- General RDD I/O
 ##------------------
 
+def get_partitions_nb(options, rdd_count=0):
+    """ Calculate number of partitions for a RDD.
+    """
+    # if options.nb_partitions is set use that
+    if options.nb_partitions > 0:
+        partitions_nb = options.nb_partitions
+    elif rdd_count > 0: # if options.nb_partitions is -1 (default)
+        #estimate from rdd_count and options.max_samples_per_partition
+        import numpy as np
+        partitions_nb = int(np.ceil(float(rdd_count)/options.max_samples_per_partition))
+    else: # fall back to default partitions nb
+        partitions_nb = default_partitions_nb
+    print "[get_partitions_nb: log] partitions_nb: {}".format(partitions_nb)
+    return partitions_nb
 
 
 def get_list_value(json_x,field_tuple):
@@ -203,23 +219,7 @@ def s3url_listadid_sha1_imginfo_to_sha1_alldict(data):
 ### Transformers
 
 # function naming convention is input_to_output
-# input/output can indicate key_value if releveant
-
-def s3url_adid_to_s3_url_listadid(data):
-    """ Create tuples (s3_url, [ad_id]).
-
-    :param data: tuples in format (s3url, ad_id)
-    """
-    tup_list = []
-    # read input
-    s3_url = unicode(data[0])
-    ad_id = data[1]
-    # format output
-    if s3_url.startswith('https://s3'):
-        # put ad_id as a list so we can extend it when we reduce in reduce_s3url_listadid
-        tup_list.append( (s3_url, [ad_id]) )
-    return tup_list
-
+# input/output can indicate key_value if relevant
 
 def CDRv3_to_s3url_adid(data):
     """ Create tuples (s3_url, ad_id) for documents in CDRv3 format.
@@ -236,7 +236,8 @@ def CDRv3_to_s3url_adid(data):
         if obj["content_type"][0].startswith("image/"):
             # get url, some url may need unicode characters
             s3_url = unicode(obj["obj_stored_url"])
-            tup_list.append( (s3_url, ad_id) )
+            if s3_url.startswith('https://s3'):
+                tup_list.append( (s3_url, ad_id) )
     return tup_list
 
 def CDRv2_to_s3url_adid(data):
@@ -252,16 +253,33 @@ def CDRv2_to_s3url_adid(data):
         # get url, some url may need unicode characters
         s3_url = unicode(json_x["obj_stored_url"][0])
         ad_id = str(json_x["obj_parent"][0])
-        tup_list.append( (s3_url, ad_id) )
+        if s3_url.startswith('https://s3'):
+            tup_list.append( (s3_url, ad_id) )
     else:
         print "[CDRv2_to_s3url_adid: warning] {} not an image document!".format(data[0])
     return tup_list
 
 
-def sha1_key_json(data):
-    # when data was read from HBase
-    sha1 = data[0]
-    json_x = [json.loads(x) for x in data[1].split("\n")]
+# def sha1_key_json(data):
+#     # when data was read from HBase
+#     # should we use flatMapValues to call that function
+#     # thus we would receive just data[1]?
+#     sha1 = data[0]
+#     json_x = [json.loads(x) for x in data[1].split("\n")]
+#     v = dict()
+#     for field in fields_list:
+#         try:
+#             if field[1]!='s3_url':
+#                 v[':'.join(field)] = list(set([x for x in get_list_value(json_x,field)[0].strip().split(',')]))
+#             else:
+#                 v[':'.join(field)] = [unicode(get_list_value(json_x,field)[0].strip())]
+#         except: # field not in row
+#             pass
+#     return [(sha1, v)]
+
+def sha1_key_json_values(data):
+    # when data was read from HBase and called with flatMapValues
+    json_x = [json.loads(x) for x in data.split("\n")]
     v = dict()
     for field in fields_list:
         try:
@@ -271,8 +289,7 @@ def sha1_key_json(data):
                 v[':'.join(field)] = [unicode(get_list_value(json_x,field)[0].strip())]
         except: # field not in row
             pass
-    return [(sha1, v)]
-
+    return [v]
 
 def safe_reduce_infos(a, b, c, field):
     try:
@@ -422,7 +439,7 @@ def save_new_sha1s_for_index_update_batchwrite(new_sha1s_rdd, hbase_man_update_o
             print("[save_new_sha1s_for_index_update_batchwrite] will prepare and save last batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_update[:10]))
             batch_out.extend(build_batch_out(batch_update, incr_update_id, batch_id))
             batch_out_rdd = sc.parallelize(batch_out)
-            print("[save_new_sha1s_for_index_update_batchwrite] saving {} batches of {} new images to HBase.".format(len(batch_out), batch_update_size))
+            print("[save_new_sha1s_for_index_update_batchwrite] saving {} batches of {} new images to HBase.".format(len(batch_out), len(batch_update)))
             hbase_man_update_out.rdd2hbase(batch_out_rdd)
             #batch_rdd.unpersist()
         except Exception as inst:
@@ -524,8 +541,14 @@ def build_query_CDR(es_ts_start, es_ts_end, c_options):
     # build range ts
     range_timestamp = "{\"range\" : {\"_timestamp\" : {"+",".join([gte_range, lt_range])+"}}}"
     # build query
+    query = None
     # will depend on c_options.cdr_format too
-    query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": "+range_timestamp+"}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+    if c_options.cdr_format == 'v2':
+        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": "+range_timestamp+"}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+    elif c_options.cdr_format == 'v3':
+        print "[build_query_CDR: ERROR] CDR format v3 not yet supported."
+    else:
+        print "[build_query_CDR: ERROR] Unkown CDR format: {}".format(options.cdr_format)
     return query
 
 
@@ -542,6 +565,9 @@ def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_
 
     # Format query to ES to get images
     query = build_query_CDR(es_ts_start, es_ts_end, c_options)
+    if query is None:
+        print("[{}log] empty query...".format(prefnout))
+        return None
     print("[{}log] query CDR: {}".format(prefnout, query))
     
     # Actually get images
@@ -551,13 +577,12 @@ def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_
         return None
 
     # es_rdd_nopart is likely to be underpartitioned
-    # should we partition based on count?
-    es_rdd = es_rdd_nopart.partitionBy(options.nb_partitions)
+    es_rdd_count = es_rdd_nopart.count()
+    # should we partition based on count and max_samples_per_partition?
+    es_rdd = es_rdd_nopart.partitionBy(get_partitions_nb(options, es_rdd_count))
 
     # save ingestion infos
     ingestion_infos_list = []
-    # count can cost, should we avoid doing that?
-    es_rdd_count = es_rdd.count()
     ingestion_infos_list.append((ingestion_id, [ingestion_id, "info", "start_time", str(start_time)]))
     ingestion_infos_list.append((ingestion_id, [ingestion_id, "info", "es_rdd_count", str(es_rdd_count)]))
     ingestion_infos_rdd = sc.parallelize(ingestion_infos_list)
@@ -579,16 +604,20 @@ def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_
 
 def save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, rdd_name):
     out_rdd_path = basepath_save + "/" + rdd_name
-    if not hdfs_file_exist(out_rdd_path):
-        out_rdd_save = out_rdd.filter(filter_out_rdd).map(out_to_amandeep_dict_str_wimginfo)
-        if not out_rdd_save.isEmpty():
-            out_rdd_save.saveAsSequenceFile(out_rdd_path)
-            save_info_incremental_update(hbase_man_update_out, ingestion_id, out_rdd_path, rdd_name+"_path")
+    try:
+        if not hdfs_file_exist(out_rdd_path):
+            out_rdd_save = out_rdd.filter(filter_out_rdd).map(out_to_amandeep_dict_str_wimginfo)
+            if not out_rdd_save.isEmpty():
+                # how to force overwrite here?
+                out_rdd_save.saveAsSequenceFile(out_rdd_path)
+                save_info_incremental_update(hbase_man_update_out, ingestion_id, out_rdd_path, rdd_name+"_path")
+            else:
+                print("[save_out_rdd_to_hdfs] 'out_rdd_save' is empty.")
+                save_info_incremental_update(hbase_man_update_out, ingestion_id, "EMPTY", rdd_name+"_path")
         else:
-            print("[save_out_rdd_to_hdfs] 'out_rdd_save' is empty.")
-            save_info_incremental_update(hbase_man_update_out, ingestion_id, "EMPTY", rdd_name+"_path")
-    else:
-        print("[save_out_rdd_to_hdfs] Skipped saving out_rdd. File already exists at {}.".format(out_rdd_path))
+            print "[save_out_rdd_to_hdfs] Skipped saving out_rdd. File already exists at {}.".format(out_rdd_path)
+    except Exception as inst:
+        print "[save_out_rdd_to_hdfs: error] Error when trying to save out_rdd to {}. {}".format(out_rdd_path, inst)
 
 
 def save_out_rdd_to_hbase(out_rdd, hbase_man_sha1infos_out):
@@ -606,13 +635,20 @@ def save_out_rdd_to_hbase(out_rdd, hbase_man_sha1infos_out):
 
 ##-------------
 
-def join_ingestion(hbase_man_sha1infos_join, ingest_rdd, nb_partitions):
+def join_ingestion(hbase_man_sha1infos_join, ingest_rdd, options, ingest_rdd_count):
     # update parents cdr_ids for existing sha1s
     print("[join_ingestion] reading from hbase_man_sha1infos_join to get sha1_infos_rdd.")
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
     # we may need to merge some 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
-        sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions)
+        sha1_infos_rdd_count = sha1_infos_rdd.count()
+        # use get_partitions_nb(options, rdd_count)
+        nb_partitions_ingest = get_partitions_nb(options, ingest_rdd_count)
+        nb_partitions_sha1_infos = get_partitions_nb(options, sha1_infos_rdd_count)
+        # partitioned rdd in the same number of partitions to minmize shuffle in the leftOuterJoin
+        nb_partitions = max(nb_partitions_sha1_infos, nb_partitions_ingest)
+        #sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions)
+        sha1_infos_rdd_json = sha1_infos_rdd.partitionBy(nb_partitions).flatMapValues(sha1_key_json_values)
         ingest_rdd_partitioned = ingest_rdd.partitionBy(nb_partitions)
         join_rdd = ingest_rdd_partitioned.leftOuterJoin(sha1_infos_rdd_json).flatMap(flatten_leftjoin)
         out_rdd = join_rdd
@@ -629,15 +665,25 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
     batch_update_size = c_options.batch_update_size
 
     start_time = time.time()
-    basepath_save = base_incremental_path+ingestion_id+'/images/info'
+    basepath_save = c_options.base_hdfs_path+ingestion_id+'/images/info'
     
     # get images from CDR, output format should be (s3_url, ad_id)
     # NB: later on we will load from disk from another job
     s3url_adid_rdd = get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, c_options, start_time)
+
+    if s3url_adid_rdd is None:
+        print "No data retrieved!"
+        return
+
     # reduce by key to download each image once
-    s3url_adid_rdd_red = s3url_adid_rdd.flatMap(s3url_adid_to_s3_url_listadid).reduceByKey(reduce_s3url_listadid)
+    s3url_adid_rdd_red = s3url_adid_rdd.flatMapValues(lambda x: [[x]]).reduceByKey(reduce_s3url_listadid)
+    s3url_adid_rdd_red_count = s3url_adid_rdd_red.count()
+    save_info_incremental_update(hbase_man_update_out, ingestion_id, s3url_adid_rdd_red_count, "s3url_adid_rdd_red_count")
 
     # process (compute SHA1, and reduce by SHA1)
+    # repartition first based on s3url_adid_rdd_red_count?
+    # this could be done as a flatMapValues
+    # s3url_adid_rdd_red.partitionBy(get_partitions_nb(c_options, s3url_adid_rdd_red_count)).flatMapValues(...)
     s3url_infos_rdd = s3url_adid_rdd_red.flatMap(check_get_sha1_imginfo_s3url)
     
     # transform to (SHA1, imginfo)
@@ -651,7 +697,7 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
         save_rdd_json(basepath_save, "ingest_rdd", ingest_rdd, ingestion_id, hbase_man_update_out)
 
     # join with existing sha1
-    out_rdd = join_ingestion(hbase_man_sha1infos_join, ingest_rdd, c_options.nb_partitions)
+    out_rdd = join_ingestion(hbase_man_sha1infos_join, ingest_rdd, c_options, ingest_rdd_count)
     save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, "out_rdd")
     save_out_rdd_to_hbase(out_rdd, hbase_man_sha1infos_out)
 
@@ -674,9 +720,12 @@ def get_ingestion_start_end_id(c_options):
         # Compute for day to process
         import calendar
         import dateutil.parser
-        start_date = dateutil.parser.parse(c_options.day_to_process)
-        es_ts_end = calendar.timegm(start_date.utctimetuple())*1000
-        es_ts_start = es_ts_end - day_gap
+        try:
+            start_date = dateutil.parser.parse(c_options.day_to_process)
+            es_ts_end = calendar.timegm(start_date.utctimetuple())*1000
+            es_ts_start = es_ts_end - day_gap
+        except Exception as inst:
+            print "[get_ingestion_start_end_id: log] Could not parse 'day_to_process'. Getting everything form the CDR."
     # Otherwise we want ALL images
     if es_ts_start is None:
         es_ts_start = 0
@@ -728,8 +777,11 @@ if __name__ == '__main__':
     job_group.add_argument("--max_ads_image_dig", dest="max_ads_image_dig", type=int, default=max_ads_image_dig)
     job_group.add_argument("--max_ads_image_hbase", dest="max_ads_image_hbase", type=int, default=max_ads_image_hbase)
     # should this be estimated from RDD counts actually?
-    job_group.add_argument("-p", "--nb_partitions", dest="nb_partitions", type=int, default=480)
+    #job_group.add_argument("-p", "--nb_partitions", dest="nb_partitions", type=int, default=480)
+    job_group.add_argument("-p", "--nb_partitions", dest="nb_partitions", type=int, default=-1)
     job_group.add_argument("-d", "--day_to_process", dest="day_to_process", help="using format YYYY-MM-DD", default=None)
+    job_group.add_argument("--max_samples_per_partition", dest="max_samples_per_partition", type=int, default=max_samples_per_partition)
+    job_group.add_argument("--base_hdfs_path", dest="base_hdfs_path", default=base_hdfs_path)
     # should we still allow the input of day to process and estimate ts start and end from it?
     
     # Parse
