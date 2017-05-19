@@ -547,6 +547,8 @@ def build_query_CDR(es_ts_start, es_ts_end, c_options):
         query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": "+range_timestamp+"}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     elif c_options.cdr_format == 'v3':
         print "[build_query_CDR: ERROR] CDR format v3 not yet supported."
+        # need to get fields objects.fields_cdr?
+        # and match: {"objects.content_type": "image/jpeg"?
     else:
         print "[build_query_CDR: ERROR] Unkown CDR format: {}".format(options.cdr_format)
     return query
