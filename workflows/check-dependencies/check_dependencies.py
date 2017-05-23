@@ -31,7 +31,7 @@ def validate_package(package, version, req_type, version_str):
   """
 
   package_ok = False
-  print "Checking package {}{}".format(package, version_str),
+  print "Checking package {}{}:".format(package, version_str),
   try:
     imported_package = importlib.import_module(package)
     if version is not None:
