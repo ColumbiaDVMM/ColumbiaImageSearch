@@ -1,9 +1,12 @@
 #!/bin/bash
 
 #NB: This script has to be called WITHIN the docker
-install_python_pkgs=0
-install_caffe=0
+install_python_pkgs=1
+install_caffe=1
 compile_hashing=1
+
+# have a parameter to build caffe with or without gpu support?
+with_cuda=false
 
 ## Initialization
 # get path of repo root
@@ -39,7 +42,14 @@ then
 	# copy file to extract multiple features
 	cp ${repo_path}/cu_image_search/feature_extractor/sentibank/extract_nfeatures.cpp ${caffe_path}/tools
 	# compile
-	cd ${caffe_path}; mkdir build; cd build; cmake ..; make -j8
+	cd ${caffe_path}; mkdir build; cd build
+        cmake ..
+        # use flag CPU_ONLY if no cuda was installed
+        if (( $with_cuda ));
+            make -j8
+        then
+            make CPU_ONLY=true -j8
+        fi
 
 	# how do we get the deepsentibank model?
 

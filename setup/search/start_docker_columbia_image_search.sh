@@ -3,6 +3,12 @@
 with_cuda=false
 
 # for different domains we could dynamically name the docker_name
+# use arguments for the following values?
+# - domain
+# - port
+# - update_path
+
+# how to create the different global_conf files for the different domains?
 
 ## Variables that could be changed
 docker_image="columbiaimagesearch"
@@ -28,11 +34,12 @@ repo_path=$(dirname $(dirname $(pwd)))
 echo "repo_path is:"${repo_path}
 
 ## Docker requires sudo privilege, check if we already have them
-SUDO=''
-if (( $EUID != 0 )); then
-
-    SUDO='sudo'
-fi
+# this seems to fail on OpenStack where ubuntu has sudo privilege but cannot interact with docker without sudo
+#SUDO=''
+#if (( $EUID != 0 )); then
+#    SUDO='sudo'
+#fi
+SUDO='sudo'
 
 ## Build the docker image if needed
 # test docker image existence
@@ -68,8 +75,8 @@ fi
 ## Start docker
 echo "Starting docker "${docker_name}" from image "${docker_image}":"${docker_image_tag}
 
-docker stop ${docker_name}
-docker rm ${docker_name}
+${SUDO} docker stop ${docker_name}
+${SUDO} docker rm ${docker_name}
 
 # We should store that for re-use
 echo -n 'Please enter update path: '
@@ -77,4 +84,4 @@ read search_update_path
 
 # no need for NVIDIA directory after install
 #docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v/srv/NVIDIA:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
-docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash

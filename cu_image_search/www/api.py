@@ -9,6 +9,7 @@ from datetime import datetime
 from collections import OrderedDict
 import imghdr
 from datetime import datetime
+from argparse import ArgumentParser
 
 from PIL import Image, ImageFile
 #Image.LOAD_TRUNCATED_IMAGES = True
@@ -465,6 +466,14 @@ api.add_resource(APIResponder, '/cu_image_search/<string:mode>')
 
 
 if __name__ == '__main__':
+
+    parser = ArgumentParser()
+    parser.add_argument("-c", "--conf", dest="conf_file", default=None)
+    options = parser.parse_args()
+    if options.conf_file is not None:
+        print "Setting conf file to: {}".format(options.conf_file)
+        global_conf_file = options.conf_file
+ 
     global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
     global_start_time = datetime.now()
     

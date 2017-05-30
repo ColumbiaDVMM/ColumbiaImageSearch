@@ -13,4 +13,4 @@ flask
 flask_restful
 
 # only for dev purposes
-ipython
+ipython<6.0
