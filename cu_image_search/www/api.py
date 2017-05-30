@@ -1,6 +1,11 @@
 from flask import Flask, Markup, flash, request, render_template, make_response
 from flask_restful import Resource, Api
 
+from socket import *
+
+sock=socket()
+sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+
 import os
 import sys
 import time
