@@ -59,16 +59,18 @@ class HasherObject {
 
         int initialize() {
             double t_start = get_wall_time();
-            int status = read_update_files();
-            if (status != 0)
-                return status;
-            fill_data_nums_accum();
-            status = load_itq_model();
-            if (status != 0)
-                return status;
-            status = load_hashcodes();
-            if (status != 0)
-                return status;
+            int model_status = load_itq_model();
+            if (model_status != 0)
+                return model_status;
+            int update_status = read_update_files();
+            if (update_status != 0) {// there is no update.
+                cout << "[initialize: WARNING] Could not find update file." << endl;
+            } else {
+                fill_data_nums_accum();
+                int data_status = load_hashcodes();
+                if (data_status != 0)
+                    cout << "[initialize: WARNING] Could not read any data." << endl;
+            }
             double t_init = get_wall_time() - t_start;
             cout << "[initialize] Done in " << t_init << "s." << endl;
             return 0;
