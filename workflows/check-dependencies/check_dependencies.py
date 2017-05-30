@@ -2,6 +2,10 @@ import json
 import importlib
 from pyspark import SparkContext, SparkConf
 
+# To deal with packages having different names in pip and when imported
+package_map = dict()
+package_map['scikit-learn'] = "sklearn"
+package_map['protobuf'] = "google.protobuf"
 
 def get_package_version(package_line):
   """ Extract package name and version requirement from package requirement line.
@@ -23,6 +27,8 @@ def get_package_version(package_line):
       if tmp_ver != ">" and tmp_ver != "=":
         version = tmp_ver.strip()
         version_str = " {} version {}".format(req_type, version)
+  if package in package_map:
+    package = package_map[package]
   return package, version, req_type, version_str
 
 
