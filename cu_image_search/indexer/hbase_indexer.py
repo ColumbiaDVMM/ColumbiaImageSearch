@@ -98,7 +98,11 @@ class HBaseIndexer(GenericIndexer):
             if self.refresh_inqueue:
                 return self.initialize_sha1_mapping()
         except Exception as inst:
-            print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}.\n{}".format(self.sha1_featid_mapping_filename,inst)
+            # This could happen for cold start where no data is available yet.
+            print "Failed."
+            print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}. {}".format(self.sha1_featid_mapping_filename,inst)
+            self.initializing = False
+            self.last_refresh = datetime.now()
 
 
     def save_sha1_mapping(self):
