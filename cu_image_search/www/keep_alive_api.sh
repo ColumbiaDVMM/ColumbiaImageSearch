@@ -6,8 +6,13 @@ sleep_time=10
 #CONF_FILE=$1
 # or assume environment variable
 
+# For Summer QPR
+CONF_FILE="/home/ubuntu/memex/update/data/global_var_remotehbase_release.json"
 echo "CONF_FILE:" ${CONF_FILE}
-echo "LOG_FOLDER:" ${LOG_FOLDER}
+# log folder should be data/log
+LOG_FOLDER="/home/ubuntu/memex/update/logs/"
+echo "LOG_FOLDER:" ${LOG_FOLDER} 
+mkdir -p ${LOG_FOLDER}
 
 while true;
 do

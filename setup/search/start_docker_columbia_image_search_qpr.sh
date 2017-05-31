@@ -51,9 +51,9 @@ else
 fi
 ports_mapping="-p "${PORT}":5000"
 
-# That is dependent on the path where the script is called from...
-repo_path=$(dirname $(dirname $(pwd)))
-echo "repo_path is:"${repo_path}
+# # That is dependent on the path where the script is called from...
+# repo_path=$(dirname $(dirname $(pwd)))
+# echo "repo_path is:"${repo_path}
 
 ## Docker requires sudo privilege, check if we already have them
 # this seems to fail on OpenStack where ubuntu has sudo privilege but cannot interact with docker without sudo
@@ -106,4 +106,4 @@ ${SUDO} docker rm ${docker_name}
 
 # no need for NVIDIA directory after install
 #docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v/srv/NVIDIA:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
-${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
