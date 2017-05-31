@@ -12,8 +12,8 @@ with_cuda=false
 
 ## Variables that could be changed
 docker_image="columbiaimagesearch"
-#docker_image_tag="0.7" # build 0.7, install cuda, run setup_search.sh, commit as 0.8
-docker_image_tag="0.8"
+#docker_image_tag="0.8" # build 0.8, install cuda if needed, run setup_search.sh, commit as 0.9
+docker_image_tag="0.9"
 docker_name="columbia_university_search_similar_images"
 docker_file="DockerfileColumbiaImageSearch"
 if (( $with_cuda ));
@@ -29,7 +29,7 @@ fi
 #ports_mapping="-p 85:5000"
 # to test
 #ports_mapping="-p 88:5000"
-ports_mapping="-p 80:5000"
+ports_mapping="-p 81:5000"
 repo_path=$(dirname $(dirname $(pwd)))
 echo "repo_path is:"${repo_path}
 
