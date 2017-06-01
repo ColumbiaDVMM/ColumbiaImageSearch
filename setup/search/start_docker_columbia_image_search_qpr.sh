@@ -31,7 +31,7 @@ else
 fi
 
 repo_path=/home/ubuntu/ColumbiaImageSearch/
-update_path=/home/ubuntu/data_${DOMAIN}
+update_path=/home/ubuntu/data_${DOMAIN}/
 
 # how to create the different global_conf files for the different domains?
 
