@@ -10,24 +10,24 @@ with_cuda=false
 
 while getopts d:p: option
 do
- case "${option}"
- in
- d) DOMAIN=${OPTARG};;
- p) PORT=${OPTARG};;
- esac
+  case "${option}"
+  in
+  d) DOMAIN=${OPTARG};;
+  p) PORT=${OPTARG};;
+  esac
 done
 
 if [ ${DOMAIN+x} ]; then
-    echo "DOMAIN: "${DOMAIN}
+  echo "DOMAIN: "${DOMAIN}
 else
-    echo "Domain not set. Use -d to set domain please."
-    exit -1
+  echo "Domain not set. Use -d to set domain please."
+  exit -1
 fi
 if [ ${PORT+x} ]; then
-    echo "PORT: "${PORT}
+  echo "PORT: "${PORT}
 else
-    echo "Port not set. Use -p to set port please."
-    exit -1
+  echo "Port not set. Use -p to set port please."
+  exit -1
 fi
 
 repo_path=/home/ubuntu/ColumbiaImageSearch/
@@ -81,15 +81,15 @@ testDockerExists
 echo ${docker_exists}
 if [[ ${docker_exists} -eq 0 ]];
 then
-        echo "Building docker image "${docker_image}" from docker file: "${docker_file}
+  echo "Building docker image "${docker_image}" from docker file: "${docker_file}
 	buildDocker
-        if (( $with_cuda ));
-        then
+  if (( $with_cuda ));
+    then
 	  # cuda and NVIDIA drivers have to be installed in the same way in the docker than in the host.
 	  # I was using the run shell script to install cuda 8.0 and the package nvidia-375
 	  echo "Please install cuda now"
 	  docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v${nvidia_install_dir}:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
-        fi
+  fi
 else
 	echo "Docker image "${docker_image}" already built."
 fi
@@ -107,3 +107,4 @@ ${SUDO} docker rm ${docker_name}
 # no need for NVIDIA directory after install
 #docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v/srv/NVIDIA:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
 ${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+
