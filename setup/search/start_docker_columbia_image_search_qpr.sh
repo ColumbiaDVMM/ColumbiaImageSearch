@@ -31,6 +31,7 @@ else
 fi
 
 repo_path=/home/ubuntu/ColumbiaImageSearch/
+indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
 update_path=/home/ubuntu/data_${DOMAIN}/
 
 # how to create the different global_conf files for the different domains?
@@ -107,5 +108,7 @@ ${SUDO} docker rm ${docker_name}
 # no need for NVIDIA directory after install
 #docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v/srv/NVIDIA:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
 #${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
-${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -tid -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag}
-
+${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -tid -v ${repo_path}:${indocker_repo_path} -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag}
+echo "Starting search API"
+${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh
+echo "Starting update"
