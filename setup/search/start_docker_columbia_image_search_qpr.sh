@@ -40,7 +40,7 @@ update_path=/home/ubuntu/data_${DOMAIN}/
 docker_image="columbiaimagesearch"
 #docker_image_tag="0.8" # build 0.8, install cuda if needed, run setup_search.sh, commit as 0.9
 docker_image_tag="0.9"
-docker_name="columbia_university_search_similar_images"
+docker_name="columbia_university_search_similar_images_"${DOMAIN}
 docker_file="DockerfileColumbiaImageSearch"
 if (( $with_cuda ));
 then
@@ -112,3 +112,4 @@ ${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -tid -v ${repo_path
 echo "Starting search API"
 ${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh
 echo "Starting update"
+${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/scripts/run_update_qpr.sh

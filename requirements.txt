@@ -4,6 +4,7 @@ numpy
 requests
 happybase
 urllib3[secure]
+python-dateutil
 
 # not needed for precomp
 pillow
