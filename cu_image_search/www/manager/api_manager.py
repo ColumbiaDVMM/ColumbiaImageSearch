@@ -74,7 +74,7 @@ def _submit_worfklow(start_ts, end_ts, table_sha1, table_update, domain):
     payload = build_images_workflow_payload_v2(start_ts, end_ts, table_sha1, table_update, domain)
     json_submit = submit_worfklow(payload)
     job_id = json_submit['id']
-    logger.info('[submit_worfklow: log] submitted workflow %s for domain %s.' % (job_id, domain_name))
+    logger.info('[submit_worfklow: log] submitted workflow %s for domain %s.' % (job_id, domain))
     # can use job_id to check status with: get_job_info(job_id)
     return job_id
 
@@ -98,7 +98,7 @@ def setup_service_url(domain_name):
     # build the proxypass rule for Apache 
     endpt = "/cuimgsearch_{}".format(domain_name)
     lurl = "http://localhost:{}/".format(port)
-    proxypass_template = "\tProxyPass /{}  {}\nProxyPassReverse {}/ {}\n\t<Location {}>\n\t\tRequire all granted\n\t</Location>\n"
+    proxypass_template = "\tProxyPass {} {}\nProxyPassReverse {}/ {}\n\t<Location {}>\n\t\tRequire all granted\n\t</Location>\n"
     proxypass_filled = proxypass_template.format(endpt, lurl, endpt, lurl, endpt)
     logger.info("[setup_service_url: log] updating Apache conf with: {}".format(proxypass_filled))
     # read apache conf file up to '</VirtualHost>'
@@ -115,7 +115,7 @@ def setup_service_url(domain_name):
     # and restart Apache
     # this may require root privilege, and would it kill the current connection?
     command = 'sudo service apache2 restart'
-    logger.log("[setup_service_url: log] restarting Apache...")
+    logger.info("[setup_service_url: log] restarting Apache...")
     output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
     logger.info("[setup_service_url: log] restarted Apache. out: {}, err: {}".format(output, error))
     service_url = config['image']['base_service_url']+endpt
@@ -199,18 +199,21 @@ def check_domain_service(project_sources):
         # save job id to be able to check status?
         config_json['job_ids'] = [job_id]
         # setup service
-        port, service_url = setup_service_url(domain)
-        data['domains'][domain] = {}
-        data['domains'][domain]['service_url'] = service_url
-        data['domains'][domain]['status'] = 'indexing'
-        data['domains'][domain]['job_ids'] = [job_id]
+        port, service_url = setup_service_url(domain_name)
+        data['domains'][domain_name] = {}
+        data['domains'][domain_name]['service_url'] = service_url
+        data['domains'][domain_name]['status'] = 'indexing'
+        data['domains'][domain_name]['job_ids'] = [job_id]
         # write out new config file
+        logger.info('[check_domain_service: log] updating config_file: %s' % config_file)
         with open(config_file, 'wt') as conf_out:
             conf_out.write(json.dumps(config_json))
+        logger.info('[check_domain_service: log] wrote config_file: %s' % config_file)
         # call start_docker_columbia_image_search_qpr.sh with the right domain and port
-        command = '{}/setup/search/start_docker_columbia_image_search_qpr.sh -p {} -d {}'.format(config['image']['host_repo_path'], port, domain)
+        command = '{}/setup/search/start_docker_columbia_image_search_qpr.sh -p {} -d {}'.format(config['image']['host_repo_path'], port, domain_name)
+        logger.info("[check_domain_service: log] Starting docker for domain {} with command: {}".format(domain_name, command))
         output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
-        logger.info("[check_domain_service: log] Started docker. out: {}, err: {}".format(output, error))
+        logger.info("[check_domain_service: log] Started docker for domain {}. out: {}, err: {}".format(domain_name, output, error))
     
     # once domain creation has been started how do we give back infos ? [TODO: check with Amandeep]
     # right back in project config, commit and push?

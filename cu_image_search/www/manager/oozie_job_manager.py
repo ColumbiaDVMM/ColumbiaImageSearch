@@ -32,6 +32,7 @@ def build_images_workflow_payload_v1(day_to_process, table_sha1, table_update, d
     payload = append_property_toXML(payload, "TABLE_UPDATE", table_update)
     payload = append_property_toXML(payload, "ES_DOMAIN", domain)
     payload += "</configuration>"
+    return payload
 
 def build_images_workflow_payload_v2(start_ts, end_ts, table_sha1, table_update, domain, workflow_path=get_images_domain_path_v2):
     payload = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><configuration>"
@@ -39,23 +40,22 @@ def build_images_workflow_payload_v2(start_ts, end_ts, table_sha1, table_update,
     payload = append_property_toXML(payload, "oozie.wf.application.path", workflow_path)
     payload = append_property_toXML(payload, "jobTracker", "memex-rm.xdata.data-tactics-corp.com:8032")
     payload = append_property_toXML(payload, "nameNode", "hdfs://memex")
-    # TODO: later on we may have a start_date and end_date instead of a day
     payload = append_property_toXML(payload, "START_TS", start_ts)
     payload = append_property_toXML(payload, "END_TS", end_ts)
     payload = append_property_toXML(payload, "TABLE_SHA1", table_sha1)
     payload = append_property_toXML(payload, "TABLE_UPDATE", table_update)
     payload = append_property_toXML(payload, "ES_DOMAIN", domain)
     payload += "</configuration>"
+    return payload
 
 
 # # submit a workflow
 def submit_worfklow(payload):
     headers = {'Content-Type': 'application/xml'}
     req = requests.post(oozie_url_v1+'jobs?action=start', data=payload, headers=headers)
-    print req
+    #print req
     output = req.json()
-    print output
-    print json.dumps(output, indent=4, separators=(',', ': '))
+    #print output
     return output
 
 

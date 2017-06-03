@@ -41,7 +41,7 @@ docker_image="columbiaimagesearch"
 #docker_image_tag="0.8" # build 0.8, install cuda if needed, run setup_search.sh, commit as 0.9
 docker_image_tag="0.9"
 docker_name="columbia_university_search_similar_images_"${DOMAIN}
-docker_file="DockerfileColumbiaImageSearch"
+docker_file=${repo_path}"/cu_image_search/setup/search/DockerfileColumbiaImageSearch"
 if (( $with_cuda ));
 then
   nvidia_install_dir="/srv/NVIDIA"
@@ -90,7 +90,10 @@ then
 	  # I was using the run shell script to install cuda 8.0 and the package nvidia-375
 	  echo "Please install cuda now"
 	  docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v${nvidia_install_dir}:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+
+    # then we should commit...
   fi
+  # Should we run setup_search.sh?
 else
 	echo "Docker image "${docker_image}" already built."
 fi

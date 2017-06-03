@@ -7,6 +7,8 @@ import logging
 
 # 'sample_dir_path': '/home/ubuntu/data_sample',
 # 'base_domain_dir_path': '/home/ubuntu/data_domains/',
+# 'apache_conf_file': '/etc/apache2/sites-enabled/000-default.conf',
+# 'host_repo_path': '/home/ubuntu/ColumbiaImageSearch',
 
 config = {
     'debug': True,
@@ -28,8 +30,8 @@ config = {
         'config_filepath': 'data/global_var_remotehbase_release.json',
         'setup_script_path': 'setup_image_search.sh',
         'base_service_url': 'http://10.3.2.135',
-        'apache_conf_file': '/etc/apache2/sites-enabled/000-default.conf',
-        'host_repo_path': '/home/ubuntu/ColumbiaImageSearch',
+        'apache_conf_file': '/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/fake-apache.conf',
+        'host_repo_path': '/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/ColumbiaImageSearch',
         'first_port': 5000
     }
 }
