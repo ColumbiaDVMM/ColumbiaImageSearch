@@ -98,7 +98,7 @@ def setup_service_url(domain_name):
     # build the proxypass rule for Apache 
     endpt = "/cuimgsearch_{}".format(domain_name)
     lurl = "http://localhost:{}/".format(port)
-    proxypass_template = "\tProxyPass {} {}\nProxyPassReverse {}/ {}\n\t<Location {}>\n\t\tRequire all granted\n\t</Location>\n"
+    proxypass_template = "\nProxyPass {}/ {}\nProxyPassReverse {}/ {}\n<Location {}>\n\tRequire all granted\n</Location>\n"
     proxypass_filled = proxypass_template.format(endpt, lurl, endpt, lurl, endpt)
     logger.info("[setup_service_url: log] updating Apache conf with: {}".format(proxypass_filled))
     # read apache conf file up to '</VirtualHost>'
