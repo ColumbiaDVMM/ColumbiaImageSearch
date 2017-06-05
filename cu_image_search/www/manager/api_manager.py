@@ -230,8 +230,9 @@ def check_domain_service(project_sources):
         #logger.info("[check_domain_service: log] Started docker for domain {}. out: {}, err: {}".format(domain_name, output, error))
         docker_proc = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE)
         data['domains'][domain_name]['docker'] = {}
-        # this cannot be saved to disk?... Or can we pickle it?...
-        data['domains'][domain_name]['docker']['popen_proc'] = docker_proc
+        # this cannot be saved to disk or outputed for debug?...
+        # should we store that somewhere else? Or can we pickle it?...
+        #data['domains'][domain_name]['docker']['popen_proc'] = docker_proc
         data['domains'][domain_name]['docker']['status'] = 'starting'
         data['domains'][domain_name]['docker']['name'] = 'columbia_university_search_similar_images_'+domain_name
         

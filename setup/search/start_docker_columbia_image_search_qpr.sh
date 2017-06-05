@@ -32,7 +32,7 @@ fi
 
 repo_path=/home/ubuntu/ColumbiaImageSearch/
 indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
-update_path=/home/ubuntu/data_${DOMAIN}/
+update_path=/home/ubuntu/data_domains/${DOMAIN}/
 
 # how to create the different global_conf files for the different domains?
 

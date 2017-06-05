@@ -21,6 +21,8 @@ then
 	pip install --upgrade pip
 	pip install -U setuptools
 	pip install -U -r ${repo_path}/requirements.txt
+	# run it twice because it seems to fail the first time...
+	pip install -U -r ${repo_path}/requirements.txt
 fi
 
 ## Caffe
