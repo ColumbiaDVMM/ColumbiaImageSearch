@@ -50,7 +50,7 @@ data['projects'] = {}
 # - what is the time range that we have indexed (if not everything)
 # what are the ports used on the host.
 
-# use before_first_request to try to load data from disk?
+# use before_first_request to try to load data from disk? Build docker image?
 # use after_request for all functions that modify data to save data to disk? ~ http://flask.pocoo.org/snippets/53/
 
 @app.after_request
