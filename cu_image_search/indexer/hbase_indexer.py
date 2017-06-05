@@ -31,7 +31,7 @@ class HBaseIndexer(GenericIndexer):
         self.hasher_type = self.global_conf['HBI_hasher']
         self.feature_extractor_type = self.global_conf['HBI_feature_extractor']
         self.hbase_host = self.global_conf['HBI_host']
-        self.table_cdrinfos_name = self.global_conf['HBI_table_cdrinfos']
+        #self.table_cdrinfos_name = self.global_conf['HBI_table_cdrinfos'] # deprecated
         self.table_sha1infos_name = self.global_conf['HBI_table_sha1infos']
         self.table_updateinfos_name = self.global_conf['HBI_table_updatesinfos']
         self.table_sim_name = self.global_conf['HBI_table_sim']
