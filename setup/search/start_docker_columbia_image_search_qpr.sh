@@ -41,7 +41,7 @@ docker_image="columbiaimagesearch"
 #docker_image_tag="0.8" # build 0.8, install cuda if needed, run setup_search.sh, commit as 0.9
 docker_image_tag="0.9"
 docker_name="columbia_university_search_similar_images_"${DOMAIN}
-docker_file=${repo_path}"/cu_image_search/setup/search/DockerfileColumbiaImageSearch"
+docker_file=${repo_path}"/setup/search/DockerfileColumbiaImageSearch"
 if (( $with_cuda ));
 then
   nvidia_install_dir="/srv/NVIDIA"

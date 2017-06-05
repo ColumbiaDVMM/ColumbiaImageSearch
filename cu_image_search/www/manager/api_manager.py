@@ -118,14 +118,18 @@ def setup_service_url(domain_name):
         logger.info("[setup_service_url: log] Could not overwrite Apache conf file. {}".format(inst))
         raise IOError("Could not overwrite Apache conf file")
 
-    # and restart Apache
-    # this may require root privilege, and would it kill the current connection?
+    service_url = config['image']['base_service_url']+endpt
+    return port, service_url    
+
+
+def restart_apache():
+    # this requires root privilege, and would kill the current connection. 
+    # has to be done in a finally statement after returning ?
     command = 'sudo service apache2 restart'
     logger.info("[setup_service_url: log] restarting Apache...")
     output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
     logger.info("[setup_service_url: log] restarted Apache. out: {}, err: {}".format(output, error))
-    service_url = config['image']['base_service_url']+endpt
-    return port, service_url    
+    
 
 
 def check_domain_service(project_sources):
@@ -226,8 +230,12 @@ def check_domain_service(project_sources):
     # for now consider a predefined pattern based on domain?
     # release lock
     domain_lock.release(domain_name)
-    # what should we return?
-    return 0, None
+
+    # restart apache AFTER returning
+    try:
+        return 0, None
+    finally:
+        restart_apache()
 
 
 def json_encode(obj):
@@ -339,16 +347,16 @@ class Project(Resource):
         return self.post(project_name)
 
     def get(self, project_name):
-        if project_name not in data:
+        if project_name not in data['projects']:
             return rest.not_found()
-        return data[project_name]
+        return data['projects'][project_name]
 
     def delete(self, project_name):
-        if project_name not in data:
+        if project_name not in data['projects']:
             return rest.not_found()
         try:
             project_lock.acquire(project_name)
-            del data[project_name]
+            del data['projects'][project_name]
             # shutil.rmtree(os.path.join(_get_project_dir_path(project_name)))
             return rest.deleted()
         except Exception as e:
