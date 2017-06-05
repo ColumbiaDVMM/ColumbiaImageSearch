@@ -13,12 +13,14 @@ echo "CONF_FILE:" ${CONF_FILE}
 LOG_FOLDER="/home/ubuntu/memex/update/logs/"
 echo "LOG_FOLDER:" ${LOG_FOLDER}
 mkdir -p ${LOG_FOLDER}
+API_FOLDER="/home/ubuntu/memex/ColumbiaImageSearch/cu_image_search/www/"
 
 while true;
 do
     if [ ${CONF_FILE+x} ]; then {
         echo "["$(date)"] Using conf file: "${CONF_FILE} >> ${LOG_FOLDER}logAPI_keep_alive.txt;
-        python api.py -c ${CONF_FILE} &> ${LOG_FOLDER}logAPI$(date +%Y-%m-%d).txt;
+        cd ${API_FOLDER}
+        python ${API_FOLDER}api.py -c ${CONF_FILE} &> ${LOG_FOLDER}logAPI$(date +%Y-%m-%d).txt;
     } else {
        echo "["$(date)"] Using default conf file." >> ${LOG_FOLDER}logAPI_keep_alive.txt;
        #python api.py &> logAPI$(date +%Y-%m-%d).txt;

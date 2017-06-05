@@ -106,8 +106,9 @@ then
 
   # Then we should run setup_search.sh
   ${SUDO} docker run ${docker_nvidia_devices} -tid -v ${repo_path}:${indocker_repo_path} -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag}
-  ${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/setup/search/setup_search.sh
-  
+  # Run without detach so we wait for setup to complete
+  ${SUDO} docker exec -it ${docker_name} ${indocker_repo_path}/setup/search/setup_search.sh
+
   # Commit
   ${SUDO} docker commit ${docker_name} ${docker_image}:${docker_image_tag}
 
