@@ -125,13 +125,18 @@ def setup_service_url(domain_name):
 
 
 def restart_apache():
-    # this requires root privilege, and would kill the current connection. 
-    # has to be done in a finally statement after returning ?
-    command = 'sudo service apache2 restart'
-    logger.info("[setup_service_url: log] restarting Apache...")
-    output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
-    logger.info("[setup_service_url: log] restarted Apache. out: {}, err: {}".format(output, error))
+    # this requires root privilege
     
+    # v1. breaks connection
+    #command = 'sudo service apache2 restart'
+    #logger.info("[setup_service_url: log] restarting Apache...")
+    #output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
+    #logger.info("[setup_service_url: log] restarted Apache. out: {}, err: {}".format(output, error))
+    
+    # v2. dirty but seems to work
+    command_shell = 'sleep 3; sudo service apache2 restart'
+    logger.info("[setup_service_url: log] restarting Apache in 3 seconds...")
+    subproc = sub.Popen(command_shell, shell=True)
 
 
 def check_domain_service(project_sources):
@@ -305,7 +310,7 @@ class AllProjects(Resource):
                 logger.info('project %s created.' % project_name)
                 try:
                     return rest.created()
-                finally:
+                finally: # still executed before returning...
                     restart_apache()
             else:
                 logger.info('project %s creation failed. %s' % (project_name, err))
