@@ -29,6 +29,9 @@ class HasherCmdLine(GenericHasher):
             self.hashing_execfile = self.global_conf['HA_exec']
         else:
             self.hashing_execfile = 'hashing'
+        self.model_path = self.hashing_execfile
+        if 'HA_model_path' in self.global_conf:
+            self.model_path = self.global_conf['HA_model_path']
         self.hashing_outpath = os.path.join(self.base_update_path,'hash_bits/')
         mkpath(self.hashing_outpath)
         # need to be able to set/get master_update file.
@@ -48,7 +51,7 @@ class HasherCmdLine(GenericHasher):
         """
         feature_filepath = features_filename[:-4]+'_norm'
         # we could be passing additional arguments here
-        command = self.hashing_execpath+'hashing_update '+features_filename+' '+str(ins_num)+' '+self.hashing_execpath
+        command = self.hashing_execpath+'hashing_update '+features_filename+' '+str(ins_num)+' '+self.model_path
         proc = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
         print "[HasherCmdLine.compute_hashcodes: log] running command: {}".format(command)
         sys.stdout.flush()
