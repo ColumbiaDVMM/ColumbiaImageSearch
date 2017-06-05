@@ -10,7 +10,8 @@ with_cuda=false
 
 ## Initialization
 # get path of repo root
-repo_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../.. && pwd )"
+#repo_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../.. && pwd )"
+repo_path=/home/ubuntu/ColumbiaImageSearch/
 
 ## Python
 if [[ $install_python_pkgs -eq 1 ]];

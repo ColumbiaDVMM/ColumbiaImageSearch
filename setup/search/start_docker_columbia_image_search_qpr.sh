@@ -40,6 +40,7 @@ update_path=/home/ubuntu/data_${DOMAIN}/
 docker_image="columbiaimagesearch"
 #docker_image_tag="0.8" # build 0.8, install cuda if needed, run setup_search.sh, commit as 0.9
 docker_image_tag="0.9"
+docker_image_build_tag="0.8"
 docker_name="columbia_university_search_similar_images_"${DOMAIN}
 docker_file=${repo_path}"/setup/search/DockerfileColumbiaImageSearch"
 if (( $with_cuda ));
@@ -75,10 +76,10 @@ testDockerExists() {
 # build docker image from docker file
 buildDocker() {
     # we have to be in the directory containing the docker_file
-    run_dir = $(pwd)
-    docker_dir = $(dirname ${docker_file})
+    run_dir=$(pwd)
+    docker_dir=$(dirname ${docker_file})
     cd ${docker_dir}
-    ${SUDO} docker build -t ${docker_image}:${docker_image_tag} -f ${docker_file} .
+    ${SUDO} docker build -t ${docker_image}:${docker_image_build_tag} -f ${docker_file} .
     # go back to run dir
     cd ${run_dir}
 }
@@ -90,16 +91,26 @@ if [[ ${docker_exists} -eq 0 ]];
 then
   echo "Building docker image "${docker_image}" from docker file: "${docker_file}
 	buildDocker
+
   if (( $with_cuda ));
     then
 	  # cuda and NVIDIA drivers have to be installed in the same way in the docker than in the host.
 	  # I was using the run shell script to install cuda 8.0 and the package nvidia-375
+    # How to install automatically without interactions?
 	  echo "Please install cuda now"
 	  docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v${nvidia_install_dir}:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
-
-    # then we should commit...
+    # Commit?
   fi
-  # Should we run setup_search.sh?
+
+  echo "Setting up docker image "${docker_image}
+
+  # Then we should run setup_search.sh
+  ${SUDO} docker run ${docker_nvidia_devices} -tid -v ${repo_path}:${indocker_repo_path} -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag}
+  ${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/setup/search/setup_search.sh
+  
+  # Commit
+  ${SUDO} docker commit ${docker_name} ${docker_image}:${docker_image_tag}
+
 else
 	echo "Docker image "${docker_image}" already built."
 fi

@@ -50,6 +50,8 @@ data['projects'] = {}
 # - what is the time range that we have indexed (if not everything)
 # what are the ports used on the host.
 
+# use before_first_request to try to load data from disk?
+# use after_request for all functions that modify data to save data to disk? ~ http://flask.pocoo.org/snippets/53/
 
 @app.after_request
 def after_request(response):
@@ -211,6 +213,7 @@ def check_domain_service(project_sources):
         # setup service
         port, service_url = setup_service_url(domain_name)
         data['domains'][domain_name] = {}
+        data['domains'][domain_name]['port'] = port
         data['domains'][domain_name]['service_url'] = service_url
         data['domains'][domain_name]['status'] = 'indexing'
         data['domains'][domain_name]['job_ids'] = [job_id]
@@ -220,10 +223,18 @@ def check_domain_service(project_sources):
             conf_out.write(json.dumps(config_json))
         logger.info('[check_domain_service: log] wrote config_file: %s' % config_file)
         # call start_docker_columbia_image_search_qpr.sh with the right domain and port
+        # this can take a while if the docker image was not build yet... Should we do this asynchronously?
         command = '{}/setup/search/start_docker_columbia_image_search_qpr.sh -p {} -d {}'.format(config['image']['host_repo_path'], port, domain_name)
         logger.info("[check_domain_service: log] Starting docker for domain {} with command: {}".format(domain_name, command))
-        output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
-        logger.info("[check_domain_service: log] Started docker for domain {}. out: {}, err: {}".format(domain_name, output, error))
+        #output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
+        #logger.info("[check_domain_service: log] Started docker for domain {}. out: {}, err: {}".format(domain_name, output, error))
+        docker_proc = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE)
+        data['domains'][domain_name]['docker'] = {}
+        # this cannot be saved to disk?... Or can we pickle it?...
+        data['domains'][domain_name]['docker']['popen_proc'] = docker_proc
+        data['domains'][domain_name]['docker']['status'] = 'starting'
+        data['domains'][domain_name]['docker']['name'] = 'columbia_university_search_similar_images_'+domain_name
+        
     
     # once domain creation has been started how do we give back infos ? [TODO: check with Amandeep]
     # right back in project config, commit and push?
@@ -365,6 +376,22 @@ class Project(Resource):
         finally:
             project_lock.remove(project_name)
 
+
+@api.route('/domains/<domain_name>')
+class Domain(Resource):
+    def post(self, domain_name):
+        return rest.bad_request('You cannot post a domain, you should post a project using a domain.')
+
+    def put(self, domain_name):
+        return self.post(project_name)
+
+    def get(self, domain_name):
+        if domain_name not in data['domains']:
+            return rest.not_found()
+        return data['domains'][domain_name]
+
+    def delete(self, domain_name):
+        return rest.bad_request('Deleting a domain is not allowed.')
 
 
 if __name__ == '__main__':
