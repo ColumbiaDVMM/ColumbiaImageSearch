@@ -24,7 +24,7 @@ config = {
         'port': 5555,
     },
     'repo': {
-        'local_path': '/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/mydig-projects-test',
+        'local_path': '/home/ubuntu/mydig-projects-test',
     },
     'logging': {
         'file_path': 'log.log',

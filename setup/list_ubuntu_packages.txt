@@ -178,6 +178,7 @@ libio-string-perl
 libisc95
 libisccc90
 libisccfg90
+libjpeg-dev
 libjson-c2
 libjson0
 libk5crypto3
@@ -440,3 +441,4 @@ xml-core
 xz-utils
 zerofree
 zlib1g
+zlib1g-dev
