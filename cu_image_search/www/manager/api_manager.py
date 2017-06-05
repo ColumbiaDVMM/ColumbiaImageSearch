@@ -231,11 +231,8 @@ def check_domain_service(project_sources):
     # release lock
     domain_lock.release(domain_name)
 
-    # restart apache AFTER returning
-    try:
-        return 0, None
-    finally:
-        restart_apache()
+    # we will restart apache AFTER returning
+    return 0, None
 
 
 def json_encode(obj):
@@ -294,7 +291,10 @@ class AllProjects(Resource):
             ret, err = check_domain_service(project_sources)
             if ret==0:
                 logger.info('project %s created.' % project_name)
-                return rest.created()
+                try:
+                    return rest.created()
+                finally:
+                    restart_apache()
             else:
                 logger.info('project %s creation failed. %s' % (project_name, err))
                 return rest.internal_error(err)

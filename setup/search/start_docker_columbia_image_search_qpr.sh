@@ -74,7 +74,13 @@ testDockerExists() {
 
 # build docker image from docker file
 buildDocker() {
+    # we have to be in the directory containing the docker_file
+    run_dir = $(pwd)
+    docker_dir = $(dirname ${docker_file})
+    cd ${docker_dir}
     ${SUDO} docker build -t ${docker_image}:${docker_image_tag} -f ${docker_file} .
+    # go back to run dir
+    cd ${run_dir}
 }
 
 # build if needed
