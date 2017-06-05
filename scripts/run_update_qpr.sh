@@ -7,6 +7,8 @@ echo "CONF_FILE:" ${CONF_FILE}
 LOG_FOLDER="/home/ubuntu/memex/update/logs/"
 echo "LOG_FOLDER:" ${LOG_FOLDER}
 mkdir -p ${LOG_FOLDER}
+REPO_FOLDER="/home/ubuntu/memex/ColumbiaImageSearch/"
 SCRIPT_FOLDER="/home/ubuntu/memex/ColumbiaImageSearch/scripts/"
 
+cd ${REPO_FOLDER}/cu_image_search
 python ${SCRIPT_FOLDER}continuous_update_hbase.py ${CONF_FILE} &> ${LOG_FOLDER}log_update_${start_date}.txt
