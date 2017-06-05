@@ -71,7 +71,7 @@ class SentiBankCmdLine():
         proto = f.read()
         f.close()
         proto = proto.replace('test.txt',testname).replace('batch_size: 1','batch_size: '+str(batch_size))
-        proto = proto.replace('imagenet_mean.binaryproto',self.sentibank_path+'imagenet_mean.binaryproto')
+        proto = proto.replace('imagenet_mean.binaryproto',self.prototxt_sentibank_path+'imagenet_mean.binaryproto')
         f = open(protoname,'w');
         f.write(proto)
         f.close()

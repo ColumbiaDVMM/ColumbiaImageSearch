@@ -55,7 +55,7 @@ then
         fi
 
     # create symbolic link
-    ln -s ${caffe_path}/build/tools/extract_nfeatures ${repo_path}/cu_image_search/feature_extractor/sentibank/
+    ln -s ${caffe_path}/build/tools/extract_nfeatures ${repo_path}/cu_image_search/feature_extractor/sentibank/extract_nfeatures_gpu
 
 	# deepsentibank model path will be provided from conf file
 fi
