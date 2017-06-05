@@ -22,7 +22,7 @@ class SentiBankCmdLine():
             self.base_update_path = os.path.dirname(__file__)
         self.features_path = os.path.join(self.base_update_path,'features/')
         self.features_dim = self.global_conf["FE_features_dim"]
-
+        self.prototxt_sentibank_path = os.path.join(os.path.dirname(__file__),'sentibank/')
         mkpath(self.features_path)
 
     def compute_features(self, new_files, startid):
@@ -42,6 +42,7 @@ class SentiBankCmdLine():
             return featurefilename, 0
         if self.sentibank_path is None: # fallback to file folder
             self.sentibank_path = os.path.join(os.path.dirname(__file__),'sentibank/')
+
         print "[SentiBankCmdLine.compute_features: log] sentibank_path is {}.".format(self.sentibank_path)
         mkpath(self.features_path)
         print "[SentiBankCmdLine.compute_features: log] features_path is {}.".format(self.features_path)
@@ -66,7 +67,7 @@ class SentiBankCmdLine():
             return featurefilename,0
         iteration = int(math.ceil(ins_num/float(batch_size)))
         print 'feature extraction image_number:', ins_num, 'batch_size:', batch_size, 'iteration:', iteration
-        f = open(self.sentibank_path+'test.prototxt')
+        f = open(self.prototxt_sentibank_path+'test.prototxt')
         proto = f.read()
         f.close()
         proto = proto.replace('test.txt',testname).replace('batch_size: 1','batch_size: '+str(batch_size))
@@ -74,7 +75,7 @@ class SentiBankCmdLine():
         f = open(protoname,'w');
         f.write(proto)
         f.close()
-        command = self.sentibank_path+'extract_nfeatures_gpu '+self.sentibank_path+'caffe_sentibank_train_iter_250000 '+protoname+ ' fc7 '+featurename+'_fc7 '+str(iteration)+' '+self.device;
+        command = self.prototxt_sentibank_path+'extract_nfeatures_gpu '+self.sentibank_path+'caffe_sentibank_train_iter_250000 '+protoname+ ' fc7 '+featurename+'_fc7 '+str(iteration)+' '+self.device;
         print "[SentiBankCmdLine.compute_features: log] command {}.".format(command)
         sys.stdout.flush()
         output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
