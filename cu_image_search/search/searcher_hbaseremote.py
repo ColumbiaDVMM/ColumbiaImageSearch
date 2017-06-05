@@ -48,7 +48,7 @@ class Searcher():
         self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.read_conf()
         self.init_indexer()
-        self.init_ingester() # just for expand metada
+        #self.init_ingester() # deprecated
         self.needed_output_columns = ['info:s3_url']
 
     def read_conf(self):
