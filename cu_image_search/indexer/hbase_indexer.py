@@ -72,6 +72,7 @@ class HBaseIndexer(GenericIndexer):
         self.precomp_end_marker = "info:precomp_finish"
         
         self.sha1_featid_mapping = []
+        self.set_sha1_indexed = set()
         self.initialize_sha1_mapping()
 
     def initialize_sha1_mapping(self):
@@ -102,7 +103,6 @@ class HBaseIndexer(GenericIndexer):
             print "Failed."
             print "[HBaseIndexer.initialize_sha1_mapping: error] Could not initialize sha1_featid_mapping from {}. {}".format(self.sha1_featid_mapping_filename,inst)
             self.initializing = False
-            self.set_sha1_indexed = set()
             self.last_refresh = datetime.now()
 
 
