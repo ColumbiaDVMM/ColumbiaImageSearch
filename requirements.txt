@@ -8,9 +8,10 @@ python-dateutil
 
 # not needed for precomp
 pillow
-# for the API
+# for the API(s)
 gevent
 flask
+flask_cors
 flask_restful
 
 # only for dev purposes
