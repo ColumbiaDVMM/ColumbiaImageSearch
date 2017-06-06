@@ -547,7 +547,7 @@ class Searcher():
                 near_dup_th = self.near_dup_th
             # Compute ratio from topfeature if set
             if self.topfeature > 0 :
-                self.ratio = math.ceil(self.topfeature*1.0/len(self.indexer.sha1_featid_mapping))
+                self.ratio = np.ceil(self.topfeature*1.0/len(self.indexer.sha1_featid_mapping))
                 print "[Searcher.search_from_image_filenames: log] Set ratio to {} as we want top {} images out of {} indexed.".format(self.ratio, self.topfeature, len(self.indexer.sha1_featid_mapping))
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio, near_dup_th=float(near_dup_th))
         outputname = simname[:-4]+".json"
