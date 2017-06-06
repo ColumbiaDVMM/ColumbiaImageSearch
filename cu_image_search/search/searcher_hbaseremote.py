@@ -58,6 +58,7 @@ class Searcher():
         self.near_dup = self.global_conf['SE_near_dup']
         self.near_dup_th =  self.global_conf['SE_near_dup_th']
         self.get_dup = self.global_conf['SE_get_dup']
+        # this ratio could be dynamic to actually target a number of images to be retrieved.
         self.ratio = self.global_conf['SE_ratio']
         self.topfeature = 0
         if "SE_topfeature" in self.global_conf:
@@ -107,7 +108,9 @@ class Searcher():
     def compute_features_listimgfiles(self, listimgfiles, search_id):
         # we could switch between GPU and CPU based on number of images.
         # TEMPORARY USE ONLY CPU as GPU card will be changed soon
-        features_filename, ins_num = self.indexer.feature_extractor.compute_features(listimgfiles, search_id, 'CPU')
+        #features_filename, ins_num = self.indexer.feature_extractor.compute_features(listimgfiles, search_id, 'CPU')
+        # device now set from conf file
+        features_filename, ins_num = self.indexer.feature_extractor.compute_features(listimgfiles, search_id)
         if ins_num != len(listimgfiles):
             print_err = "[Searcher.compute_features_listimgfiles: error] We did not get enough features ({}) from list of {} images."
             raise ValueError(print_err.format(ins_num,len(listimgfiles)))
@@ -542,6 +545,10 @@ class Searcher():
                 near_dup_th = options_dict["near_dup_th"]
             else:
                 near_dup_th = self.near_dup_th
+            # Compute ratio from topfeature if set
+            if self.topfeature > 0 :
+                self.ratio = math.ceil(self.topfeature*1.0/len(self.indexer.sha1_featid_mapping))
+                print "[Searcher.search_from_image_filenames: log] Set ratio to {} as we want top {} images out of {} indexed.".format(self.ratio, self.topfeature, len(self.indexer.sha1_featid_mapping))
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio, near_dup_th=float(near_dup_th))
         outputname = simname[:-4]+".json"
         start_format = time.time()
