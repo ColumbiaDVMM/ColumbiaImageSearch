@@ -468,7 +468,7 @@ class HBaseIndexer(GenericIndexer):
         if previous_files:
             shutil.move(prev_comp_feat_fn,out_comp_fn)
         with open(out_comp_fn,'ab') as out_comp, open(new_comp_feat_fn,'rb') as new_comp:
-                shutil.copyfileobj(new_comp, out_comp)
+            shutil.copyfileobj(new_comp, out_comp)
         out_hash_fn = os.path.join(self.hasher.base_update_path,'hash_bits',out_update_id+'_itq_norm_'+str(self.bits_num))
         mkpath(out_hash_fn)
         with open(out_hash_fn,'wb') as out_hash:
@@ -491,7 +491,10 @@ class HBaseIndexer(GenericIndexer):
             arr = np.fromfile(new_comp_idx_fn, dtype=np.uint64)
             arr += comp_idx_shift
             # discarding the first value as it would be equal to the last one of 'prev_hash'
-            arr[1:].tofile(out_comp_idx)
+            if comp_idx_shift>0:
+                arr[1:].tofile(out_comp_idx)
+            else: # but we should not to that if it is the first update ever
+                arr.tofile(out_comp_idx)
         # update master file
         mkpath(m_uf_fn)
         with open(m_uf_fn, 'wt') as m_uf:
