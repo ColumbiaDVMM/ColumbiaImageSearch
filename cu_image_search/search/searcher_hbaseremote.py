@@ -65,7 +65,7 @@ class Searcher():
             self.topfeature = int(self.global_conf['SE_topfeature'])
         self.out_dir = ""
         if "SE_outdir" in self.global_conf:
-            self.out_dir = int(self.global_conf['SE_outdir'])
+            self.out_dir = self.global_conf['SE_outdir']
             from ..memex_tools.image_dl import mkpath
             mkpath(self.out_dir)
         
