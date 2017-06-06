@@ -524,7 +524,7 @@ class Searcher():
         #    raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
         # merge feats with features_filename
         # TODO: prefix with path
-        final_featuresfile = os.path.join(self.out_dir, search_id+'.dat')
+        final_featuresfile = str(os.path.join(self.out_dir, search_id+'.dat'))
         read_dim = self.features_dim*4
         read_type = np.float32
         features_wrote = 0
