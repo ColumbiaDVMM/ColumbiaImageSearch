@@ -63,7 +63,12 @@ class Searcher():
         self.topfeature = 0
         if "SE_topfeature" in self.global_conf:
             self.topfeature = int(self.global_conf['SE_topfeature'])
-
+        self.out_dir = ""
+        if "SE_outdir" in self.global_conf:
+            self.out_dir = int(self.global_conf['SE_outdir'])
+            from ..memex_tools.image_dl import mkpath
+            mkpath(self.out_dir)
+        
     def init_ingester(self):
         """ Initialize `SE_ingester` from `global_conf['ingester']` value.
 
@@ -518,7 +523,8 @@ class Searcher():
         #if ins_num!=len(new_files):
         #    raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
         # merge feats with features_filename
-        final_featuresfile = search_id+'.dat'
+        # TODO: prefix with path
+        final_featuresfile = os.path.join(self.out_dir, search_id+'.dat')
         read_dim = self.features_dim*4
         read_type = np.float32
         features_wrote = 0
