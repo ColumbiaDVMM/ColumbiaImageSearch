@@ -171,6 +171,7 @@ class HasherSwig(GenericHasher):
         hop.HasherObjectPy_set_ratio(self.hasher, ratio)
         # needed?
         sys.stdout = sys.stderr
+        print "[HasherSwig.get_similar_images: log] preparing search for {}".format(featurefilename)
         hop.HasherObjectPy_set_near_dup_th(self.hasher, near_dup_th)
         hop.HasherObjectPy_set_query_feats_from_disk(self.hasher, featurefilename)
         hop.HasherObjectPy_set_outputfile(self.hasher, featurefilename[:-4])
