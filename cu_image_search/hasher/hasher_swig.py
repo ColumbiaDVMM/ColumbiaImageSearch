@@ -123,6 +123,7 @@ class HasherSwig(GenericHasher):
         print "[HasherSwig.compress_feats: log] program output:", out
         print "[HasherSwig.compress_feats: log] program error:", err
 
+
     def get_precomp_X(self,list_feats_id,str_precomp,read_dim,read_type):
         import struct
         query_time = time.time()

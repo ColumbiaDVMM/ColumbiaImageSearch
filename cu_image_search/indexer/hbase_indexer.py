@@ -150,6 +150,9 @@ class HBaseIndexer(GenericIndexer):
         if self.feature_extractor_type=="sentibank_cmdline":
             from ..feature_extractor.sentibank_cmdline import SentiBankCmdLine
             self.feature_extractor = SentiBankCmdLine(self.global_conf_filename)
+        elif self.feature_extractor_type=="sentibank_tensorflow":
+            from ..feature_extractor.sentibank_tensorflow import SentiBankTensorflow
+            self.feature_extractor = SentiBankTensorflow(self.global_conf_filename)
         else:
             raise ValueError("[HBaseIndexer.initialize_feature_extractor: error] Unknown feature_extractor_type: {}.".format(self.feature_extractor_type))
 

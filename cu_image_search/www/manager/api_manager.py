@@ -383,6 +383,18 @@ class Project(Resource):
             project_lock.remove(project_name)
 
 
+@api.route('/domains')
+class AllDomains(Resource):
+    def post(self):
+        return rest.bad_request('You cannot post to this endpoint.')
+
+    def put(self):
+        return self.post(project_name)
+
+    def get(self):
+        return data['domains'].keys()
+
+
 @api.route('/domains/<domain_name>')
 class Domain(Resource):
     def post(self, domain_name):
