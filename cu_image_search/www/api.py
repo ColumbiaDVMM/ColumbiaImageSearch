@@ -137,12 +137,16 @@ class APIResponder(Resource):
             resp = self.search_byB64(query, options)
         elif mode == "byB64_nocache":
             resp = self.search_byB64_nocache(query, options)
-        # view modes
+        # view modes. actually have that in a UI?
         elif mode == "view_similar_byURL":
             query_reponse = self.search_byURL(query, options)
             return self.view_similar_query_response('URL', query, query_reponse, options)
         elif mode == "view_image_sha1":
             return self.view_image_sha1(query, options)
+        elif mode == "view_similar_byB64":
+            query_reponse = self.search_byB64(query, options)
+            return self.view_similar_query_response('B64', query, query_reponse, options)
+            #return self.view_similar_images_sha1(query, options)
         elif mode == "view_similar_bySHA1":
             query_reponse = self.search_bySHA1(query, options)
             return self.view_similar_query_response('SHA1', query, query_reponse, options)
@@ -429,6 +433,10 @@ class APIResponder(Resource):
         print "[view_similar_query_response: log] query_type: {}".format(query_type)
         if query_type == 'URL':
             query_urls = get_clean_urls_from_query(query)
+        elif query_type == 'B64':
+            # need to get embedded format for each b64 query
+            # TODO: deal with different image encoding
+            query_urls = ["data:image/jpeg;base64,"+str(q) for q in query.split(',')]
         elif query_type == 'SHA1':
             # need to get url for each sha1 query
             query_urls = []
