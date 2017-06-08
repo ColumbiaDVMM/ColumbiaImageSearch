@@ -461,7 +461,7 @@ class Searcher():
             #if ins_num!=len(valid_img_filenames):
             #    raise ValueError("[Searcher.search_from_image_filenames_nocache: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
             # query with features_filename
-            simname = self.indexer.hasher.get_similar_images_from_featuresfile(features_filename, self.ratio)
+            simname = self.indexer.hasher.get_similar_images_from_featuresfile(str(features_filename), self.ratio)
             outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
             # cleanup
             os.remove(simname)
