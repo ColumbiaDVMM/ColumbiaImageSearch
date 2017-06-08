@@ -1,7 +1,25 @@
 import numpy as np
 import tensorflow as tf
 
+
 DEFAULT_PADDING = 'SAME'
+MIN_VERSION_SPLITCONCAT = '1.0'
+
+
+def check_minimum_version(package_version, requirement):
+    '''Compare package version to minimum requirement.'''
+    if type(package_version) != str or type(requirement) != str:
+        raise TypeError('check_minimum_version input should be strings')
+    pvl = package_version.split('.')
+    reql = requirement.split('.')
+    check_len = min(len(pvl), len(reql))
+    for i in range(check_len):
+        if int(pvl[i])>int(reql[i]):
+            return True
+        if int(pvl[i])<int(reql[i]):
+            return False
+    # exactly requirement version
+    return True
 
 
 def layer(op):
@@ -138,11 +156,21 @@ class Network(object):
                 output = convolve(input, kernel)
             else:
                 # Split the input into groups and then convolve each of them independently
-                input_groups = tf.split(3, group, input)
-                kernel_groups = tf.split(3, group, kernel)
+                if check_minimum_version(tf.__version__, MIN_VERSION_SPLITCONCAT):
+                    # New format since tensorflow >= 1.0
+                    # https://github.com/tensorflow/tensorflow/blob/64edd34ce69b4a8033af5d217cb8894105297d8a/RELEASE.md
+                    input_groups = tf.split(input, group, 3)
+                    kernel_groups = tf.split(kernel, group, 3)
+                else: # for tf <= 0.12.1
+                    input_groups = tf.split(3, group, input)
+                    kernel_groups = tf.split(3, group, kernel)
                 output_groups = [convolve(i, k) for i, k in zip(input_groups, kernel_groups)]
                 # Concatenate the groups
-                output = tf.concat(3, output_groups)
+                if check_minimum_version(tf.__version__, MIN_VERSION_SPLITCONCAT):
+                    output = tf.concat(output_groups, 3)
+                else: # for tf <= 0.12.1
+                    output = tf.concat(3, output_groups)
+                    
             # Add the biases
             if biased:
                 biases = self.make_var('biases', [c_o])
