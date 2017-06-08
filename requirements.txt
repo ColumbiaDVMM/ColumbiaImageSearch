@@ -5,6 +5,8 @@ requests
 happybase
 urllib3[secure]
 python-dateutil
+scipy
+tensorflow==0.12.1
 
 # not needed for precomp
 pillow
