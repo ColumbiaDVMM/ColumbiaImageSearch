@@ -110,6 +110,14 @@ class Searcher():
         else:
             raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
+
+    def check_ratio(self):
+        '''Check if we need to set the ratio based on topfeature.'''
+        if self.topfeature > 0:
+            self.ratio = self.topfeature*1.0/len(self.indexer.sha1_featid_mapping)
+            print "[Searcher.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed.".format(self.ratio, self.topfeature, len(self.indexer.sha1_featid_mapping))
+            
+
     def compute_features_listimgfiles(self, listimgfiles, search_id):
         # we could switch between GPU and CPU based on number of images.
         # TEMPORARY USE ONLY CPU as GPU card will be changed soon
@@ -461,6 +469,7 @@ class Searcher():
             #if ins_num!=len(valid_img_filenames):
             #    raise ValueError("[Searcher.search_from_image_filenames_nocache: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
             # query with features_filename
+            self.check_ratio()
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(str(features_filename), self.ratio)
             outp = self.format_output(simname, len(all_img_filenames), corrupted, list_sha1_id, options_dict)
             # cleanup
@@ -545,16 +554,12 @@ class Searcher():
                 features_wrote += 1
         print "[Searcher.search_from_image_filenames: log] Search prepared in {}s".format(time.time() - start_search)
         if features_wrote:
-            # query with merged features_filename
-            #simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
             if "near_dup_th" in options_dict:
                 near_dup_th = options_dict["near_dup_th"]
             else:
                 near_dup_th = self.near_dup_th
             # Compute ratio from topfeature if set
-            if self.topfeature > 0 :
-                self.ratio = self.topfeature*1.0/len(self.indexer.sha1_featid_mapping)
-                print "[Searcher.search_from_image_filenames: log] Set ratio to {} as we want top {} images out of {} indexed.".format(self.ratio, self.topfeature, len(self.indexer.sha1_featid_mapping))
+            self.check_ratio()
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio, near_dup_th=float(near_dup_th))
         outputname = simname[:-4]+".json"
         start_format = time.time()
@@ -613,7 +618,7 @@ class Searcher():
         if features_wrote:
             # query with merged features_filename
             print "[Searcher.search_from_listid_get_simname: log] searching for similar images from features file {}".format(final_featuresfile)
-            #simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
+            self.check_ratio()
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio, near_dup_th=float(self.near_dup_th))
         else:
             print "[Searcher.search_from_listid_get_simname: log] no features to search for similar images."
@@ -652,6 +657,7 @@ class Searcher():
                 features_wrote += 1
         if features_wrote:
             # query with merged features_filename
+            self.check_ratio()
             simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
         else:
             simname = None
