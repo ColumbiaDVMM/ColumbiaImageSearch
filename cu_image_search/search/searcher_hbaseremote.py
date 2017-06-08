@@ -442,7 +442,7 @@ class Searcher():
         valid_img_filenames = []
         valid_img = []
         list_sha1_id = []
-        outp = []
+        outp = {}
         for i, image_name in enumerate(all_img_filenames):
             if image_name[0:4]!="http":
                 sha1 = get_SHA1_from_file(image_name)
