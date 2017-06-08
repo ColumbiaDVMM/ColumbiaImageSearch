@@ -33,7 +33,7 @@ class SentiBankTensorflow():
     def compute_features(self, new_files, startid):
         # should we do that by batch
         # we could aslo check if len(img_filename)>2
-        feats = [DSE.get_features_from_img_filename(img_filename)[0] for img_filename in new_files]
+        feats = [self.DSE.get_features_from_img_filename(img_filename)[0] for img_filename in new_files]
         # save to disk to keep the rest of the pipeline equal for now
         # will be read in hasher_swig get_similar_images_from_featuresfile and passed to set_query_feats_from_disk
         featurefilename = os.path.join(self.features_path, str(startid)+'-features_fc7.dat')
