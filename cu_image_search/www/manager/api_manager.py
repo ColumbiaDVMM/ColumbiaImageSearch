@@ -297,12 +297,16 @@ def json_encode(obj):
 class Debug(Resource):
 
     def get(self):
-        if not config['debug']:
-            return abort(404)
-        debug_info = {
-            'data': json.loads(json.dumps(data, default=json_encode))
-        }
-        return debug_info
+        try:
+            if not config['debug']:
+                return abort(404)
+            debug_info = {
+                'data': json.loads(json.dumps(data, default=json_encode))
+            }
+            return debug_info
+        except Exception as e:
+            logger.error('debug: {}'.format(e))
+
 
 
 @api.route('/')
