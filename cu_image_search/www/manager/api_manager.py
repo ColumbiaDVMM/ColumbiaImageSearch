@@ -358,7 +358,7 @@ class AllProjects(Resource):
                 logger.info('project %s creation failed. %s' % (project_name, err))
                 return rest.internal_error(err)
         except Exception as e:
-            logger.error('creating project %s: %s' % (project_name, e.message))
+            logger.error('creating project {}: {}'.format(project_name, e))
         finally:
             project_lock.release(project_name)
 
