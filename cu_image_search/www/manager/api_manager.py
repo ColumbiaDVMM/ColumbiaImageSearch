@@ -15,6 +15,8 @@ from config import config
 from locker import Locker
 import rest
 from oozie_job_manager import build_images_workflow_payload_v2, submit_worfklow
+import pymongo
+from pymongo import MongoClient
 
 # logger
 logger = logging.getLogger('api-manager.log')
@@ -39,11 +41,18 @@ def api_route(self, *args, **kwargs):
 
 api.route = types.MethodType(api_route, api)
 
+# mongoDB
+client = MongoClient()
+db = client.api_manager_db
+db_domains = db.domains
+db_projects = db.projects
+
 # in-memory data
-# TODO: how to make it persistent i.e. deal with restart?
+# TODO: make it persistent i.e. deal with restart using mongoDB
 data = {}
 data['domains'] = {}
 data['projects'] = {}
+# ports ?
 # what we really care about is knowing for each domain:
 # - what is the address for the image similarity service for one domain (actually one project)
 # - what is the status of indexing (not indexed, indexing, indexed)
@@ -52,6 +61,26 @@ data['projects'] = {}
 
 # use before_first_request to try to load data from disk? Build docker image?
 # use after_request for all functions that modify data to save data to disk? ~ http://flask.pocoo.org/snippets/53/
+
+def initialize_data_fromdb():
+    # try to read data stored in db from a previous session
+    # fill projects, domains and ports
+    for project in db_projects.find():
+        data['projects'][project['project_name']] = dict()
+        for key in project:
+            if key != 'project_name':
+                data['projects'][project['project_name']][key] = project[key]
+    for domain in db_domains.find():
+        data['domains'][domain['domain_name']] = dict()
+        for key in domain:
+            if key != 'domain_name':
+                data['domains'][domain['domain_name']][key] = project[key]
+            if key == 'port':
+                domain_port = data['domains'][domain['domain_name']]['port']
+                if 'ports' not in data:
+                    data['ports'] = [domain_port]
+                else:
+                    data['ports'].append(domain_port)
 
 @app.after_request
 def after_request(response):
@@ -105,7 +134,12 @@ def setup_service_url(domain_name):
     logger.info("[setup_service_url: log] updating Apache conf with: {}".format(proxypass_filled))
     # read apache conf file up to '</VirtualHost>'
     outconf_str = ""
-    with open(config['image']['apache_conf_file'], 'rt') as inconf:
+    inconf_file = config['image']['in_apache_conf_file']
+    # check if we already setup one domain...
+    if os.path.isfile(config['image']['apache_conf_file']): 
+        # start from there
+        inconf_file = config['image']['apache_conf_file']
+    with open(inconf_file, 'rt') as inconf:
         for line in inconf:
             # add the new rule before the end
             if line.strip()=='</VirtualHost>':
@@ -176,8 +210,8 @@ def check_domain_service(project_sources):
             # add job_id to job_ids and save config
             config_json['job_ids'].append(job_id)
             # update data['domains']
-            data['domains'][domain]['status'] = 'updating'
-            data['domains'][domain]['job_ids'].append(job_id)
+            data['domains'][domain_name]['status'] = 'updating'
+            data['domains'][domain_name]['job_ids'].append(job_id)
             # write out new config file
             with open(config_file, 'wt') as conf_out:
                 conf_out.write(json.dumps(config_json))
@@ -218,6 +252,7 @@ def check_domain_service(project_sources):
         # setup service
         port, service_url = setup_service_url(domain_name)
         data['domains'][domain_name] = {}
+        data['domains'][domain_name]['domain_name'] = domain_name
         data['domains'][domain_name]['port'] = port
         data['domains'][domain_name]['service_url'] = service_url
         data['domains'][domain_name]['status'] = 'indexing'
@@ -240,7 +275,7 @@ def check_domain_service(project_sources):
         #data['domains'][domain_name]['docker']['popen_proc'] = docker_proc
         data['domains'][domain_name]['docker']['status'] = 'starting'
         data['domains'][domain_name]['docker']['name'] = 'columbia_university_search_similar_images_'+domain_name
-        
+        data['domains'][domain_name]['_id'] = db_domains.insert_one(data['domains'][domain_name]).inserted_id
     
     # once domain creation has been started how do we give back infos ? [TODO: check with Amandeep]
     # right back in project config, commit and push?
@@ -301,17 +336,24 @@ class AllProjects(Resource):
                 os.makedirs(project_dir_path)
             data['projects'][project_name] = {'sources': {}}
             data['projects'][project_name]['sources'] = project_sources
+            data['projects'][project_name]['_id'] = db_projects.insert_one(data['projects'][project_name]).inserted_id
             with open(os.path.join(project_dir_path, 'project_config.json'), 'w') as f:
                 f.write(json.dumps(data['projects'][project_name], indent=4, default=json_encode))
             # we should try to create a service for domain "sources:type" 
             # (or update it if timerange defined by "sources:start_date" and "sources:end_date" is bigger than existing)
             ret, err = check_domain_service(project_sources)
             if ret==0:
-                logger.info('project %s created.' % project_name)
+                msg = 'project %s created.' % project_name
+                logger.info(msg)
                 try:
-                    return rest.created()
+                    return rest.created(msg)
                 finally: # still executed before returning...
                     restart_apache()
+            elif ret==1:
+                msg = 'project %s was already previously created.' % project_name
+                logger.info(msg)
+                # what should we return in this case
+                return rest.ok(msg) 
             else:
                 logger.info('project %s creation failed. %s' % (project_name, err))
                 return rest.internal_error(err)
@@ -329,6 +371,8 @@ class AllProjects(Resource):
                 project_lock.acquire(project_name)
                 del data[project_name]
                 shutil.rmtree(os.path.join(_get_project_dir_path(project_name)))
+                # also remove from db.
+                # if it's the last project from a domain, shoud we remove the domain?
             except Exception as e:
                 logger.error('deleting project %s: %s' % (project_name, e.message))
                 return rest.internal_error('deleting project %s error, halted.' % project_name)

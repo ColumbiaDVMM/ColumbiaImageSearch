@@ -34,7 +34,8 @@ config = {
     'image': {
         'sample_dir_path': '/home/ubuntu/data_sample',
         'base_domain_dir_path': '/home/ubuntu/data_domains/',
-        'apache_conf_file': '/etc/apache2/sites-enabled/000-default.conf',
+        'in_apache_conf_file': '/etc/apache2/sites-enabled/000-default.conf.init',
+        'out_apache_conf_file': '/etc/apache2/sites-enabled/000-default.conf',
         'host_repo_path': '/home/ubuntu/ColumbiaImageSearch',
         'config_filepath': 'data/global_var_remotehbase_release.json',
         'setup_script_path': 'setup_image_search.sh',
