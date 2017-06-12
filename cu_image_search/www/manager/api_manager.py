@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import logging
 import json
@@ -305,7 +306,7 @@ class Debug(Resource):
             }
             return debug_info
         except Exception as e:
-            logger.error('debug: {}'.format(e))
+            logger.error('debug: {}. {}'.format(e, sys.exc_info()[0]))
 
 
 
@@ -362,7 +363,7 @@ class AllProjects(Resource):
                 logger.info('project %s creation failed. %s' % (project_name, err))
                 return rest.internal_error(err)
         except Exception as e:
-            logger.error('creating project {}: {}'.format(project_name, e))
+            logger.error('creating project {}: {}'.format(project_name, e, sys.exc_info()[0]))
         finally:
             project_lock.release(project_name)
 
