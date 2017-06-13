@@ -75,13 +75,12 @@ def initialize_data_fromdb():
         data['domains'][domain['domain_name']] = dict()
         for key in domain:
             if key != '_id':
-                data['domains'][domain['domain_name']][key] = project[key]
-            if key == 'port':
-                domain_port = data['domains'][domain['domain_name']]['port']
+                data['domains'][domain['domain_name']][key] = domain[key]
+            if key == 'port': 
                 if 'ports' not in data:
-                    data['ports'] = [domain_port]
+                    data['ports'] = [domain[key]]
                 else:
-                    data['ports'].append(domain_port)
+                    data['ports'].append(domain[key])
 
 
 @app.after_request
