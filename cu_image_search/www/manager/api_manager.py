@@ -397,6 +397,7 @@ class AllProjects(Resource):
                 finally: # still executed before returning...
                     restart_apache()
             elif ret==1:
+                db_projects.insert_one(data['projects'][project_name])
                 # really project or domain?
                 msg = 'domain for project %s was already previously created. %s' % (project_name, err)
                 logger.info(msg)
@@ -411,7 +412,6 @@ class AllProjects(Resource):
         except Exception as e:
             # try to remove project_name
             try:
-                
                 del data['projects'][project_name]
             except:
                 pass
