@@ -151,7 +151,7 @@ def setup_service_url(domain_name):
     # overwrite conf file
     # this would fail if api is not running with sudo...
     try:
-        with open(config['image']['apache_conf_file'], 'wt') as outconf:
+        with open(config['image']['out_apache_conf_file'], 'wt') as outconf:
             outconf.write(outconf_str)
     except Exception as inst:
         logger.info("[setup_service_url: log] Could not overwrite Apache conf file. {}".format(inst))
