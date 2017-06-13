@@ -208,7 +208,7 @@ def check_domain_service(project_sources):
     # why is project_sources a list actually? Assume we want the first entry? Or loop?
     one_source = project_sources[0]
     domain_name = one_source['type']
-    starts_ts, end_ts = get_start_end_ts(one_source)
+    start_ts, end_ts = get_start_end_ts(one_source)
     # get domain lock
 
     logger.info('[check_domain_service: log] domain_name: %s, start_ts: %s, end_ts: %s' % (domain_name, start_ts, end_ts))
