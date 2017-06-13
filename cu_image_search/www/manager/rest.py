@@ -2,11 +2,13 @@
 
 
 def created(data={}):
-    return data, 201
+	#return data, 201
+    return {'status_code': 201, 'info_message': data}, 201
 
 
 def ok(data=''):
-    return data, 200
+	#return data, 200
+    return {'status_code': 200, 'info_message': data}, 200
 
 
 def deleted():
