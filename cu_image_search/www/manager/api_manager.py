@@ -367,9 +367,10 @@ class AllProjects(Resource):
         logger.info('/projects project_name: %s' % (project_name))
         logger.info('/projects project_sources: %s' % (project_sources))            
 
-        # create project data structure, folders & files
-        project_dir_path = _get_project_dir_path(project_name)
         try:
+            # create project data structure, folders & files
+            project_dir_path = _get_project_dir_path(project_name)
+        
             project_lock.acquire(project_name)
             logger.info('/projects creating directory: %s' % (project_dir_path))
             os.makedirs(project_dir_path)
@@ -405,9 +406,17 @@ class AllProjects(Resource):
                 logger.info(msg)
                 return rest.internal_error(msg)
         except Exception as e:
-            # we should remove project_name
-            del data['projects'][project_name]
-            # try to remove config file?
+            # try to remove project_name
+            try:
+                
+                del data['projects'][project_name]
+            except:
+                pass
+            # try to remove data files too
+            try:
+                shutil.rmtree(os.path.join(_get_project_dir_path(project_name)))
+            except:
+                pass
             msg = 'project {} creation failed: {} {}'.format(project_name, e, sys.exc_info()[0])
             logger.error(msg)
             return rest.internal_error(msg)
@@ -502,6 +511,8 @@ class Domain(Resource):
 
 
 if __name__ == '__main__':
+
+    initialize_data_fromdb()
 
     from gevent.wsgi import WSGIServer
     http_server = WSGIServer(('', config['server']['port']), app)
