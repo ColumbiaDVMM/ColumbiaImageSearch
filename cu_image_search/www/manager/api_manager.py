@@ -471,11 +471,17 @@ class Project(Resource):
             return rest.not_found()
         try:
             project_lock.acquire(project_name)
+            # remove:
+            # - from current data dict
             del data['projects'][project_name]
-            # shutil.rmtree(os.path.join(_get_project_dir_path(project_name)))
-            # also remove from db?
+            # - files associated with project
+            shutil.rmtree(os.path.join(_get_project_dir_path(project_name)))
+            # - from mongodb
+            db_projects.delete_one({'project_name':project_name})
             # if it's the last project from a domain, shoud we remove the domain?
-            return rest.deleted()
+            msg = 'project {} has been deleted'.format(project_name)
+            logger.info(msg)
+            return rest.deleted(msg)
         except Exception as e:
             logger.error('deleting project %s: %s' % (project_name, e.message))
             return rest.internal_error('deleting project %s error, halted.' % project_name)
@@ -516,6 +522,8 @@ class Domain(Resource):
 if __name__ == '__main__':
 
     initialize_data_fromdb()
+    # we should also check if dockers are running?
+    # api services within each docker?
 
     from gevent.wsgi import WSGIServer
     http_server = WSGIServer(('', config['server']['port']), app)

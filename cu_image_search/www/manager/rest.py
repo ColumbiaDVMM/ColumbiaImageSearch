@@ -11,8 +11,8 @@ def ok(data=''):
     return {'status_code': 200, 'info_message': data}, 200
 
 
-def deleted():
-    return '', 204
+def deleted(data=''):
+    return {'status_code': 204, 'info_message': data}, 204
 
 
 def bad_request(data=''):
