@@ -174,22 +174,42 @@ def restart_apache():
     subproc = sub.Popen(command_shell, shell=True)
 
 
+def get_start_end_ts(one_source):
+    # # Is this safe?
+    # try:
+    #     start_ts = parse_isodate_to_ts(one_source['start_date'])
+    # except Exception as inst:
+    #     logger.error("[check_domain_service: log] Could not parse 'start_date' (error was: {}). Assuming 0 as start_ts.".format(inst))
+    #     start_ts = 0
+    # try:
+    #     end_ts = parse_isodate_to_ts(one_source['end_date'])
+    # except:
+    #     logger.error("[check_domain_service: log] Could not parse 'end_date' assuming {} as end_ts.".format(max_ts))
+    #     end_ts = max_ts
+
+    try:
+        start_ts = parse_isodate_to_ts(one_source['start_date'])
+    except Exception as inst:
+        err_msg = "Could not parse 'start_date' (error was: {}).".format(inst)
+        logger.error("[check_domain_service: log] "+err_msg)
+        raise ValueError(err_msg)
+    try:
+        end_ts = parse_isodate_to_ts(one_source['end_date'])
+    except Exception as inst:
+        err_msg = "Could not parse 'end_date' (error was: {}).".format(inst)
+        logger.error("[check_domain_service: log] "+err_msg)
+        raise ValueError(err_msg)
+    return start_ts, end_ts
+
+
 def check_domain_service(project_sources):
     #logger.info('[check_domain_service: log] project_sources: %s' % (project_sources))
     # why is project_sources a list actually? Assume we want the first entry? Or loop?
     one_source = project_sources[0]
     domain_name = one_source['type']
-    try:
-        start_ts = parse_isodate_to_ts(one_source['start_date'])
-    except Exception as inst:
-        logger.error("[check_domain_service: log] Could not parse 'start_date' (error was: {}). Assuming 0 as start_ts.".format(inst))
-        start_ts = 0
-    try:
-        end_ts = parse_isodate_to_ts(one_source['end_date'])
-    except:
-        logger.error("[check_domain_service: log] Could not parse 'end_date' assuming {} as end_ts.".format(max_ts))
-        start_ts = 0
+    starts_ts, end_ts = get_start_end_ts(one_source)
     # get domain lock
+
     logger.info('[check_domain_service: log] domain_name: %s, start_ts: %s, end_ts: %s' % (domain_name, start_ts, end_ts))
     domain_dir_path = _get_domain_dir_path(domain_name)
     domain_lock.acquire(domain_name)
