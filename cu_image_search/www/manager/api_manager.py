@@ -374,7 +374,7 @@ class AllProjects(Resource):
             # try to remove config file?
             msg = 'project {} creation failed: {} {}'.format(project_name, e, sys.exc_info()[0])
             logger.error(msg)
-            rest.internal_error(msg)
+            return rest.internal_error(msg)
         finally:
             project_lock.release(project_name)
 
