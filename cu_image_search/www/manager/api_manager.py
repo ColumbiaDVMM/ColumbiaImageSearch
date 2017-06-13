@@ -175,7 +175,8 @@ def restart_apache():
 
 
 def get_start_end_ts(one_source):
-    # # Is this safe?
+    '''Parse start and end timestamp from `start_date` and `end_date` in the provided source'''
+    # # Is this safe?...
     # try:
     #     start_ts = parse_isodate_to_ts(one_source['start_date'])
     # except Exception as inst:
@@ -211,6 +212,8 @@ def check_domain_service(project_sources):
     # get domain lock
 
     logger.info('[check_domain_service: log] domain_name: %s, start_ts: %s, end_ts: %s' % (domain_name, start_ts, end_ts))
+    # should we check domain_name is valid e.g. exists in CDR?
+
     domain_dir_path = _get_domain_dir_path(domain_name)
     domain_lock.acquire(domain_name)
     if os.path.isdir(domain_dir_path):
