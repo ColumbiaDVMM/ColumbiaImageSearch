@@ -357,15 +357,24 @@ class AllProjects(Resource):
                 finally: # still executed before returning...
                     restart_apache()
             elif ret==1:
+                # really project or domain?
                 msg = 'project %s was already previously created.' % project_name
                 logger.info(msg)
                 # what should we return in this case
                 return rest.ok(msg) 
             else:
-                logger.info('project %s creation failed. %s' % (project_name, err))
-                return rest.internal_error(err)
+                # we should remove project_name
+                del data['projects'][project_name]
+                msg = 'project %s creation failed while creating search service: %s' % (project_name, err)
+                logger.info(msg)
+                return rest.internal_error(msg)
         except Exception as e:
-            logger.error('creating project {}: {}'.format(project_name, e, sys.exc_info()[0]))
+            # we should remove project_name
+            del data['projects'][project_name]
+            # try to remove config file?
+            msg = 'project {} creation failed: {} {}'.format(project_name, e, sys.exc_info()[0])
+            logger.error(msg)
+            rest.internal_error(msg)
         finally:
             project_lock.release(project_name)
 
