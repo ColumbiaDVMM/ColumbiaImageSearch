@@ -139,9 +139,9 @@ def setup_service_url(domain_name):
     outconf_str = ""
     inconf_file = config['image']['in_apache_conf_file']
     # check if we already setup one domain...
-    if os.path.isfile(config['image']['apache_conf_file']): 
+    if os.path.isfile(config['image']['out_apache_conf_file']): 
         # start from there
-        inconf_file = config['image']['apache_conf_file']
+        inconf_file = config['image']['out_apache_conf_file']
     with open(inconf_file, 'rt') as inconf:
         for line in inconf:
             # add the new rule before the end
