@@ -38,8 +38,9 @@ config = {
         'out_apache_conf_file': '/etc/apache2/sites-enabled/000-default.conf',
         'host_repo_path': '/home/ubuntu/ColumbiaImageSearch',
         'config_filepath': 'data/global_var_remotehbase_release.json',
+        'setup_docker_path': '/setup/search/start_docker_columbia_image_search_qpr.sh',
         'setup_script_path': 'setup_image_search.sh',
-        'base_service_url': 'http://10.3.2.135',
+        'base_service_url': 'http://10.3.2.124',
         'first_port': 5000
     }
 }

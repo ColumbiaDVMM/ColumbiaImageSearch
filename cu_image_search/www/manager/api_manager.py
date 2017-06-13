@@ -296,7 +296,7 @@ def check_domain_service(project_sources):
         logger.info('[check_domain_service: log] wrote config_file: %s' % config_file)
         # call start_docker_columbia_image_search_qpr.sh with the right domain and port
         # this can take a while if the docker image was not build yet... Should we do this asynchronously?
-        command = '{}/setup/search/start_docker_columbia_image_search_qpr.sh -p {} -d {}'.format(config['image']['host_repo_path'], port, domain_name)
+        command = '{}{} -p {} -d {}'.format(config['image']['host_repo_path'], config['image']['setup_docker_path'], port, domain_name)
         logger.info("[check_domain_service: log] Starting docker for domain {} with command: {}".format(domain_name, command))
         #output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
         #logger.info("[check_domain_service: log] Started docker for domain {}. out: {}, err: {}".format(domain_name, output, error))
@@ -509,6 +509,7 @@ class Domain(Resource):
         return data['domains'][domain_name]
 
     def delete(self, domain_name):
+        # Should we allow it?
         return rest.bad_request('Deleting a domain is not allowed.')
 
 

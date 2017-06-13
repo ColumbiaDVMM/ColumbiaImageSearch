@@ -86,7 +86,7 @@ buildDocker() {
 
 # build if needed
 testDockerExists
-echo ${docker_exists}
+echo "Docker exists:",${docker_exists}
 if [[ ${docker_exists} -eq 0 ]];
 then
   echo "Building docker image "${docker_image}" from docker file: "${docker_file}
@@ -133,4 +133,5 @@ ${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -tid -v ${repo_path
 echo "Starting search API"
 ${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh
 echo "Starting update"
+# Update now should read features computed with a spark job...
 ${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/scripts/run_update_qpr.sh

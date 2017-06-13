@@ -18,11 +18,11 @@ if [[ $install_python_pkgs -eq 1 ]];
 then
 	# install required python packages
 	echo "Installing python packages"
-	pip install --upgrade pip
-	pip install -U setuptools
-	pip install -U -r ${repo_path}/requirements.txt
-	# run it twice because it seems to fail the first time...
-	pip install -U -r ${repo_path}/requirements.txt
+	pip install --upgrade --user pip
+	pip install -U --user setuptools
+	pip install -U --user -r ${repo_path}/requirements.txt
+	# run it twice because it seems to fail the first time sometimes...
+	pip install -U --user -r ${repo_path}/requirements.txt
 fi
 
 ## Caffe
