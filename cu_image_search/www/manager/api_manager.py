@@ -276,7 +276,8 @@ def check_domain_service(project_sources):
         #data['domains'][domain_name]['docker']['popen_proc'] = docker_proc
         data['domains'][domain_name]['docker']['status'] = 'starting'
         data['domains'][domain_name]['docker']['name'] = 'columbia_university_search_similar_images_'+domain_name
-        data['domains'][domain_name]['_id'] = db_domains.insert_one(data['domains'][domain_name]).inserted_id
+        # cannot be dump in JSON
+        #data['domains'][domain_name]['_id'] = db_domains.insert_one(data['domains'][domain_name]).inserted_id
     
     # once domain creation has been started how do we give back infos ? [TODO: check with Amandeep]
     # right back in project config, commit and push?
@@ -341,7 +342,8 @@ class AllProjects(Resource):
                 os.makedirs(project_dir_path)
             data['projects'][project_name] = {'sources': {}}
             data['projects'][project_name]['sources'] = project_sources
-            data['projects'][project_name]['_id'] = db_projects.insert_one(data['projects'][project_name]).inserted_id
+            # cannot be dump in JSON
+            #data['projects'][project_name]['_id'] = db_projects.insert_one(data['projects'][project_name]).inserted_id
             with open(os.path.join(project_dir_path, 'project_config.json'), 'w') as f:
                 f.write(json.dumps(data['projects'][project_name], indent=4, default=json_encode))
             # we should try to create a service for domain "sources:type" 
