@@ -83,11 +83,13 @@ def initialize_data_fromdb():
                 else:
                     data['ports'].append(domain_port)
 
+
 @app.after_request
 def after_request(response):
   response.headers.add('Access-Control-Allow-Headers', 'Keep-Alive,User-Agent,If-Modified-Since,Cache-Control,x-requested-with,Content-Type,origin,authorization,accept,client-security-token')
   response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
   return response
+
 
 # One locker for project and domain
 project_lock = Locker()
@@ -375,6 +377,7 @@ class AllProjects(Resource):
             logger.info('/projects creating directory: %s' % (project_dir_path))
             os.makedirs(project_dir_path)
             data['projects'][project_name] = {'sources': {}}
+            data['projects'][project_name]['project_name'] = project_name
             data['projects'][project_name]['sources'] = project_sources
             with open(os.path.join(project_dir_path, 'project_config.json'), 'w') as f:
                 f.write(json.dumps(data['projects'][project_name], indent=4, default=json_encode))
