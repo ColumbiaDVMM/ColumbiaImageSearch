@@ -209,14 +209,15 @@ def check_domain_service(project_sources):
     one_source = project_sources[0]
     domain_name = one_source['type']
     start_ts, end_ts = get_start_end_ts(one_source)
-    # get domain lock
-
+    
     logger.info('[check_domain_service: log] domain_name: %s, start_ts: %s, end_ts: %s' % (domain_name, start_ts, end_ts))
     # should we check domain_name is valid e.g. exists in CDR?
 
     domain_dir_path = _get_domain_dir_path(domain_name)
+
+    # get domain lock
     domain_lock.acquire(domain_name)
-    if os.path.isdir(domain_dir_path):
+    if os.path.isdir(domain_dir_path): # or test 'domain_name' in data['domains']?
         logger.info('[check_domain_service: log] service exists for domain_name: %s, check if we need to update.' % (domain_name))
         # Check conf to see if we need to update 
         config_file = os.path.join(domain_dir_path, config['image']['config_filepath'])
@@ -225,7 +226,7 @@ def check_domain_service(project_sources):
             err_msg = 'service exists for domain: %s, but creation seems incomplete.' % (domain_name)
             logger.error('[check_domain_service: error] '+err_msg)
             domain_lock.release(domain_name)
-            return -1, err_msg
+            return -1, domain_name, err_msg
         new_start_ts = min(start_ts, config_json['start_ts'])
         new_end_ts = max(end_ts, config_json['end_ts'])
         if new_start_ts < config_json['start_ts'] or new_end_ts > config_json['end_ts']:
@@ -239,7 +240,13 @@ def check_domain_service(project_sources):
             # write out new config file
             with open(config_file, 'wt') as conf_out:
                 conf_out.write(json.dumps(config_json))
-            logger.info('[check_domain_service: log] updating domain %s' % (domain_name))
+            msg = 'updating domain %s' % (domain_name)
+            logger.info('[check_domain_service: log] '+msg)
+            return 1, domain_name, msg
+        else:
+            msg = 'no need to update for domain %s' % (domain_name)
+            logger.info('[check_domain_service: log] '+msg)
+            return 1, domain_name, msg
     else:
         # if folder is empty copy data from config['image']['sample_dir_path']
         logger.info('[check_domain_service: log] copying from %s to %s' % (config['image']['sample_dir_path'], domain_dir_path))
@@ -299,8 +306,10 @@ def check_domain_service(project_sources):
         #data['domains'][domain_name]['docker']['popen_proc'] = docker_proc
         data['domains'][domain_name]['docker']['status'] = 'starting'
         data['domains'][domain_name]['docker']['name'] = 'columbia_university_search_similar_images_'+domain_name
+        # insert in mongoDB
         # cannot be dump in JSON
         #data['domains'][domain_name]['_id'] = db_domains.insert_one(data['domains'][domain_name]).inserted_id
+        db_domains.insert_one(data['domains'][domain_name])
     
     # once domain creation has been started how do we give back infos ? [TODO: check with Amandeep]
     # right back in project config, commit and push?
@@ -309,7 +318,7 @@ def check_domain_service(project_sources):
     domain_lock.release(domain_name)
 
     # we will restart apache AFTER returning
-    return 0, None
+    return 0, domain_name, None
 
 
 def json_encode(obj):
@@ -349,39 +358,43 @@ class AllProjects(Resource):
         if len(project_name) == 0 or len(project_name) >= 256:
             return rest.bad_request('Invalid project name.')
         if project_name in data['projects']:
-            return rest.exists('Project name already exists.')
+            msg = 'You cannot post an existing project to the /projects endpoint. For updates, post to projects/{your_project_name}'
+            return rest.bad_request(msg)
         project_sources = input.get('sources', [])
         if len(project_sources) == 0:
             return rest.bad_request('Invalid sources.')
 
         logger.info('/projects project_name: %s' % (project_name))
-        logger.info('/projects project_sources: %s' % (project_sources))
+        logger.info('/projects project_sources: %s' % (project_sources))            
+
         # create project data structure, folders & files
         project_dir_path = _get_project_dir_path(project_name)
         try:
             project_lock.acquire(project_name)
-            if not os.path.exists(project_dir_path):
-                logger.info('/projects creating directory: %s' % (project_dir_path))
-                os.makedirs(project_dir_path)
+            logger.info('/projects creating directory: %s' % (project_dir_path))
+            os.makedirs(project_dir_path)
             data['projects'][project_name] = {'sources': {}}
             data['projects'][project_name]['sources'] = project_sources
-            # cannot be dump in JSON
-            #data['projects'][project_name]['_id'] = db_projects.insert_one(data['projects'][project_name]).inserted_id
             with open(os.path.join(project_dir_path, 'project_config.json'), 'w') as f:
                 f.write(json.dumps(data['projects'][project_name], indent=4, default=json_encode))
             # we should try to create a service for domain "sources:type" 
             # (or update it if timerange defined by "sources:start_date" and "sources:end_date" is bigger than existing)
-            ret, err = check_domain_service(project_sources)
+            ret, domain_name, err = check_domain_service(project_sources)
+            data['projects'][project_name]['domain'] = domain_name
             if ret==0:
                 msg = 'project %s created.' % project_name
                 logger.info(msg)
+                # insert into mongoDB
+                # cannot be dump in JSON
+                #data['projects'][project_name]['_id'] = db_projects.insert_one(data['projects'][project_name]).inserted_id
+                db_projects.insert_one(data['projects'][project_name])
                 try:
                     return rest.created(msg)
                 finally: # still executed before returning...
                     restart_apache()
             elif ret==1:
                 # really project or domain?
-                msg = 'project %s was already previously created.' % project_name
+                msg = 'domain for project %s was already previously created. %s' % (project_name, err)
                 logger.info(msg)
                 # what should we return in this case
                 return rest.ok(msg) 
@@ -401,29 +414,21 @@ class AllProjects(Resource):
         finally:
             project_lock.release(project_name)
 
+
     def get(self):
         return data['projects'].keys()
 
-    def delete(self):
-        for project_name in data['projects'].keys():  # not iterkeys(), need to do del in iteration
-            try:
-                project_lock.acquire(project_name)
-                del data[project_name]
-                shutil.rmtree(os.path.join(_get_project_dir_path(project_name)))
-                # also remove from db.
-                # if it's the last project from a domain, shoud we remove the domain?
-            except Exception as e:
-                logger.error('deleting project %s: %s' % (project_name, e.message))
-                return rest.internal_error('deleting project %s error, halted.' % project_name)
-            finally:
-                project_lock.remove(project_name)
 
-        return rest.deleted()
+    def delete(self):
+        # redundant with projects/project_name/delete
+        msg = 'cannot delete from projects endpoint. you should call projects/{your_project_name}'
+        return rest.bad_request(msg)
 
 
 @api.route('/projects/<project_name>')
 class Project(Resource):
     def post(self, project_name):
+        # for updates?
         if project_name not in data['projects']:
             return rest.not_found()
         input = request.get_json(force=True)
@@ -443,13 +448,12 @@ class Project(Resource):
         finally:
             project_lock.release(project_name)
 
-    def put(self, project_name):
-        return self.post(project_name)
 
     def get(self, project_name):
         if project_name not in data['projects']:
             return rest.not_found()
         return data['projects'][project_name]
+
 
     def delete(self, project_name):
         if project_name not in data['projects']:
@@ -458,6 +462,8 @@ class Project(Resource):
             project_lock.acquire(project_name)
             del data['projects'][project_name]
             # shutil.rmtree(os.path.join(_get_project_dir_path(project_name)))
+            # also remove from db?
+            # if it's the last project from a domain, shoud we remove the domain?
             return rest.deleted()
         except Exception as e:
             logger.error('deleting project %s: %s' % (project_name, e.message))
@@ -468,11 +474,10 @@ class Project(Resource):
 
 @api.route('/domains')
 class AllDomains(Resource):
-    def post(self):
-        return rest.bad_request('You cannot post to this endpoint.')
 
-    def put(self):
-        return self.post(project_name)
+    def post(self):
+        return rest.bad_request('You cannot post to this endpoint. Domains are created from projects.')
+
 
     def get(self):
         return data['domains'].keys()
@@ -480,11 +485,12 @@ class AllDomains(Resource):
 
 @api.route('/domains/<domain_name>')
 class Domain(Resource):
+
     def post(self, domain_name):
         return rest.bad_request('You cannot post a domain, you should post a project using a domain.')
 
     def put(self, domain_name):
-        return self.post(project_name)
+        return self.post(domain_name)
 
     def get(self, domain_name):
         if domain_name not in data['domains']:
