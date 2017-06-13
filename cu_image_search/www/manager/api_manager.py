@@ -69,12 +69,12 @@ def initialize_data_fromdb():
     for project in db_projects.find():
         data['projects'][project['project_name']] = dict()
         for key in project:
-            if key != 'project_name':
+            if key != '_id':
                 data['projects'][project['project_name']][key] = project[key]
     for domain in db_domains.find():
         data['domains'][domain['domain_name']] = dict()
         for key in domain:
-            if key != 'domain_name':
+            if key != '_id':
                 data['domains'][domain['domain_name']][key] = project[key]
             if key == 'port':
                 domain_port = data['domains'][domain['domain_name']]['port']
