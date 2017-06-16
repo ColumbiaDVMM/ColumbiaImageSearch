@@ -213,6 +213,7 @@ def run_extraction(hbase_man_sha1infos_out, hbase_man_update_out, ingestion_id, 
     basepath_save = c_options.base_hdfs_path+ingestion_id+'/images/info'
 
     out_rdd = get_out_rdd(basepath_save)
+    # should it be x[1] is not None?
     out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x is not None)
     
     # save to disk
