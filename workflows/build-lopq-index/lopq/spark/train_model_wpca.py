@@ -1,5 +1,8 @@
 # Copyright 2015, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
+
+# Modifications by Svebor Karaman
+
 from pyspark.context import SparkContext
 
 import numpy as np
@@ -12,7 +15,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from operator import add
 
 from pyspark.mllib.clustering import KMeans, KMeansModel
-from lopq.model import LOPQModel, compute_rotations_from_accumulators
+from lopq.model import LOPQModel, LOPQModelPCA, compute_rotations_from_accumulators
 
 
 STEP_COARSE = 0
@@ -47,9 +50,26 @@ def load_data(sc, args, data_load_fn=default_data_loading):
     """
     # Load data
     vecs = data_load_fn(sc, args.data, args.sampling_ratio, args.seed)
+    print 'Sample is: {}'.format(vecs.first())
+    
+    # Apply PCA if needed
+    if args.pca_model is not None:
+        # Check if we should get PCA model
+        print 'Loading PCA model from {}'.format(args.pca_model)
+        filename = copy_from_hdfs(args.pca_model)
+        params = pkl.load(open(filename))
+        # TODO: we should also remove tmp dir
+        os.remove(filename)
+        P = params['P']
+        mu = params['mu']
+        print 'Applying PCA from model {}'.format(args.pca_model)
+        vecs = vecs.map(lambda x: apply_PCA(x, mu, P))
+
+    print 'Sample is: {}'.format(vecs.first())
 
     # Split the vectors
     split_vecs = vecs.map(lambda x: np.split(x, 2))
+    print 'Sample is: {}'.format(split_vecs.first())
 
     return split_vecs
 
@@ -379,16 +399,6 @@ if __name__ == "__main__":
     if args.model_pkl is None and args.model_proto is None:
         parser.error('at least one of --model_pkl and --model_proto is required')
 
-    # Check if we should get PCA model
-    if args.pca_model is not None:
-        print 'Loading PCA model from {}'.format(args.pca_model)
-        filename = copy_from_hdfs(args.pca_model)
-        params = pkl.load(open(filename))
-        # TODO: we should also remove tmp dir
-        os.remove(filename)
-        P = params['P']
-        mu = params['mu']
-
     # Load existing model if provided
     model = None
     if args.existing_model_pkl:
@@ -411,13 +421,11 @@ if __name__ == "__main__":
         sc.addPyFile('hdfs://memex/user/skaraman/build-lopq-index/lopq/spark/deepsentibanktf_udf.py')
         udf_module = __import__(args.data_udf, fromlist=['udf'])
         load_udf = udf_module.udf
+        # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
         data = load_data(sc, args, data_load_fn=load_udf)
     else:
+        # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
         data = load_data(sc, args)
-
-    # Apply PCA if needed
-    if args.pca_model is not None:
-        data.mapValues(lambda x: apply_PCA(x, mu, P))
 
     # Initialize parameters
     Cs = Rs = mus = subs = None
@@ -445,12 +453,25 @@ if __name__ == "__main__":
         subs = train_subquantizers(sc, data, args.M, args.subquantizer_clusters, model, seed=args.seed)
 
     # Final output model
-    model = LOPQModel(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs))
+    if args.pca_model is not None:
+        # Check if we should get PCA model
+        print 'Loading PCA model from {}'.format(args.pca_model)
+        filename = copy_from_hdfs(args.pca_model)
+        params = pkl.load(open(filename))
+        # TODO: we should also remove tmp dir
+        os.remove(filename)
+        P = params['P']
+        mu = params['mu']
+        model = LOPQModelPCA(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs, P, mu))
+    else:
+        model = LOPQModel(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs))
 
     # Should we add the PCA Model to the LOPQModel?
     if args.model_pkl:
+        print 'Saving model as pickle to {}'.format(args.model_pkl)
         save_hdfs_pickle(model, args.model_pkl)
     if args.model_proto:
+        print 'Saving model as protobug to {}'.format(args.model_proto)
         save_hdfs_proto(model, args.model_proto)
 
     sc.stop()

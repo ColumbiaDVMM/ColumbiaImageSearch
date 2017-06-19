@@ -767,3 +767,310 @@ class LOPQModel(object):
         except IOError:
             print filename + ": Could not open file."
             return None
+
+
+class LOPQModelPCA(LOPQModel):
+    def __init__(self, V=8, M=4, subquantizer_clusters=256, parameters=None):
+        """
+        Create an LOPQModel instance that encapsulates a complete LOPQ model with parameters and hyperparameters.
+
+        :param int V:
+            the number of clusters per a coarse split
+        :param int M:
+            the total number of subvectors (equivalent to the total number of subquantizers)
+        :param int subquantizer_clusters:
+            the number of clusters for each subquantizer
+        :param tuple parameters:
+            a tuple of parameters - missing parameters are allowed to be None
+
+            the tuple will look like the following
+
+            ((C1, C2), (Rs1, Rs2), (mu1, mu2), (subquantizers1, subquantizers2), P, mu)
+
+            where each element is itself a pair with one split of parameters for the each of the coarse splits.
+
+            the parameters have the following data types (V and M have the meaning described above,
+            D is the total dimension of the data, and S is the number of subquantizer clusters):
+
+                C: VxD/2 ndarray of coarse centroids
+                R: VxD/2xD/2 ndarray of fitted rotation matrices for each coarse cluster
+                mu: VxD/2 ndarray of mean residuals for each coar cluster
+                subquantizer: length M/2 list of SxD/M ndarrays of cluster centroids for each subvector
+                P, mu: PCA parameters
+        """
+
+        # If learned parameters are passed in explicitly, derive the model params by inspection.
+        self.Cs, self.Rs, self.mus, self.subquantizers, self.pca_P, self.pca_mu = parameters if parameters is not None else (None, None, None, None, None, None)
+
+        if self.Cs is not None:
+            self.V = self.Cs[0].shape[0]
+            self.num_coarse_splits = len(self.Cs)
+        else:
+            self.V = V
+            self.num_coarse_splits = 2
+
+        if self.subquantizers is not None:
+            self.num_fine_splits = len(self.subquantizers[0])
+            self.M = self.num_fine_splits * self.num_coarse_splits
+            self.subquantizer_clusters = self.subquantizers[0][0].shape[0]
+        else:
+            self.num_fine_splits = M / 2
+            self.M = M
+            self.subquantizer_clusters = subquantizer_clusters
+
+    def fit(self, data, kmeans_coarse_iters=10, kmeans_local_iters=20, n_init=10, subquantizer_sample_ratio=1.0, random_state=None, verbose=False):
+        """
+        Fit a model with the current model parameters. This method will use existing parameters and only
+        train missing parameters.
+
+        :param int kmeans_coarse_iters:
+            the number of kmeans iterations for coarse quantizer training
+        :param int kmeans_local_iters:
+            the number of kmeans iterations for subquantizer taining
+        :param int n_init:
+            the number of independent kmeans runs for all kmeans when training - set low for faster training
+        :param float subquantizer_sample_ratio:
+            the proportion of the training data to sample for training subquantizers - since the number of
+            subquantizer clusters is much smaller then the number of coarse clusters, less data is needed
+        :param int random_state:
+            a random seed used in all random operations during training if provided
+        :param bool verbose:
+            a bool enabling verbose output during training
+        """
+        existing_parameters = (self.Cs, self.Rs, self.mus, self.subquantizers)
+
+        parameters = train(data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
+                           kmeans_coarse_iters, kmeans_local_iters, n_init, subquantizer_sample_ratio,
+                           random_state, verbose)
+
+        self.Cs, self.Rs, self.mus, self.subquantizers = parameters
+
+    def get_split_parameters(self, split):
+        """
+        A helper to return parameters for a given coarse split.
+
+        :params int split:
+            the coarse split
+
+        :returns ndarray:
+            a matrix of centroids for the coarse model
+        :returns list:
+            a list of residual means for each cluster
+        :returns list:
+            a list of rotation matrices for each cluster
+        :returns list:
+            a list of centroid matrices for each subquantizer in this coarse split
+        """
+        return self.Cs[split] if self.Cs is not None else None, \
+            self.Rs[split] if self.Rs is not None else None, \
+            self.mus[split] if self.mus is not None else None, \
+            self.subquantizers[split] if self.subquantizers is not None else None
+
+    def apply_PCA(self, x):
+        """
+        Apply PCA to sample x.
+        """
+        return np.dot(x - self.pca_mu, self.pca_P)
+
+
+    def predict(self, x):
+        """
+        Compute both coarse and fine codes for a datapoint.
+
+        :param ndarray x:
+            the point to code
+
+        :returns tuple:
+            a tuple of coarse codes
+        :returns tuple:
+            a tuple of fine codes
+        """
+        # First apply PCA
+        x_pca = self.apply_PCA(x)
+
+        # Compute coarse quantizer codes
+        coarse_codes = self.predict_coarse(x_pca)
+
+        # Compute fine codes
+        fine_codes = self.predict_fine(x_pca, coarse_codes)
+
+        return LOPQCode(coarse_codes, fine_codes)
+
+    def predict_coarse(self, x):
+        """
+        Compute the coarse codes for a datapoint.
+
+        :param ndarray x:
+            the point to code
+
+        :returns tuple:
+            a tuple of coarse codes
+        """
+        return tuple([predict_cluster(cx, self.Cs[split]) for cx, split in iterate_splits(x, self.num_coarse_splits)])
+
+    def predict_fine(self, x, coarse_codes=None):
+        """
+        Compute the fine codes for a datapoint.
+
+        :param ndarray x:
+            the point to code
+        :param ndarray coarse_codes:
+            the coarse codes for the point
+            if they are already computed
+
+        :returns tuple:
+            a tuple of fine codes
+        """
+        if coarse_codes is None:
+            coarse_codes = self.predict_coarse(x)
+
+        px = self.project(x, coarse_codes)
+
+        fine_codes = []
+        for cx, split in iterate_splits(px, self.num_coarse_splits):
+
+            # Get product quantizer parameters for this split
+            _, _, _, subC = self.get_split_parameters(split)
+
+            # Compute subquantizer codes
+            fine_codes += [predict_cluster(fx, subC[sub_split]) for fx, sub_split in iterate_splits(cx, self.num_fine_splits)]
+
+        return tuple(fine_codes)
+
+    def project(self, x, coarse_codes, coarse_split=None):
+        """
+        Project this vector to its local residual space defined by the coarse codes.
+
+        :param ndarray x:
+            the point to project
+        :param ndarray coarse_codes:
+            the coarse codes defining the local space
+        :param int coarse_split:
+            index of the coarse split to get distances for - if None then all splits
+            are computed
+
+        :returns ndarray:
+            the projected vector
+        """
+        px = []
+
+        if coarse_split is None:
+            split_iter = iterate_splits(x, self.num_coarse_splits)
+        else:
+            split_iter = [(np.split(x, self.num_coarse_splits)[coarse_split], coarse_split)]
+
+        for cx, split in split_iter:
+
+            # Get product quantizer parameters for this split
+            C, R, mu, _ = self.get_split_parameters(split)
+
+            # Retrieve already computed coarse cluster
+            cluster = coarse_codes[split]
+
+            # Compute residual
+            r = cx - C[cluster]
+
+            # Project residual to local frame
+            pr = np.dot(R[cluster], r - mu[cluster])
+            px.append(pr)
+
+        return np.concatenate(px)
+
+    def reconstruct(self, codes):
+        """
+        Given a code tuple, reconstruct an approximate vector.
+
+        :param tuple codes:
+            a code tuple as returned from the predict method
+
+        :returns ndarray:
+            a reconstructed vector
+        """
+        coarse_codes, fine_codes = codes
+
+        x = []
+        for fc, split in iterate_splits(fine_codes, self.num_coarse_splits):
+
+            # Get product quantizer parameters for this split
+            C, R, mu, subC = self.get_split_parameters(split)
+
+            # Concatenate the cluster centroids for this split of fine codes
+            sx = reduce(lambda acc, c: np.concatenate((acc, subC[c[0]][c[1]])), enumerate(fc), [])
+
+            # Project residual out of local space
+            cluster = coarse_codes[split]
+            r = np.dot(R[cluster].transpose(), sx) + mu[cluster]
+
+            # Reconstruct from cluster centroid
+            x = np.concatenate((x, r + C[cluster]))
+
+        return x
+
+    def get_subquantizer_distances(self, x, coarse_codes, coarse_split=None):
+        """
+        Project a given query vector to the local space of the given coarse codes
+        and compute the distances of each subvector to the corresponding subquantizer
+        clusters.
+
+        :param ndarray x:
+            a query  vector
+        :param tuple coarse_codes:
+            the coarse codes defining which local space to project to
+        :param int coarse_split:
+            index of the coarse split to get distances for - if None then all splits
+            are computed
+
+        :returns list:
+            a list of distances to each subquantizer cluster for each subquantizer
+        """
+
+        px = self.project(x, coarse_codes)
+        subquantizer_dists = []
+
+        if coarse_split is None:
+            split_iter = iterate_splits(px, self.num_coarse_splits)
+        else:
+            split_iter = [(np.split(px, self.num_coarse_splits)[coarse_split], coarse_split)]
+
+        # for cx, split in iterate_splits(px, self.num_coarse_splits):
+        for cx, split in split_iter:
+            _, _, _, subC = self.get_split_parameters(split)
+            subquantizer_dists += [((fx - subC[sub_split]) ** 2).sum(axis=1) for fx, sub_split in iterate_splits(cx, self.num_fine_splits)]
+
+        return subquantizer_dists
+
+    def get_cell_id_for_coarse_codes(self, coarse_codes):
+        return coarse_codes[1] + coarse_codes[0] * self.V
+
+    def get_coarse_codes_for_cell_id(self, cell_id):
+        return (int(np.floor(float(cell_id) / self.V)), cell_id % self.V)
+
+    def export_mat(self, filename):
+        """
+        Export model parameters in .mat file format.
+
+        Splits in the parameters (coarse splits and fine splits) are concatenated together in the
+        resulting arrays. For example, the Cs paramaters become a 2 x V x D array where the first dimension
+        indexes the split. The subquantizer centroids are encoded similarly as a 2 x (M/2) x 256 x (D/M) array.
+        """
+        raise NotImplementedError('export_mat not yet supported for LOPQModelPCA')
+
+    @staticmethod
+    def load_mat(filename):
+        """
+        Reconstitute an LOPQModel in the format exported by the `export_mat` method above.
+        """
+        raise NotImplementedError('load_mat not yet supported for LOPQModelPCA')
+
+    def export_proto(self, f):
+        """
+        Export model parameters in protobuf format.
+        """
+        raise NotImplementedError('export_proto not yet supported for LOPQModelPCA')
+
+    @staticmethod
+    def load_proto(filename):
+        """
+        Reconstitute a model from parameters stored in protobuf format.
+        """
+        raise NotImplementedError('load_proto not yet supported for LOPQModelPCA')

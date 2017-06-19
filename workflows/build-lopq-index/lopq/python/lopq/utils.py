@@ -182,3 +182,20 @@ def compute_codes_parallel(data, model, num_procs=4):
     codes = parmap(compute_partition, partitions, num_procs)
 
     return chain(*codes)
+
+# Modifications by Svebor Karaman
+
+def copy_from_hdfs(hdfs_path):
+    """
+    Copy data from HDFS locally.
+
+    :param string hdfs_path:
+        hdfs patht to copy from
+    :returns string:
+        local path of data
+    """
+    from tempfile import mkdtemp
+    import subprocess
+    tmp_dir = mkdtemp()
+    subprocess.call(['hadoop', 'fs', '-copyToLocal', hdfs_path, tmp_dir])
+    return os.path.join(tmp_dir, hdfs_path.split('/')[-1])

@@ -5,8 +5,9 @@ from collections import defaultdict, namedtuple
 from itertools import count
 import numpy as np
 import array
-from .utils import iterate_splits, compute_codes_parallel
+from .utils import iterate_splits, compute_codes_parallel, copy_from_hdfs
 
+# Modifications by Svebor Karaman
 
 def multisequence(x, centroids):
     """
@@ -207,6 +208,23 @@ class LOPQSearcherBase(object):
             results = map(lambda d: Result(d[1][0], d[1]), results)
 
         return results, visited
+
+
+    def add_codes_from_hdfs(self, hdfs_path):
+        from fileinput import input
+        from glob import glob
+        import os
+        filename = copy_from_hdfs(hdfs_path)
+        data_in = ''.join(input(glob(filename + "/part-*")))
+        os.remove(filename)
+        ids = []
+        codes = []
+        for line in data_in.split('\n'):
+            one_id, one_code = line.split('\t')
+            ids.append(one_id)
+            codes.append(one_code)
+        return self.add_codes(codes, ids)
+
 
     def add_codes(self, codes, ids=None):
         """

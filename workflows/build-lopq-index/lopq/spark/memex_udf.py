@@ -56,3 +56,22 @@ def memex_udf(sc, data_path, sampling_ratio, seed, feat_field):
 
     return vecs
 
+
+def memex_udf_wid(sc, data_path, sampling_ratio, seed, feat_field):
+    """
+    MEMEX UDF function to load training data. 
+    Loads data from a sequence file containing JSON formatted data with 
+    a base64-encoded numpy arrays in field 'feat_field'.
+    """
+    import numpy as np
+    import base64
+    
+    # Load rdd and sample down the dataset
+    rdd = load_rdd_json(sc, data_path).sample(False, sampling_ratio, seed)
+
+    # Load feature
+    deserialize_vec = lambda s: (s[0], np.frombuffer(base64.b64decode(s[1][feat_field])))
+    vecs = rdd.filter(lambda s: s[1] is not None).map(deserialize_vec)
+
+    return vecs
+
