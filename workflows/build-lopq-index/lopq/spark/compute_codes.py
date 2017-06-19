@@ -63,22 +63,25 @@ def main(sc, args, data_load_fn=default_data_loading):
         model = LOPQModel.load_proto(args.model_proto)
         os.remove(filename)
 
+    print 'LOPQModel is of type: {}'.format(type(model))
+
     # Load data
     d = data_load_fn(sc, args.data, args.sampling_ratio, args.seed)
 
-    # Apply PCA before encoding if needed
-    if args.pca_model is not None:
-        # Check if we should get PCA model
-        print 'Loading PCA model from {}'.format(args.pca_model)
-        filename = copy_from_hdfs(args.pca_model)
-        params = pkl.load(open(filename))
-        # TODO: we should also remove tmp dir
-        os.remove(filename)
-        P = params['P']
-        mu = params['mu']
-        print 'Applying PCA from model {}'.format(args.pca_model)
-        # Use mapValues this time as we DO have the ids as keys
-        d = d.mapValues(lambda x: apply_PCA(x, mu, P))
+    # Deprecated. Now assume m.value.predict will apply PCA if needed
+    # # Apply PCA before encoding if needed
+    # if args.pca_model is not None:
+    #     # Check if we should get PCA model
+    #     print 'Loading PCA model from {}'.format(args.pca_model)
+    #     filename = copy_from_hdfs(args.pca_model)
+    #     params = pkl.load(open(filename))
+    #     # TODO: we should also remove tmp dir
+    #     os.remove(filename)
+    #     P = params['P']
+    #     mu = params['mu']
+    #     print 'Applying PCA from model {}'.format(args.pca_model)
+    #     # Use mapValues this time as we DO have the ids as keys
+    #     d = d.mapValues(lambda x: apply_PCA(x, mu, P))
 
     # Distribute model instance
     m = sc.broadcast(model)
@@ -99,7 +102,8 @@ if __name__ == "__main__":
     parser.add_argument('--seed', dest='seed', type=int, default=None, help='optional random seed for sampling')
     parser.add_argument('--sampling_ratio', dest='sampling_ratio', type=float, default=1.0, help='proportion of data to sample for model application')
     parser.add_argument('--output', dest='output', type=str, default=None, required=True, help='hdfs path to output data')
-    parser.add_argument('--pca_model', dest='pca_model', type=str, default=None, help='hdfs path to pickle file containing PCA model to be used')
+    # Deprecated.
+    #parser.add_argument('--pca_model', dest='pca_model', type=str, default=None, help='hdfs path to pickle file containing PCA model to be used')
 
     existing_model_group = parser.add_mutually_exclusive_group(required=True)
     existing_model_group.add_argument('--model_pkl', dest='model_pkl', type=str, default=None, help='a pickled LOPQModel to evaluate on the data')
