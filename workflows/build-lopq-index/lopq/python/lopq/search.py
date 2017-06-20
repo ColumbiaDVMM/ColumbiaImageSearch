@@ -206,7 +206,7 @@ class LOPQSearcherBase(object):
             results = map(lambda d: Result(d[1][0], d[1][1], d[0]), results)
         else:
             Result = namedtuple('Result', ['id', 'code'])
-            results = map(lambda d: Result(d[1][0], d[1]), results)
+            results = map(lambda d: Result(d[1][0], d[1][1]), results)
 
         return results, visited
 
