@@ -214,6 +214,7 @@ class LOPQSearcherBase(object):
     def add_codes_from_hdfs(self, hdfs_path):
         from fileinput import input
         from glob import glob
+        import ast
         filename = copy_from_hdfs(hdfs_path)
         files_count = 0
         samples_count = 0
@@ -228,7 +229,8 @@ class LOPQSearcherBase(object):
                 if line: # some empty lines?
                     one_id, one_code = line.split('\t')
                     ids.append(one_id)
-                    codes.append(one_code)
+                    # one_code is a string but should be seen as actual list
+                    codes.append(ast.literal_eval(one_code))
                     samples_count += 1
             self.add_codes(codes, ids)
         print 'Added {} samples from {} files'.format(samples_count, files_count)
