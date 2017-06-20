@@ -116,6 +116,7 @@ class LOPQSearcherBase(object):
         """
         retrieved = []
         visited = 0
+        # We should apply PCA here if model needs it.
         for _, cell in multisequence(x, self.model.Cs):
             retrieved += self.get_cell(cell)
             visited += 1

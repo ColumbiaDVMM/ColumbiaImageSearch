@@ -3,7 +3,7 @@
 import model
 import search
 import utils
-from .model import LOPQModel
+from .model import LOPQModel, LOPQModelPCA
 from .search import LOPQSearcher, multisequence
 
-__all__ = [LOPQModel, LOPQSearcher, multisequence, model, search, utils]
+__all__ = [LOPQModel, LOPQModelPCA, LOPQSearcher, multisequence, model, search, utils]

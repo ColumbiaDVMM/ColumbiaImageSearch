@@ -42,3 +42,10 @@ class SentiBankTensorflow():
             for feat in feats:
                 feat.tofile(outfile)
         return featurefilename, len(new_files)
+
+
+    def compute_features_nodiskout(self, new_files):
+        return [self.DSE.get_features_from_img_filename(img_filename)[0] for img_filename in new_files]
+
+    def compute_features_fromURLs_nodiskout(self, list_urls):
+        return [self.DSE.get_features_from_URL(URL)[0] for URL in list_urls]

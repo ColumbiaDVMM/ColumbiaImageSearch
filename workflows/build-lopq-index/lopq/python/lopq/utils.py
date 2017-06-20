@@ -196,6 +196,7 @@ def copy_from_hdfs(hdfs_path):
     """
     from tempfile import mkdtemp
     import subprocess
+    import os
     tmp_dir = mkdtemp()
     subprocess.call(['hadoop', 'fs', '-copyToLocal', hdfs_path, tmp_dir])
     return os.path.join(tmp_dir, hdfs_path.split('/')[-1])
