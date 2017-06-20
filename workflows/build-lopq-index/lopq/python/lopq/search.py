@@ -296,8 +296,11 @@ class LOPQSearcher(LOPQSearcherBase):
             ids = count()
 
         for item_id, code in zip(ids, codes):
-            cell = code[0]
-            self.index[cell].append((item_id, code))
+            try:
+                cell = code[0]
+                self.index[cell].append((item_id, code))
+            except Exception as inst:
+                print 'Could not push code {}. ({})'.format(code, inst)
 
     def get_cell(self, cell):
         """
