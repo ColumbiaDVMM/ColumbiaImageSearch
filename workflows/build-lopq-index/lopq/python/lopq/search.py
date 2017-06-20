@@ -214,17 +214,24 @@ class LOPQSearcherBase(object):
     def add_codes_from_hdfs(self, hdfs_path):
         from fileinput import input
         from glob import glob
-        import os
         filename = copy_from_hdfs(hdfs_path)
-        data_in = ''.join(input(glob(filename + "/part-*")))
-        os.remove(filename)
-        ids = []
-        codes = []
-        for line in data_in.split('\n'):
-            one_id, one_code = line.split('\t')
-            ids.append(one_id)
-            codes.append(one_code)
-        return self.add_codes(codes, ids)
+        # add files content one by one
+        for one_file in glob(filename + "/part-*"):
+            data_in = ''.join(input(one_file))
+            ids = []
+            codes = []
+            # read all samples in the file
+            for line in data_in.split('\n'):
+                one_id, one_code = line.split('\t')
+                ids.append(one_id)
+                codes.append(one_code)
+            self.add_codes(codes, ids)
+        # clean up
+        try:
+            import shutil
+            shutil.rmtree(filename)
+        except:
+            pass
 
 
     def add_codes(self, codes, ids=None):
