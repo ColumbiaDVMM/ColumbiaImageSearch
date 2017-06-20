@@ -229,8 +229,10 @@ class LOPQSearcherBase(object):
                 if line: # some empty lines?
                     one_id, one_code = line.split('\t')
                     ids.append(one_id)
-                    # one_code is a string but should be seen as actual list
-                    codes.append(ast.literal_eval(one_code))
+                    # one_code is a string but should be seen as a list of tuples
+                    one_code_list = ast.literal_eval(one_code)
+                    one_code_tuples = (tuple(one_code_list[0]), tuple(one_code_list[1]))
+                    codes.append(one_code_tuples)
                     samples_count += 1
             self.add_codes(codes, ids)
         print 'Added {} samples from {} files'.format(samples_count, files_count)
