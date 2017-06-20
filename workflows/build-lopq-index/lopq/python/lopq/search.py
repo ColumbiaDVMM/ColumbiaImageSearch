@@ -215,17 +215,23 @@ class LOPQSearcherBase(object):
         from fileinput import input
         from glob import glob
         filename = copy_from_hdfs(hdfs_path)
+        files_count = 0
+        samples_count = 0
         # add files content one by one
         for one_file in glob(filename + "/part-*"):
             data_in = ''.join(input(one_file))
             ids = []
             codes = []
+            files_count += 1
             # read all samples in the file
             for line in data_in.split('\n'):
-                one_id, one_code = line.split('\t')
-                ids.append(one_id)
-                codes.append(one_code)
+                if line: # some empty lines?
+                    one_id, one_code = line.split('\t')
+                    ids.append(one_id)
+                    codes.append(one_code)
+                    samples_count += 1
             self.add_codes(codes, ids)
+        print 'Added {} samples from {} files'.format(samples_count, files_count)
         # clean up
         try:
             import shutil
