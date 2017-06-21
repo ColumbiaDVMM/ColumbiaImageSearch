@@ -23,6 +23,7 @@ then
 	pip install -U --user -r ${repo_path}/requirements.txt
 	# run it twice because it seems to fail the first time sometimes...
 	pip install -U --user -r ${repo_path}/requirements.txt
+	# we should also install modified lopq version...
 fi
 
 ## Caffe

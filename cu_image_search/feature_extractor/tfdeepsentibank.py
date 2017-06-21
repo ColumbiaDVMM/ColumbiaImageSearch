@@ -13,10 +13,12 @@ import sys
 padding_type = 'VALID'
 imagedltimeout = 2
 
+from ..memex_tools.sha1_tools import get_SHA1_from_data
 
 def get_img_notransform_from_URL_StringIO(url, verbose=0):
     from cStringIO import StringIO
     import requests
+    from scipy import misc
     if verbose > 1:
         print "Downloading image from {}.".format(url)
     try:
@@ -33,6 +35,30 @@ def get_img_notransform_from_URL_StringIO(url, verbose=0):
     except Exception as inst:
         print "Download failed from url {}. [{}]".format(url, inst)
     return None
+
+
+def get_sha1_img_notransform_from_URL_StringIO(url, verbose=0):
+    from cStringIO import StringIO
+    import requests
+    from scipy import misc
+    if verbose > 1:
+        print "Downloading image from {}.".format(url)
+    try:
+        r = requests.get(url, timeout=imagedltimeout)
+        if r.status_code == 200:
+            r_sio = StringIO(r.content)
+            if int(r.headers['content-length']) == 0:
+                del r
+                raise ValueError("Empty image.")
+            else:
+                sha1 = get_SHA1_from_data(r_sio.read())
+                r_sio.seek(0)
+                img_out = misc.imread(r_sio)
+                del r, r_sio
+                return sha1, img_out
+    except Exception as inst:
+        print "Download failed from url {}. [{}]".format(url, inst)
+    return None, None
 
 
 class DeepSentibankNet(Network):
@@ -115,12 +141,23 @@ class DeepSentibankExtractor(object):
             img_out = self.preprocess_img(img_out)
         return img_out
 
+    # preprocess image
+    def get_sha1_deepsentibank_preprocessed_img_from_URL(self, url, verbose=0):
+        # could we use boto3?
+        sha1, img_out = get_sha1_img_notransform_from_URL_StringIO(url, verbose)
+        if img_out is not None:
+            img_out = self.preprocess_img(img_out)
+        return sha1, img_out
 
     # extract from URL
     def get_features_from_URL(self, url, features=['fc7'], verbose=False):
         img = self.get_deepsentibank_preprocessed_img_from_URL(url)
         return self.get_features_from_img(img, features, verbose)
 
+    # extract from URL
+    def get_sha1_features_from_URL(self, url, features=['fc7'], verbose=False):
+        sha1, img = self.get_sha1_deepsentibank_preprocessed_img_from_URL(url)
+        return sha1, self.get_features_from_img(img, features, verbose)
 
     # extract from image filename
     def get_features_from_img_filename(self, img_filename, features=['fc7'], verbose=False):

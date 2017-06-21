@@ -79,6 +79,7 @@ def get_SHA1_from_file(filepath,delete_after=False):
 
 def get_SHA1_from_data(data):
     sha1hash = None
+    import hashlib
     try:
         sha1 = hashlib.sha1()
         sha1.update(data)

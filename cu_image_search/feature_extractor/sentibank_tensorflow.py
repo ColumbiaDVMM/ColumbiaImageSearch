@@ -49,3 +49,6 @@ class SentiBankTensorflow():
 
     def compute_features_fromURLs_nodiskout(self, list_urls):
         return [self.DSE.get_features_from_URL(URL)[0] for URL in list_urls]
+
+    def compute_sha1_features_fromURLs_nodiskout(self, list_urls):
+        return [self.DSE.get_sha1_features_from_URL(URL) for URL in list_urls]
