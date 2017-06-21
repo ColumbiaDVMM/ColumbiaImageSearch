@@ -187,7 +187,7 @@ class SearcherLOPQHBase():
         #print "[Searcher.format_output: log] output {}".format(output)
         return outp
 
-    def search_image_filelist(self, image_list, options_dict=dict()):
+    def search_image_list(self, image_list, options_dict=dict()):
         # initilization
         search_id = str(time.time())
         # get sha1s and feats for each URL in image_list
