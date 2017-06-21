@@ -487,7 +487,8 @@ if __name__ == '__main__':
         print "Setting conf file to: {}".format(options.conf_file)
         global_conf_file = options.conf_file
  
-    global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
+    #global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
+    global_searcher = searcher_lopqhbase.SearcherLOPQHBase(global_conf_file)
     global_start_time = datetime.now()
     
     ## This cannot recover from an 'IOError: [Errno 32] Broken pipe' error when client disconnect before response has been sent e.g. nginx timeout at memexproxy...

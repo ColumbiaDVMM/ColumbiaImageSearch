@@ -7,6 +7,7 @@ import numpy as np
 from collections import OrderedDict
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
+START_HDFS = '/user/'
 
 class DictOutput():
     
@@ -79,7 +80,7 @@ class SearcherLOPQHBase():
             import pickle
             # actually load pickle from disk
             lopq_model_path = self.global_conf['SE_lopqmodel']
-            if lopq_model_path.startswith('hdfs'):
+            if lopq_model_path.startswith(START_HDFS):
                 # deal with HDFS path
                 from lopq.utils import copy_from_hdfs
                 import shutil
@@ -91,7 +92,7 @@ class SearcherLOPQHBase():
                     pass
             else:
                 # local path in config
-                lopq_model = pickle.load(lopq_model_path)
+                lopq_model = pickle.load(open(lopq_model_path,"rb"))
             self.searcher_lopq = LOPQSearcher(lopq_model)
         else:
             raise ValueError("[SearcherLOPQHBase: error] unkown 'lopq' type {}.".format(self.global_conf[field]))
@@ -234,6 +235,5 @@ class SearcherLOPQHBase():
             sim.append(rows) # that would work if needed columns contains only the s3_url?
             sim_score.append(tmp_sim_score)
         # format output
-        self.format_output(sim, sim_score, len(list_sha1_id), [], list_sha1_id, options_dict):
-        return outp, outputname
+        return self.format_output(sim, sim_score, len(list_sha1_id), [], list_sha1_id, options_dict)
 
