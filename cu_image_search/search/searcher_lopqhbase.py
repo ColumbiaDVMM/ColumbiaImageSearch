@@ -123,7 +123,7 @@ class SearcherLOPQHBase():
 
     def load_codes(self):
         codes_path = self.global_conf['SE_codes_path']
-        if lopq_model_path.startswith(START_HDFS):
+        if codes_path.startswith(START_HDFS):
             self.searcher_lopq.add_codes_from_hdfs(codes_path)
         else:
             self.searcher_lopq.add_codes_from_local(codes_path)
