@@ -211,11 +211,11 @@ class LOPQSearcherBase(object):
         return results, visited
 
 
-    def add_codes_from_hdfs(self, hdfs_path):
+    def add_codes_from_local(self, local_path):
         from fileinput import input
         from glob import glob
         import ast
-        filename = copy_from_hdfs(hdfs_path)
+        # initialize counts
         files_count = 0
         samples_count = 0
         # add files content one by one
@@ -236,6 +236,11 @@ class LOPQSearcherBase(object):
                     samples_count += 1
             self.add_codes(codes, ids)
         print 'Added {} samples from {} files'.format(samples_count, files_count)
+
+
+    def add_codes_from_hdfs(self, hdfs_path):
+        filename = copy_from_hdfs(hdfs_path)
+        self.add_codes_from_local(filename)
         # clean up
         try:
             import shutil

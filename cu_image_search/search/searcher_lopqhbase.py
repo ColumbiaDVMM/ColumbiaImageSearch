@@ -122,7 +122,11 @@ class SearcherLOPQHBase():
             raise ValueError("[SearcherLOPQHBase: error] unkown 'feature_extractor' {}.".format(self.global_conf[field]))
 
     def load_codes(self):
-        self.searcher_lopq.add_codes_from_hdfs(self.global_conf['SE_codes_path'])
+        codes_path = self.global_conf['SE_codes_path']
+        if lopq_model_path.startswith(START_HDFS):
+            self.searcher_lopq.add_codes_from_hdfs(codes_path)
+        else:
+            self.searcher_lopq.add_codes_from_local(codes_path)
 
     def check_ratio(self):
         '''Check if we need to set the ratio based on topfeature.'''
