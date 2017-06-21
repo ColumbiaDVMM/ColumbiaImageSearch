@@ -48,7 +48,8 @@ class SearcherLOPQHBase():
         self.init_lopq()
         self.init_hbaseindexer()
         self.init_feature_extractor()
-        self.needed_output_columns = ['info:s3_url']
+        self.url_field = 'info:s3_url'
+        self.needed_output_columns = [self.url_field]
 
     def read_conf(self):
     	# these parameters may be overwritten by web call
@@ -140,7 +141,7 @@ class SearcherLOPQHBase():
                 found_columns = [c in simj[1] for c in self.needed_output_columns]
                 if found_columns.count(True) == len(self.needed_output_columns):
                     output[i][do.map['similar_images']][do.map['sha1']].append(simj[0].strip())
-                    output[i][do.map['similar_images']][do.map['cached_image_urls']].append(simj[1]['info:s3_url'].strip())
+                    output[i][do.map['similar_images']][do.map['cached_image_urls']].append(simj[1][self.url_field].strip())
                     ok_sims.append(jj)
             output[i][do.map['similar_images']][do.map['distance']]=[sim_score[ii][jj] for jj in ok_sims]
         outp = OrderedDict([[do.map['number'],nb_query],[do.map['images'],output]])
@@ -203,10 +204,19 @@ class SearcherLOPQHBase():
                     tmp_sim.append(res.id)
                     tmp_sim_score.append(res.dist)
             # add maintained results
-            sim.append(tmp_sim)
+            # TODO we need to get s3 urls and add as second value of sim tuple as dict with key 'info:s3_url'
+            # Use HBaseIndexerMinimal for that self.needed_output_columns
+            rows = self.hbase_indexer_minimal.get_columns_from_sha1_rows(tmp_sim, self.needed_output_columns)
+            # tmp_sim_wurl = []
+            # for i,row in enumerate(rows):
+            #     if tmp_sim[i] != row[0]:
+            #         print "Did we loose ordering {} vs. {}?".format(tmp_sim[i], row[0])
+            #     url_dict = dict()
+            #     url_dict[self.url_field] = row[1][self.url_field]
+            #     tmp_sim_wurl.append((row[0], url_dict))
+            # sim.append(tmp_sim_wurl)    
+            sim.append(rows) # that would work if needed columns contains only the s3_url?
             sim_score.append(tmp_sim_score)
-        # TODO we need to get s3 urls and add as second value of sim tuple as dict with key 'info:s3_url'
-        # Use HBaseIndexerMinimal for that
         # format output
         self.format_output(sim, sim_score, len(list_sha1_id), [], list_sha1_id, options_dict):
         return outp, outputname
