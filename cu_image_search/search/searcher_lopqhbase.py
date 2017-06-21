@@ -116,7 +116,7 @@ class SearcherLOPQHBase():
         if field not in self.global_conf:
             raise ValueError("[SearcherLOPQHBase: error] "+field+" is not defined in configuration file.")
         elif self.global_conf[field]=="sentibank_tensorflow":
-            from ..feature_extractor.sentibank.sentibank_tensorflow import SentiBankTensorflow
+            from ..feature_extractor.sentibank_tensorflow import SentiBankTensorflow
             self.feature_extractor = SentiBankTensorflow(self.global_conf_filename)
         else:
             raise ValueError("[SearcherLOPQHBase: error] unkown 'feature_extractor' {}.".format(self.global_conf[field]))
