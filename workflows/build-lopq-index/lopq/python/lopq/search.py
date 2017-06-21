@@ -219,7 +219,7 @@ class LOPQSearcherBase(object):
         files_count = 0
         samples_count = 0
         # add files content one by one
-        for one_file in glob(filename + "/part-*"):
+        for one_file in glob(local_path + "/part-*"):
             data_in = ''.join(input(one_file))
             ids = []
             codes = []
@@ -235,7 +235,7 @@ class LOPQSearcherBase(object):
                     codes.append(one_code_tuples)
                     samples_count += 1
             self.add_codes(codes, ids)
-        print 'Added {} samples from {} files'.format(samples_count, files_count)
+        print 'Added {} samples from {} files in {}'.format(samples_count, files_count, local_path)
 
 
     def add_codes_from_hdfs(self, hdfs_path):
