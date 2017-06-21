@@ -200,7 +200,7 @@ class SearcherLOPQHBase():
         return self.search_from_feats(feats, list_sha1_id, options_dict)
 
 
-    def search_from_feats(feats, list_sha1_id, options_dict=dict()):
+    def search_from_feats(self, feats, list_sha1_id, options_dict=dict()):
         # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
         # this does not support batch query
         sim = []
