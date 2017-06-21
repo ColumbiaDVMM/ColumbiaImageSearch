@@ -74,8 +74,6 @@ class APIResponder(Resource):
         # "no_diskout" not yet supported. Issue with managing SWIG output
         #self.valid_options = ["near_dup", "near_dup_th", "no_blur", "no_diskout"]
         self.valid_options = ["near_dup", "near_dup_th", "no_blur"]
-        # dl_pool_size could be set to a big value for the update process, overwrite here
-        self.searcher.indexer.image_downloader.dl_pool_size = 2
 
 
     def get(self, mode):
@@ -369,7 +367,8 @@ class APIResponder(Resource):
             status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh.isoformat(' ')
         else:
             status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh
-        status_dict['indexed_images'] = len(self.searcher.indexer.sha1_featid_mapping)
+        # TODO: we should add the count of iamges to the lopq searcher
+        #status_dict['indexed_images'] = len(self.searcher.indexer.sha1_featid_mapping)
         return status_dict
 
 
