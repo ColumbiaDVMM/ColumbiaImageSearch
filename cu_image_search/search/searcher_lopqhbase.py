@@ -1,5 +1,4 @@
 import os
-import os
 import sys
 import time
 import json
@@ -48,6 +47,7 @@ class SearcherLOPQHBase():
         self.init_lopq()
         self.init_hbaseindexer()
         self.init_feature_extractor()
+        self.load_codes()
         self.url_field = 'info:s3_url'
         self.needed_output_columns = [self.url_field]
 
@@ -78,35 +78,50 @@ class SearcherLOPQHBase():
             from lopq.search import LOPQSearcher
             import pickle
             # actually load pickle from disk
-            # TODO: deal with HDFS path 
-            lopq_model = pickle.load(self.global_conf['SE_lopqmodel'])
+            lopq_model_path = self.global_conf['SE_lopqmodel']
+            if lopq_model_path.startswith('hdfs'):
+                # deal with HDFS path
+                from lopq.utils import copy_from_hdfs
+                import shutil
+                filename = copy_from_hdfs(lopq_model_path)
+                lopq_model = pickle.load(filename)
+                try:
+                    shutil.rmtree(os.path.dirname(filename))
+                except Exception as inst:
+                    pass
+            else:
+                # local path in config
+                lopq_model = pickle.load(lopq_model_path)
             self.searcher_lopq = LOPQSearcher(lopq_model)
         else:
-            raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
+            raise ValueError("[SearcherLOPQHBase: error] unkown 'lopq' type {}.".format(self.global_conf[field]))
 
     def init_hbaseindexer(self):
         """ Initialize HbBase Indexer from `global_conf` value.
         """
         field = 'SE_indexer'
         if field not in self.global_conf:
-            raise ValueError("[Searcher: error] "+field+" is not defined in configuration file.")
+            raise ValueError("[SearcherLOPQHBase: error] "+field+" is not defined in configuration file.")
         elif self.global_conf[field]=="hbase_indexer_minimal":
             from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal
             self.indexer = HBaseIndexerMinimal(self.global_conf_filename)
         else:
-            raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
+            raise ValueError("[SearcherLOPQHBase: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
     def init_feature_extractor(self):
         """ Initialize Feature Extractor from `global_conf` value.
         """
         field = 'SE_feature_extractor'
         if field not in self.global_conf:
-            raise ValueError("[Searcher: error] "+field+" is not defined in configuration file.")
+            raise ValueError("[SearcherLOPQHBase: error] "+field+" is not defined in configuration file.")
         elif self.global_conf[field]=="sentibank_tensorflow":
             from ..feature_extractor.sentibank.sentibank_tensorflow import SentiBankTensorflow
             self.feature_extractor = SentiBankTensorflow(self.global_conf_filename)
         else:
-            raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
+            raise ValueError("[SearcherLOPQHBase: error] unkown 'feature_extractor' {}.".format(self.global_conf[field]))
+
+    def load_codes(self):
+        self.searcher_lopq.add_codes_from_hdfs(self.global_conf['SE_codes_path'])
 
     def check_ratio(self):
         '''Check if we need to set the ratio based on topfeature.'''
@@ -160,10 +175,10 @@ class SearcherLOPQHBase():
     def format_output(self, sim, sim_score, nb_query, corrupted, list_sha1_id, options_dict=dict()):
         # read lopq similarity results and get 'cached_image_urls', 'ads_cdr_ids'
         # and filter out if near_dup is activated
-        print "[Searcher.format_output: log] options are: {}".format(options_dict)
+        print "[SearcherLOPQHBase.format_output: log] options are: {}".format(options_dict)
         start_build_output = time.time()
         outp = self.build_output(nb_query, corrupted, list_sha1_id, sim, sim_score, options_dict)
-        print "[Searcher.format_output: log] build_output took: {}".format(time.time() - start_build_output)
+        print "[SearcherLOPQHBase.format_output: log] build_output took: {}".format(time.time() - start_build_output)
         #print "[Searcher.format_output: log] output {}".format(output)
         return outp
 
@@ -207,6 +222,7 @@ class SearcherLOPQHBase():
             # TODO we need to get s3 urls and add as second value of sim tuple as dict with key 'info:s3_url'
             # Use HBaseIndexerMinimal for that self.needed_output_columns
             rows = self.hbase_indexer_minimal.get_columns_from_sha1_rows(tmp_sim, self.needed_output_columns)
+            print "[SearcherLOPQHBase.search_from_feats: log] rows: {}".format(rows)
             # tmp_sim_wurl = []
             # for i,row in enumerate(rows):
             #     if tmp_sim[i] != row[0]:
