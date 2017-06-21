@@ -2,8 +2,8 @@
 
 #NB: This script has to be called WITHIN the docker
 install_python_pkgs=1
-install_caffe=1
-compile_hashing=1
+install_caffe=0
+compile_hashing=0
 
 # have a parameter to build caffe with or without gpu support?
 with_cuda=false
@@ -12,6 +12,7 @@ with_cuda=false
 # get path of repo root
 repo_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../.. && pwd )"
 #repo_path=/home/ubuntu/memex/ColumbiaImageSearch/
+path_lopq="workflows/build-lopq-index/lopq/python"
 
 ## Python
 if [[ $install_python_pkgs -eq 1 ]];
@@ -24,6 +25,9 @@ then
 	# run it twice because it seems to fail the first time sometimes...
 	pip install -U --user -r ${repo_path}/requirements.txt
 	# we should also install modified lopq version...
+	cd ${repo_path}/${path_lopq}
+	python setup.py install --force
+	cd ${repo_path}
 fi
 
 ## Caffe
