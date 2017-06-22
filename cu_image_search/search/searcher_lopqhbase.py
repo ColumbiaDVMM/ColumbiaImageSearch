@@ -215,7 +215,9 @@ class SearcherLOPQHBase():
                 near_dup_th = self.near_dup_th
         # query for each feature
         for i in range(len(list_sha1_id)):
-            results, visited = self.searcher_lopq.search(self.searcher_lopq.model.apply_PCA(feats[i]), quota=self.quota, limit=self.sim_limit, with_dists=True)
+	    pca_projected_feat = self.searcher_lopq.model.apply_PCA(feats[i])
+            print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat)
+            results, visited = self.searcher_lopq.search(np.squeeze(pca_projected_feat), quota=self.quota, limit=self.sim_limit, with_dists=True)
             # parse output
             tmp_sim = []
             tmp_sim_score = []
@@ -226,7 +228,7 @@ class SearcherLOPQHBase():
             # add maintained results
             # TODO we need to get s3 urls and add as second value of sim tuple as dict with key 'info:s3_url'
             # Use HBaseIndexerMinimal for that self.needed_output_columns
-            rows = self.hbase_indexer_minimal.get_columns_from_sha1_rows(tmp_sim, self.needed_output_columns)
+            rows = self.indexer.get_columns_from_sha1_rows(tmp_sim, self.needed_output_columns)
             print "[SearcherLOPQHBase.search_from_feats: log] rows: {}".format(rows)
             # tmp_sim_wurl = []
             # for i,row in enumerate(rows):
