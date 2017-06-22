@@ -216,34 +216,20 @@ class SearcherLOPQHBase():
         # query for each feature
         for i in range(len(list_sha1_id)):
             norm_feat = np.linalg.norm(feats[i])
-	    pca_projected_feat = np.squeeze(self.searcher_lopq.model.apply_PCA(feats[i]/norm_feat))
-            print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
+            pca_projected_feat = np.squeeze(self.searcher_lopq.model.apply_PCA(feats[i]/norm_feat))
+            #print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
             results, visited = self.searcher_lopq.search(pca_projected_feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
             print "[SearcherLOPQHBase.search_from_feats: log] got {} results, first one is: {}".format(len(results), results[0]) 
-            # parse output
             tmp_sim = []
             tmp_sim_score = []
             for res in results:
                 if (filter_near_dup and res.dist<=near_dup_th) or not filter_near_dup:
                     tmp_sim.append(res.id)
                     tmp_sim_score.append(res.dist)
-            # add maintained results
-            # TODO we need to get s3 urls and add as second value of sim tuple as dict with key 'info:s3_url'
-            # Use HBaseIndexerMinimal for that self.needed_output_columns
-            print "[SearcherLOPQHBase.search_from_feats: log] tmp_sim: {}".format(tmp_sim)
             if tmp_sim:
               rows = self.indexer.get_columns_from_sha1_rows(tmp_sim, self.needed_output_columns)
-              print "[SearcherLOPQHBase.search_from_feats: log] rows: {}".format(rows)
-              sys.stdout.flush()
-            # tmp_sim_wurl = []
-            # for i,row in enumerate(rows):
-            #     if tmp_sim[i] != row[0]:
-            #         print "Did we loose ordering {} vs. {}?".format(tmp_sim[i], row[0])
-            #     url_dict = dict()
-            #     url_dict[self.url_field] = row[1][self.url_field]
-            #     tmp_sim_wurl.append((row[0], url_dict))
-            # sim.append(tmp_sim_wurl)    
-              sim.append(rows) # that would work if needed columns contains only the s3_url?
+              # rows contain id and s3_url of all images
+              sim.append(rows) 
             else:
               sim.append([])
             sim_score.append(tmp_sim_score)
