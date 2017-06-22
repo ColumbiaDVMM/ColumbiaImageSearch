@@ -38,22 +38,29 @@ def load_rdd_json(sc, rdd_path):
     return rdd
 
 
+def decode_feat(feat):
+    """Decode base64 encoded feature 'feat'.
+    """
+    import numpy as np
+    import base64
+    return np.frombuffer(base64.b64decode(feat), dtype=np.float32)
+
+
 def memex_udf(sc, data_path, sampling_ratio, seed, feat_field):
     """
     MEMEX UDF function to load training data. 
     Loads data from a sequence file containing JSON formatted data with 
     a base64-encoded numpy arrays in field 'feat_field'.
     """
-    import numpy as np
-    import base64
     
     # Load rdd and sample down the dataset
     rdd = load_rdd_json(sc, data_path).sample(False, sampling_ratio, seed)
 
     # Load feature
-    deserialize_vec = lambda s: np.frombuffer(base64.b64decode(s[1][feat_field]))
+    deserialize_vec = lambda s: decode_feat(s[1][feat_field])
     vecs = rdd.filter(lambda s: s[1] is not None).map(deserialize_vec)
-
+    first_sample = vecs.first()
+    print '[memex_udf: log] first sample: {}, feat shape: {}'.format(first_sample, first_sample.shape)
     return vecs
 
 
@@ -70,8 +77,9 @@ def memex_udf_wid(sc, data_path, sampling_ratio, seed, feat_field):
     rdd = load_rdd_json(sc, data_path).sample(False, sampling_ratio, seed)
 
     # Load feature
-    deserialize_vec = lambda s: (s[0], np.frombuffer(base64.b64decode(s[1][feat_field])))
+    deserialize_vec = lambda s: (s[0], decode_feat(s[1][feat_field]))
     vecs = rdd.filter(lambda s: s[1] is not None).map(deserialize_vec)
-
+    first_sample = vecs.first()
+    print '[memex_udf_wid: log] first sample: {}, feat shape: {}'.format(first_sample, first_sample[1].shape)
     return vecs
 
