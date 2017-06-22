@@ -112,6 +112,7 @@ class DeepSentibankExtractor(object):
         # Load the data
         self.net.load(self.modelpath, self.session)
         print "[init_net] Loaded DeepSentibank net in {}s".format(time.time() - start_init)
+        sys.stdout.flush()
 
 
     def preprocess_img(self, img_out):
