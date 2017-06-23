@@ -1,0 +1,21 @@
+{
+        "HBI_host":"10.1.94.57",
+        "HBI_table_updatesinfos":"images_summerqpr2017_updates",
+        "HBI_table_sha1infos":"images_summerqpr2017_DOMAIN_sha1_infos",
+        "HBI_extractions_types":["sentibank_tf"],
+        "HBI_extractions_columns":["info:featnorm_tf"],
+        "FE_features_dim":4096,
+        "SE_sim_limit":1000,
+        "SE_near_dup":true,
+        "SE_near_dup_th":0.25,
+        "SE_get_dup":true,
+        "SE_ratio":0.0005,
+        "SE_topfeature":5000,
+        "SE_outdir":"/home/ubuntu/memex/update/search/",
+        "SE_feature_extractor":"sentibank_tensorflow",
+        "SE_indexer":"hbase_indexer_minimal",
+        "SE_lopq":"lopq_pca",
+        "SE_lopqmodel":"DOMAIN_LOPQ_MODEL",
+        "SE_codes_path":"DOMAIN_CODES"
+}
+
