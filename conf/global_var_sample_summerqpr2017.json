@@ -15,7 +15,7 @@
         "SE_feature_extractor":"sentibank_tensorflow",
         "SE_indexer":"hbase_indexer_minimal",
         "SE_lopq":"lopq_pca",
-        "SE_lopqmodel":"DOMAIN_LOPQ_MODEL",
-        "SE_codes_path":"DOMAIN_CODES"
+        "SE_lopqmodel":"/home/ubuntu/memex/update/data/lopq_model",
+        "SE_codes_path":"/home/ubuntu/memex/update/data/lopq_codes"
 }
 

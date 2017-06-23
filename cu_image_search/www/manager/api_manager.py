@@ -5,6 +5,7 @@ import logging
 import json
 import types
 import threading
+import happybase
 import subprocess as sub
 
 from flask import Flask, render_template, Response
@@ -15,7 +16,7 @@ from flask_restful import Resource, Api
 from config import config
 from locker import Locker
 import rest
-from oozie_job_manager import build_images_workflow_payload_v2, submit_worfklow
+from oozie_job_manager import build_images_workflow_payload_v2, build_images_index_workflow_payload, submit_worfklow, get_job_info
 import pymongo
 from pymongo import MongoClient
 
@@ -98,6 +99,9 @@ def after_request(response):
 project_lock = Locker()
 domain_lock = Locker()
 
+def _copy_from_hdfs(hdfs_path, local_path):
+    import subprocess
+    subprocess.call(['hadoop', 'fs', '-copyToLocal', hdfs_path, local_path])    
 
 def _get_project_dir_path(project_name):
     return os.path.join(config['repo']['local_path'], project_name)
@@ -116,6 +120,13 @@ def _submit_worfklow(start_ts, end_ts, table_sha1, table_update, domain):
     return job_id
 
 
+def _submit_buildindex_worfklow(ingestion_id, table_sha1infos):
+    payload = build_images_index_workflow_payload(ingestion_id, table_sha1infos)
+    json_submit = submit_worfklow(payload)
+    job_id = json_submit['id']
+    logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
+    return job_id
+
 def parse_isodate_to_ts(input_date):
     import dateutil.parser
     import calendar
@@ -133,6 +144,7 @@ def setup_service_url(domain_name):
         port = max(data['ports'])+1
     data['ports'].append(port)
     # build the proxypass rule for Apache 
+    # TODO: should have all this predefined for domain1-4
     endpt = "/cuimgsearch_{}".format(domain_name)
     lurl = "http://localhost:{}/".format(port)
     proxypass_template = "\nProxyPass {}/ {}\nProxyPassReverse {}/ {}\n<Location {}>\n\tRequire all granted\n</Location>\n"
@@ -166,13 +178,7 @@ def setup_service_url(domain_name):
 
 def restart_apache():
     # this requires root privilege
-    
-    # v1. breaks connection
-    #command = 'sudo service apache2 restart'
-    #logger.info("[setup_service_url: log] restarting Apache...")
-    #output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
-    #logger.info("[setup_service_url: log] restarted Apache. out: {}, err: {}".format(output, error))
-    
+
     # v2. dirty but seems to work
     command_shell = 'sleep 3; sudo service apache2 restart'
     logger.info("[setup_service_url: log] restarting Apache in 3 seconds...")
@@ -181,31 +187,55 @@ def restart_apache():
 
 def get_start_end_ts(one_source):
     '''Parse start and end timestamp from `start_date` and `end_date` in the provided source'''
-    # # Is this safe?...
-    # try:
-    #     start_ts = parse_isodate_to_ts(one_source['start_date'])
-    # except Exception as inst:
-    #     logger.error("[check_domain_service: log] Could not parse 'start_date' (error was: {}). Assuming 0 as start_ts.".format(inst))
-    #     start_ts = 0
-    # try:
-    #     end_ts = parse_isodate_to_ts(one_source['end_date'])
-    # except:
-    #     logger.error("[check_domain_service: log] Could not parse 'end_date' assuming {} as end_ts.".format(max_ts))
-    #     end_ts = max_ts
-
+    
     try:
         start_ts = parse_isodate_to_ts(one_source['start_date'])
     except Exception as inst:
         err_msg = "Could not parse 'start_date' (error was: {}).".format(inst)
-        logger.error("[check_domain_service: log] "+err_msg)
+        logger.error("[get_start_end_ts: log] "+err_msg)
         raise ValueError(err_msg)
     try:
         end_ts = parse_isodate_to_ts(one_source['end_date'])
     except Exception as inst:
         err_msg = "Could not parse 'end_date' (error was: {}).".format(inst)
-        logger.error("[check_domain_service: log] "+err_msg)
+        logger.error("[get_start_end_ts: log] "+err_msg)
         raise ValueError(err_msg)
     return start_ts, end_ts
+
+def check_project_indexing_finished(project_name):
+    """Check if we can find lopq_model and lopd_codes.
+    """
+    if data['projects'][project_name]['status'] == 'indexing':
+        # look for columns lopq_model and lopd_codes in hbase update table row of this ingestion
+        ingestion_id = data['projects'][project_name]['ingestion_id']
+        logger.info('[check_project_indexing_finished: log] checking if ingestion %s has completed.' % (ingestion_id))
+        from happybase.connection import Connection
+        conn = Connection(config['image']['hbase_host'])
+        table = conn.table(config['image']['hbase_table_updates'])
+        columns=[config['image']['lopq_model_column'], config['image']['lopq_codes_column']]
+        row = table.row(ingestion_id, columns=columns)
+        # if found, copy to domain data folder
+        if len(row)==len(columns):
+            # copy codes first
+            local_codes_path = os.path.join(_get_domain_dir_path(data['projects'][project_name]['domain']), config['image']['lopq_codes_local_suffix'])
+            _copy_from_hdfs(row[config['image']['lopq_codes_column']], local_codes_path)
+            local_model_path = os.path.join(_get_domain_dir_path(data['projects'][project_name]['domain']), config['image']['lopq_model_local_suffix'])
+            _copy_from_hdfs(row[config['image']['lopq_model_column']], local_model_path)
+            if os.path.exists(local_codes_path) and os.path.exists(local_model_path):
+                data['projects'][project_name]['status'] == 'ready'
+            else:
+                logger.info('[check_project_indexing_finished: log] ingestion %s has completed but local copy failed...' % (ingestion_id))
+        else: # else, 
+            # check the job is still running
+            job_id = data['projects'][project_name]['job_id']
+            output = get_job_info(job_id)
+            if output['status'] == 'RUNNING':
+                pass # we just have to wait for the job to end
+            else:
+                # if it is not, the job failed... what should we do?
+                # mark project as failed?
+                data['projects'][project_name]['status'] == 'failed'
+                
 
 
 def check_domain_service(project_sources):
@@ -221,10 +251,10 @@ def check_domain_service(project_sources):
     domain_dir_path = _get_domain_dir_path(domain_name)
 
     # get domain lock
-    domain_lock.acquire(domain_name)
     if os.path.isdir(domain_dir_path): # or test 'domain_name' in data['domains']?
         logger.info('[check_domain_service: log] service exists for domain_name: %s, check if we need to update.' % (domain_name))
         # Check conf to see if we need to update 
+        # Do we actually want to allow that?
         config_file = os.path.join(domain_dir_path, config['image']['config_filepath'])
         config_json = json.load(open(config_file,'rt'))
         if 'start_ts' not in config_json or 'end_ts' not in config_json:
@@ -235,24 +265,30 @@ def check_domain_service(project_sources):
         new_start_ts = min(start_ts, config_json['start_ts'])
         new_end_ts = max(end_ts, config_json['end_ts'])
         if new_start_ts < config_json['start_ts'] or new_end_ts > config_json['end_ts']:
+            domain_lock.acquire(domain_name)
+            # save update infos in domain data
+            ingestion_id = '-'.join([domain_name, str(start_ts), str(end_ts)])
+            data['domains'][domain_name]['ingestion_id'].append(ingestion_id)
             # submit workflow with min(start_ts, stored_start_ts) and max(end_ts, stored_end_ts)
-            job_id = _submit_worfklow(new_start_ts, new_end_ts, config_json['HBI_table_sha1infos'], config_json['HBI_table_updatesinfos'], domain_name)
+            job_id = _submit_buildindex_worfklow(ingestion_id, data['domains'][domain_name]['table_sha1infos'])
             # add job_id to job_ids and save config
             config_json['job_ids'].append(job_id)
-            # update data['domains']
-            data['domains'][domain_name]['status'] = 'updating'
             data['domains'][domain_name]['job_ids'].append(job_id)
             # write out new config file
             with open(config_file, 'wt') as conf_out:
                 conf_out.write(json.dumps(config_json))
             msg = 'updating domain %s' % (domain_name)
             logger.info('[check_domain_service: log] '+msg)
-            return 1, domain_name, msg
+            # update in mongodb too
+            db_domains.find_one_and_replace({'domain_name':domain_name}, data['domains'][domain_name])
+            domain_lock.release(domain_name)
+            return 1, domain_name, ingestion_id, job_id, msg
         else:
             msg = 'no need to update for domain %s' % (domain_name)
             logger.info('[check_domain_service: log] '+msg)
-            return 1, domain_name, msg
+            return 1, domain_name, None, None, msg
     else:
+        domain_lock.acquire(domain_name)
         # if folder is empty copy data from config['image']['sample_dir_path']
         logger.info('[check_domain_service: log] copying from %s to %s' % (config['image']['sample_dir_path'], domain_dir_path))
         try:
@@ -263,36 +299,31 @@ def check_domain_service(project_sources):
             raise ValueError('Could not copy from template directory {} to {}. {}'.format(config['image']['sample_dir_path'], domain_dir_path, inst))
         # edit config_file by replacing DOMAIN by the actual domain in :
         # "ist_els_doc_type", "HBI_table_sha1infos", and "HBI_table_updatesinfos" (and "HBI_table_sim" ?)
-        config_file = os.path.join(domain_dir_path, config['image']['config_filepath'])
+        source_conf = os.path.join(config['image']['host_repo_path'],config['image']['config_sample_filepath'])
+        config_file = os.path.join(config['image']['base_domain_dir_path'],config['image']['config_filepath'])
+        logger.info('[check_domain_service: log] copying config file from %s to %s' % (source_conf, config_file))
+        shutil.copy(source_conf, config_file)
         logger.info('[check_domain_service: log] loading config_file from %s' % (config_file))
         config_json = json.load(open(config_file,'rt'))
-        # - ist_els_doc_type
-        config_json['ist_els_doc_type'] = domain_name
         # - HBI_table_sha1infos
         config_json['HBI_table_sha1infos'] = config_json['HBI_table_sha1infos'].replace('DOMAIN', domain_name)
-        # - HBI_table_updatesinfos
-        config_json['HBI_table_updatesinfos'] = config_json['HBI_table_updatesinfos'].replace('DOMAIN', domain_name)
-        # - HBI_table_sim
-        config_json['HBI_table_sim'] = config_json['HBI_table_sim'].replace('DOMAIN', domain_name)
-        # - put start and end date too, so we can check if we need to update.
-        # but use ts to actually call the workflow
-        config_json['start_date'] = one_source['start_date']
-        config_json['end_date'] = one_source['end_date']
-        config_json['start_ts'] = start_ts
-        config_json['end_ts'] = end_ts
+        ingestion_id = '-'.join([domain_name, str(start_ts), str(end_ts)])
+        # save that in project and domain infos too
+        config_json['ingestion_id'] = ingestion_id
         # submit workflow to get images data
         logger.info('[check_domain_service: log] submitting workflow with parameters: %s, %s, %s, %s, %s' % (start_ts, end_ts, config_json['HBI_table_sha1infos'], config_json['HBI_table_updatesinfos'], domain_name))
-        job_id = _submit_worfklow(start_ts, end_ts, config_json['HBI_table_sha1infos'], config_json['HBI_table_updatesinfos'], domain_name)
+        job_id = _submit_buildindex_worfklow(ingestion_id, config_json['HBI_table_sha1infos'])
         # save job id to be able to check status?
-        config_json['job_ids'] = [job_id]
+        config_json['job_ids'] = job_id
         # setup service
         port, service_url = setup_service_url(domain_name)
         data['domains'][domain_name] = {}
         data['domains'][domain_name]['domain_name'] = domain_name
         data['domains'][domain_name]['port'] = port
+        data['domains'][domain_name]['table_sha1infos'] = config_json['HBI_table_sha1infos']
         data['domains'][domain_name]['service_url'] = service_url
-        data['domains'][domain_name]['status'] = 'indexing'
         data['domains'][domain_name]['job_ids'] = [job_id]
+        data['domains'][domain_name]['ingestion_id'] = [ingestion_id] # to allow for updates?
         # write out new config file
         logger.info('[check_domain_service: log] updating config_file: %s' % config_file)
         with open(config_file, 'wt') as conf_out:
@@ -302,28 +333,14 @@ def check_domain_service(project_sources):
         # this can take a while if the docker image was not build yet... Should we do this asynchronously?
         command = '{}{} -p {} -d {}'.format(config['image']['host_repo_path'], config['image']['setup_docker_path'], port, domain_name)
         logger.info("[check_domain_service: log] Starting docker for domain {} with command: {}".format(domain_name, command))
-        #output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
-        #logger.info("[check_domain_service: log] Started docker for domain {}. out: {}, err: {}".format(domain_name, output, error))
         docker_proc = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE)
-        data['domains'][domain_name]['docker'] = {}
-        # this cannot be saved to disk or outputed for debug?...
-        # should we store that somewhere else? Or can we pickle it?...
-        #data['domains'][domain_name]['docker']['popen_proc'] = docker_proc
-        data['domains'][domain_name]['docker']['status'] = 'starting'
-        data['domains'][domain_name]['docker']['name'] = 'columbia_university_search_similar_images_'+domain_name
+        data['domains'][domain_name]['docker_name'] = 'columbia_university_search_similar_images_'+domain_name
         # insert in mongoDB
-        # cannot be dump in JSON
-        #data['domains'][domain_name]['_id'] = db_domains.insert_one(data['domains'][domain_name]).inserted_id
         db_domains.insert_one(data['domains'][domain_name])
-    
-    # once domain creation has been started how do we give back infos ? [TODO: check with Amandeep]
-    # right back in project config, commit and push?
-    # for now consider a predefined pattern based on domain?
-    # release lock
-    domain_lock.release(domain_name)
-
-    # we will restart apache AFTER returning
-    return 0, domain_name, None
+        domain_lock.release(domain_name)
+        
+        # we will restart apache AFTER returning
+        return 0, domain_name, ingestion_id, job_id, None
 
 
 def json_encode(obj):
@@ -386,22 +403,22 @@ class AllProjects(Resource):
                 f.write(json.dumps(data['projects'][project_name], indent=4, default=json_encode))
             # we should try to create a service for domain "sources:type" 
             # (or update it if timerange defined by "sources:start_date" and "sources:end_date" is bigger than existing)
-            ret, domain_name, err = check_domain_service(project_sources)
+            ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources)
             data['projects'][project_name]['domain'] = domain_name
             if ret==0:
                 msg = 'project %s created.' % project_name
                 logger.info(msg)
+                # store job infos
+                data['projects'][project_name]['ingestion_id'] = ingestion_id
+                data['projects'][project_name]['job_id'] = job_id
+                data['projects'][project_name]['status'] = 'indexing'
                 # insert into mongoDB
-                # cannot be dump in JSON
-                #data['projects'][project_name]['_id'] = db_projects.insert_one(data['projects'][project_name]).inserted_id
                 db_projects.insert_one(data['projects'][project_name])
                 try:
                     return rest.created(msg)
                 finally: # still executed before returning...
                     restart_apache()
             elif ret==1:
-                db_projects.insert_one(data['projects'][project_name])
-                # really project or domain?
                 msg = 'domain for project %s was already previously created. %s' % (project_name, err)
                 logger.info(msg)
                 # what should we return in this case
@@ -453,9 +470,8 @@ class Project(Resource):
         try:
             project_lock.acquire(project_name)
             data['projects'][project_name]['master_config'] = project_sources
-            # this is an update. 
-            # TODO: we may need to update the corresponding domain image similarity service
-            ret, err = check_domain_service(project_sources)
+            # This would mean an update, we need to update the corresponding domain image similarity service
+            ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources)
             return rest.created()
         except Exception as e:
             logger.error('Updating project %s: %s' % (project_name, e.message))
@@ -467,6 +483,7 @@ class Project(Resource):
     def get(self, project_name):
         if project_name not in data['projects']:
             return rest.not_found()
+        check_project_indexing_finished(project_name)
         return data['projects'][project_name]
 
 

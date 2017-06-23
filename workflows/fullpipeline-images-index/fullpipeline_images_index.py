@@ -951,7 +951,7 @@ def load_data(sc, args, pca_params=None, data_load_fn=default_data_loading):
     Load training data as an RDD.
     """
     # Load data
-    vecs = data_load_fn(sc, args.data, args.sampling_ratio, args.seed)
+    vecs = data_load_fn(sc, args.model_data, args.sampling_ratio_model, args.seed)
     print 'Sample is: {}'.format(vecs.first())
     
     # Apply PCA if needed
@@ -1256,16 +1256,16 @@ def set_missing_parameters(args):
         args.compute_data = rdd_feat_path
     # pca_full_output, pca_reduce_output does not really matter, but should not conflict between domains
     if args.pca_full_output is None:
-        args.pca_full_output = args.base_hdfs_path+args.ingestion_id+'/images/index/pca_full'
+        args.pca_full_output = args.base_hdfs_path+args.ingestion_id+'/images/index_pca_full'
     if args.pca_reduce_output is None:
-        args.pca_reduce_output = args.base_hdfs_path+args.ingestion_id+'/images/index/pca_reduce'
+        args.pca_reduce_output = args.base_hdfs_path+args.ingestion_id+'/images/index_pca_reduce'
     # output that should be loaded in image search service
     if args.model_pkl is None:
-        model_pkl = args.base_hdfs_path+args.ingestion_id+'/images/index/lopq_model'
+        model_pkl = args.base_hdfs_path+args.ingestion_id+'/images/index_lopq_model'
         print 'Setting args.model_pkl to {}'.format(model_pkl)
         args.model_pkl = model_pkl
     if args.codes_output is None:
-        codes_output = args.base_hdfs_path+args.ingestion_id+'/images/index/lopq_codes'
+        codes_output = args.base_hdfs_path+args.ingestion_id+'/images/index_lopq_codes'
         print 'Setting args.codes_output to {}'.format(codes_output)
         args.codes_output = codes_output
     domain, es_ts_start, es_ts_end = parse_ingestion_id(args.ingestion_id)
@@ -1429,6 +1429,7 @@ if __name__ == '__main__':
     print "[STEP #2] Done in {:.2f}s".format(time.time() - start_step)
     
     # step 3: build index
+    # TODO try to load pca parameters if restart is true?
     args = adapt_parameters(args, nb_images)
     start_step = time.time()
     print "[STEP #3] Starting building index for ingestion_id: {}".format(ingestion_id)

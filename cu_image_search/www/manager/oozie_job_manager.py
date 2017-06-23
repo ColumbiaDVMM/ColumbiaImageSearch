@@ -7,6 +7,7 @@ oozie_url_v2 = 'http://memex-utils:11000/oozie/v2/'
 # path for get-images-domain worfklow
 get_images_domain_path_v1 = "hdfs://memex:8020/user/hue/oozie/workspaces/hue-oozie-1494982632.42/"
 get_images_domain_path_v2 = "hdfs://memex:8020/user/hue/oozie/workspaces/hue-oozie-1496437517.17/"
+build_images_index_workflow_path = "hdfs://memex:8020/user/hue/oozie/workspaces/hue-oozie-1498176362.6/"
 
 
 # # check workflows
@@ -48,6 +49,16 @@ def build_images_workflow_payload_v2(start_ts, end_ts, table_sha1, table_update,
     payload += "</configuration>"
     return payload
 
+def build_images_index_workflow_payload(ingestion_id, table_sha1, workflow_path=build_images_index_workflow_path):
+    payload = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><configuration>"
+    payload = append_property_toXML(payload, "user.name", "skaraman")
+    payload = append_property_toXML(payload, "oozie.wf.application.path", workflow_path)
+    payload = append_property_toXML(payload, "jobTracker", "memex-rm.xdata.data-tactics-corp.com:8032")
+    payload = append_property_toXML(payload, "nameNode", "hdfs://memex")
+    payload = append_property_toXML(payload, "INGESTION_ID", ingestion_id)
+    payload = append_property_toXML(payload, "TABLE_SHA1", table_sha1)
+    payload += "</configuration>"
+    return payload
 
 # # submit a workflow
 def submit_worfklow(payload):
@@ -62,10 +73,10 @@ def submit_worfklow(payload):
 def get_job_info(job_id):
     get_job_info_str = "/job/{}?show=info"
     req = requests.get(oozie_url_v1+get_job_info_str.format(job_id))
-    print req
+    #print req
     output = req.json()
     #print output
-    print json.dumps(output, indent=4, separators=(',', ': '))
+    #print json.dumps(output, indent=4, separators=(',', ': '))
     return output
 
 if __name__ == "__main__":

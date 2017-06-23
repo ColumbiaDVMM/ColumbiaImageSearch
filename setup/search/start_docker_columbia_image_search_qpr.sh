@@ -133,5 +133,6 @@ ${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -tid -v ${repo_path
 echo "Starting search API"
 ${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh
 echo "Starting update"
-# Update now should read features computed with a spark job...
-${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/scripts/run_update_qpr.sh
+# Deprecated.
+## We should now get features computed with a spark job...
+#${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/scripts/run_update_qpr.sh
