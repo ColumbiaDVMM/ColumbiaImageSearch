@@ -815,8 +815,11 @@ def run_extraction(hbase_man_sha1infos_out, hbase_man_update_out, ingestion_id, 
     basepath_save = args.base_hdfs_path+ingestion_id+'/images/info'
 
     if args.restart and args.save_inter_rdd:
-        # try to load from disk
-        out_rdd_wfeat = load_rdd_json(basepath_save, "out_rdd_wfeat")
+        # check if features have been saved to disk
+        out_rdd_wfeat_path = os.path.join(basepath_save, "out_rdd_wfeat")
+        if hdfs_file_exist(out_rdd_wfeat_path):
+            print "[run_extraction: log] out_rdd_wfeat already computed at {}".format(out_rdd_wfeat_path)
+            return
     else:
         out_rdd = get_out_rdd(basepath_save)
         # should it be x[1] is not None?
@@ -913,6 +916,7 @@ def compute_pca(sc, args, data_load_fn=default_data_loading):
     }
 
     save_hdfs_pickle(params, args.pca_full_output)
+    d.unpersist()
     return params
 
 
@@ -1019,6 +1023,7 @@ def train_rotations(sc, split_vecs, M, Cs):
         mus.append(mu)
         counts.append(count)
 
+    print 'Done fitting rotations'
     return Rs, mus, counts
 
 
@@ -1121,6 +1126,8 @@ def train_subquantizers(sc, split_vecs, M, subquantizer_clusters, model, seed=No
     Project each data point into it's local space and compute subquantizers by clustering
     each fine split of the locally projected data.
     """
+
+    print 'Training subquantizers'
     b = sc.broadcast(model)
 
     def project_local(x):
@@ -1135,13 +1142,18 @@ def train_subquantizers(sc, split_vecs, M, subquantizer_clusters, model, seed=No
     split_vecs.cache()
 
     subquantizers = []
+    # Spark job is respwaning during this phase...
     for split in xrange(M):
+        print 'Training subquantizers for split {} out of {}'.format(split, M)
         data = split_vecs.map(lambda x: x[split])
         data.cache()
         sub = KMeans.train(data, subquantizer_clusters, initializationMode='random', maxIterations=10, seed=seed)
         data.unpersist()
         subquantizers.append(np.vstack(sub.clusterCenters))
+        del sub
 
+    print 'Done training all subquantizers.'
+    split_vecs.unpersist()
     return (subquantizers[:len(subquantizers) / 2], subquantizers[len(subquantizers) / 2:])
 
 def validate_arguments(args, model):
