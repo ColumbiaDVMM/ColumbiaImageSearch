@@ -23,7 +23,7 @@ from pyspark import SparkContext, SparkConf, StorageLevel
 # Copyright 2015, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 from pyspark.mllib.clustering import KMeans, KMeansModel
-from lopq.model import LOPQModel, LOPQModelPCA, compute_rotations_from_accumulators
+from lopq.model import LOPQModel, LOPQModelPCA, compute_rotations_from_accumulators, eigenvalue_allocation
 
 STEP_COARSE = 0
 STEP_ROTATION = 1
@@ -52,7 +52,8 @@ base_path_import = "hdfs://memex/user/skaraman/fullpipeline-images-index"
 # the base_hdfs_path could be set with a parameter too
 if qpr:
     job_suffix = "_qpr"
-    base_hdfs_path = '/user/skaraman/data/images_summerqpr2017/'
+    #base_hdfs_path = '/user/skaraman/data/images_summerqpr2017/'
+    base_hdfs_path = 'hdfs://memex/user/skaraman/data/images_summerqpr2017/'
     #base_hdfs_path = "/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/tmpdata/"
 else:
     job_suffix = "_release"
@@ -691,45 +692,53 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
     
     #print max_ads_image
     ingestion_id = args.ingestion_id
-
-    restart = args.restart
-    batch_update_size = args.batch_update_size
-
     start_time = time.time()
     basepath_save = args.base_hdfs_path+ingestion_id+'/images/info'
-    
-    # get images from CDR, output format should be (s3_url, ad_id)
-    # NB: later on we will load from disk from another job
-    s3url_adid_rdd = get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, args, start_time)
 
-    if s3url_adid_rdd is None:
-        print "No data retrieved!"
-        return
+    # deprecated. 
+    # TODO remove everything related to that, including save_new_images function
+    #batch_update_size = args.batch_update_size
+    ingest_rdd = None
 
-    # reduce by key to download each image once
-    s3url_adid_rdd_red = s3url_adid_rdd.flatMapValues(lambda x: [[x]]).reduceByKey(reduce_s3url_listadid)
-    s3url_adid_rdd_red_count = s3url_adid_rdd_red.count()
-    save_info_incremental_update(hbase_man_update_out, args.ingestion_id, s3url_adid_rdd_red_count, "s3url_adid_rdd_red_count")
+    if args.restart and args.save_inter_rdd:
+        # try to load from disk
+        ingest_rdd = load_rdd_json(basepath_save, "ingest_rdd")
 
-    # process (compute SHA1, and reduce by SHA1)
-    # repartition first based on s3url_adid_rdd_red_count?
-    # this could be done as a flatMapValues
-    # s3url_adid_rdd_red.partitionBy(get_partitions_nb(args, s3url_adid_rdd_red_count)).flatMapValues(...)
-    s3url_infos_rdd = s3url_adid_rdd_red.flatMap(check_get_sha1_imginfo_s3url)
-    
-    print '[s3url_infos_rdd: first] {}'.format(s3url_infos_rdd.first())
-    # transform to (SHA1, imginfo)
-    sha1_infos_rdd = s3url_infos_rdd.flatMap(s3url_listadid_sha1_imginfo_to_sha1_alldict)
-    print '[sha1_infos_rdd: first] {}'.format(sha1_infos_rdd.first())
-    ingest_rdd = sha1_infos_rdd.reduceByKey(reduce_sha1_infos_discarding_wimginfo)
-    print '[ingest_rdd: first] {}'.format(ingest_rdd.first())
+    # if could not load, compute
+    if ingest_rdd is None:
+        # get images from CDR, output format should be (s3_url, ad_id)
+        # NB: later on we will load from disk from another job
+        s3url_adid_rdd = get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, args, start_time)
+
+        if s3url_adid_rdd is None:
+            print "No data retrieved!"
+            return
+
+        # reduce by key to download each image once
+        s3url_adid_rdd_red = s3url_adid_rdd.flatMapValues(lambda x: [[x]]).reduceByKey(reduce_s3url_listadid)
+        s3url_adid_rdd_red_count = s3url_adid_rdd_red.count()
+        save_info_incremental_update(hbase_man_update_out, args.ingestion_id, s3url_adid_rdd_red_count, "s3url_adid_rdd_red_count")
+
+        # process (compute SHA1, and reduce by SHA1)
+        # repartition first based on s3url_adid_rdd_red_count?
+        # this could be done as a flatMapValues
+        # s3url_adid_rdd_red.partitionBy(get_partitions_nb(args, s3url_adid_rdd_red_count)).flatMapValues(...)
+        s3url_infos_rdd = s3url_adid_rdd_red.flatMap(check_get_sha1_imginfo_s3url)
+        
+        print '[s3url_infos_rdd: first] {}'.format(s3url_infos_rdd.first())
+        # transform to (SHA1, imginfo)
+        sha1_infos_rdd = s3url_infos_rdd.flatMap(s3url_listadid_sha1_imginfo_to_sha1_alldict)
+        print '[sha1_infos_rdd: first] {}'.format(sha1_infos_rdd.first())
+        ingest_rdd = sha1_infos_rdd.reduceByKey(reduce_sha1_infos_discarding_wimginfo)
+        print '[ingest_rdd: first] {}'.format(ingest_rdd.first())
+        # save to disk
+        if args.save_inter_rdd:
+            save_rdd_json(basepath_save, "ingest_rdd", ingest_rdd, ingestion_id, hbase_man_update_out)
+
     ingest_rdd_count = ingest_rdd.count()
     save_info_incremental_update(hbase_man_update_out, args.ingestion_id, ingest_rdd_count, "ingest_rdd_count")
 
-    # save to disk
-    if args.save_inter_rdd:
-        save_rdd_json(basepath_save, "ingest_rdd", ingest_rdd, ingestion_id, hbase_man_update_out)
-
+    
     # join with existing sha1 (not needed for qpr...)
     out_rdd = join_ingestion(hbase_man_sha1infos_join, ingest_rdd, args, ingest_rdd_count)
     print '[out_rdd: first] {}'.format(out_rdd.first())
@@ -779,23 +788,48 @@ def extract(val):
         # should be read as feat_norm = np.frombuffer(base64.b64decode(featnorm_tf), dtype=np.float32)
         return val
 
+def build_output_hbase(x):
+    # this prepares data to be saved in HBase
+    tmp_fields_list = [("info",feat_column_name)]
+    out = []
+    for field in tmp_fields_list:
+        if x[1] is not None and field[1] in x[1]:
+            out.append((x[0], [x[0], field[0], field[1], x[1][field[1]]]))
+    return out
+
+
+def save_out_rdd_wfeat_to_hbase(out_rdd, hbase_man_sha1infos_out):
+    if out_rdd is not None:
+        # write out rdd with features
+        out_rdd_hbase = out_rdd.flatMap(build_output_hbase)
+        if not out_rdd_hbase.isEmpty():
+            print "[save_out_rdd_wfeat_to_hbase: log] saving 'out_rdd_wfeat' to sha1_infos HBase table."
+            hbase_man_sha1infos_out.rdd2hbase(out_rdd_hbase)
+        else:
+            print "[save_out_rdd_wfeat_to_hbase: log] 'out_rdd_wfeat' is empty."
+    else:
+        print "[save_out_rdd_wfeat_to_hbase: log] 'out_rdd_wfeat' is None."
 
 def run_extraction(hbase_man_sha1infos_out, hbase_man_update_out, ingestion_id, args):
     start_time = time.time()
     basepath_save = args.base_hdfs_path+ingestion_id+'/images/info'
 
-    out_rdd = get_out_rdd(basepath_save)
-    # should it be x[1] is not None?
-    #out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x is not None)
-    out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x[1] is not None)
-    
-    # save to disk
-    save_rdd_json(basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
-    # save to hbase
-    save_out_rdd_wfeat_to_hbase(out_rdd_wfeat, hbase_man_sha1infos_out)
+    if args.restart and args.save_inter_rdd:
+        # try to load from disk
+        out_rdd_wfeat = load_rdd_json(basepath_save, "out_rdd_wfeat")
+    else:
+        out_rdd = get_out_rdd(basepath_save)
+        # should it be x[1] is not None?
+        #out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x is not None)
+        out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x[1] is not None)
+        
+        # save to disk
+        save_rdd_json(basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
+        # save to hbase
+        save_out_rdd_wfeat_to_hbase(out_rdd_wfeat, hbase_man_sha1infos_out)
 
-    extraction_elapsed_time = time.time() - start_time 
-    save_info_incremental_update(hbase_man_update_out, ingestion_id, str(extraction_elapsed_time), "extraction_elapsed_time")
+        extraction_elapsed_time = time.time() - start_time 
+        save_info_incremental_update(hbase_man_update_out, ingestion_id, str(extraction_elapsed_time), "extraction_elapsed_time")
 
 # lopq helpers functions
 def save_hdfs_pickle(m, pkl_path):
@@ -879,14 +913,11 @@ def compute_pca(sc, args, data_load_fn=default_data_loading):
     }
 
     save_hdfs_pickle(params, args.pca_full_output)
+    return params
 
 
-def reduce_pca(args):
+def reduce_pca(args, params):
 
-    filename = copy_from_hdfs(args.pca_full_output)
-    print 'Loading PCA Model locally from {} copied from {}'.format(filename, args.pca_full_output)
-    params = pkl.load(open(filename))
-    os.remove(filename)
     P = params['P']
     E = params['E']
     mu = params['mu']
@@ -905,6 +936,7 @@ def reduce_pca(args):
     f.close()
     copy_to_hdfs(f, args.pca_reduce_output)
     os.remove(f.name)
+    return {'P': P, 'mu': mu }
 
 
 def apply_PCA(x, mu, P):
@@ -914,7 +946,7 @@ def apply_PCA(x, mu, P):
     return np.dot(x - mu, P)
 
 # train index functions
-def load_data(sc, args, data_load_fn=default_data_loading):
+def load_data(sc, args, pca_params=None, data_load_fn=default_data_loading):
     """
     Load training data as an RDD.
     """
@@ -923,16 +955,11 @@ def load_data(sc, args, data_load_fn=default_data_loading):
     print 'Sample is: {}'.format(vecs.first())
     
     # Apply PCA if needed
-    if args.pca_model is not None:
-        # Check if we should get PCA model
-        print 'Loading PCA model from {}'.format(args.pca_model)
-        filename = copy_from_hdfs(args.pca_model)
-        params = pkl.load(open(filename))
-        # TODO: we should also remove tmp dir
-        os.remove(filename)
-        P = params['P']
-        mu = params['mu']
-        print 'Applying PCA from model {}'.format(args.pca_model)
+    if pca_params is not None:
+        P = pca_params['P']
+        mu = pca_params['mu']
+        #print 'Applying PCA from model {}'.format(args.pca_reduce_output)
+        print 'Applying PCA'
         vecs = vecs.map(lambda x: apply_PCA(x, mu, P))
 
     print 'Sample is: {}'.format(vecs.first())
@@ -1228,6 +1255,10 @@ def set_missing_parameters(args):
         print 'Setting args.compute_data to {}'.format(rdd_feat_path)
         args.compute_data = rdd_feat_path
     # pca_full_output, pca_reduce_output does not really matter, but should not conflict between domains
+    if args.pca_full_output is None:
+        args.pca_full_output = args.base_hdfs_path+args.ingestion_id+'/images/index/pca_full'
+    if args.pca_reduce_output is None:
+        args.pca_reduce_output = args.base_hdfs_path+args.ingestion_id+'/images/index/pca_reduce'
     # output that should be loaded in image search service
     if args.model_pkl is None:
         model_pkl = args.base_hdfs_path+args.ingestion_id+'/images/index/lopq_model'
@@ -1293,7 +1324,7 @@ if __name__ == '__main__':
 
     # Define job related options
     job_group.add_argument("-i", "--ingestion_id", dest="ingestion_id", required=True)
-    job_group.add_argument("-s", "--save", dest="save_inter_rdd", default=False, action="store_true")
+    job_group.add_argument("-s", "--save", dest="save_inter_rdd", default=True, action="store_true")
     job_group.add_argument("-r", "--restart", dest="restart", default=True, action="store_true")
     job_group.add_argument("-b", "--batch_update_size", dest="batch_update_size", type=int, default=default_batch_update_size)
     job_group.add_argument("--max_ads_image_dig", dest="max_ads_image_dig", type=int, default=max_ads_image_dig)
@@ -1311,9 +1342,9 @@ if __name__ == '__main__':
     index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=4, help='depth of tree aggregation to compute covariance estimator')
     index_group.add_argument('--pca_D', dest='pca_D', type=int, default=256, help='number of dimensions to keep for PCA (default: 256)')
     index_group.add_argument('--pca_data_udf', dest='pca_data_udf', type=str, default="deepsentibanktf_udf", help='module name from which to load a data loading UDF')
-    index_group.add_argument('--model_data_udf', dest='data_udf', type=str, default="deepsentibanktf_udf", help='module name from which to load a data loading UDF')
+    index_group.add_argument('--model_data_udf', dest='model_data_udf', type=str, default="deepsentibanktf_udf", help='module name from which to load a data loading UDF')
     # we need to maintain the id (sha1) for the codes computation
-    index_group.add_argument('--codes_data_udf', dest='data_udf', type=str, default="deepsentibanktf_udf_wid", help='module name from which to load a data loading UDF')
+    index_group.add_argument('--codes_data_udf', dest='codes_data_udf', type=str, default="deepsentibanktf_udf_wid", help='module name from which to load a data loading UDF')
     # Model hyperparameters
     # TODO: estimate good parameters given an amount of data to index?
     index_group.add_argument('--V', dest='V', type=int, default=16, help='number of coarse clusters')
@@ -1338,6 +1369,8 @@ if __name__ == '__main__':
     try:
         args = parser.parse_args()
         print "Got options:", args
+        # get global variable that could have been overwritten
+        feat_column_name = args.feat_column_name
         # Are these still relevant?
         max_ads_image_dig = args.max_ads_image_dig
         max_ads_image_hbase = args.max_ads_image_hbase
@@ -1406,11 +1439,11 @@ if __name__ == '__main__':
     if args.pca_data_udf:
         udf_module = __import__(args.pca_data_udf, fromlist=['udf'])
         load_udf = udf_module.udf
-        compute_pca(sc, args, data_load_fn=load_udf)
+        fullpca_params = compute_pca(sc, args, data_load_fn=load_udf)
     else:
-        compute_pca(sc, args)
+        fullpca_params = compute_pca(sc, args)
     # 3.2: reduce pca
-    reduce_pca(args)
+    reducedpca_params = reduce_pca(args, fullpca_params)
     # 3.3: build model
     # Initialize and validate
     model = None
@@ -1426,10 +1459,10 @@ if __name__ == '__main__':
         udf_module = __import__(args.model_data_udf, fromlist=['udf'])
         load_udf = udf_module.udf
         # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
-        data = load_data(sc, args, data_load_fn=load_udf)
+        data = load_data(sc, args, pca_params=reducedpca_params, data_load_fn=load_udf)
     else:
         # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
-        data = load_data(sc, args)
+        data = load_data(sc, args, pca_params=reducedpca_params)
 
     # Initialize parameters
     Cs = Rs = mus = subs = None
@@ -1457,19 +1490,10 @@ if __name__ == '__main__':
         subs = train_subquantizers(sc, data, args.M, args.subquantizer_clusters, model, seed=args.seed)
 
     # Final output model
-    if args.pca_reduce_output is not None:
-        # Check if we should get PCA model
-        print 'Loading PCA model from {}'.format(args.pca_reduce_output)
-        filename = copy_from_hdfs(args.pca_reduce_output)
-        params = pkl.load(open(filename))
-        # TODO: we should also remove tmp dir
-        os.remove(filename)
-        P = params['P']
-        mu = params['mu']
-        model = LOPQModelPCA(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs, P, mu))
-    else:
-        model = LOPQModel(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs))
-
+    P = reducedpca_params['P']
+    mu = reducedpca_params['mu']
+    model = LOPQModelPCA(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs, P, mu))
+    
     # Should we add the PCA Model to the LOPQModel?
     if args.model_pkl:
         print 'Saving model as pickle to {}'.format(args.model_pkl)
