@@ -689,7 +689,7 @@ def join_ingestion(hbase_man_sha1infos_join, ingest_rdd, options, ingest_rdd_cou
 
 def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_update_out, es_ts_start, es_ts_end, args):
     
-    print max_ads_image
+    #print max_ads_image
     ingestion_id = args.ingestion_id
 
     restart = args.restart
@@ -1237,6 +1237,10 @@ def set_missing_parameters(args):
         codes_output = args.base_hdfs_path+args.ingestion_id+'/images/index/lopq_codes'
         print 'Setting args.codes_output to {}'.format(codes_output)
         args.codes_output = codes_output
+    domain, es_ts_start, es_ts_end = parse_ingestion_id(args.ingestion_id)
+    args.es_domain = domain
+    args.es_ts_start = es_ts_start
+    args.es_ts_end = es_ts_end
     return args
 
 def adapt_parameters(args, nb_images):
@@ -1274,15 +1278,15 @@ if __name__ == '__main__':
 
     # Define ES related options
     es_group.add_argument("--es_host", dest="es_host", required=True)
-    es_group.add_argument("--es_domain", dest="es_domain", required=True)
     es_group.add_argument("--es_user", dest="es_user", required=True)
     es_group.add_argument("--es_pass", dest="es_pass", required=True)
     es_group.add_argument("--es_port", dest="es_port", default=9200)
     es_group.add_argument("--es_index", dest="es_index", default='memex-domains')
-    # deprecated should be detected from ingestion id.
-    #es_group.add_argument("--es_ts_start", dest="es_ts_start", help="start timestamp in ms", default=None)
-    #es_group.add_argument("--es_ts_end", dest="es_ts_end", help="end timestamp in ms", default=None)
     es_group.add_argument("--cdr_format", dest="cdr_format", choices=['v2', 'v3'], default='v2')
+    # deprecated, now detected from ingestion id.
+    es_group.add_argument("--es_domain", dest="es_domain", default=None)
+    es_group.add_argument("--es_ts_start", dest="es_ts_start", help="start timestamp in ms", default=None)
+    es_group.add_argument("--es_ts_end", dest="es_ts_end", help="end timestamp in ms", default=None)
     
     # Define features reulated options
     feat_group.add_argument("--feat_column_name", dest="feat_column_name", default=feat_column_name, help="column where features will be saved in HBase")
@@ -1290,6 +1294,7 @@ if __name__ == '__main__':
     # Define job related options
     job_group.add_argument("-i", "--ingestion_id", dest="ingestion_id", required=True)
     job_group.add_argument("-s", "--save", dest="save_inter_rdd", default=False, action="store_true")
+    job_group.add_argument("-r", "--restart", dest="restart", default=True, action="store_true")
     job_group.add_argument("-b", "--batch_update_size", dest="batch_update_size", type=int, default=default_batch_update_size)
     job_group.add_argument("--max_ads_image_dig", dest="max_ads_image_dig", type=int, default=max_ads_image_dig)
     job_group.add_argument("--max_ads_image_hbase", dest="max_ads_image_hbase", type=int, default=max_ads_image_hbase)
@@ -1327,7 +1332,7 @@ if __name__ == '__main__':
     index_group.add_argument('--pca_full_output', dest='pca_full_output', type=str, default=None, help='hdfs path to output pca pickle file of parameters')
     index_group.add_argument('--pca_reduce_output', dest='pca_reduce_output', type=str, default=None, help='hdfs path to output reduced pca pickle file of parameters')
     index_group.add_argument('--model_pkl', dest='model_pkl', type=str, default=None, help='hdfs path to save pickle file of resulting model parameters')
-    index_group.add_argument('--codes_output', dest='codes_output', type=str, default=None, required=True, help='hdfs path to codes output data')
+    index_group.add_argument('--codes_output', dest='codes_output', type=str, default=None, help='hdfs path to codes output data')
 
     # Parse
     try:
@@ -1341,7 +1346,7 @@ if __name__ == '__main__':
         print inst
         parser.print_help()
     ingestion_id = args.ingestion_id
-    domain, es_ts_start, es_ts_end = parse_ingestion_id(ingestion_id)
+    
 
     # Set missing parameters
     args = set_missing_parameters(args)
@@ -1377,7 +1382,7 @@ if __name__ == '__main__':
     start_step = time.time()
     sc.addPyFile(base_path_import+'/image_dl.py')
     # TODO: get number of unique images to tune parameters of indexing
-    nb_images = run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_update_out, es_ts_start, es_ts_end, args)
+    nb_images = run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_update_out, args.es_ts_start, args.es_ts_end, args)
     print "[STEP #1] Done in {:.2f}s. We have {} images.".format(time.time() - start_step, nb_images)
 
     # step 2: get features
