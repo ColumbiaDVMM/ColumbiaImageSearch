@@ -1546,6 +1546,7 @@ if __name__ == '__main__':
     else:
         compute_codes(sc, args)
     save_info_incremental_update(hbase_man_update_out, args.ingestion_id, args.codes_output, "lopq_codes_path")
+    # TODO. should we push back codes to HBase?
     print "[STEP #4] Done in {:.2f}s".format(time.time() - start_step)
 
     # try to ping back
@@ -1556,7 +1557,6 @@ if __name__ == '__main__':
             print '[PINGBACK] {}: {}'.format(ret, ret.content)
         except Exception as inst:
             print '[PINGBACK: error] {}'.format(inst)
-
 
     print "[DONE] Built index for ingestion {} in {}s.".format(ingestion_id, time.time() - start_time)
 
