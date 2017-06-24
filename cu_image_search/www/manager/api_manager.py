@@ -226,6 +226,7 @@ def check_project_indexing_finished(project_name):
                     data['projects'][project_name]['status'] == 'ready'
                 else:
                     logger.info('[check_project_indexing_finished: log] ingestion %s has completed but local copy failed...' % (ingestion_id))
+                    # for debugging store infos: row[config['image']['lopq_codes_column']], row[config['image']['lopq_model_column']]
             else: # else, 
                 # check the job is still running
                 job_id = data['projects'][project_name]['job_id']
@@ -237,6 +238,7 @@ def check_project_indexing_finished(project_name):
                     # mark project as failed?
                     logger.info('[check_project_indexing_finished: log] ingestion %s has failed...' % (ingestion_id))
                     data['projects'][project_name]['status'] = 'failed'
+                    # for debugging store info: output
         except Exception as inst:
             logger.error('[check_project_indexing_finished: error] {}'.format(inst))
                 
@@ -503,17 +505,31 @@ class Project(Resource):
             return rest.not_found()
         try:
             project_lock.acquire(project_name)
-            # remove:
+            # - get corresponding domain
+            domain_name = data['projects'][project_name]['domain']
+            # remove project:
             # - from current data dict
             del data['projects'][project_name]
             # - files associated with project
             shutil.rmtree(os.path.join(_get_project_dir_path(project_name)))
             # - from mongodb
             db_projects.delete_one({'project_name':project_name})
-            # if it's the last project from a domain, shoud we remove the domain?
             msg = 'project {} has been deleted'.format(project_name)
             logger.info(msg)
-            return rest.deleted(msg)
+            # if it's the last project from a domain, shoud we remove the domain?
+            # for now assume one project per domain and delete too
+            # remove domain:
+            # - from current data dict
+            del data['domains'][domain_name]
+            # - files associated with project
+            shutil.rmtree(os.path.join(_get_domain_dir_path(domain_name)))
+            # - from mongodb
+            db_domains.delete_one({'domain_name':domain_name})
+            # should we also clean up things in HDFS?...
+            msg2 = 'domain {} has been deleted'.format(domain_name)
+            logger.info(msg2)
+            # TODO: how to clean up apache conf file?
+            return rest.deleted(msg+' '+msg2)
         except Exception as e:
             logger.error('deleting project %s: %s' % (project_name, e.message))
             return rest.internal_error('deleting project %s error, halted.' % project_name)
