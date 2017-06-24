@@ -236,7 +236,7 @@ def check_project_indexing_finished(project_name):
                     # if it is not, the job failed... what should we do?
                     # mark project as failed?
                     logger.info('[check_project_indexing_finished: log] ingestion %s has failed...' % (ingestion_id))
-                    data['projects'][project_name]['status'] == 'failed'
+                    data['projects'][project_name]['status'] = 'failed'
         except Exception as inst:
             logger.error('[check_project_indexing_finished: error] {}'.format(inst))
                 
