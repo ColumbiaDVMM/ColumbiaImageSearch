@@ -123,7 +123,7 @@ def hdfs_file_exist(hdfs_file_path):
 
 def hdfs_single_file_exist(hdfs_file_path):
     out, err = check_hdfs_file(hdfs_file_path)
-    hdfs_file_exist = "No such file or directory" not in out
+    hdfs_file_exist = "No such file or directory" not in err
     return hdfs_file_exist
 
 def hdfs_file_failed(hdfs_file_path):

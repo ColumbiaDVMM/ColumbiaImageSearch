@@ -209,36 +209,40 @@ def check_project_indexing_finished(project_name):
         # look for columns lopq_model and lopd_codes in hbase update table row of this ingestion
         ingestion_id = data['projects'][project_name]['ingestion_id']
         logger.info('[check_project_indexing_finished: log] checking if ingestion %s has completed.' % (ingestion_id))
-        from happybase.connection import Connection
-        conn = Connection(config['image']['hbase_host'])
-        table = conn.table(config['image']['hbase_table_updates'])
-        columns=[config['image']['lopq_model_column'], config['image']['lopq_codes_column']]
-        row = table.row(ingestion_id, columns=columns)
-        # if found, copy to domain data folder
-        if len(row)==len(columns):
-            # copy codes first
-            local_codes_path = os.path.join(_get_domain_dir_path(data['projects'][project_name]['domain']), config['image']['lopq_codes_local_suffix'])
-            _copy_from_hdfs(row[config['image']['lopq_codes_column']], local_codes_path)
-            local_model_path = os.path.join(_get_domain_dir_path(data['projects'][project_name]['domain']), config['image']['lopq_model_local_suffix'])
-            _copy_from_hdfs(row[config['image']['lopq_model_column']], local_model_path)
-            if os.path.exists(local_codes_path) and os.path.exists(local_model_path):
-                data['projects'][project_name]['status'] == 'ready'
-            else:
-                logger.info('[check_project_indexing_finished: log] ingestion %s has completed but local copy failed...' % (ingestion_id))
-        else: # else, 
-            # check the job is still running
-            job_id = data['projects'][project_name]['job_id']
-            output = get_job_info(job_id)
-            if output['status'] == 'RUNNING':
-                pass # we just have to wait for the job to end
-            else:
-                # if it is not, the job failed... what should we do?
-                # mark project as failed?
-                data['projects'][project_name]['status'] == 'failed'
+        try:
+            from happybase.connection import Connection
+            conn = Connection(config['image']['hbase_host'])
+            table = conn.table(config['image']['hbase_table_updates'])
+            columns=[config['image']['lopq_model_column'], config['image']['lopq_codes_column']]
+            row = table.row(ingestion_id, columns=columns)
+            # if found, copy to domain data folder
+            if len(row)==len(columns):
+                # copy codes first
+                local_codes_path = os.path.join(_get_domain_dir_path(data['projects'][project_name]['domain']), config['image']['lopq_codes_local_suffix'])
+                _copy_from_hdfs(row[config['image']['lopq_codes_column']], local_codes_path)
+                local_model_path = os.path.join(_get_domain_dir_path(data['projects'][project_name]['domain']), config['image']['lopq_model_local_suffix'])
+                _copy_from_hdfs(row[config['image']['lopq_model_column']], local_model_path)
+                if os.path.exists(local_codes_path) and os.path.exists(local_model_path):
+                    data['projects'][project_name]['status'] == 'ready'
+                else:
+                    logger.info('[check_project_indexing_finished: log] ingestion %s has completed but local copy failed...' % (ingestion_id))
+            else: # else, 
+                # check the job is still running
+                job_id = data['projects'][project_name]['job_id']
+                output = get_job_info(job_id)
+                if output['status'] == 'RUNNING':
+                    pass # we just have to wait for the job to end
+                else:
+                    # if it is not, the job failed... what should we do?
+                    # mark project as failed?
+                    logger.info('[check_project_indexing_finished: log] ingestion %s has failed...' % (ingestion_id))
+                    data['projects'][project_name]['status'] == 'failed'
+        except Exception as inst:
+            logger.error('[check_project_indexing_finished: error] {}'.format(inst))
                 
 
 
-def check_domain_service(project_sources):
+def check_domain_service(project_sources, project_name):
     #logger.info('[check_domain_service: log] project_sources: %s' % (project_sources))
     # why is project_sources a list actually? Assume we want the first entry? Or loop?
     one_source = project_sources[0]
@@ -270,7 +274,7 @@ def check_domain_service(project_sources):
             ingestion_id = '-'.join([domain_name, str(start_ts), str(end_ts)])
             data['domains'][domain_name]['ingestion_id'].append(ingestion_id)
             # submit workflow with min(start_ts, stored_start_ts) and max(end_ts, stored_end_ts)
-            endpt = "/cuimgsearch_{}".format(domain_name)
+            endpt = "/cu_imgsearch_manager/projects/{}".format(project_name)
             pingback_url = config['image']['base_service_url']+endpt
             job_id = _submit_buildindex_worfklow(ingestion_id, data['domains'][domain_name]['table_sha1infos'], pingback_url)
             # add job_id to job_ids and save config
@@ -316,9 +320,11 @@ def check_domain_service(project_sources):
         config_json['ingestion_id'] = ingestion_id
         # setup service
         port, service_url = setup_service_url(domain_name)
+        endpt = "/cu_imgsearch_manager/projects/{}".format(project_name)
+        pingback_url = config['image']['base_service_url']+endpt
         # submit workflow to get images data
-        logger.info('[check_domain_service: log] submitting workflow with parameters: %s, %s, %s, %s, %s' % (start_ts, end_ts, config_json['HBI_table_sha1infos'], config_json['HBI_table_updatesinfos'], domain_name))
-        job_id = _submit_buildindex_worfklow(ingestion_id, config_json['HBI_table_sha1infos'], service_url)
+        logger.info('[check_domain_service: log] submitting workflow with parameters: %s, %s, %s' % (ingestion_id, config_json['HBI_table_sha1infos'], pingback_url))
+        job_id = _submit_buildindex_worfklow(ingestion_id, config_json['HBI_table_sha1infos'], pingback_url)
         # save job id to be able to check status?
         config_json['job_ids'] = job_id
         # write out new config file
@@ -408,7 +414,7 @@ class AllProjects(Resource):
                 f.write(json.dumps(data['projects'][project_name], indent=4, default=json_encode))
             # we should try to create a service for domain "sources:type" 
             # (or update it if timerange defined by "sources:start_date" and "sources:end_date" is bigger than existing)
-            ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources)
+            ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources, project_name)
             data['projects'][project_name]['domain'] = domain_name
             if ret==0:
                 msg = 'project %s created.' % project_name
@@ -476,7 +482,7 @@ class Project(Resource):
             project_lock.acquire(project_name)
             data['projects'][project_name]['master_config'] = project_sources
             # This would mean an update, we need to update the corresponding domain image similarity service
-            ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources)
+            ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources, project_name)
             return rest.created()
         except Exception as e:
             logger.error('Updating project %s: %s' % (project_name, e.message))
