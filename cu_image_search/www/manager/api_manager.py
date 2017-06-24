@@ -290,6 +290,7 @@ def check_domain_service(project_sources):
     else:
         domain_lock.acquire(domain_name)
         # if folder is empty copy data from config['image']['sample_dir_path']
+        # copy the whole folder
         logger.info('[check_domain_service: log] copying from %s to %s' % (config['image']['sample_dir_path'], domain_dir_path))
         try:
             if not os.path.isdir(config['image']['base_domain_dir_path']):
@@ -297,12 +298,13 @@ def check_domain_service(project_sources):
             shutil.copytree(config['image']['sample_dir_path'], domain_dir_path)
         except shutil.Error as inst:
             raise ValueError('Could not copy from template directory {} to {}. {}'.format(config['image']['sample_dir_path'], domain_dir_path, inst))
-        # edit config_file by replacing DOMAIN by the actual domain in :
-        # "ist_els_doc_type", "HBI_table_sha1infos", and "HBI_table_updatesinfos" (and "HBI_table_sim" ?)
+        # then copy sample config file
         source_conf = os.path.join(config['image']['host_repo_path'],config['image']['config_sample_filepath'])
-        config_file = os.path.join(config['image']['base_domain_dir_path'],config['image']['config_filepath'])
+        config_file = os.path.join(domain_dir_path,config['image']['config_filepath'])
         logger.info('[check_domain_service: log] copying config file from %s to %s' % (source_conf, config_file))
         shutil.copy(source_conf, config_file)
+        # edit config_file by replacing DOMAIN by the actual domain in :
+        # "ist_els_doc_type", "HBI_table_sha1infos", and "HBI_table_updatesinfos" (and "HBI_table_sim" ?)
         logger.info('[check_domain_service: log] loading config_file from %s' % (config_file))
         config_json = json.load(open(config_file,'rt'))
         # - HBI_table_sha1infos
@@ -310,20 +312,13 @@ def check_domain_service(project_sources):
         ingestion_id = '-'.join([domain_name, str(start_ts), str(end_ts)])
         # save that in project and domain infos too
         config_json['ingestion_id'] = ingestion_id
-        # submit workflow to get images data
-        logger.info('[check_domain_service: log] submitting workflow with parameters: %s, %s, %s, %s, %s' % (start_ts, end_ts, config_json['HBI_table_sha1infos'], config_json['HBI_table_updatesinfos'], domain_name))
-        job_id = _submit_buildindex_worfklow(ingestion_id, config_json['HBI_table_sha1infos'])
-        # save job id to be able to check status?
-        config_json['job_ids'] = job_id
         # setup service
         port, service_url = setup_service_url(domain_name)
-        data['domains'][domain_name] = {}
-        data['domains'][domain_name]['domain_name'] = domain_name
-        data['domains'][domain_name]['port'] = port
-        data['domains'][domain_name]['table_sha1infos'] = config_json['HBI_table_sha1infos']
-        data['domains'][domain_name]['service_url'] = service_url
-        data['domains'][domain_name]['job_ids'] = [job_id]
-        data['domains'][domain_name]['ingestion_id'] = [ingestion_id] # to allow for updates?
+        # submit workflow to get images data
+        logger.info('[check_domain_service: log] submitting workflow with parameters: %s, %s, %s, %s, %s' % (start_ts, end_ts, config_json['HBI_table_sha1infos'], config_json['HBI_table_updatesinfos'], domain_name))
+        job_id = _submit_buildindex_worfklow(ingestion_id, config_json['HBI_table_sha1infos'], service_url)
+        # save job id to be able to check status?
+        config_json['job_ids'] = job_id
         # write out new config file
         logger.info('[check_domain_service: log] updating config_file: %s' % config_file)
         with open(config_file, 'wt') as conf_out:
@@ -334,6 +329,14 @@ def check_domain_service(project_sources):
         command = '{}{} -p {} -d {}'.format(config['image']['host_repo_path'], config['image']['setup_docker_path'], port, domain_name)
         logger.info("[check_domain_service: log] Starting docker for domain {} with command: {}".format(domain_name, command))
         docker_proc = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE)
+        # store all infos of that domain
+        data['domains'][domain_name] = {}
+        data['domains'][domain_name]['domain_name'] = domain_name
+        data['domains'][domain_name]['port'] = port
+        data['domains'][domain_name]['table_sha1infos'] = config_json['HBI_table_sha1infos']
+        data['domains'][domain_name]['service_url'] = service_url
+        data['domains'][domain_name]['ingestion_id'] = [ingestion_id] # to allow for updates?
+        data['domains'][domain_name]['job_ids'] = [job_id]
         data['domains'][domain_name]['docker_name'] = 'columbia_university_search_similar_images_'+domain_name
         # insert in mongoDB
         db_domains.insert_one(data['domains'][domain_name])

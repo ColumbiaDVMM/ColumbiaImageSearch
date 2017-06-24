@@ -49,7 +49,7 @@ def build_images_workflow_payload_v2(start_ts, end_ts, table_sha1, table_update,
     payload += "</configuration>"
     return payload
 
-def build_images_index_workflow_payload(ingestion_id, table_sha1, workflow_path=build_images_index_workflow_path):
+def build_images_index_workflow_payload(ingestion_id, table_sha1, pingback_url, workflow_path=build_images_index_workflow_path):
     payload = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><configuration>"
     payload = append_property_toXML(payload, "user.name", "skaraman")
     payload = append_property_toXML(payload, "oozie.wf.application.path", workflow_path)
@@ -57,6 +57,7 @@ def build_images_index_workflow_payload(ingestion_id, table_sha1, workflow_path=
     payload = append_property_toXML(payload, "nameNode", "hdfs://memex")
     payload = append_property_toXML(payload, "INGESTION_ID", ingestion_id)
     payload = append_property_toXML(payload, "TABLE_SHA1", table_sha1)
+    payload = append_property_toXML(payload, "PINGBACK_URL", pingback_url)
     payload += "</configuration>"
     return payload
 

@@ -121,6 +121,10 @@ def hdfs_file_exist(hdfs_file_path):
     hdfs_file_exist = "_SUCCESS" in out
     return hdfs_file_exist
 
+def hdfs_single_file_exist(hdfs_file_path):
+    out, err = check_hdfs_file(hdfs_file_path)
+    hdfs_file_exist = "No such file or directory" not in out
+    return hdfs_file_exist
 
 def hdfs_file_failed(hdfs_file_path):
     out, err = check_hdfs_file(hdfs_file_path)
@@ -1144,7 +1148,7 @@ def train_subquantizers(sc, split_vecs, M, subquantizer_clusters, model, seed=No
     subquantizers = []
     # Spark job is respwaning during this phase...
     for split in xrange(M):
-        print 'Training subquantizers for split {} out of {}'.format(split, M)
+        print 'Training subquantizers for split {} out of {}'.format(split+1, M)
         data = split_vecs.map(lambda x: x[split])
         data.cache()
         sub = KMeans.train(data, subquantizer_clusters, initializationMode='random', maxIterations=10, seed=seed)
@@ -1236,7 +1240,7 @@ def compute_codes(sc, args, data_load_fn=default_data_loading):
     print 'LOPQModel is of type: {}'.format(type(model))
 
     # Load data
-    d = data_load_fn(sc, args.compute_data, args.sampling_ratio, args.seed)
+    d = data_load_fn(sc, args.compute_data, 1.0, args.seed) # No sampling allowed here
 
     # Distribute model instance
     m = sc.broadcast(model)
@@ -1244,7 +1248,7 @@ def compute_codes(sc, args, data_load_fn=default_data_loading):
     # Compute codes and convert to string
     codes = d.map(lambda x: (x[0], m.value.predict(x[1]))).map(lambda x: '%s\t%s' % (x[0], json.dumps(x[1])))
 
-    codes.saveAsTextFile(args.output)
+    codes.saveAsTextFile(args.codes_output)
 
 
 def parse_ingestion_id(ingestion_id):
@@ -1296,6 +1300,27 @@ def adapt_parameters(args, nb_images):
     # - subquantizer_sampling_ratio: default 1.0
     return args
 
+def get_pca_params(args):
+    # TODO try to load pca parameters if restart is true?
+    if args.pca_reduce_output:
+        try:
+            filename = copy_from_hdfs(args.pca_reduce_output)
+            reducedpca_params = pkl.load(open(filename))
+            os.remove(filename)
+            return reducedpca_params
+        except:
+            pass
+    # 3.1: compute pca
+    if args.pca_data_udf:
+        udf_module = __import__(args.pca_data_udf, fromlist=['udf'])
+        load_udf = udf_module.udf
+        fullpca_params = compute_pca(sc, args, data_load_fn=load_udf)
+    else:
+        fullpca_params = compute_pca(sc, args)
+    # 3.2: reduce pca
+    reducedpca_params = reduce_pca(args, fullpca_params)
+    return reducedpca_params
+
 ## MAIN
 if __name__ == '__main__':
     start_time = time.time()
@@ -1339,6 +1364,7 @@ if __name__ == '__main__':
     job_group.add_argument("-s", "--save", dest="save_inter_rdd", default=True, action="store_true")
     job_group.add_argument("-r", "--restart", dest="restart", default=True, action="store_true")
     job_group.add_argument("-b", "--batch_update_size", dest="batch_update_size", type=int, default=default_batch_update_size)
+    job_group.add_argument("-p", "--pingback_url", dest="pingback_url", type=str, default=None)
     job_group.add_argument("--max_ads_image_dig", dest="max_ads_image_dig", type=int, default=max_ads_image_dig)
     job_group.add_argument("--max_ads_image_hbase", dest="max_ads_image_hbase", type=int, default=max_ads_image_hbase)
     # should this be estimated from RDD counts actually?
@@ -1441,78 +1467,75 @@ if __name__ == '__main__':
     print "[STEP #2] Done in {:.2f}s".format(time.time() - start_step)
     
     # step 3: build index
-    # TODO try to load pca parameters if restart is true?
     args = adapt_parameters(args, nb_images)
-    start_step = time.time()
-    print "[STEP #3] Starting building index for ingestion_id: {}".format(ingestion_id)
     sc.addPyFile(base_path_import+'/index/memex_udf.py')
     sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf.py')
     sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf_wid.py')
-    # 3.1: compute pca
-    if args.pca_data_udf:
-        udf_module = __import__(args.pca_data_udf, fromlist=['udf'])
-        load_udf = udf_module.udf
-        fullpca_params = compute_pca(sc, args, data_load_fn=load_udf)
+
+    if hdfs_single_file_exist(args.model_pkl):
+        print "[STEP #3] lopq model already computed at {}".format(args.model_pkl)
     else:
-        fullpca_params = compute_pca(sc, args)
-    # 3.2: reduce pca
-    reducedpca_params = reduce_pca(args, fullpca_params)
-    # 3.3: build model
-    # Initialize and validate
-    model = None
-    args = validate_arguments(args, model)
+        start_step = time.time()
+        print "[STEP #3] Starting building index for ingestion_id: {}".format(ingestion_id)
+            
+        reducedpca_params = get_pca_params(args)
+        
+        # 3.3: build model
+        # Initialize and validate
+        model = None
+        args = validate_arguments(args, model)
 
-    # Build descriptive app name
-    get_step_name = lambda x: {STEP_COARSE: 'coarse', STEP_ROTATION: 'rotations', STEP_SUBQUANT: 'subquantizers'}.get(x, None)
-    steps_str = ', '.join(filter(lambda x: x is not None, map(get_step_name, sorted(args.steps))))
-    APP_NAME = 'LOPQ{V=%d,M=%d}; training %s' % (args.V, args.M, steps_str)
+        # Build descriptive app name
+        get_step_name = lambda x: {STEP_COARSE: 'coarse', STEP_ROTATION: 'rotations', STEP_SUBQUANT: 'subquantizers'}.get(x, None)
+        steps_str = ', '.join(filter(lambda x: x is not None, map(get_step_name, sorted(args.steps))))
+        APP_NAME = 'LOPQ{V=%d,M=%d}; training %s' % (args.V, args.M, steps_str)
 
-    # Load UDF module if provided and load training data RDD
-    if args.model_data_udf:
-        udf_module = __import__(args.model_data_udf, fromlist=['udf'])
-        load_udf = udf_module.udf
-        # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
-        data = load_data(sc, args, pca_params=reducedpca_params, data_load_fn=load_udf)
-    else:
-        # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
-        data = load_data(sc, args, pca_params=reducedpca_params)
+        # Load UDF module if provided and load training data RDD
+        if args.model_data_udf:
+            udf_module = __import__(args.model_data_udf, fromlist=['udf'])
+            load_udf = udf_module.udf
+            # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
+            data = load_data(sc, args, pca_params=reducedpca_params, data_load_fn=load_udf)
+        else:
+            # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
+            data = load_data(sc, args, pca_params=reducedpca_params)
 
-    # Initialize parameters
-    Cs = Rs = mus = subs = None
+        # Initialize parameters
+        Cs = Rs = mus = subs = None
 
-    # Get coarse quantizers
-    if STEP_COARSE in args.steps:
-        Cs = train_coarse(sc, data, args.V, seed=args.seed)
-    else:
-        Cs = model.Cs
+        # Get coarse quantizers
+        if STEP_COARSE in args.steps:
+            Cs = train_coarse(sc, data, args.V, seed=args.seed)
+        else:
+            Cs = model.Cs
 
-    # Get rotations
-    if STEP_ROTATION in args.steps:
-        Rs, mus, counts = train_rotations(sc, data, args.M, Cs)
-    else:
-        Rs = model.Rs
-        mus = model.mus
+        # Get rotations
+        if STEP_ROTATION in args.steps:
+            Rs, mus, counts = train_rotations(sc, data, args.M, Cs)
+        else:
+            Rs = model.Rs
+            mus = model.mus
 
-    # Get subquantizers
-    if STEP_SUBQUANT in args.steps:
-        model = LOPQModel(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, None))
+        # Get subquantizers
+        if STEP_SUBQUANT in args.steps:
+            model = LOPQModel(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, None))
 
-        if args.subquantizer_sampling_ratio != 1.0:
-            data = data.sample(False, args.subquantizer_sampling_ratio, args.seed)
+            if args.subquantizer_sampling_ratio != 1.0:
+                data = data.sample(False, args.subquantizer_sampling_ratio, args.seed)
 
-        subs = train_subquantizers(sc, data, args.M, args.subquantizer_clusters, model, seed=args.seed)
+            subs = train_subquantizers(sc, data, args.M, args.subquantizer_clusters, model, seed=args.seed)
 
-    # Final output model
-    P = reducedpca_params['P']
-    mu = reducedpca_params['mu']
-    model = LOPQModelPCA(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs, P, mu))
-    
-    # Should we add the PCA Model to the LOPQModel?
-    if args.model_pkl:
-        print 'Saving model as pickle to {}'.format(args.model_pkl)
-        save_hdfs_pickle(model, args.model_pkl)
-    save_info_incremental_update(hbase_man_update_out, args.ingestion_id, args.model_pkl, "lopq_model_pkl")
-    print "[STEP #3] Done in {:.2f}s".format(time.time() - start_step)
+        # Final output model
+        P = reducedpca_params['P']
+        mu = reducedpca_params['mu']
+        model = LOPQModelPCA(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs, P, mu))
+        
+        # Should we add the PCA Model to the LOPQModel?
+        if args.model_pkl:
+            print 'Saving model as pickle to {}'.format(args.model_pkl)
+            save_hdfs_pickle(model, args.model_pkl)
+        save_info_incremental_update(hbase_man_update_out, args.ingestion_id, args.model_pkl, "lopq_model_pkl")
+        print "[STEP #3] Done in {:.2f}s".format(time.time() - start_step)
 
     # step 4: compute codes
     start_step = time.time()
@@ -1524,6 +1547,16 @@ if __name__ == '__main__':
         compute_codes(sc, args)
     save_info_incremental_update(hbase_man_update_out, args.ingestion_id, args.codes_output, "lopq_codes_path")
     print "[STEP #4] Done in {:.2f}s".format(time.time() - start_step)
+
+    # try to ping back
+    if args.pingback_url is not None:
+        try:
+            import requests
+            ret = requests.get(args.pingback_url)
+            print '[PINGBACK] {}: {}'.format(ret, ret.content)
+        except Exception as inst:
+            print '[PINGBACK: error] {}'.format(inst)
+
 
     print "[DONE] Built index for ingestion {} in {}s.".format(ingestion_id, time.time() - start_time)
 
