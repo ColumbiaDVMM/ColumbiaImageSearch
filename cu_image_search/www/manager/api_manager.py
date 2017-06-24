@@ -16,7 +16,7 @@ from flask_restful import Resource, Api
 from config import config
 from locker import Locker
 import rest
-from oozie_job_manager import build_images_workflow_payload_v2, build_images_index_workflow_payload, submit_worfklow, get_job_info
+from oozie_job_manager import build_images_workflow_payload_v2, build_images_index_workflow_payload, submit_worfklow, get_job_info, rerun_job
 import pymongo
 from pymongo import MongoClient
 
@@ -122,6 +122,7 @@ def _submit_worfklow(start_ts, end_ts, table_sha1, table_update, domain):
 
 def _submit_buildindex_worfklow(ingestion_id, table_sha1infos, pingback_url):
     payload = build_images_index_workflow_payload(ingestion_id, table_sha1infos, pingback_url)
+    logger.info('[submit_worfklow: log] submitted payload for ingestion_id: {}'.format(payload))
     json_submit = submit_worfklow(payload)
     job_id = json_submit['id']
     logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
@@ -205,7 +206,7 @@ def get_start_end_ts(one_source):
 def check_project_indexing_finished(project_name):
     """Check if we can find lopq_model and lopd_codes.
     """
-    if data['projects'][project_name]['status'] == 'indexing':
+    if data['projects'][project_name]['status'] == 'indexing' or data['projects'][project_name]['status'] == 'rerunning':
         # look for columns lopq_model and lopd_codes in hbase update table row of this ingestion
         ingestion_id = data['projects'][project_name]['ingestion_id']
         logger.info('[check_project_indexing_finished: log] checking if ingestion %s has completed.' % (ingestion_id))
@@ -236,9 +237,16 @@ def check_project_indexing_finished(project_name):
                 else:
                     # if it is not, the job failed... what should we do?
                     # mark project as failed?
-                    logger.info('[check_project_indexing_finished: log] ingestion %s has failed...' % (ingestion_id))
-                    data['projects'][project_name]['status'] = 'failed'
-                    # for debugging store info: output
+                    if data['projects'][project_name]['status'] == 'indexing':
+                        # try to rerun once
+                        logger.info('[check_project_indexing_finished: log] rerunning ingestion %s who has failed once...' % (ingestion_id))
+                        rerun_output = rerun_job(job_id)
+                        logger.info('[check_project_indexing_finished: log] resubmission output was: {}'.format(rerun_output))
+                    elif data['projects'][project_name]['status'] == 'rerunning':
+                        logger.info('[check_project_indexing_finished: log] ingestion %s has failed twice...' % (ingestion_id))
+                        logger.info('[check_project_indexing_finished: log] job info output was: {}'.format(output))
+                        data['projects'][project_name]['status'] = 'failed'
+                        # for debugging store info: output
         except Exception as inst:
             logger.error('[check_project_indexing_finished: error] {}'.format(inst))
                 
@@ -529,6 +537,7 @@ class Project(Resource):
             msg2 = 'domain {} has been deleted'.format(domain_name)
             logger.info(msg2)
             # TODO: how to clean up apache conf file?
+            # TODO: stop and remove docker container?
             return rest.deleted(msg+' '+msg2)
         except Exception as e:
             logger.error('deleting project %s: %s' % (project_name, e.message))

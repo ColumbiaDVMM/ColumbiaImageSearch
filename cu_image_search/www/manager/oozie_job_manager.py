@@ -80,6 +80,15 @@ def get_job_info(job_id):
     #print json.dumps(output, indent=4, separators=(',', ': '))
     return output
 
+def rerun_job(job_id):
+    rerun_job_str = "/job/{}?action=rerun"
+    req = requests.put(oozie_url_v1+rerun_job_str.format(job_id))
+    #print req
+    output = req.json()
+    #print output
+    #print json.dumps(output, indent=4, separators=(',', ': '))
+    return output
+
 if __name__ == "__main__":
     day_to_process = "2017-04-21"
     table_sha1 = "escorts_images_sha1_infos_ext_dev"

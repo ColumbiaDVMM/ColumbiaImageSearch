@@ -824,19 +824,19 @@ def run_extraction(hbase_man_sha1infos_out, hbase_man_update_out, ingestion_id, 
         if hdfs_file_exist(out_rdd_wfeat_path):
             print "[run_extraction: log] out_rdd_wfeat already computed at {}".format(out_rdd_wfeat_path)
             return
-    else:
-        out_rdd = get_out_rdd(basepath_save)
-        # should it be x[1] is not None?
-        #out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x is not None)
-        out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x[1] is not None)
-        
-        # save to disk
-        save_rdd_json(basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
-        # save to hbase
-        save_out_rdd_wfeat_to_hbase(out_rdd_wfeat, hbase_man_sha1infos_out)
 
-        extraction_elapsed_time = time.time() - start_time 
-        save_info_incremental_update(hbase_man_update_out, ingestion_id, str(extraction_elapsed_time), "extraction_elapsed_time")
+    out_rdd = get_out_rdd(basepath_save)
+    # should it be x[1] is not None?
+    #out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x is not None)
+    out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x[1] is not None)
+    
+    # save to disk
+    save_rdd_json(basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
+    # save to hbase
+    save_out_rdd_wfeat_to_hbase(out_rdd_wfeat, hbase_man_sha1infos_out)
+
+    extraction_elapsed_time = time.time() - start_time 
+    save_info_incremental_update(hbase_man_update_out, ingestion_id, str(extraction_elapsed_time), "extraction_elapsed_time")
 
 # lopq helpers functions
 def save_hdfs_pickle(m, pkl_path):
