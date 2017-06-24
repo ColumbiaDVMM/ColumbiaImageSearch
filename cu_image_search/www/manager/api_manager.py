@@ -120,8 +120,8 @@ def _submit_worfklow(start_ts, end_ts, table_sha1, table_update, domain):
     return job_id
 
 
-def _submit_buildindex_worfklow(ingestion_id, table_sha1infos):
-    payload = build_images_index_workflow_payload(ingestion_id, table_sha1infos)
+def _submit_buildindex_worfklow(ingestion_id, table_sha1infos, pingback_url):
+    payload = build_images_index_workflow_payload(ingestion_id, table_sha1infos, pingback_url)
     json_submit = submit_worfklow(payload)
     job_id = json_submit['id']
     logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
@@ -146,6 +146,7 @@ def setup_service_url(domain_name):
     # build the proxypass rule for Apache 
     # TODO: should have all this predefined for domain1-4
     endpt = "/cuimgsearch_{}".format(domain_name)
+    service_url = config['image']['base_service_url']+endpt
     lurl = "http://localhost:{}/".format(port)
     proxypass_template = "\nProxyPass {}/ {}\nProxyPassReverse {}/ {}\n<Location {}>\n\tRequire all granted\n</Location>\n"
     proxypass_filled = proxypass_template.format(endpt, lurl, endpt, lurl, endpt)
@@ -172,7 +173,6 @@ def setup_service_url(domain_name):
         logger.info("[setup_service_url: log] Could not overwrite Apache conf file. {}".format(inst))
         raise IOError("Could not overwrite Apache conf file")
 
-    service_url = config['image']['base_service_url']+endpt
     return port, service_url    
 
 
@@ -270,7 +270,9 @@ def check_domain_service(project_sources):
             ingestion_id = '-'.join([domain_name, str(start_ts), str(end_ts)])
             data['domains'][domain_name]['ingestion_id'].append(ingestion_id)
             # submit workflow with min(start_ts, stored_start_ts) and max(end_ts, stored_end_ts)
-            job_id = _submit_buildindex_worfklow(ingestion_id, data['domains'][domain_name]['table_sha1infos'])
+            endpt = "/cuimgsearch_{}".format(domain_name)
+            pingback_url = config['image']['base_service_url']+endpt
+            job_id = _submit_buildindex_worfklow(ingestion_id, data['domains'][domain_name]['table_sha1infos'], pingback_url)
             # add job_id to job_ids and save config
             config_json['job_ids'].append(job_id)
             data['domains'][domain_name]['job_ids'].append(job_id)
