@@ -1364,7 +1364,7 @@ if __name__ == '__main__':
     job_group.add_argument("-s", "--save", dest="save_inter_rdd", default=True, action="store_true")
     job_group.add_argument("-r", "--restart", dest="restart", default=True, action="store_true")
     job_group.add_argument("-b", "--batch_update_size", dest="batch_update_size", type=int, default=default_batch_update_size)
-    job_group.add_argument("-p", "--pingback_url", dest="pingback_url", type=str, default=None)
+    job_group.add_argument("--pingback_url", dest="pingback_url", type=str, default=None)
     job_group.add_argument("--max_ads_image_dig", dest="max_ads_image_dig", type=int, default=max_ads_image_dig)
     job_group.add_argument("--max_ads_image_hbase", dest="max_ads_image_hbase", type=int, default=max_ads_image_hbase)
     # should this be estimated from RDD counts actually?
