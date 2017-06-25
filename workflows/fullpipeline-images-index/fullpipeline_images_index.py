@@ -81,6 +81,27 @@ def get_create_table(table_name, options, families={'info': dict()}):
     except Exception as inst:
         print inst
 
+
+def get_update_info(table_name, options, families={'info': dict()}):
+    try:
+        from happybase.connection import Connection
+        conn = Connection(options.hbase_ip)
+        try:
+            table = conn.table(table_name)
+            # this would fail if table does not exist
+            fam = table.families()
+            return table
+        # what exception would be raised if table does not exist, actually none.
+        # need to try to access families to get error
+        except Exception as inst:
+            print "[get_create_table: info] table {} does not exist (yet)".format(table_name)
+            conn.create_table(table_name, families)
+            table = conn.table(table_name)
+            print "[get_create_table: info] created table {}".format(table_name)
+            return table
+    except Exception as inst:
+        print inst
+
 ##-- General RDD I/O
 ##------------------
 
@@ -132,7 +153,7 @@ def hdfs_file_failed(hdfs_file_path):
     return hdfs_file_failed
 
 
-def load_rdd_json(basepath_save, rdd_name):
+def load_rdd_json(sc, basepath_save, rdd_name):
     rdd_path = basepath_save + "/" + rdd_name
     rdd = None
     try:
@@ -144,7 +165,7 @@ def load_rdd_json(basepath_save, rdd_name):
     return rdd
 
 
-def save_rdd_json(basepath_save, rdd_name, rdd, incr_update_id, hbase_man_update_out):
+def save_rdd_json(sc, basepath_save, rdd_name, rdd, incr_update_id, hbase_man_update_out):
     rdd_path = basepath_save + "/" + rdd_name
     if not rdd.isEmpty():
         try:
@@ -153,14 +174,14 @@ def save_rdd_json(basepath_save, rdd_name, rdd, incr_update_id, hbase_man_update
                 rdd.mapValues(json.dumps).saveAsSequenceFile(rdd_path)
             else:
                 print("[save_rdd_json] skipped saving rdd to {}. File already exists.".format(rdd_path))
-            save_info_incremental_update(hbase_man_update_out, incr_update_id, rdd_path, rdd_name+"_path")
+            save_info_incremental_update(sc, hbase_man_update_out, incr_update_id, rdd_path, rdd_name+"_path")
         except Exception as inst:
             print("[save_rdd_json: caught error] could not save rdd at {}, error was {}.".format(rdd_path, inst))
     else:
-        save_info_incremental_update(hbase_man_update_out, incr_update_id, "EMPTY", rdd_name+"_path")
+        save_info_incremental_update(sc, hbase_man_update_out, incr_update_id, "EMPTY", rdd_name+"_path")
 
 
-def save_info_incremental_update(hbase_man_update_out, incr_update_id, info_value, info_name):
+def save_info_incremental_update(sc, hbase_man_update_out, incr_update_id, info_value, info_name):
     print("[save_info_incremental_update] saving update info {}: {}".format(info_name, info_value))
     incr_update_infos_list = []
     incr_update_infos_list.append((incr_update_id, [incr_update_id, "info", info_name, str(info_value)]))
@@ -404,98 +425,6 @@ def get_existing_joined_sha1(data):
     return False
 
 
-##-- New images for features computation functions
-##---------------
-def build_batch_out(batch_update, incr_update_id, batch_id):
-    update_id = "index_update_"+incr_update_id+'_'+str(batch_id)
-    list_key = []
-    for x in batch_update:
-        list_key.append(x)
-    return [(update_id, [update_id, "info", "list_sha1s", ','.join(list_key)])]
-
-
-def save_new_sha1s_for_index_update_batchwrite(new_sha1s_rdd, hbase_man_update_out, batch_update_size, incr_update_id, total_batches, nb_batchwrite=32):
-    start_save_time = time.time()
-    # use toLocalIterator if new_sha1s_rdd would be really big and won't fit in the driver's memory
-    #iterator = new_sha1s_rdd.toLocalIterator()
-    iterator = new_sha1s_rdd.collect()
-    batch_update = []
-    batch_out = []
-    batch_id = 0
-    push_batches = False
-    for x in iterator:
-        batch_update.append(x)
-        if len(batch_update)==batch_update_size:
-            if batch_id > 0 and batch_id % nb_batchwrite == 0:
-                push_batches = True
-            try:
-                print("[save_new_sha1s_for_index_update_batchwrite] preparing batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_update[:10]))
-                batch_out.extend(build_batch_out(batch_update, incr_update_id, batch_id))
-                batch_id += 1
-            except Exception as inst:
-                print("[save_new_sha1s_for_index_update_batchwrite] Could not create/save batch {}. Error was: {}".format(batch_id, inst))
-            batch_update = []
-            if push_batches:
-                batch_out_rdd = sc.parallelize(batch_out)
-                print("[save_new_sha1s_for_index_update_batchwrite] saving {} batches of {} new images to HBase.".format(len(batch_out), batch_update_size))
-                hbase_man_update_out.rdd2hbase(batch_out_rdd)
-                batch_out = []
-                push_batches = False
-
-    # last batch
-    if batch_update:
-        try:    
-            print("[save_new_sha1s_for_index_update_batchwrite] will prepare and save last batch {}/{} starting with: {}".format(batch_id+1, total_batches, batch_update[:10]))
-            batch_out.extend(build_batch_out(batch_update, incr_update_id, batch_id))
-            batch_out_rdd = sc.parallelize(batch_out)
-            print("[save_new_sha1s_for_index_update_batchwrite] saving {} batches of {} new images to HBase.".format(len(batch_out), len(batch_update)))
-            hbase_man_update_out.rdd2hbase(batch_out_rdd)
-            #batch_rdd.unpersist()
-        except Exception as inst:
-            print("[save_new_sha1s_for_index_update_batchwrite] Could not create/save batch {}. Error was: {}".format(batch_id, inst))
-    print("[save_new_sha1s_for_index_update_batchwrite] DONE in {}s".format(time.time() - start_save_time))
-
-
-def save_new_images_for_index(basepath_save, out_rdd,  hbase_man_update_out, incr_update_id, args, new_images_to_index_str):
-    batch_update_size = args.batch_update_size
-
-    # save images without cu_feat_id that have not been discarded for indexing
-    new_images_to_index = out_rdd.filter(lambda x: "info:image_discarded" not in x[1] and "info:cu_feat_id" not in x[1])
-    
-    new_images_to_index_count = new_images_to_index.count()
-    print("[save_new_images_for_index] {}_count count: {}".format(new_images_to_index_str, new_images_to_index_count))
-    save_info_incremental_update(hbase_man_update_out, incr_update_id, new_images_to_index_count, new_images_to_index_str+"_count")
-
-    import numpy as np
-    total_batches = int(np.ceil(np.float32(new_images_to_index_count)/batch_update_size))
-    # partition to the number of batches?
-    # 'save_new_sha1s_for_index_update' uses toLocalIterator()
-    new_images_to_index_partitioned = new_images_to_index.partitionBy(total_batches)
-
-    # save to HDFS too
-    if args.save_inter_rdd:
-        try:
-            new_images_to_index_out_path = basepath_save + "/" + new_images_to_index_str
-            if not hdfs_file_exist(new_images_to_index_out_path):
-                print("[save_new_images_for_index] saving rdd to {}.".format(new_images_to_index_out_path))
-                new_images_to_index_partitioned.keys().saveAsTextFile(new_images_to_index_out_path)
-            else:
-                print("[save_new_images_for_index] skipped saving rdd to {}. File already exists.".format(new_images_to_index_out_path))
-            save_info_incremental_update(hbase_man_update_out, incr_update_id, new_images_to_index_out_path, new_images_to_index_str+"_path")
-        except Exception as inst:
-            print("[save_new_images_for_index] could not save rdd 'new_images_to_index' at {}, error was {}.".format(new_images_to_index_out_path, inst))
-
-    # save by batch in HBase to let the API know it needs to index these images    
-    print("[save_new_images_for_index] start saving by batches of {} new images.".format(batch_update_size))
-    # crashes in 'save_new_sha1s_for_index_update'?
-    #save_new_sha1s_for_index_update(new_images_to_index_partitioned.keys(), hbase_man_update_out, batch_update_size, incr_update_id, total_batches)
-    save_new_sha1s_for_index_update_batchwrite(new_images_to_index_partitioned.keys(), hbase_man_update_out, batch_update_size, incr_update_id, total_batches)
-    
-
-##---------------
-##-- END New images for features computation functions
-
-
 ##-- Amandeep RDDs I/O
 ##---------------
 
@@ -587,13 +516,13 @@ def build_query_CDR(es_ts_start, es_ts_end, args):
     return query
 
 
-def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, options, start_time):
+def get_s3url_adid_rdd(sc, basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, options, start_time):
     rdd_name = "s3url_adid_rdd"
     prefnout = "get_s3url_adid_rdd: "
 
     # Try to load from disk (always? or only if args.restart is true?)
     if args.restart:
-        s3url_adid_rdd = load_rdd_json(basepath_save, rdd_name)
+        s3url_adid_rdd = load_rdd_json(sc, basepath_save, rdd_name)
         if s3url_adid_rdd is not None:
             print("[{}log] {} loaded rdd from {}.".format(prefnout, rdd_name, basepath_save + "/" + rdd_name))
             return s3url_adid_rdd
@@ -633,11 +562,11 @@ def get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_
         print "[get_s3url_adid_rdd: ERROR] Unkown CDR format: {}".format(options.cdr_format)
 
     if args.save_inter_rdd:
-        save_rdd_json(basepath_save, rdd_name, s3url_adid_rdd, ingestion_id, hbase_man_update_out)
+        save_rdd_json(sc, basepath_save, rdd_name, s3url_adid_rdd, ingestion_id, hbase_man_update_out)
     return s3url_adid_rdd
 
 
-def save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, rdd_name):
+def save_out_rdd_to_hdfs(sc, basepath_save, out_rdd, hbase_man_update_out, ingestion_id, rdd_name):
     out_rdd_path = basepath_save + "/" + rdd_name
     try:
         if not hdfs_file_exist(out_rdd_path):
@@ -645,10 +574,10 @@ def save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion
             if not out_rdd_save.isEmpty():
                 # how to force overwrite here?
                 out_rdd_save.saveAsSequenceFile(out_rdd_path)
-                save_info_incremental_update(hbase_man_update_out, ingestion_id, out_rdd_path, rdd_name+"_path")
+                save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, out_rdd_path, rdd_name+"_path")
             else:
                 print("[save_out_rdd_to_hdfs] 'out_rdd_save' is empty.")
-                save_info_incremental_update(hbase_man_update_out, ingestion_id, "EMPTY", rdd_name+"_path")
+                save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, "EMPTY", rdd_name+"_path")
         else:
             print "[save_out_rdd_to_hdfs] Skipped saving out_rdd. File already exists at {}.".format(out_rdd_path)
     except Exception as inst:
@@ -692,7 +621,7 @@ def join_ingestion(hbase_man_sha1infos_join, ingest_rdd, options, ingest_rdd_cou
     return out_rdd
 
 
-def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_update_out, es_ts_start, es_ts_end, args):
+def run_ingestion(args):
     
     #print max_ads_image
     ingestion_id = args.ingestion_id
@@ -703,16 +632,47 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
     # TODO remove everything related to that, including save_new_images function
     #batch_update_size = args.batch_update_size
     ingest_rdd = None
-
+    
+    # Setup SparkContext    
+    sc = SparkContext(appName="ingest_images_"+ingestion_id+job_suffix)
+    conf = SparkConf()
+    log4j = sc._jvm.org.apache.log4j
+    log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
+        
     if args.restart and args.save_inter_rdd:
         # try to load from disk
-        ingest_rdd = load_rdd_json(basepath_save, "ingest_rdd")
+        # TODO: just check hdfs file exist and get images count from hbase.
+        ingest_rdd = load_rdd_json(sc, basepath_save, "ingest_rdd")
 
+    if ingest_rdd is not None:
+        print "[STEP #1] Images ingestion already performed for ingestion id: {}".format(args.ingestion_id)
+        # we could actually read that from hbase
+        ingest_rdd_count = ingest_rdd.count()
+        
     # if could not load, compute
-    if ingest_rdd is None:
+    else:
+        print "[STEP #1] Starting ingesting images for ingestion id: {}".format(args.ingestion_id)
+        start_step = time.time()
+
+        # Setup HBase managers
+        join_columns_list = [':'.join(x) for x in fields_list]
+        get_create_table(args.tab_sha1_infos_name, args)
+        hbase_fullhost = args.hbase_host+':'+str(args.hbase_port)
+        # only if we assume we can run updates...
+        hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_fullhost, args.tab_sha1_infos_name, columns_list=join_columns_list)
+        hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_sha1_infos_name)
+        get_create_table(args.tab_update_name, args)
+        hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
+        
+        # Setup ES manager
+        es_man = ES(sc, conf, args.es_index, args.es_domain, args.es_host, args.es_port, args.es_user, args.es_pass)
+        es_man.set_output_json()
+        es_man.set_read_metadata()
+
+        sc.addPyFile(base_path_import+'/image_dl.py')
         # get images from CDR, output format should be (s3_url, ad_id)
         # NB: later on we will load from disk from another job
-        s3url_adid_rdd = get_s3url_adid_rdd(basepath_save, es_man, es_ts_start, es_ts_end, hbase_man_update_out, ingestion_id, args, start_time)
+        s3url_adid_rdd = get_s3url_adid_rdd(sc, basepath_save, es_man, args.es_ts_start, args.es_ts_end, hbase_man_update_out, ingestion_id, args, start_time)
 
         if s3url_adid_rdd is None:
             print "No data retrieved!"
@@ -721,7 +681,7 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
         # reduce by key to download each image once
         s3url_adid_rdd_red = s3url_adid_rdd.flatMapValues(lambda x: [[x]]).reduceByKey(reduce_s3url_listadid)
         s3url_adid_rdd_red_count = s3url_adid_rdd_red.count()
-        save_info_incremental_update(hbase_man_update_out, args.ingestion_id, s3url_adid_rdd_red_count, "s3url_adid_rdd_red_count")
+        save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, s3url_adid_rdd_red_count, "s3url_adid_rdd_red_count")
 
         # process (compute SHA1, and reduce by SHA1)
         # repartition first based on s3url_adid_rdd_red_count?
@@ -737,23 +697,28 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
         print '[ingest_rdd: first] {}'.format(ingest_rdd.first())
         # save to disk
         if args.save_inter_rdd:
-            save_rdd_json(basepath_save, "ingest_rdd", ingest_rdd, ingestion_id, hbase_man_update_out)
+            save_rdd_json(sc, basepath_save, "ingest_rdd", ingest_rdd, ingestion_id, hbase_man_update_out)
+        sc.clearFiles()
 
-    ingest_rdd_count = ingest_rdd.count()
-    save_info_incremental_update(hbase_man_update_out, args.ingestion_id, ingest_rdd_count, "ingest_rdd_count")
+        ingest_rdd_count = ingest_rdd.count()
+        save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, ingest_rdd_count, "ingest_rdd_count")
 
-    
-    # join with existing sha1 (not needed for qpr...)
-    out_rdd = join_ingestion(hbase_man_sha1infos_join, ingest_rdd, args, ingest_rdd_count)
-    print '[out_rdd: first] {}'.format(out_rdd.first())
-    save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, "out_rdd")
-    save_out_rdd_to_hbase(out_rdd, hbase_man_sha1infos_out)
+        # join with existing sha1 (should not be needed for qpr...)
+        out_rdd = join_ingestion(hbase_man_sha1infos_join, ingest_rdd, args, ingest_rdd_count)
+        print '[out_rdd: first] {}'.format(out_rdd.first())
+        save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, "out_rdd")
+        save_out_rdd_to_hbase(out_rdd, hbase_man_sha1infos_out)
 
-    #if out_rdd is not None and not out_rdd.isEmpty():
-    #    save_new_images_for_index(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, args, "new_images_to_index")
+        #if out_rdd is not None and not out_rdd.isEmpty():
+        #    save_new_images_for_index(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, args, "new_images_to_index")
 
-    ingest_elapsed_time = time.time() - start_time 
-    save_info_incremental_update(hbase_man_update_out, ingestion_id, str(ingest_elapsed_time), "ingest_elapsed_time")
+        ingest_elapsed_time = time.time() - start_step 
+        print "[STEP #1] Done in {:.2f}s. We have {} images.".format(ingest_elapsed_time, nb_images)
+
+        save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, str(ingest_elapsed_time), "ingest_elapsed_time")
+        sc.clearFiles()
+
+    sc.stop()
     return ingest_rdd_count
 
 
@@ -814,29 +779,58 @@ def save_out_rdd_wfeat_to_hbase(out_rdd, hbase_man_sha1infos_out):
     else:
         print "[save_out_rdd_wfeat_to_hbase: log] 'out_rdd_wfeat' is None."
 
-def run_extraction(hbase_man_sha1infos_out, hbase_man_update_out, ingestion_id, args):
-    start_time = time.time()
+def run_extraction(args):
+    ingestion_id = args.ingestion_id
     basepath_save = args.base_hdfs_path+ingestion_id+'/images/info'
 
     if args.restart and args.save_inter_rdd:
         # check if features have been saved to disk
         out_rdd_wfeat_path = os.path.join(basepath_save, "out_rdd_wfeat")
         if hdfs_file_exist(out_rdd_wfeat_path):
-            print "[run_extraction: log] out_rdd_wfeat already computed at {}".format(out_rdd_wfeat_path)
+            print "[STEP #2] extraction out_rdd_wfeat already computed at {}".format(out_rdd_wfeat_path)
             return
 
+    # we do need to compute features
+    start_step = time.time()
+    print "[STEP #2] Starting features extraction for ingestion_id: {}".format(ingestion_id)
+    
+    # Setup SparkContext    
+    sc = SparkContext(appName="extract_features_"+ingestion_id+job_suffix)
+    conf = SparkConf()
+    log4j = sc._jvm.org.apache.log4j
+    log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
+    
+    # Setup HBase managers
+    get_create_table(args.tab_sha1_infos_name, args)
+    hbase_fullhost = args.hbase_host+':'+str(args.hbase_port)
+    hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_sha1_infos_name)
+    get_create_table(args.tab_update_name, args)
+    hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
+
+    # add needed files to spark context
+    sc.addPyFile(base_path_import+'/features/network.py')
+    sc.addPyFile(base_path_import+'/features/tfdeepsentibank.py')
+    sc.addFile(base_path_import+'/features/imagenet_mean.npy')
+    sc.addFile(base_path_import+'/features/tfdeepsentibank.npy')
+    
     out_rdd = get_out_rdd(basepath_save)
     # should it be x[1] is not None?
     #out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x is not None)
     out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x[1] is not None)
     
     # save to disk
-    save_rdd_json(basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
+    save_rdd_json(sc, basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
     # save to hbase
     save_out_rdd_wfeat_to_hbase(out_rdd_wfeat, hbase_man_sha1infos_out)
 
-    extraction_elapsed_time = time.time() - start_time 
-    save_info_incremental_update(hbase_man_update_out, ingestion_id, str(extraction_elapsed_time), "extraction_elapsed_time")
+    extraction_elapsed_time = time.time() - start_step 
+    print "[STEP #2] Done in {:.2f}s".format(extraction_elapsed_time)
+    save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, str(extraction_elapsed_time), "extraction_elapsed_time")
+    # clean up spark context
+    sc.clearFiles()
+    sc.stop()
+    
+    
 
 # lopq helpers functions
 def save_hdfs_pickle(m, pkl_path):
@@ -894,7 +888,8 @@ def compute_pca(sc, args, data_load_fn=default_data_loading):
 
     # Load data
     d = data_load_fn(sc, args.pca_data, args.sampling_ratio_pca, args.seed)
-    d.cache()
+    # is this causing issues?
+    #d.cache()
 
     # Determine the data dimension
     D = len(d.first())
@@ -920,7 +915,7 @@ def compute_pca(sc, args, data_load_fn=default_data_loading):
     }
 
     save_hdfs_pickle(params, args.pca_full_output)
-    d.unpersist()
+    #d.unpersist()
     return params
 
 
@@ -986,17 +981,17 @@ def train_coarse(sc, split_vecs, V, seed=None):
 
     # Cluster first split
     first = split_vecs.map(lambda x: x[0])
-    first.cache()
     print 'Total training set size: %d' % first.count()
     print 'Starting training coarse quantizer...'
+    first.cache()
     C0 = KMeans.train(first, V, initializationMode='random', maxIterations=10, seed=seed)
-    print '... done training coarse quantizer.'
     first.unpersist()
-
+    print '... done training coarse quantizer.'
+    
     # Cluster second split
     second = split_vecs.map(lambda x: x[1])
-    second.cache()
     print 'Starting training coarse quantizer...'
+    second.cache()
     C1 = KMeans.train(second, V, initializationMode='random', maxIterations=10, seed=seed)
     print '... done training coarse quantizer.'
     second.unpersist()
@@ -1300,17 +1295,19 @@ def adapt_parameters(args, nb_images):
     # - subquantizer_sampling_ratio: default 1.0
     return args
 
-def get_pca_params(args):
+def get_pca_params(sc, args):
     # TODO try to load pca parameters if restart is true?
-    if args.pca_reduce_output:
+    if args.pca_reduce_output and hdfs_single_file_exist(args.pca_reduce_output):
         try:
             filename = copy_from_hdfs(args.pca_reduce_output)
             reducedpca_params = pkl.load(open(filename))
             os.remove(filename)
+            print "[get_pca_params: log] loaded pca parameters from {}".format(args.pca_reduce_output)
             return reducedpca_params
         except:
             pass
     # 3.1: compute pca
+    print "[get_pca_params: log] computing full pca parameters"
     if args.pca_data_udf:
         udf_module = __import__(args.pca_data_udf, fromlist=['udf'])
         load_udf = udf_module.udf
@@ -1320,6 +1317,126 @@ def get_pca_params(args):
     # 3.2: reduce pca
     reducedpca_params = reduce_pca(args, fullpca_params)
     return reducedpca_params
+
+def run_build_index(nb_images, args):
+    args = adapt_parameters(args, nb_images)
+
+    if hdfs_single_file_exist(args.model_pkl):
+        print "[STEP #3] lopq model already computed at {}".format(args.model_pkl)
+    else:
+        start_step = time.time()
+        print "[STEP #3] Starting building index for ingestion_id: {}".format(args.ingestion_id)
+        
+        sc = SparkContext(appName="build_index_"+args.ingestion_id+job_suffix)
+        conf = SparkConf()
+        log4j = sc._jvm.org.apache.log4j
+        log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
+        
+        # Setup HBase manager
+        hbase_fullhost = args.hbase_host+':'+str(args.hbase_port)
+        get_create_table(args.tab_update_name, args)
+        hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
+
+        sc.addPyFile(base_path_import+'/index/memex_udf.py')
+        sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf.py')
+        sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf_wid.py')
+        reducedpca_params = get_pca_params(sc, args)
+        
+        # 3.3: build model
+        # Initialize and validate
+        model = None
+        args = validate_arguments(args, model)
+
+        # Build descriptive app name
+        get_step_name = lambda x: {STEP_COARSE: 'coarse', STEP_ROTATION: 'rotations', STEP_SUBQUANT: 'subquantizers'}.get(x, None)
+        steps_str = ', '.join(filter(lambda x: x is not None, map(get_step_name, sorted(args.steps))))
+        APP_NAME = 'LOPQ{V=%d,M=%d}; training %s' % (args.V, args.M, steps_str)
+
+        # Load UDF module if provided and load training data RDD
+        if args.model_data_udf:
+            udf_module = __import__(args.model_data_udf, fromlist=['udf'])
+            load_udf = udf_module.udf
+            # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
+            data = load_data(sc, args, pca_params=reducedpca_params, data_load_fn=load_udf)
+        else:
+            # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
+            data = load_data(sc, args, pca_params=reducedpca_params)
+
+        # Initialize parameters
+        Cs = Rs = mus = subs = None
+
+        # Get coarse quantizers
+        if STEP_COARSE in args.steps:
+            Cs = train_coarse(sc, data, args.V, seed=args.seed)
+        else:
+            Cs = model.Cs
+
+        # Get rotations
+        if STEP_ROTATION in args.steps:
+            Rs, mus, counts = train_rotations(sc, data, args.M, Cs)
+        else:
+            Rs = model.Rs
+            mus = model.mus
+
+        # Get subquantizers
+        if STEP_SUBQUANT in args.steps:
+            model = LOPQModel(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, None))
+
+            if args.subquantizer_sampling_ratio != 1.0:
+                data = data.sample(False, args.subquantizer_sampling_ratio, args.seed)
+
+            subs = train_subquantizers(sc, data, args.M, args.subquantizer_clusters, model, seed=args.seed)
+
+        # Final output model
+        P = reducedpca_params['P']
+        mu = reducedpca_params['mu']
+        model = LOPQModelPCA(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs, P, mu))
+        
+        # Should we add the PCA Model to the LOPQModel?
+        if args.model_pkl:
+            print 'Saving model as pickle to {}'.format(args.model_pkl)
+            save_hdfs_pickle(model, args.model_pkl)
+        save_info_incremental_update(sc, hbase_man_update_out, args.ingestion_id, args.model_pkl, "lopq_model_pkl")
+        build_index_elapsed_time = time.time() - start_step
+        print "[STEP #3] Done in {:.2f}s".format(build_index_elapsed_time)
+        save_info_incremental_update(sc, hbase_man_update_out, args.ingestion_id, build_index_elapsed_time, "build_index_elapsed_time")
+
+        # clean up spark context
+        sc.clearFiles()
+        sc.stop()
+
+    return args
+
+def run_compute_codes(args):
+
+    if hdfs_file_exist(args.codes_output):
+        print "[STEP #4] codes already computed at {}".format(args.codes_output)
+        return
+
+    start_step = time.time()
+    print "[STEP #4] Starting computing codes for ingestion {}".format(args.ingestion_id)
+    sc = SparkContext(appName="build_index_"+args.ingestion_id+job_suffix)
+    conf = SparkConf()
+    log4j = sc._jvm.org.apache.log4j
+    log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
+    
+    # Setup HBase manager
+    hbase_fullhost = args.hbase_host+':'+str(args.hbase_port)
+    get_create_table(args.tab_update_name, args)
+    hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
+
+    sc.addPyFile(base_path_import+'/index/memex_udf.py')
+    sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf_wid.py')
+        
+    if args.codes_data_udf:
+        udf_module = __import__(args.codes_data_udf, fromlist=['udf'])
+        load_udf = udf_module.udf
+        compute_codes(sc, args, data_load_fn=load_udf)
+    else:
+        compute_codes(sc, args)
+    save_info_incremental_update(sc, hbase_man_update_out, args.ingestion_id, args.codes_output, "lopq_codes_path")
+    # TODO. should we push back codes to HBase?
+    print "[STEP #4] Done in {:.2f}s".format(time.time() - start_step) 
 
 ## MAIN
 if __name__ == '__main__':
@@ -1416,138 +1533,25 @@ if __name__ == '__main__':
     except Exception as inst:
         print inst
         parser.print_help()
-    ingestion_id = args.ingestion_id
-    
 
     # Set missing parameters
     args = set_missing_parameters(args)
-    
-    # Setup SparkContext    
-    sc = SparkContext(appName="build_images_index_"+ingestion_id+job_suffix)
-    conf = SparkConf()
-    log4j = sc._jvm.org.apache.log4j
-    log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
-    
-    # Setup HBase managers
-    join_columns_list = [':'.join(x) for x in fields_list]
-    get_create_table(args.tab_sha1_infos_name, args)
-    hbase_fullhost = args.hbase_host+':'+str(args.hbase_port)
-    # only if we assume we can run updates...
-    hbase_man_sha1infos_join = HbaseManager(sc, conf, hbase_fullhost, args.tab_sha1_infos_name, columns_list=join_columns_list)
-    hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_sha1_infos_name)
-    get_create_table(args.tab_update_name, args)
-    hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
-    
-    # Setup ES manager
-    es_man = ES(sc, conf, args.es_index, args.es_domain, args.es_host, args.es_port, args.es_user, args.es_pass)
-    es_man.set_output_json()
-    es_man.set_read_metadata()
 
     ## Run
-    print "[START] Starting building index for ingestion id: {}".format(ingestion_id)
-    # save any needed info with calls like save_info_incremental_update(hbase_man_update_out, args.ingestion_id, ingest_rdd_count, "ingest_rdd_count")
-
-    # delete what is no longer needed after each step?
-    # step 1: get images
-    print "[STEP #1] Starting ingesting images for ingestion id: {}".format(ingestion_id)
-    start_step = time.time()
-    sc.addPyFile(base_path_import+'/image_dl.py')
-    # TODO: get number of unique images to tune parameters of indexing
-    nb_images = run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hbase_man_update_out, args.es_ts_start, args.es_ts_end, args)
-    print "[STEP #1] Done in {:.2f}s. We have {} images.".format(time.time() - start_step, nb_images)
-
+    print "[START] Starting building index for ingestion id: {}".format(args.ingestion_id)
+    
+    # step 1: get images, and count them
+    nb_images = run_ingestion(args)
+    
     # step 2: get features
-    start_step = time.time()
-    print "[STEP #2] Starting features extraction for ingestion_id: {}".format(ingestion_id)
-    sc.addPyFile(base_path_import+'/features/network.py')
-    sc.addPyFile(base_path_import+'/features/tfdeepsentibank.py')
-    sc.addFile(base_path_import+'/features/imagenet_mean.npy')
-    sc.addFile(base_path_import+'/features/tfdeepsentibank.npy')
-    run_extraction(hbase_man_sha1infos_out, hbase_man_update_out, ingestion_id, args)
-    print "[STEP #2] Done in {:.2f}s".format(time.time() - start_step)
+    run_extraction(args)
     
     # step 3: build index
-    args = adapt_parameters(args, nb_images)
-    sc.addPyFile(base_path_import+'/index/memex_udf.py')
-    sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf.py')
-    sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf_wid.py')
-
-    if hdfs_single_file_exist(args.model_pkl):
-        print "[STEP #3] lopq model already computed at {}".format(args.model_pkl)
-    else:
-        start_step = time.time()
-        print "[STEP #3] Starting building index for ingestion_id: {}".format(ingestion_id)
-            
-        reducedpca_params = get_pca_params(args)
-        
-        # 3.3: build model
-        # Initialize and validate
-        model = None
-        args = validate_arguments(args, model)
-
-        # Build descriptive app name
-        get_step_name = lambda x: {STEP_COARSE: 'coarse', STEP_ROTATION: 'rotations', STEP_SUBQUANT: 'subquantizers'}.get(x, None)
-        steps_str = ', '.join(filter(lambda x: x is not None, map(get_step_name, sorted(args.steps))))
-        APP_NAME = 'LOPQ{V=%d,M=%d}; training %s' % (args.V, args.M, steps_str)
-
-        # Load UDF module if provided and load training data RDD
-        if args.model_data_udf:
-            udf_module = __import__(args.model_data_udf, fromlist=['udf'])
-            load_udf = udf_module.udf
-            # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
-            data = load_data(sc, args, pca_params=reducedpca_params, data_load_fn=load_udf)
-        else:
-            # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
-            data = load_data(sc, args, pca_params=reducedpca_params)
-
-        # Initialize parameters
-        Cs = Rs = mus = subs = None
-
-        # Get coarse quantizers
-        if STEP_COARSE in args.steps:
-            Cs = train_coarse(sc, data, args.V, seed=args.seed)
-        else:
-            Cs = model.Cs
-
-        # Get rotations
-        if STEP_ROTATION in args.steps:
-            Rs, mus, counts = train_rotations(sc, data, args.M, Cs)
-        else:
-            Rs = model.Rs
-            mus = model.mus
-
-        # Get subquantizers
-        if STEP_SUBQUANT in args.steps:
-            model = LOPQModel(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, None))
-
-            if args.subquantizer_sampling_ratio != 1.0:
-                data = data.sample(False, args.subquantizer_sampling_ratio, args.seed)
-
-            subs = train_subquantizers(sc, data, args.M, args.subquantizer_clusters, model, seed=args.seed)
-
-        # Final output model
-        P = reducedpca_params['P']
-        mu = reducedpca_params['mu']
-        model = LOPQModelPCA(V=args.V, M=args.M, subquantizer_clusters=args.subquantizer_clusters, parameters=(Cs, Rs, mus, subs, P, mu))
-        
-        # Should we add the PCA Model to the LOPQModel?
-        if args.model_pkl:
-            print 'Saving model as pickle to {}'.format(args.model_pkl)
-            save_hdfs_pickle(model, args.model_pkl)
-        save_info_incremental_update(hbase_man_update_out, args.ingestion_id, args.model_pkl, "lopq_model_pkl")
-        print "[STEP #3] Done in {:.2f}s".format(time.time() - start_step)
+    # this could adapt some parameters based on the number of images, so we get args back
+    args = run_build_index(nb_images, args)
 
     # step 4: compute codes
-    start_step = time.time()
-    if args.codes_data_udf:
-        udf_module = __import__(args.codes_data_udf, fromlist=['udf'])
-        load_udf = udf_module.udf
-        compute_codes(sc, args, data_load_fn=load_udf)
-    else:
-        compute_codes(sc, args)
-    save_info_incremental_update(hbase_man_update_out, args.ingestion_id, args.codes_output, "lopq_codes_path")
-    # TODO. should we push back codes to HBase?
-    print "[STEP #4] Done in {:.2f}s".format(time.time() - start_step)
+    run_compute_codes(args)
 
     # try to ping back
     if args.pingback_url is not None:
@@ -1558,5 +1562,5 @@ if __name__ == '__main__':
         except Exception as inst:
             print '[PINGBACK: error] {}'.format(inst)
 
-    print "[DONE] Built index for ingestion {} in {}s.".format(ingestion_id, time.time() - start_time)
+    print "[DONE] Built index for ingestion {} in {}s.".format(args.ingestion_id, time.time() - start_time)
 

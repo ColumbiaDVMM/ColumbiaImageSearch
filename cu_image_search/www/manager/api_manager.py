@@ -218,6 +218,7 @@ def check_project_indexing_finished(project_name):
             row = table.row(ingestion_id, columns=columns)
             # if found, copy to domain data folder
             if len(row)==len(columns):
+                logger.info('[check_project_indexing_finished: log] ingestion %s looks completed' % (ingestion_id))
                 # copy codes first
                 local_codes_path = os.path.join(_get_domain_dir_path(data['projects'][project_name]['domain']), config['image']['lopq_codes_local_suffix'])
                 _copy_from_hdfs(row[config['image']['lopq_codes_column']], local_codes_path)
