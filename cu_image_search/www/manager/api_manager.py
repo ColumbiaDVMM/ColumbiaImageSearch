@@ -185,7 +185,7 @@ def add_proxypass_to_conf(inconf, proxypass_filled):
 
 def setup_service_url(domain_name):
     # attribute a port (how to make sure it is free? for now just assume it is)
-    if 'ports' not in data:
+    if 'ports' not in data or len(data['ports']) == 0:
         port = config['image']['first_port'] 
         data['ports'] = []
     else:
