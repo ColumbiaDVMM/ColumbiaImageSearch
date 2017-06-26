@@ -180,7 +180,7 @@ def add_proxypass_to_conf(inconf, proxypass_filled):
         # add the new rule before the end
         if line.strip()=='</VirtualHost>':
             outconf_str += proxypass_filled 
-        outconf_str += line
+        outconf_str += line+'\n'
     return outconf_str
 
 def setup_service_url(domain_name):
