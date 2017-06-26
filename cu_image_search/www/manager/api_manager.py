@@ -88,6 +88,7 @@ def initialize_data_fromdb():
                     data['ports'].append(domain[key])
     # reset apache conf
     reset_apache_conf()
+    restart_apache()
     # restart dockers
     for domain_name in data['domains']:
         start_docker(data['domains'][domain_name]['port'], domain_name)
@@ -148,7 +149,7 @@ def reset_apache_conf():
     outconf_str = ""
     with open(inconf_file, 'rt') as inconf:
         for line in inconf:
-            outconf_str += line
+            outconf_str += line+'\n'
     for domain_name in data['domains']:
         port = data['domains'][domain_name]['port']
         proxypass_filled, service_url = fill_proxypass(domain_name, port)
