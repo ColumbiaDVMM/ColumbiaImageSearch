@@ -315,7 +315,7 @@ def check_domain_service(project_sources, project_name):
             err_msg = 'service exists for domain: %s, but creation seems incomplete.' % (domain_name)
             logger.error('[check_domain_service: error] '+err_msg)
             domain_lock.release(domain_name)
-            return -1, domain_name, err_msg
+            return -1, domain_name, None, None, err_msg
         new_start_ts = min(start_ts, config_json['start_ts'])
         new_end_ts = max(end_ts, config_json['end_ts'])
         if new_start_ts < config_json['start_ts'] or new_end_ts > config_json['end_ts']:
