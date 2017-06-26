@@ -259,6 +259,7 @@ def check_project_indexing_finished(project_name):
                 if os.path.exists(local_codes_path) and os.path.exists(local_model_path):
                     data['projects'][project_name]['status'] == 'ready'
                 else:
+                    data['projects'][project_name]['status'] == 'failed'
                     logger.info('[check_project_indexing_finished: log] ingestion %s has completed but local copy failed...' % (ingestion_id))
                     # for debugging store infos: row[config['image']['lopq_codes_column']], row[config['image']['lopq_model_column']]
             else: # else, 
@@ -552,6 +553,13 @@ class Project(Resource):
             project_lock.acquire(project_name)
             # - get corresponding domain
             domain_name = data['projects'][project_name]['domain']
+            # - delete ingestion_id row from hbase updates table
+            # should we delete corresponding files on HDFS?
+            ingestion_id = data['projects'][project_name]['ingestion_id']
+            from happybase.connection import Connection
+            conn = Connection(config['image']['hbase_host'])
+            table = conn.table(config['image']['hbase_table_updates'])
+            table.delete(ingestion_id)
             # remove project:
             # - from current data dict
             del data['projects'][project_name]

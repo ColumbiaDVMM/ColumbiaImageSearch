@@ -698,15 +698,14 @@ def run_ingestion(args):
         # save to disk
         if args.save_inter_rdd:
             save_rdd_json(sc, basepath_save, "ingest_rdd", ingest_rdd, ingestion_id, hbase_man_update_out)
-        sc.clearFiles()
-
+        
         ingest_rdd_count = ingest_rdd.count()
         save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, ingest_rdd_count, "ingest_rdd_count")
 
         # join with existing sha1 (should not be needed for qpr...)
         out_rdd = join_ingestion(hbase_man_sha1infos_join, ingest_rdd, args, ingest_rdd_count)
         print '[out_rdd: first] {}'.format(out_rdd.first())
-        save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, "out_rdd")
+        save_out_rdd_to_hdfs(sc, basepath_save, out_rdd, hbase_man_update_out, ingestion_id, "out_rdd")
         save_out_rdd_to_hbase(out_rdd, hbase_man_sha1infos_out)
 
         #if out_rdd is not None and not out_rdd.isEmpty():
