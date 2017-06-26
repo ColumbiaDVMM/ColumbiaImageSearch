@@ -506,6 +506,7 @@ class Project(Resource):
         if project_name not in data['projects']:
             return rest.not_found()
         check_project_indexing_finished(project_name)
+        logger.info('Getting project %s, dict keys are %s' % (project_name, data['projects'][project_name].keys()))
         return data['projects'][project_name]
 
 
