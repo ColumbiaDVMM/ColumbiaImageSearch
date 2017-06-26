@@ -149,7 +149,7 @@ def reset_apache_conf():
     outconf_str = ""
     with open(inconf_file, 'rt') as inconf:
         for line in inconf:
-            outconf_str += line+'\n'
+            outconf_str += line
     for domain_name in data['domains']:
         port = data['domains'][domain_name]['port']
         proxypass_filled, service_url = fill_proxypass(domain_name, port)
