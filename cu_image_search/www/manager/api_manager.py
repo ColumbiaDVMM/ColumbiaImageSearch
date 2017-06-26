@@ -87,7 +87,7 @@ def initialize_data_fromdb():
                     data['ports'] = [domain[key]]
                 else:
                     data['ports'].append(domain[key])
-        logger.info('Loaded domain %s, dict keys are %s' % (domain['domain_name'], data['projects'][domain['domain_name']].keys()))
+        logger.info('Loaded domain %s, dict keys are %s' % (domain['domain_name'], data['domains'][domain['domain_name']].keys()))
     # reset apache conf
     reset_apache_conf()
     restart_apache()
