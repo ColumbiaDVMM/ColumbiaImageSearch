@@ -72,14 +72,14 @@ def initialize_data_fromdb():
         data['projects'][project['project_name']] = dict()
         for key in project:
             # id is an object that is not JSON serializable
-            if key != u'_id' and key != '_id':
+            if str(key).strip() != '_id':
                 data['projects'][project['project_name']][key] = project[key]
     for domain in db_domains.find():
         logger.info('loading domain from mongodb: {}'.format(domain))
         data['domains'][domain['domain_name']] = dict()
         for key in domain:
             # id is an object that is not JSON serializable
-            if key != u'_id' and key != '_id':
+            if str(key).strip() != '_id':
                 data['domains'][domain['domain_name']][key] = domain[key]
             if key == 'port': 
                 if 'ports' not in data:
