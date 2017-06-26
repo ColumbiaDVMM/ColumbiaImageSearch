@@ -471,7 +471,7 @@ def amandeep_jsonstr_to_dict(x):
     return out_dict
 
 
-def get_out_rdd(basepath_save):
+def get_out_rdd(sc, basepath_save):
     '''Read the out_rdd if it exists.'''
     rdd_name = "out_rdd"
     out_rdd_path = basepath_save + "/" + rdd_name
@@ -712,12 +712,13 @@ def run_ingestion(args):
         #    save_new_images_for_index(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, args, "new_images_to_index")
 
         ingest_elapsed_time = time.time() - start_step 
-        print "[STEP #1] Done in {:.2f}s. We have {} images.".format(ingest_elapsed_time, nb_images)
-
+        print "[STEP #1] Done in {:.2f}s. We have {} images.".format(ingest_elapsed_time, ingest_rdd_count)
         save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, str(ingest_elapsed_time), "ingest_elapsed_time")
+    
         sc.clearFiles()
 
     sc.stop()
+        
     return ingest_rdd_count
 
 
@@ -812,7 +813,7 @@ def run_extraction(args):
     sc.addFile(base_path_import+'/features/imagenet_mean.npy')
     sc.addFile(base_path_import+'/features/tfdeepsentibank.npy')
     
-    out_rdd = get_out_rdd(basepath_save)
+    out_rdd = get_out_rdd(sc, basepath_save)
     # should it be x[1] is not None?
     #out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x is not None)
     out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x[1] is not None)

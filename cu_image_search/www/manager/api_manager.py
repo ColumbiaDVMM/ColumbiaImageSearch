@@ -74,6 +74,7 @@ def initialize_data_fromdb():
             # id is an object that is not JSON serializable
             if str(key).strip() != '_id':
                 data['projects'][project['project_name']][key] = project[key]
+        logger.info('Loaded project %s, dict keys are %s' % (project['project_name'], data['projects'][project['project_name']].keys()))
     for domain in db_domains.find():
         logger.info('loading domain from mongodb: {}'.format(domain))
         data['domains'][domain['domain_name']] = dict()
@@ -86,6 +87,7 @@ def initialize_data_fromdb():
                     data['ports'] = [domain[key]]
                 else:
                     data['ports'].append(domain[key])
+        logger.info('Loaded domain %s, dict keys are %s' % (domain['domain_name'], data['projects'][domain['domain_name']].keys()))
     # reset apache conf
     reset_apache_conf()
     restart_apache()
@@ -474,7 +476,7 @@ class AllProjects(Resource):
                 db_projects.insert_one(data['projects'][project_name])
                 try:
                     return rest.created(msg)
-                finally: # still executed before returning...
+                finally:
                     restart_apache()
             elif ret==1:
                 msg = 'domain for project %s was already previously created. %s' % (project_name, err)
@@ -555,6 +557,7 @@ class Project(Resource):
             domain_name = data['projects'][project_name]['domain']
             # - delete ingestion_id row from hbase updates table
             # should we delete corresponding files on HDFS?
+            # delete hbase table sha1_infos?
             ingestion_id = data['projects'][project_name]['ingestion_id']
             from happybase.connection import Connection
             conn = Connection(config['image']['hbase_host'])
