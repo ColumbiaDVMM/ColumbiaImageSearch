@@ -86,6 +86,11 @@ def initialize_data_fromdb():
                     data['ports'] = [domain[key]]
                 else:
                     data['ports'].append(domain[key])
+    # reset apache conf
+    reset_apache_conf()
+    # restart dockers
+    for domain_name in data['domains']:
+        start_docker(data['domains'][domain_name]['port'], domain_name)
 
 
 @app.after_request
@@ -136,6 +141,47 @@ def parse_isodate_to_ts(input_date):
     return calendar.timegm(parsed_date.utctimetuple())*1000
 
 
+def reset_apache_conf():
+    # for each domain create proxypass and add it to initial conf file
+    # read initial apache conf file up to '</VirtualHost>'
+    inconf_file = config['image']['in_apache_conf_file']
+    outconf_str = ""
+    with open(inconf_file, 'rt') as inconf:
+        for line in inconf:
+            outconf_str += line
+    for domain_name in data['domains']:
+        port = data['domains'][domain_name]['port']
+        proxypass_filled, service_url = fill_proxypass(domain_name, port)
+        logger.info("[setup_service_url: log] updating Apache conf with: {}".format(proxypass_filled))
+        outconf_str = add_proxypass_to_conf(outconf_str.split('\n'), proxypass_filled)
+    write_out_apache_conf(outconf_str)
+
+def write_out_apache_conf(outconf_str):
+    try:
+        with open(config['image']['out_apache_conf_file'], 'wt') as outconf:
+            outconf.write(outconf_str)
+    except Exception as inst:
+        logger.info("[setup_service_url: log] Could not overwrite Apache conf file. {}".format(inst))
+        raise IOError("Could not overwrite Apache conf file")
+
+
+def fill_proxypass(domain_name, port):
+    endpt = "/cuimgsearch_{}".format(domain_name)
+    service_url = config['image']['base_service_url']+endpt
+    lurl = "http://localhost:{}/".format(port)
+    proxypass_template = "\nProxyPass {}/ {}\nProxyPassReverse {}/ {}\n<Location {}>\n\tRequire all granted\n</Location>\n"
+    proxypass_filled = proxypass_template.format(endpt, lurl, endpt, lurl, endpt)
+    return proxypass_filled, service_url
+
+def add_proxypass_to_conf(inconf, proxypass_filled):
+    outconf_str = ""
+    for line in inconf:
+        # add the new rule before the end
+        if line.strip()=='</VirtualHost>':
+            outconf_str += proxypass_filled 
+        outconf_str += line
+    return outconf_str
+
 def setup_service_url(domain_name):
     # attribute a port (how to make sure it is free? for now just assume it is)
     if 'ports' not in data:
@@ -146,33 +192,18 @@ def setup_service_url(domain_name):
     data['ports'].append(port)
     # build the proxypass rule for Apache 
     # TODO: should have all this predefined for domain1-4
-    endpt = "/cuimgsearch_{}".format(domain_name)
-    service_url = config['image']['base_service_url']+endpt
-    lurl = "http://localhost:{}/".format(port)
-    proxypass_template = "\nProxyPass {}/ {}\nProxyPassReverse {}/ {}\n<Location {}>\n\tRequire all granted\n</Location>\n"
-    proxypass_filled = proxypass_template.format(endpt, lurl, endpt, lurl, endpt)
+    proxypass_filled, service_url = fill_proxypass(domain_name, port)
     logger.info("[setup_service_url: log] updating Apache conf with: {}".format(proxypass_filled))
     # read apache conf file up to '</VirtualHost>'
-    outconf_str = ""
     inconf_file = config['image']['in_apache_conf_file']
     # check if we already setup one domain...
     if os.path.isfile(config['image']['out_apache_conf_file']): 
         # start from there
         inconf_file = config['image']['out_apache_conf_file']
     with open(inconf_file, 'rt') as inconf:
-        for line in inconf:
-            # add the new rule before the end
-            if line.strip()=='</VirtualHost>':
-                outconf_str += proxypass_filled 
-            outconf_str += line
+        outconf_str = add_proxypass_to_conf(inconf, proxypass_filled)
     # overwrite conf file
-    # this would fail if api is not running with sudo...
-    try:
-        with open(config['image']['out_apache_conf_file'], 'wt') as outconf:
-            outconf.write(outconf_str)
-    except Exception as inst:
-        logger.info("[setup_service_url: log] Could not overwrite Apache conf file. {}".format(inst))
-        raise IOError("Could not overwrite Apache conf file")
+    write_out_apache_conf(outconf_str)
 
     return port, service_url    
 
@@ -251,6 +282,13 @@ def check_project_indexing_finished(project_name):
         except Exception as inst:
             logger.error('[check_project_indexing_finished: error] {}'.format(inst))
                 
+
+def start_docker(port, domain_name):
+    # call start_docker_columbia_image_search_qpr.sh with the right domain and port
+    # this can take a while if the docker image was not build yet... 
+    command = '{}{} -p {} -d {}'.format(config['image']['host_repo_path'], config['image']['setup_docker_path'], port, domain_name)
+    logger.info("[check_domain_service: log] Starting docker for domain {} with command: {}".format(domain_name, command))
+    docker_proc = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE)
 
 
 def check_domain_service(project_sources, project_name):
@@ -343,11 +381,7 @@ def check_domain_service(project_sources, project_name):
         with open(config_file, 'wt') as conf_out:
             conf_out.write(json.dumps(config_json))
         logger.info('[check_domain_service: log] wrote config_file: %s' % config_file)
-        # call start_docker_columbia_image_search_qpr.sh with the right domain and port
-        # this can take a while if the docker image was not build yet... Should we do this asynchronously?
-        command = '{}{} -p {} -d {}'.format(config['image']['host_repo_path'], config['image']['setup_docker_path'], port, domain_name)
-        logger.info("[check_domain_service: log] Starting docker for domain {} with command: {}".format(domain_name, command))
-        docker_proc = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE)
+        start_docker(port, domain_name)
         # store all infos of that domain
         data['domains'][domain_name] = {}
         data['domains'][domain_name]['domain_name'] = domain_name
@@ -528,6 +562,11 @@ class Project(Resource):
             logger.info(msg)
             # if it's the last project from a domain, shoud we remove the domain?
             # for now assume one project per domain and delete too
+            # stop and remove docker container
+            docker_name = data['domains'][domain_name]['docker_name']
+            subproc = sub.Popen("sudo docker stop {}; sudo docker rm {}".format(docker_name, docker_name), shell=True)
+            # cleanup ports list
+            data['ports'].remove(data['domains'][domain_name]['port'])
             # remove domain:
             # - from current data dict
             del data['domains'][domain_name]
@@ -538,8 +577,9 @@ class Project(Resource):
             # should we also clean up things in HDFS?...
             msg2 = 'domain {} has been deleted'.format(domain_name)
             logger.info(msg2)
-            # TODO: how to clean up apache conf file?
-            # TODO: stop and remove docker container?
+            # regenerate apache conf from scratch for domains that are still active.
+            reset_apache_conf()
+
             return rest.deleted(msg+' '+msg2)
         except Exception as e:
             logger.error('deleting project %s: %s' % (project_name, e.message))
