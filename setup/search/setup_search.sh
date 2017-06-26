@@ -21,8 +21,8 @@ then
 	echo "Installing python packages"
 	pip install --upgrade pip
 	pip install setuptools
-	pip install -U --user -r ${repo_path}/requirements.txt
 	# run it twice because it seems to fail the first time sometimes...
+	pip install --user -r ${repo_path}/requirements.txt
 	pip install --user -r ${repo_path}/requirements.txt
 	# we should also install modified lopq version...
 	cd ${repo_path}/${path_lopq}
