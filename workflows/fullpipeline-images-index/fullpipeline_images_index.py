@@ -901,6 +901,8 @@ def compute_pca(sc, args, data_load_fn=default_data_loading):
     mu = mu / float(count)
 
     # Compute covariance estimator
+    # change args.agg_depth value to scale better?
+    # see: https://github.com/yahoo/lopq/tree/master/spark
     summed_covar = d.treeAggregate(np.zeros((D, D)), seqOp, combOp, depth=args.agg_depth)
 
     A = summed_covar / (count - 1) - np.outer(mu, mu)
@@ -1295,8 +1297,8 @@ def adapt_parameters(args, nb_images):
     # - subquantizer_sampling_ratio: default 1.0
     return args
 
-def get_pca_params(sc, args):
-    # TODO try to load pca parameters if restart is true?
+def get_pca_params(args):
+    # Try to load pca parameters
     if args.pca_reduce_output and hdfs_single_file_exist(args.pca_reduce_output):
         try:
             filename = copy_from_hdfs(args.pca_reduce_output)
@@ -1306,7 +1308,16 @@ def get_pca_params(sc, args):
             return reducedpca_params
         except:
             pass
+
     # 3.1: compute pca
+    # setup spark context
+    sc = SparkContext(appName="compute_pca_"+args.ingestion_id+job_suffix)
+    conf = SparkConf()
+    log4j = sc._jvm.org.apache.log4j
+    log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
+    sc.addPyFile(base_path_import+'/index/memex_udf.py')
+    sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf.py')
+        
     print "[get_pca_params: log] computing full pca parameters"
     if args.pca_data_udf:
         udf_module = __import__(args.pca_data_udf, fromlist=['udf'])
@@ -1316,6 +1327,10 @@ def get_pca_params(sc, args):
         fullpca_params = compute_pca(sc, args)
     # 3.2: reduce pca
     reducedpca_params = reduce_pca(args, fullpca_params)
+
+    # cleanup
+    sc.clearFiles()
+    sc.stop()
     return reducedpca_params
 
 def run_build_index(nb_images, args):
@@ -1327,21 +1342,22 @@ def run_build_index(nb_images, args):
         start_step = time.time()
         print "[STEP #3] Starting building index for ingestion_id: {}".format(args.ingestion_id)
         
+        reducedpca_params = get_pca_params(args)
+        
         sc = SparkContext(appName="build_index_"+args.ingestion_id+job_suffix)
         conf = SparkConf()
         log4j = sc._jvm.org.apache.log4j
         log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
+        sc.addPyFile(base_path_import+'/index/memex_udf.py')
+        sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf.py')
+        # just for compute codes
+        #sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf_wid.py')
         
         # Setup HBase manager
         hbase_fullhost = args.hbase_host+':'+str(args.hbase_port)
         get_create_table(args.tab_update_name, args)
         hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
 
-        sc.addPyFile(base_path_import+'/index/memex_udf.py')
-        sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf.py')
-        sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf_wid.py')
-        reducedpca_params = get_pca_params(sc, args)
-        
         # 3.3: build model
         # Initialize and validate
         model = None
@@ -1437,6 +1453,9 @@ def run_compute_codes(args):
     save_info_incremental_update(sc, hbase_man_update_out, args.ingestion_id, args.codes_output, "lopq_codes_path")
     # TODO. should we push back codes to HBase?
     print "[STEP #4] Done in {:.2f}s".format(time.time() - start_step) 
+    # cleanup
+    sc.clearFiles()
+    sc.stop()
 
 ## MAIN
 if __name__ == '__main__':
@@ -1494,7 +1513,8 @@ if __name__ == '__main__':
 
     # Define index related options
     index_group.add_argument('--seed', dest='seed', type=int, default=None, help='optional random seed')
-    index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=4, help='depth of tree aggregation to compute covariance estimator')
+    #index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=4, help='depth of tree aggregation to compute covariance estimator')
+    index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=8, help='depth of tree aggregation to compute covariance estimator')
     index_group.add_argument('--pca_D', dest='pca_D', type=int, default=256, help='number of dimensions to keep for PCA (default: 256)')
     index_group.add_argument('--pca_data_udf', dest='pca_data_udf', type=str, default="deepsentibanktf_udf", help='module name from which to load a data loading UDF')
     index_group.add_argument('--model_data_udf', dest='model_data_udf', type=str, default="deepsentibanktf_udf", help='module name from which to load a data loading UDF')

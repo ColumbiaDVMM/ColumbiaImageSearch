@@ -4,6 +4,7 @@
         "HBI_table_sha1infos":"images_summerqpr2017_DOMAIN_sha1_infos",
         "HBI_extractions_types":["sentibank_tf"],
         "HBI_extractions_columns":["info:featnorm_tf"],
+        "LI_sentibank_path":"/home/ubuntu/memex/update/data/",
         "FE_features_dim":4096,
         "SE_sim_limit":1000,
         "SE_near_dup":true,
