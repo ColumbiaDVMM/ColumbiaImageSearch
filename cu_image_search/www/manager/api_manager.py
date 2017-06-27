@@ -401,7 +401,10 @@ def check_domain_service(project_sources, project_name):
         data['domains'][domain_name]['job_ids'] = [job_id]
         data['domains'][domain_name]['docker_name'] = 'columbia_university_search_similar_images_'+domain_name
         # insert in mongoDB
+        # this actually modifies data['domains'][domain_name] and inserts _id???
         db_domains.insert_one(data['domains'][domain_name])
+        if '_id' in data['domains'][domain_name]:
+            del data['domains'][domain_name]['_id']
         domain_lock.release(domain_name)
         
         # we will restart apache AFTER returning
@@ -479,7 +482,7 @@ class AllProjects(Resource):
                 data['projects'][project_name]['status'] = 'indexing'
                 # insert into mongoDB
                 logger.info('Project %s (before mongodb insertion) dict keys are %s' % (project_name, data['projects'][project_name].keys()))
-                db_projects.insert_one(data['projects'][project_name]).inserted_id
+                db_projects.insert_one(data['projects'][project_name])
                 logger.info('Project %s (after mongodb insertion) dict keys are %s' % (project_name, data['projects'][project_name].keys()))
                 # How come data['projects'][project_name] has an '_id' field now???
                 if '_id' in data['projects'][project_name]:
