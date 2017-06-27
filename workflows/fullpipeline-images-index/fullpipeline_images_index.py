@@ -41,6 +41,14 @@ max_ads_image = 20000
 max_samples_per_partition = 10000
 max_samples_per_partition_wfeat = 2000
 default_partitions_nb = 240
+# for adapt_paramterers
+default_subqpow = 0.25
+default_img_per_cell = 10000
+default_minV = 16
+default_max_samples_pca = 1000000
+default_max_samples_model = 5000000
+default_max_samples_subq = 5000000
+
 day_gap = 86400000 # One day
 valid_url_start = 'https://s3' 
 
@@ -1398,14 +1406,30 @@ def set_missing_parameters(args):
     return args
 
 def adapt_parameters(args, nb_images):
+    # parameters to be added:
+    # args.subqpow = 0.25
+    # arg.img_per_cell = 10000
+    # arg.minV = 16
+    # args.max_samples_pca = 1000000
+    # args.max_samples_model = 5000000
+    # args.max_samples_subq = 5000000
     # TODO: we could adapt the following parameters to optimize speed/quality
     # - V: default 16
+    # some heuristics to set this parameters so they scale with data
+    args.V = np.max(np.ceil(np.sqrt(nb_images/args.img_per_cell)),args.minV)
     # - M: default 8
     # - subquantizer_clusters: 256
+    args.subquantizer_clusters = np.max(np.ceil(2*np.power(nb_images,args.subqpow)),args.subquantizer_clusters)
+    # set this value such that we do not use more than 1M samples?
     # - sampling_ratio_pca: default 1.0
+    args.sampling_ratio_pca = np.min(args.max_samples_pca/nb_images, 1.0)
+    # set those values such that we do not use more than 5M samples?
     # - sampling_ratio_model: default 1.0
+    args.sampling_ratio_model = np.min(args.max_samples_model/nb_images, 1.0)
     # - subquantizer_sampling_ratio: default 1.0
-    # also args.agg_depth?
+    args.subquantizer_sampling_ratio = np.min(args.max_samples_subq/nb_images, 1.0)
+    # - args.agg_depth?
+    print '[adapt_parameters: log] {}'.format(args)
     return args
 
 def get_pca_params(args):
@@ -1644,11 +1668,17 @@ if __name__ == '__main__':
     # TODO: estimate good parameters given an amount of data to index?
     index_group.add_argument('--V', dest='V', type=int, default=16, help='number of coarse clusters')
     index_group.add_argument('--M', dest='M', type=int, default=8, help='total number of subquantizers')
-    index_group.add_argument('--subquantizer_clusters', dest='subquantizer_clusters', type=int, default=256, help='number of subquantizer clusters')
+    index_group.add_argument('--subquantizer_clusters', dest='subquantizer_clusters', type=int, default=256, help='number of subquantizer clusters (default: 256)')
     # Ratios could also be determined based on number of samples
     index_group.add_argument('--sampling_ratio_pca', dest='sampling_ratio_pca', type=float, default=1.0, help='proportion of data to sample for pca training')
     index_group.add_argument('--sampling_ratio_model', dest='sampling_ratio_model', type=float, default=1.0, help='proportion of data to sample for training')
     index_group.add_argument('--subquantizer_sampling_ratio', dest='subquantizer_sampling_ratio', type=float, default=1.0, help='proportion of data to subsample for subquantizer training')
+    index_group.add_argument('--subqpow', dest='subqpow', type=float, default=default_subqpow, help='power to be applied for subsampling for subquantizer training')
+    index_group.add_argument('--img_per_cell', dest='img_per_cell', type=int, default=default_img_per_cell, help='max number of images per cell to adapat V')
+    index_group.add_argument('--minV', dest='minV', type=int, default=default_minV, help='minimum value of V')
+    index_group.add_argument('--max_samples_pca', dest='max_samples_pca', type=int, default=default_max_samples_pca, help='maximum number of samples to train PCA')
+    index_group.add_argument('--max_samples_model', dest='max_samples_model', type=int, default=default_max_samples_model, help='maximum number of samples to train model')
+    index_group.add_argument('--max_samples_subq', dest='max_samples_subq', type=int, default=default_max_samples_subq, help='maximum number of samples to train subquantizers')
     # Training and output directives
     index_group.add_argument('--steps', dest='steps', type=str, default='0,1,2', help='comma-separated list of integers indicating which steps of training to perform')
     # TODO: All these should be build from ingestion_id
@@ -1705,6 +1735,8 @@ if __name__ == '__main__':
             print '[PINGBACK] {}: {}'.format(ret, ret.content)
         except Exception as inst:
             print '[PINGBACK: error] {}'.format(inst)
+
+    # save features to HBase for reranking here if needed.
 
     print "[DONE] Built index for ingestion {} in {}s.".format(args.ingestion_id, time.time() - start_time)
 
