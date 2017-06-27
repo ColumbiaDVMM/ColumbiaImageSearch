@@ -1443,6 +1443,17 @@ def get_pca_params(args):
 def run_build_index(nb_images, args):
     args = adapt_parameters(args, nb_images)
 
+    sc = SparkContext(appName="build_index_"+args.ingestion_id+job_suffix)
+    conf = SparkConf()
+    log4j = sc._jvm.org.apache.log4j
+    log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)    
+
+    # Setup HBase manager
+    hbase_fullhost = args.hbase_host+':'+str(args.hbase_port)
+    get_create_table(args.tab_update_name, args)
+    hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
+
+
     if hdfs_single_file_exist(args.model_pkl):
         print "[STEP #3] lopq model already computed at {}".format(args.model_pkl)
     else:
@@ -1451,20 +1462,11 @@ def run_build_index(nb_images, args):
         
         reducedpca_params = get_pca_params(args)
         
-        sc = SparkContext(appName="build_index_"+args.ingestion_id+job_suffix)
-        conf = SparkConf()
-        log4j = sc._jvm.org.apache.log4j
-        log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
         sc.addPyFile(base_path_import+'/index/memex_udf.py')
         sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf.py')
         # just for compute codes
         #sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf_wid.py')
         
-        # Setup HBase manager
-        hbase_fullhost = args.hbase_host+':'+str(args.hbase_port)
-        get_create_table(args.tab_update_name, args)
-        hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
-
         # 3.3: build model
         # Initialize and validate
         model = None
@@ -1520,49 +1522,52 @@ def run_build_index(nb_images, args):
             print 'Saving model as pickle to {}'.format(args.model_pkl)
             save_hdfs_pickle(model, args.model_pkl)
 
-        save_info_incremental_update(sc, hbase_man_update_out, args.ingestion_id, args.model_pkl, "lopq_model_pkl")
         build_index_elapsed_time = time.time() - start_step
         print "[STEP #3] Done in {:.2f}s".format(build_index_elapsed_time)
         save_info_incremental_update(sc, hbase_man_update_out, args.ingestion_id, build_index_elapsed_time, "build_index_elapsed_time")
 
         # clean up spark context
         sc.clearFiles()
-        sc.stop()
+    
+    save_info_incremental_update(sc, hbase_man_update_out, args.ingestion_id, args.model_pkl, "lopq_model_pkl")
+    sc.stop()
 
     return args
 
 def run_compute_codes(args):
 
-    if hdfs_file_exist(args.codes_output):
-        print "[STEP #4] codes already computed at {}".format(args.codes_output)
-        return
-
-    start_step = time.time()
-    print "[STEP #4] Starting computing codes for ingestion {}".format(args.ingestion_id)
-    sc = SparkContext(appName="build_index_"+args.ingestion_id+job_suffix)
+    sc = SparkContext(appName="compute_codes_"+args.ingestion_id+job_suffix)
     conf = SparkConf()
     log4j = sc._jvm.org.apache.log4j
     log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
-    
+
     # Setup HBase manager
     hbase_fullhost = args.hbase_host+':'+str(args.hbase_port)
     get_create_table(args.tab_update_name, args)
     hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
-
-    sc.addPyFile(base_path_import+'/index/memex_udf.py')
-    sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf_wid.py')
-        
-    if args.codes_data_udf:
-        udf_module = __import__(args.codes_data_udf, fromlist=['udf'])
-        load_udf = udf_module.udf
-        compute_codes(sc, args, data_load_fn=load_udf)
+    
+    if hdfs_file_exist(args.codes_output):
+        print "[STEP #4] codes already computed at {}".format(args.codes_output)
     else:
-        compute_codes(sc, args)
+        start_step = time.time()
+        print "[STEP #4] Starting computing codes for ingestion {}".format(args.ingestion_id)
+        
+        sc.addPyFile(base_path_import+'/index/memex_udf.py')
+        sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf_wid.py')
+            
+        if args.codes_data_udf:
+            udf_module = __import__(args.codes_data_udf, fromlist=['udf'])
+            load_udf = udf_module.udf
+            compute_codes(sc, args, data_load_fn=load_udf)
+        else:
+            compute_codes(sc, args)
+        
+        # TODO. should we push back codes to HBase?
+        print "[STEP #4] Done in {:.2f}s".format(time.time() - start_step) 
+        # cleanup
+        sc.clearFiles()
+
     save_info_incremental_update(sc, hbase_man_update_out, args.ingestion_id, args.codes_output, "lopq_codes_path")
-    # TODO. should we push back codes to HBase?
-    print "[STEP #4] Done in {:.2f}s".format(time.time() - start_step) 
-    # cleanup
-    sc.clearFiles()
     sc.stop()
 
 ## MAIN

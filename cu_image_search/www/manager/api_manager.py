@@ -275,7 +275,7 @@ def check_project_indexing_finished(project_name):
                     # mark project as failed?
                     if data['projects'][project_name]['status'] == 'indexing':
                         # try to rerun once
-                        logger.info('[check_project_indexing_finished: log] rerunning ingestion %s who has failed once...' % (ingestion_id))
+                        logger.info('[check_project_indexing_finished: log] rerunning ingestion %s which has failed once...' % (ingestion_id))
                         endpt = "/cu_imgsearch_manager/projects/{}".format(project_name)
                         pingback_url = config['image']['base_service_url']+endpt
                         domain_name = data['projects'][project_name]['domain']
@@ -476,7 +476,7 @@ class AllProjects(Resource):
                 data['projects'][project_name]['job_id'] = job_id
                 data['projects'][project_name]['status'] = 'indexing'
                 # insert into mongoDB
-                db_projects.insert_one(data['projects'][project_name])
+                db_projects.insert_one(data['projects'][project_name]).inserted_id
                 try:
                     return rest.created(msg)
                 finally:
@@ -535,6 +535,7 @@ class Project(Resource):
             data['projects'][project_name]['master_config'] = project_sources
             # This would mean an update, we need to update the corresponding domain image similarity service
             ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources, project_name)
+            logger.info('Posted project %s, dict keys are %s' % (project_name, data['projects'][project_name].keys()))
             return rest.created()
         except Exception as e:
             logger.error('Updating project %s: %s' % (project_name, e.message))
