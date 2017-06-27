@@ -477,6 +477,7 @@ class AllProjects(Resource):
                 data['projects'][project_name]['status'] = 'indexing'
                 # insert into mongoDB
                 db_projects.insert_one(data['projects'][project_name]).inserted_id
+                logger.info('Posted project %s, dict keys are %s' % (project_name, data['projects'][project_name].keys()))
                 try:
                     return rest.created(msg)
                 finally:
@@ -535,7 +536,7 @@ class Project(Resource):
             data['projects'][project_name]['master_config'] = project_sources
             # This would mean an update, we need to update the corresponding domain image similarity service
             ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources, project_name)
-            logger.info('Posted project %s, dict keys are %s' % (project_name, data['projects'][project_name].keys()))
+            logger.info('Updated project %s, dict keys are %s' % (project_name, data['projects'][project_name].keys()))
             return rest.created()
         except Exception as e:
             logger.error('Updating project %s: %s' % (project_name, e.message))
