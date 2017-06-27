@@ -61,6 +61,19 @@ def build_images_index_workflow_payload(ingestion_id, table_sha1, pingback_url, 
     payload += "</configuration>"
     return payload
 
+def build_images_index_workflow_payload_rerun(ingestion_id, table_sha1, pingback_url, workflow_path=build_images_index_workflow_path):
+    payload = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><configuration>"
+    payload = append_property_toXML(payload, "user.name", "skaraman")
+    payload = append_property_toXML(payload, "oozie.wf.application.path", workflow_path)
+    payload = append_property_toXML(payload, "jobTracker", "memex-rm.xdata.data-tactics-corp.com:8032")
+    payload = append_property_toXML(payload, "nameNode", "hdfs://memex")
+    payload = append_property_toXML(payload, "oozie.wf.rerun.skip.nodes", "")
+    payload = append_property_toXML(payload, "INGESTION_ID", ingestion_id)
+    payload = append_property_toXML(payload, "TABLE_SHA1", table_sha1)
+    payload = append_property_toXML(payload, "PINGBACK_URL", pingback_url)
+    payload += "</configuration>"
+    return payload
+
 # # submit a workflow
 def submit_worfklow(payload):
     headers = {'Content-Type': 'application/xml'}
@@ -75,16 +88,31 @@ def get_job_info(job_id):
     get_job_info_str = "/job/{}?show=info"
     req = requests.get(oozie_url_v1+get_job_info_str.format(job_id))
     #print req
-    output = req.json()
+    if req.status_code == 200:
+        output = req.json()
+    else:
+        output = req
     #print output
     #print json.dumps(output, indent=4, separators=(',', ': '))
     return output
 
-def rerun_job(job_id):
+
+def rerun_job(job_id, ingestion_id, table_sha1, pingback_url):
+    # This does not work yet. Get status code 400 with message 'The request sent by the client was syntactically incorrect'
+    # we need payload here?
+    payload = build_images_index_workflow_payload_rerun(ingestion_id, table_sha1, pingback_url, workflow_path=build_images_index_workflow_path)
+    headers = {'Content-Type': 'application/xml;charset=UTF-8'}
     rerun_job_str = "/job/{}?action=rerun"
-    req = requests.put(oozie_url_v1+rerun_job_str.format(job_id))
+    request_rerun = oozie_url_v1+rerun_job_str.format(job_id)
+    print request_rerun
+    print payload
+    req = requests.put(request_rerun, data=payload, headers=headers)
+    if req.status_code == 200:
+        output = req.json()
+    else:
+        output = req
     #print req
-    output = req.json()
+    #output = req.json()
     #print output
     #print json.dumps(output, indent=4, separators=(',', ': '))
     return output

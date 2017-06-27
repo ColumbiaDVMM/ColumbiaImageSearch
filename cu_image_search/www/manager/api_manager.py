@@ -276,7 +276,10 @@ def check_project_indexing_finished(project_name):
                     if data['projects'][project_name]['status'] == 'indexing':
                         # try to rerun once
                         logger.info('[check_project_indexing_finished: log] rerunning ingestion %s who has failed once...' % (ingestion_id))
-                        rerun_output = rerun_job(job_id)
+                        endpt = "/cu_imgsearch_manager/projects/{}".format(project_name)
+                        pingback_url = config['image']['base_service_url']+endpt
+                        domain_name = data['projects'][project_name]['domain']
+                        rerun_output = rerun_job(job_id, data['projects'][project_name]['ingestion_id'], data['domains'][domain_name]['table_sha1infos'], pingback_url)
                         logger.info('[check_project_indexing_finished: log] resubmission output was: {}'.format(rerun_output))
                     elif data['projects'][project_name]['status'] == 'rerunning':
                         logger.info('[check_project_indexing_finished: log] ingestion %s has failed twice...' % (ingestion_id))

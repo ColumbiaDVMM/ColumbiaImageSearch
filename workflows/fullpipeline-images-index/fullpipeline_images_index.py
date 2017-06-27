@@ -39,6 +39,7 @@ max_ads_image_dig = 20000
 max_ads_image_hbase = 20000
 max_ads_image = 20000
 max_samples_per_partition = 10000
+max_samples_per_partition_wfeat = 2000
 default_partitions_nb = 240
 day_gap = 86400000 # One day
 valid_url_start = 'https://s3' 
@@ -105,16 +106,16 @@ def get_update_info(table_name, options, families={'info': dict()}):
 ##-- General RDD I/O
 ##------------------
 
-def get_partitions_nb(options, rdd_count=0):
+def get_partitions_nb(max_samples_per_partition, nb_partitions=0, rdd_count=0):
     """ Calculate number of partitions for a RDD.
     """
-    # if options.nb_partitions is set use that
-    if options.nb_partitions > 0:
-        partitions_nb = options.nb_partitions
+    # if nb_partitions is set use that
+    if nb_partitions > 0:
+        partitions_nb = nb_partitions
     elif rdd_count > 0: # if options.nb_partitions is -1 (default)
         #estimate from rdd_count and options.max_samples_per_partition
         import numpy as np
-        partitions_nb = int(np.ceil(float(rdd_count)/options.max_samples_per_partition))
+        partitions_nb = int(np.ceil(float(rdd_count)/max_samples_per_partition))
     else: # fall back to default partitions nb
         partitions_nb = default_partitions_nb
     print "[get_partitions_nb: log] partitions_nb: {}".format(partitions_nb)
@@ -543,7 +544,9 @@ def get_s3url_adid_rdd(sc, basepath_save, es_man, es_ts_start, es_ts_end, hbase_
     # es_rdd_nopart is likely to be underpartitioned
     es_rdd_count = es_rdd_nopart.count()
     # should we partition based on count and max_samples_per_partition?
-    es_rdd = es_rdd_nopart.partitionBy(get_partitions_nb(options, es_rdd_count))
+    nb_part = get_partitions_nb(options.max_samples_per_partition, options.nb_partitions, es_rdd_count)
+    #es_rdd = es_rdd_nopart.partitionBy(get_partitions_nb(options, es_rdd_count))
+    es_rdd = es_rdd_nopart.partitionBy(nb_part)
 
     # save ingestion infos
     ingestion_infos_list = []
@@ -607,8 +610,10 @@ def join_ingestion(hbase_man_sha1infos_join, ingest_rdd, options, ingest_rdd_cou
     if not sha1_infos_rdd.isEmpty(): 
         sha1_infos_rdd_count = sha1_infos_rdd.count()
         # use get_partitions_nb(options, rdd_count)
-        nb_partitions_ingest = get_partitions_nb(options, ingest_rdd_count)
-        nb_partitions_sha1_infos = get_partitions_nb(options, sha1_infos_rdd_count)
+        nb_partitions_ingest = get_partitions_nb(options.max_samples_per_partition, options.nb_partitions, ingest_rdd_count)
+        nb_partitions_sha1_infos = get_partitions_nb(options.max_samples_per_partition, options.nb_partitions, sha1_infos_rdd_count)
+        #nb_partitions_ingest = get_partitions_nb(options, ingest_rdd_count)
+        #nb_partitions_sha1_infos = get_partitions_nb(options, sha1_infos_rdd_count)
         # partitioned rdd in the same number of partitions to minmize shuffle in the leftOuterJoin
         nb_partitions = max(nb_partitions_sha1_infos, nb_partitions_ingest)
         #sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions)
@@ -768,6 +773,8 @@ def build_output_hbase(x):
 
 
 def save_out_rdd_wfeat_to_hbase(out_rdd, hbase_man_sha1infos_out):
+    # This is slow? Especially if table already exists?
+    # Do that at the end? It is not essential, only useful if we want to do reranking in search api...
     if out_rdd is not None:
         # write out rdd with features
         out_rdd_hbase = out_rdd.flatMap(build_output_hbase)
@@ -817,15 +824,20 @@ def run_extraction(args):
     # should it be x[1] is not None?
     #out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x is not None)
     out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x[1] is not None)
-    
+    out_rdd_wfeat_count = out_rdd_wfeat.count()
+
+    save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, out_rdd_wfeat_count, "out_rdd_wfeat_count")
+
     # save to disk
     save_rdd_json(sc, basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
     # save to hbase
+    # TODO: move that at the end of the pipeline as is it needed only if we want to do reranking.
     save_out_rdd_wfeat_to_hbase(out_rdd_wfeat, hbase_man_sha1infos_out)
 
     extraction_elapsed_time = time.time() - start_step 
     print "[STEP #2] Done in {:.2f}s".format(extraction_elapsed_time)
     save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, str(extraction_elapsed_time), "extraction_elapsed_time")
+
     # clean up spark context
     sc.clearFiles()
     sc.stop()
@@ -858,7 +870,7 @@ def copy_to_hdfs(f, hdfs_path):
     subprocess.call(['hadoop', 'fs', '-copyFromLocal', f.name, hdfs_path])
 
 
-def default_data_loading(sc, data_path, sampling_ratio, seed):
+def default_data_loading(sc, data_path, sampling_ratio, seed, args=None, repartition=False):
     """
     This function loads data from a text file, sampling it by the provided
     ratio and random seed, and interprets each line as a tab-separated (id, data) pair
@@ -878,34 +890,59 @@ def default_data_loading(sc, data_path, sampling_ratio, seed):
 # pca related functions
 def compute_pca(sc, args, data_load_fn=default_data_loading):
 
-    def seqOp(a, b):
-        a += np.outer(b, b)
-        return a
+    A = None
 
-    def combOp(a, b):
-        a += b
-        return a
+    if hdfs_single_file_exist(args.pca_covarmat):
+        try:
+            filename = copy_from_hdfs(args.pca_covarmat)
+            tmp_A = pkl.load(open(filename))
+            A = tmp_A['A']
+            mu = tmp_A['mu']
+            count = tmp_A['count']
+            os.remove(filename)
+        except Exception as inst:
+            print 'Failed loading precomputed covariance matrix: {}'.format(inst)
 
-    # Load data
-    d = data_load_fn(sc, args.pca_data, args.sampling_ratio_pca, args.seed)
-    # is this causing issues?
-    #d.cache()
+    if A is None:
 
-    # Determine the data dimension
-    D = len(d.first())
-    print "d.first: {}, D: {}".format(d.first(),D)
+        def seqOp(a, b):
+            a += np.outer(b, b)
+            return a
 
-    # Count data points
-    count = d.count()
-    mu = d.aggregate(np.zeros(D), add, add)
-    mu = mu / float(count)
+        def combOp(a, b):
+            a += b
+            return a
 
-    # Compute covariance estimator
-    # change args.agg_depth value to scale better?
-    # see: https://github.com/yahoo/lopq/tree/master/spark
-    summed_covar = d.treeAggregate(np.zeros((D, D)), seqOp, combOp, depth=args.agg_depth)
+        # Load data
+        d = data_load_fn(sc, args.pca_data, args.sampling_ratio_pca, args.seed, args, True)
+        # is this causing issues?
+        d.cache()
 
-    A = summed_covar / (count - 1) - np.outer(mu, mu)
+        # Determine the data dimension
+        D = len(d.first())
+        print "d.first: {}, D: {}".format(d.first(),D)
+
+        # Count data points
+        count = d.count()
+        mu = d.aggregate(np.zeros(D), add, add)
+        mu = mu / float(count)
+        print "d.first: {}, D: {}".format(d.first(),D)
+
+        # Compute covariance estimator
+        # Is this causing memory issue?
+        # change args.agg_depth value to scale better?
+        # see: https://github.com/yahoo/lopq/tree/master/spark
+        print 'Computing summed_covar'
+        summed_covar = d.treeAggregate(np.zeros((D, D)), seqOp, combOp, depth=args.agg_depth)
+        print 'Computing A'
+        A = summed_covar / (count - 1) - np.outer(mu, mu)
+        print 'Saving A, mu and count'
+        save_hdfs_pickle({'A': A, 'mu': mu, 'count': count}, args.pca_covarmat)
+
+        d.unpersist()
+
+    # compute PCA
+    print 'Computing eigenvalues'
     E, P = np.linalg.eigh(A)
 
     params = {
@@ -915,6 +952,7 @@ def compute_pca(sc, args, data_load_fn=default_data_loading):
         'A': A,     # covariance matrix
         'c': count  # sample size
     }
+    print params
 
     save_hdfs_pickle(params, args.pca_full_output)
     #d.unpersist()
@@ -956,49 +994,69 @@ def load_data(sc, args, pca_params=None, data_load_fn=default_data_loading):
     Load training data as an RDD.
     """
     # Load data
-    vecs = data_load_fn(sc, args.model_data, args.sampling_ratio_model, args.seed)
-    print 'Sample is: {}'.format(vecs.first())
+    vecs = data_load_fn(sc, args.model_data, args.sampling_ratio_model, args.seed, args, True)
+    
+    sample = vecs.first()
+    print 'Sample ({}) is: {}'.format(sample.shape, sample)
     
     # Apply PCA if needed
     if pca_params is not None:
         P = pca_params['P']
         mu = pca_params['mu']
-        #print 'Applying PCA from model {}'.format(args.pca_reduce_output)
         print 'Applying PCA'
         vecs = vecs.map(lambda x: apply_PCA(x, mu, P))
 
-    print 'Sample is: {}'.format(vecs.first())
-
+    sample = vecs.first()
+    print 'Sample ({}) is: {}'.format(sample.shape, sample)
+    
     # Split the vectors
     split_vecs = vecs.map(lambda x: np.split(x, 2))
-    print 'Sample is: {}'.format(split_vecs.first())
-
+    sample = split_vecs.first()
+    print 'Sample is: {}'.format(sample)
+    
     return split_vecs
 
 
-def train_coarse(sc, split_vecs, V, seed=None):
+def train_coarse(sc, split_vecs, args, seed=None):
     """
     Perform KMeans on each split of the data with V clusters each.
     """
 
-    # Cluster first split
-    first = split_vecs.map(lambda x: x[0])
-    print 'Total training set size: %d' % first.count()
-    print 'Starting training coarse quantizer...'
-    first.cache()
-    C0 = KMeans.train(first, V, initializationMode='random', maxIterations=10, seed=seed)
-    first.unpersist()
-    print '... done training coarse quantizer.'
-    
-    # Cluster second split
-    second = split_vecs.map(lambda x: x[1])
-    print 'Starting training coarse quantizer...'
-    second.cache()
-    C1 = KMeans.train(second, V, initializationMode='random', maxIterations=10, seed=seed)
-    print '... done training coarse quantizer.'
-    second.unpersist()
+    Cs = None
 
-    return np.vstack(C0.clusterCenters), np.vstack(C1.clusterCenters)
+    if hdfs_single_file_exist(args.coarse_quantizer_file):
+        try:
+            filename = copy_from_hdfs(args.coarse_quantizer_file)
+            Cs_dict = pkl.load(open(filename))
+            Cs = Cs_dict['Cs']
+            os.remove(filename)
+            print 'Loaded precomputed coarse quantizer from {}'.format(args.coarse_quantizer_file)
+        except Exception as inst:
+            print 'Failed loading precomputed coarse quantizer: {}'.format(inst)
+
+    if Cs is None:
+
+        # Cluster first split
+        first = split_vecs.map(lambda x: x[0])
+        print 'Total training set size: %d' % first.count()
+        print 'Starting training coarse quantizer...'
+        first.cache()
+        C0 = KMeans.train(first, args.V, initializationMode='random', maxIterations=10, seed=seed)
+        first.unpersist()
+        print '... done training coarse quantizer.'
+        
+        # Cluster second split
+        second = split_vecs.map(lambda x: x[1])
+        print 'Starting training coarse quantizer...'
+        second.cache()
+        C1 = KMeans.train(second, args.V, initializationMode='random', maxIterations=10, seed=seed)
+        print '... done training coarse quantizer.'
+        second.unpersist()
+
+        Cs = (np.vstack(C0.clusterCenters), np.vstack(C1.clusterCenters))
+        save_hdfs_pickle({'Cs': Cs}, args.coarse_quantizer_file)
+    
+    return Cs
 
 
 def train_rotations(sc, split_vecs, M, Cs):
@@ -1009,22 +1067,40 @@ def train_rotations(sc, split_vecs, M, Cs):
     Rs = []
     mus = []
     counts = []
-    for split in xrange(2):
 
-        print 'Starting rotation fitting for split %d' % split
+    # Try to load from disk
+    if hdfs_single_file_exist(args.rotations_file):
+        try:
+            filename = copy_from_hdfs(args.rotations_file)
+            RotDict = pkl.load(open(filename))
+            Rs = RotDict['Rs']
+            mus = RotDict['mus']
+            counts = RotDict['counts']
+            os.remove(filename)
+            print 'Loaded precomputed rotations from {}'.format(args.rotations_file)
+        except Exception as inst:
+            print 'Failed loading precomputed rotations: {}'.format(inst)
 
-        # Get the data for this split
-        data = split_vecs.map(lambda x: x[split])
+    if not Rs or not mus or not counts:
+        # Compute if needed
+        for split in xrange(2):
 
-        # Get kmeans model
-        model = KMeansModel(Cs[split])
+            print 'Starting rotation fitting for split %d' % split
 
-        R, mu, count = compute_local_rotations(sc, data, model, M / 2)
-        Rs.append(R)
-        mus.append(mu)
-        counts.append(count)
+            # Get the data for this split
+            data = split_vecs.map(lambda x: x[split])
 
-    print 'Done fitting rotations'
+            # Get kmeans model
+            model = KMeansModel(Cs[split])
+
+            R, mu, count = compute_local_rotations(sc, data, model, M / 2)
+            Rs.append(R)
+            mus.append(mu)
+            counts.append(count)
+
+        print 'Done fitting rotations'
+        save_hdfs_pickle({'Rs': Rs, 'mus': mus, 'counts': counts}, args.rotations_file)
+
     return Rs, mus, counts
 
 
@@ -1144,14 +1220,35 @@ def train_subquantizers(sc, split_vecs, M, subquantizer_clusters, model, seed=No
 
     subquantizers = []
     # Spark job is respwaning during this phase...
+    # Should we try to load/save to disk each split subquantizer clusters?
     for split in xrange(M):
-        print 'Training subquantizers for split {} out of {}'.format(split+1, M)
-        data = split_vecs.map(lambda x: x[split])
-        data.cache()
-        sub = KMeans.train(data, subquantizer_clusters, initializationMode='random', maxIterations=10, seed=seed)
-        data.unpersist()
-        subquantizers.append(np.vstack(sub.clusterCenters))
-        del sub
+        subquantizer_fn = args.subquantizer_basefilename+'_'+str(split+1)+'of'+str(M)
+        scs = None
+
+        # Try to load
+        if hdfs_single_file_exist(subquantizer_fn):
+            try:
+                filename = copy_from_hdfs(subquantizer_fn)
+                SQDict = pkl.load(open(filename))
+                scs = SQDict['scs']
+                os.remove(filename)
+                print 'Loaded precomputed subquantizers for split {} from {}'.format(split+1, subquantizer_fn)
+            except Exception as inst:
+                print 'Failed loading precomputed subquantizers for split {} from {}. Error was: {}'.format(split+1, subquantizer_fn, inst)
+
+        # Compute if needed
+        if scs is None:
+            print 'Training subquantizers for split {} out of {}'.format(split+1, M)
+            data = split_vecs.map(lambda x: x[split])
+            data.cache()
+            sub = KMeans.train(data, subquantizer_clusters, initializationMode='random', maxIterations=10, seed=seed)
+            scs = np.vstack(sub.clusterCenters)
+            data.unpersist()
+            #del sub
+            save_hdfs_pickle({'scs': scs}, subquantizer_fn)
+        
+        # Append subquantizers
+        subquantizers.append(scs)
 
     print 'Done training all subquantizers.'
     split_vecs.unpersist()
@@ -1237,7 +1334,8 @@ def compute_codes(sc, args, data_load_fn=default_data_loading):
     print 'LOPQModel is of type: {}'.format(type(model))
 
     # Load data
-    d = data_load_fn(sc, args.compute_data, 1.0, args.seed) # No sampling allowed here
+    # 1.0: No sampling allowed here
+    d = data_load_fn(sc, args.compute_data, 1.0, args.seed, args, True)
 
     # Distribute model instance
     m = sc.broadcast(model)
@@ -1267,7 +1365,15 @@ def set_missing_parameters(args):
     if args.compute_data is None:
         print 'Setting args.compute_data to {}'.format(rdd_feat_path)
         args.compute_data = rdd_feat_path
-    # pca_full_output, pca_reduce_output does not really matter, but should not conflict between domains
+    # pca_covarmat, pca_full_output, pca_reduce_output does not really matter, but should not conflict between domains
+    if args.coarse_quantizer_file is None:
+        args.coarse_quantizer_file = args.base_hdfs_path+args.ingestion_id+'/images/index_coarse_quantizer'
+    if args.rotations_file is None:
+        args.rotations_file = args.base_hdfs_path+args.ingestion_id+'/images/index_rotations'
+    if args.subquantizer_basefilename is None:
+        args.subquantizer_basefilename = args.base_hdfs_path+args.ingestion_id+'/images/index_subq'
+    if args.pca_covarmat is None:
+        args.pca_covarmat = args.base_hdfs_path+args.ingestion_id+'/images/index_pca_covarmat'
     if args.pca_full_output is None:
         args.pca_full_output = args.base_hdfs_path+args.ingestion_id+'/images/index_pca_full'
     if args.pca_reduce_output is None:
@@ -1295,6 +1401,7 @@ def adapt_parameters(args, nb_images):
     # - sampling_ratio_pca: default 1.0
     # - sampling_ratio_model: default 1.0
     # - subquantizer_sampling_ratio: default 1.0
+    # also args.agg_depth?
     return args
 
 def get_pca_params(args):
@@ -1377,13 +1484,13 @@ def run_build_index(nb_images, args):
         else:
             # NB: load data method splits vectors into 2 parts, after applying pca if model is provided
             data = load_data(sc, args, pca_params=reducedpca_params)
-
+        
         # Initialize parameters
         Cs = Rs = mus = subs = None
 
         # Get coarse quantizers
         if STEP_COARSE in args.steps:
-            Cs = train_coarse(sc, data, args.V, seed=args.seed)
+            Cs = train_coarse(sc, data, args, seed=args.seed)
         else:
             Cs = model.Cs
 
@@ -1412,6 +1519,7 @@ def run_build_index(nb_images, args):
         if args.model_pkl:
             print 'Saving model as pickle to {}'.format(args.model_pkl)
             save_hdfs_pickle(model, args.model_pkl)
+
         save_info_incremental_update(sc, hbase_man_update_out, args.ingestion_id, args.model_pkl, "lopq_model_pkl")
         build_index_elapsed_time = time.time() - start_step
         print "[STEP #3] Done in {:.2f}s".format(build_index_elapsed_time)
@@ -1508,13 +1616,16 @@ if __name__ == '__main__':
     job_group.add_argument("-p", "--nb_partitions", dest="nb_partitions", type=int, default=-1)
     job_group.add_argument("-d", "--day_to_process", dest="day_to_process", help="using format YYYY-MM-DD", default=None)
     job_group.add_argument("--max_samples_per_partition", dest="max_samples_per_partition", type=int, default=max_samples_per_partition)
+    job_group.add_argument("--max_samples_per_partition_wfeat", dest="max_samples_per_partition_wfeat", type=int, default=max_samples_per_partition_wfeat)
     job_group.add_argument("--base_hdfs_path", dest="base_hdfs_path", default=base_hdfs_path)
     # should we still allow the input of day to process and estimate ts start and end from it?
 
     # Define index related options
     index_group.add_argument('--seed', dest='seed', type=int, default=None, help='optional random seed')
+    index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=2, help='depth of tree aggregation to compute covariance estimator')
     #index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=4, help='depth of tree aggregation to compute covariance estimator')
-    index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=8, help='depth of tree aggregation to compute covariance estimator')
+    #index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=8, help='depth of tree aggregation to compute covariance estimator')
+    #index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=16, help='depth of tree aggregation to compute covariance estimator')
     index_group.add_argument('--pca_D', dest='pca_D', type=int, default=256, help='number of dimensions to keep for PCA (default: 256)')
     index_group.add_argument('--pca_data_udf', dest='pca_data_udf', type=str, default="deepsentibanktf_udf", help='module name from which to load a data loading UDF')
     index_group.add_argument('--model_data_udf', dest='model_data_udf', type=str, default="deepsentibanktf_udf", help='module name from which to load a data loading UDF')
@@ -1535,8 +1646,12 @@ if __name__ == '__main__':
     index_group.add_argument('--pca_data', dest='pca_data', type=str, default=None, help='hdfs path to pca input data')
     index_group.add_argument('--model_data', dest='model_data', type=str, default=None, help='hdfs path to model input data')
     index_group.add_argument('--compute_data', dest='compute_data', type=str, default=None, help='hdfs path to codes input data')
+    index_group.add_argument('--pca_covarmat', dest='pca_covarmat', type=str, default=None, help='hdfs path to output pca covariance matrix parameters')
     index_group.add_argument('--pca_full_output', dest='pca_full_output', type=str, default=None, help='hdfs path to output pca pickle file of parameters')
     index_group.add_argument('--pca_reduce_output', dest='pca_reduce_output', type=str, default=None, help='hdfs path to output reduced pca pickle file of parameters')
+    index_group.add_argument('--coarse_quantizer_file', dest='coarse_quantizer_file', type=str, default=None, help='hdfs path to save coarse quantizers')
+    index_group.add_argument('--rotations_file', dest='rotations_file', type=str, default=None, help='hdfs path to save rotations')
+    index_group.add_argument('--subquantizer_basefilename', dest='subquantizer_basefilename', type=str, default=None, help='hdfs base path to save subquantizers')
     index_group.add_argument('--model_pkl', dest='model_pkl', type=str, default=None, help='hdfs path to save pickle file of resulting model parameters')
     index_group.add_argument('--codes_output', dest='codes_output', type=str, default=None, help='hdfs path to codes output data')
 

@@ -1,4 +1,4 @@
-def udf(sc, data_path, sampling_ratio, seed):
+def udf(sc, data_path, sampling_ratio, seed, args=None, repartition=False):
     """
     MEMEX UDF function to load training data. 
     Loads data from a sequence file containing JSON formatted data with 
@@ -6,4 +6,4 @@ def udf(sc, data_path, sampling_ratio, seed):
     """
     from memex_udf import memex_udf
     feat_field = 'featnorm_tf'
-    return memex_udf(sc, data_path, sampling_ratio, seed, feat_field)
+    return memex_udf(sc, data_path, sampling_ratio, seed, feat_field, args, repartition)
