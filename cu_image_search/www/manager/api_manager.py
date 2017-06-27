@@ -259,6 +259,7 @@ def check_project_indexing_finished(project_name):
                 local_model_path = os.path.join(_get_domain_dir_path(data['projects'][project_name]['domain']), config['image']['lopq_model_local_suffix'])
                 _copy_from_hdfs(row[config['image']['lopq_model_column']], local_model_path)
                 if os.path.exists(local_codes_path) and os.path.exists(local_model_path):
+                    logger.info('[check_project_indexing_finished: log] ingestion %s has completed and should be ready now...' % (ingestion_id))
                     data['projects'][project_name]['status'] == 'ready'
                 else:
                     data['projects'][project_name]['status'] == 'failed'
