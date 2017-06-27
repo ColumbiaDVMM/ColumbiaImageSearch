@@ -1416,18 +1416,18 @@ def adapt_parameters(args, nb_images):
     # TODO: we could adapt the following parameters to optimize speed/quality
     # - V: default 16
     # some heuristics to set this parameters so they scale with data
-    args.V = np.max(np.ceil(np.sqrt(nb_images/args.img_per_cell)),args.minV)
+    args.V = max(np.ceil(np.sqrt(nb_images/args.img_per_cell)),args.minV)
     # - M: default 8
     # - subquantizer_clusters: 256
-    args.subquantizer_clusters = np.max(np.ceil(2*np.power(nb_images,args.subqpow)),args.subquantizer_clusters)
+    args.subquantizer_clusters = max(np.ceil(2*np.power(nb_images,args.subqpow)),args.subquantizer_clusters)
     # set this value such that we do not use more than 1M samples?
     # - sampling_ratio_pca: default 1.0
-    args.sampling_ratio_pca = np.min(args.max_samples_pca/nb_images, 1.0)
+    args.sampling_ratio_pca = min(args.max_samples_pca/nb_images, 1.0)
     # set those values such that we do not use more than 5M samples?
     # - sampling_ratio_model: default 1.0
-    args.sampling_ratio_model = np.min(args.max_samples_model/nb_images, 1.0)
+    args.sampling_ratio_model = min(args.max_samples_model/nb_images, 1.0)
     # - subquantizer_sampling_ratio: default 1.0
-    args.subquantizer_sampling_ratio = np.min(args.max_samples_subq/nb_images, 1.0)
+    args.subquantizer_sampling_ratio = min(args.max_samples_subq/nb_images, 1.0)
     # - args.agg_depth?
     print '[adapt_parameters: log] {}'.format(args)
     return args

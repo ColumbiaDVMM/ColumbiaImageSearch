@@ -577,7 +577,7 @@ class Project(Resource):
             from happybase.connection import Connection
             conn = Connection(config['image']['hbase_host'])
             table = conn.table(config['image']['hbase_table_updates'])
-            table.delete(ingestion_id)
+            table.delete(ingestion_id, columns=['info:lopq_codes_path', 'info:lopq_model_pkl'])
             # remove project:
             # - from current data dict
             del data['projects'][project_name]
