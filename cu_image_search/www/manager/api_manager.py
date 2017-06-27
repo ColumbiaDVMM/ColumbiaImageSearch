@@ -478,8 +478,13 @@ class AllProjects(Resource):
                 data['projects'][project_name]['job_id'] = job_id
                 data['projects'][project_name]['status'] = 'indexing'
                 # insert into mongoDB
+                logger.info('Project %s (before mongodb insertion) dict keys are %s' % (project_name, data['projects'][project_name].keys()))
                 db_projects.insert_one(data['projects'][project_name]).inserted_id
-                logger.info('Posted project %s, dict keys are %s' % (project_name, data['projects'][project_name].keys()))
+                logger.info('Project %s (after mongodb insertion) dict keys are %s' % (project_name, data['projects'][project_name].keys()))
+                # How come data['projects'][project_name] has an '_id' field now???
+                if '_id' in data['projects'][project_name]:
+                    del data['projects'][project_name]['_id']
+                logger.info('Project %s (after mongodb insertion and cleaning) dict keys are %s' % (project_name, data['projects'][project_name].keys()))
                 try:
                     return rest.created(msg)
                 finally:

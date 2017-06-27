@@ -828,10 +828,12 @@ def run_extraction(args):
 
     save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, out_rdd_wfeat_count, "out_rdd_wfeat_count")
 
+    # TODO: repartition based on args.max_samples_per_partition_wfeat before saving to disk?
+
     # save to disk
     save_rdd_json(sc, basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
+    
     # save to hbase
-
     if args.push_feats_to_hbase:
         # TODO: move that at the end of the pipeline as is it needed only if we want to do reranking.
         save_out_rdd_wfeat_to_hbase(out_rdd_wfeat, hbase_man_sha1infos_out)
@@ -1444,6 +1446,7 @@ def get_pca_params(args):
 
 def run_build_index(nb_images, args):
     args = adapt_parameters(args, nb_images)
+    reducedpca_params = get_pca_params(args)
 
     sc = SparkContext(appName="build_index_"+args.ingestion_id+job_suffix)
     conf = SparkConf()
@@ -1461,8 +1464,6 @@ def run_build_index(nb_images, args):
     else:
         start_step = time.time()
         print "[STEP #3] Starting building index for ingestion_id: {}".format(args.ingestion_id)
-        
-        reducedpca_params = get_pca_params(args)
         
         sc.addPyFile(base_path_import+'/index/memex_udf.py')
         sc.addPyFile(base_path_import+'/index/deepsentibanktf_udf.py')
@@ -1630,10 +1631,10 @@ if __name__ == '__main__':
 
     # Define index related options
     index_group.add_argument('--seed', dest='seed', type=int, default=None, help='optional random seed')
-    index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=2, help='depth of tree aggregation to compute covariance estimator')
+    #index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=2, help='depth of tree aggregation to compute covariance estimator')
     #index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=4, help='depth of tree aggregation to compute covariance estimator')
     #index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=8, help='depth of tree aggregation to compute covariance estimator')
-    #index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=16, help='depth of tree aggregation to compute covariance estimator')
+    index_group.add_argument('--agg_depth', dest='agg_depth', type=int, default=16, help='depth of tree aggregation to compute covariance estimator')
     index_group.add_argument('--pca_D', dest='pca_D', type=int, default=256, help='number of dimensions to keep for PCA (default: 256)')
     index_group.add_argument('--pca_data_udf', dest='pca_data_udf', type=str, default="deepsentibanktf_udf", help='module name from which to load a data loading UDF')
     index_group.add_argument('--model_data_udf', dest='model_data_udf', type=str, default="deepsentibanktf_udf", help='module name from which to load a data loading UDF')
