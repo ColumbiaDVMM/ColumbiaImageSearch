@@ -260,9 +260,9 @@ def check_project_indexing_finished(project_name):
                 _copy_from_hdfs(row[config['image']['lopq_model_column']], local_model_path)
                 if os.path.exists(local_codes_path) and os.path.exists(local_model_path):
                     logger.info('[check_project_indexing_finished: log] ingestion %s has completed and should be ready now...' % (ingestion_id))
-                    data['projects'][project_name]['status'] == 'ready'
+                    data['projects'][project_name]['status'] = 'ready'
                 else:
-                    data['projects'][project_name]['status'] == 'failed'
+                    data['projects'][project_name]['status'] = 'failed'
                     logger.info('[check_project_indexing_finished: log] ingestion %s has completed but local copy failed...' % (ingestion_id))
                     # for debugging store infos: row[config['image']['lopq_codes_column']], row[config['image']['lopq_model_column']]
             else: # else, 
@@ -281,6 +281,7 @@ def check_project_indexing_finished(project_name):
                         pingback_url = config['image']['base_service_url']+endpt
                         domain_name = data['projects'][project_name]['domain']
                         rerun_output = rerun_job(job_id, data['projects'][project_name]['ingestion_id'], data['domains'][domain_name]['table_sha1infos'], pingback_url)
+                        data['projects'][project_name]['status'] = 'rerunning'
                         logger.info('[check_project_indexing_finished: log] resubmission output was: {}'.format(rerun_output))
                     elif data['projects'][project_name]['status'] == 'rerunning':
                         logger.info('[check_project_indexing_finished: log] ingestion %s has failed twice...' % (ingestion_id))
