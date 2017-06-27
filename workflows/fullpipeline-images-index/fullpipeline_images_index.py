@@ -831,8 +831,10 @@ def run_extraction(args):
     # save to disk
     save_rdd_json(sc, basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
     # save to hbase
-    # TODO: move that at the end of the pipeline as is it needed only if we want to do reranking.
-    save_out_rdd_wfeat_to_hbase(out_rdd_wfeat, hbase_man_sha1infos_out)
+
+    if args.push_feats_to_hbase:
+        # TODO: move that at the end of the pipeline as is it needed only if we want to do reranking.
+        save_out_rdd_wfeat_to_hbase(out_rdd_wfeat, hbase_man_sha1infos_out)
 
     extraction_elapsed_time = time.time() - start_step 
     print "[STEP #2] Done in {:.2f}s".format(extraction_elapsed_time)
@@ -1606,6 +1608,7 @@ if __name__ == '__main__':
     es_group.add_argument("--es_ts_end", dest="es_ts_end", help="end timestamp in ms", default=None)
     
     # Define features reulated options
+    feat_group.add_argument("--push_feats_to_hbase", dest="push_feats_to_hbase", type=bool, default=False, help="switch to save features in HBase")
     feat_group.add_argument("--feat_column_name", dest="feat_column_name", default=feat_column_name, help="column where features will be saved in HBase")
 
     # Define job related options
