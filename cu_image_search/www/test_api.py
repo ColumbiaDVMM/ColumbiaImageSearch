@@ -27,13 +27,14 @@ if __name__ == "__main__":
         import json
         auth_json = json.load(open('auth_token.json','rt'))
         #apiURL = "https://isi.memexproxy.com/ESCORTS/cu_image_search/byB64_nocache" # would need auth?
-        apiURL = "http://10.3.2.124/cuimgsearch_escorts/cu_image_search/byB64_nocache" # would need auth?
+        #apiURL = "http://10.3.2.124/cuimgsearch_escorts/cu_image_search/byB64_nocache" # would need auth?
+        apiURL = "http://10.3.2.124/cuimgsearch_escorts/cu_image_search/view_similar_byB64" 
         headers_auth = {'Authorization': 'Basic '+auth_json["auth_token"]}
     else:
         apiURL = "http://127.0.0.1:5000/cu_image_search/byB64_nocache"
         headers_auth = ''
     #print auth_json["auth_token"]
-    sampleURLs = ['https://s3.amazonaws.com/roxyimages/939446e1543d2a7ebf73b438f6f21dbb6e71f04a.jpg','https://s3.amazonaws.com/roxyimages/f99f89526bdf335483c9776c73a059ead1f16d27.jpg']
+    sampleURLs = ['https://s3.amazonaws.com/memex-images/full/93a7668cf59b23d3155fd0e1764f0995a909028ea2c1861301b33fc33655c46d.jpeg','https://s3.amazonaws.com/memex-images/full/1ccee5585b3eef28796bee660667e30bac4011f304b832538026c92a3223adca.jpeg']
     #sampleURLs = ['https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png']
     query_b64 = [get_b64(one_url) for one_url in sampleURLs]
 
@@ -42,9 +43,9 @@ if __name__ == "__main__":
     #query_b64 = [get_b64(sampleURL) for sampleURL in sampleURLs]
     #print query_b64
     
-    print headers_auth
+    #print headers_auth
 
-    res = requests.post(apiURL, data={"data":','.join(query_b64)}, headers=headers_auth)
-    print res
+    res = requests.post(apiURL, data={"data":','.join(query_b64), "options":"{\"near_dup_th\":0.4}"}, headers=headers_auth)
+    #print res
     print res.content
-    print res.json()
+    #print res.json()
