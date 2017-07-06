@@ -21,12 +21,13 @@ def get_b64(url, imagedltimeout = 2):
 
 if __name__ == "__main__":
     import requests
-    #test_remote = True
-    test_remote = False
+    test_remote = True
+    #test_remote = False
     if test_remote:
         import json
         auth_json = json.load(open('auth_token.json','rt'))
-        apiURL = "https://isi.memexproxy.com/ESCORTS/cu_image_search/byB64_nocache" # would need auth?
+        #apiURL = "https://isi.memexproxy.com/ESCORTS/cu_image_search/byB64_nocache" # would need auth?
+        apiURL = "http://10.3.2.124/cuimgsearch_escorts/cu_image_search/byB64_nocache" # would need auth?
         headers_auth = {'Authorization': 'Basic '+auth_json["auth_token"]}
     else:
         apiURL = "http://127.0.0.1:5000/cu_image_search/byB64_nocache"
