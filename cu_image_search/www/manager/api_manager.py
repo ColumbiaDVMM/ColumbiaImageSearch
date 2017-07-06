@@ -314,43 +314,48 @@ def check_domain_service(project_sources, project_name):
 
     # get domain lock
     if os.path.isdir(domain_dir_path): # or test 'domain_name' in data['domains']?
-        logger.info('[check_domain_service: log] service exists for domain_name: %s, check if we need to update.' % (domain_name))
-        # Check conf to see if we need to update 
-        # Do we actually want to allow that?
-        config_file = os.path.join(domain_dir_path, config['image']['config_filepath'])
-        config_json = json.load(open(config_file,'rt'))
-        if 'start_ts' not in config_json or 'end_ts' not in config_json:
-            err_msg = 'service exists for domain: %s, but creation seems incomplete.' % (domain_name)
-            logger.error('[check_domain_service: error] '+err_msg)
-            domain_lock.release(domain_name)
-            return -1, domain_name, None, None, err_msg
-        new_start_ts = min(start_ts, config_json['start_ts'])
-        new_end_ts = max(end_ts, config_json['end_ts'])
-        if new_start_ts < config_json['start_ts'] or new_end_ts > config_json['end_ts']:
-            domain_lock.acquire(domain_name)
-            # save update infos in domain data
-            ingestion_id = '-'.join([domain_name, str(start_ts), str(end_ts)])
-            data['domains'][domain_name]['ingestion_id'].append(ingestion_id)
-            # submit workflow with min(start_ts, stored_start_ts) and max(end_ts, stored_end_ts)
-            endpt = "/cu_imgsearch_manager/projects/{}".format(project_name)
-            pingback_url = config['image']['base_service_url']+endpt
-            job_id = _submit_buildindex_worfklow(ingestion_id, data['domains'][domain_name]['table_sha1infos'], pingback_url)
-            # add job_id to job_ids and save config
-            config_json['job_ids'].append(job_id)
-            data['domains'][domain_name]['job_ids'].append(job_id)
-            # write out new config file
-            with open(config_file, 'wt') as conf_out:
-                conf_out.write(json.dumps(config_json))
-            msg = 'updating domain %s' % (domain_name)
-            logger.info('[check_domain_service: log] '+msg)
-            # update in mongodb too
-            db_domains.find_one_and_replace({'domain_name':domain_name}, data['domains'][domain_name])
-            domain_lock.release(domain_name)
-            return 1, domain_name, ingestion_id, job_id, msg
-        else:
-            msg = 'no need to update for domain %s' % (domain_name)
-            logger.info('[check_domain_service: log] '+msg)
-            return 1, domain_name, None, None, msg
+        msg = 'service exists for domain_name: %s. updating is not allowed.' % (domain_name)
+        logger.info('[check_domain_service: log] '+msg)
+        return 1, domain_name, None, None, msg
+        
+        # # deprecated
+        # logger.info('[check_domain_service: log] service exists for domain_name: %s, check if we need to update.' % (domain_name))
+        # # Check conf to see if we need to update 
+        # # Do we actually want to allow that?
+        # config_file = os.path.join(domain_dir_path, config['image']['config_filepath'])
+        # config_json = json.load(open(config_file,'rt'))
+        # if 'start_ts' not in config_json or 'end_ts' not in config_json:
+        #     err_msg = 'service exists for domain: %s, but creation seems incomplete.' % (domain_name)
+        #     logger.error('[check_domain_service: error] '+err_msg)
+        #     domain_lock.release(domain_name)
+        #     return -1, domain_name, None, None, err_msg
+        # new_start_ts = min(start_ts, config_json['start_ts'])
+        # new_end_ts = max(end_ts, config_json['end_ts'])
+        # if new_start_ts < config_json['start_ts'] or new_end_ts > config_json['end_ts']:
+        #     domain_lock.acquire(domain_name)
+        #     # save update infos in domain data
+        #     ingestion_id = '-'.join([domain_name, str(start_ts), str(end_ts)])
+        #     data['domains'][domain_name]['ingestion_id'].append(ingestion_id)
+        #     # submit workflow with min(start_ts, stored_start_ts) and max(end_ts, stored_end_ts)
+        #     endpt = "/cu_imgsearch_manager/projects/{}".format(project_name)
+        #     pingback_url = config['image']['base_service_url']+endpt
+        #     job_id = _submit_buildindex_worfklow(ingestion_id, data['domains'][domain_name]['table_sha1infos'], pingback_url)
+        #     # add job_id to job_ids and save config
+        #     config_json['job_ids'].append(job_id)
+        #     data['domains'][domain_name]['job_ids'].append(job_id)
+        #     # write out new config file
+        #     with open(config_file, 'wt') as conf_out:
+        #         conf_out.write(json.dumps(config_json))
+        #     msg = 'updating domain %s' % (domain_name)
+        #     logger.info('[check_domain_service: log] '+msg)
+        #     # update in mongodb too
+        #     db_domains.find_one_and_replace({'domain_name':domain_name}, data['domains'][domain_name])
+        #     domain_lock.release(domain_name)
+        #     return 1, domain_name, ingestion_id, job_id, msg
+        # else:
+        #     msg = 'no need to update for domain %s' % (domain_name)
+        #     logger.info('[check_domain_service: log] '+msg)
+        #     return 1, domain_name, None, None, msg
     else:
         domain_lock.acquire(domain_name)
         # if folder is empty copy data from config['image']['sample_dir_path']
@@ -448,7 +453,8 @@ class AllProjects(Resource):
         if len(project_name) == 0 or len(project_name) >= 256:
             return rest.bad_request('Invalid project name.')
         if project_name in data['projects']:
-            msg = 'You cannot post an existing project to the /projects endpoint. For updates, post to projects/{your_project_name}'
+            #msg = 'You cannot post an existing project to the /projects endpoint. For updates, post to projects/{your_project_name}'
+            msg = 'You cannot post an existing project to the /projects endpoint.'
             return rest.bad_request(msg)
         project_sources = input.get('sources', [])
         if len(project_sources) == 0:
@@ -534,25 +540,27 @@ class AllProjects(Resource):
 @api.route('/projects/<project_name>')
 class Project(Resource):
     def post(self, project_name):
-        # for updates?
-        if project_name not in data['projects']:
-            return rest.not_found()
-        input = request.get_json(force=True)
-        project_sources = input.get('sources', [])
-        if len(project_sources) == 0:
-            return rest.bad_request('Invalid sources.')
-        try:
-            project_lock.acquire(project_name)
-            data['projects'][project_name]['master_config'] = project_sources
-            # This would mean an update, we need to update the corresponding domain image similarity service
-            ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources, project_name)
-            logger.info('Updated project %s, dict keys are %s' % (project_name, data['projects'][project_name].keys()))
-            return rest.created()
-        except Exception as e:
-            logger.error('Updating project %s: %s' % (project_name, e.message))
-            return rest.internal_error('Updating project %s error, halted.' % project_name)
-        finally:
-            project_lock.release(project_name)
+        return rest.bad_request('A project update is not allowed.')
+
+        # # for updates?
+        # if project_name not in data['projects']:
+        #     return rest.not_found()
+        # input = request.get_json(force=True)
+        # project_sources = input.get('sources', [])
+        # if len(project_sources) == 0:
+        #     return rest.bad_request('Invalid sources.')
+        # try:
+        #     project_lock.acquire(project_name)
+        #     data['projects'][project_name]['master_config'] = project_sources
+        #     # This would mean an update, we need to update the corresponding domain image similarity service
+        #     ret, domain_name, ingestion_id, job_id, err = check_domain_service(project_sources, project_name)
+        #     logger.info('Updated project %s, dict keys are %s' % (project_name, data['projects'][project_name].keys()))
+        #     return rest.created()
+        # except Exception as e:
+        #     logger.error('Updating project %s: %s' % (project_name, e.message))
+        #     return rest.internal_error('Updating project %s error, halted.' % project_name)
+        # finally:
+        #     project_lock.release(project_name)
 
 
     def get(self, project_name):
