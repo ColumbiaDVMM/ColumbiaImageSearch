@@ -206,7 +206,7 @@ class SearcherLOPQHBase():
         # get sha1s and feats for each URL in image_list
         list_sha1_id = []
         feats = []
-        tmp_sha1s_feats = self.feature_extractor.compute_sha1_features_fromB64_nodiskout(imageB64_list)
+        tmp_sha1s_feats = self.feature_extractor.compute_sha1_features_fromB64s_nodiskout(imageB64_list)
         for sample in tmp_sha1s_feats:
             list_sha1_id.append(sample[0])
             feats.append(sample[1][0])
