@@ -74,6 +74,7 @@ class APIResponder(Resource):
         # "no_diskout" not yet supported. Issue with managing SWIG output
         #self.valid_options = ["near_dup", "near_dup_th", "no_blur", "no_diskout"]
         self.valid_options = ["near_dup", "near_dup_th", "no_blur"]
+        self.column_url = "info:s3_url"
 
 
     def get(self, mode):
@@ -144,11 +145,9 @@ class APIResponder(Resource):
         elif mode == "view_similar_byB64":
             query_reponse = self.search_byB64(query, options)
             return self.view_similar_query_response('B64', query, query_reponse, options)
-            #return self.view_similar_images_sha1(query, options)
         elif mode == "view_similar_bySHA1":
             query_reponse = self.search_bySHA1(query, options)
             return self.view_similar_query_response('SHA1', query, query_reponse, options)
-            #return self.view_similar_images_sha1(query, options)
         else:
             return {'error': 'unknown_mode: '+str(mode)}
         # finalize resp
@@ -186,114 +185,39 @@ class APIResponder(Resource):
 
 
     def search_byURL(self, query, options=None):
-        query_urls = get_clean_urls_from_query(query)
-        options_dict, errors = self.get_options_dict(options)
-        
-        # look for s3url in s3url sha1 mapping?
-        # if not present, download and compute sha1
-        # search for similar images by sha1 for those we could retrieve
-        # search with 'search_image_list' for other images
-        outp = self.searcher.search_image_list(query_urls, options_dict)
-        outp_we = self.append_errors(outp, errors)
-        return outp_we
+        return self.search_byURL_nocache(query, options)
 
 
     def search_byURL_nocache(self, query, options=None):
         query_urls = get_clean_urls_from_query(query)
         options_dict, errors = self.get_options_dict(options)
-        return self.searcher.search_image_list(query_urls, options_dict)
+        outp = self.searcher.search_image_list(query_urls, options_dict)
+        outp_we = self.append_errors(outp, errors)
+        return outp_we
+
+
+    def search_bySHA1(self, query, options=None):
+        # could have precomputed similarities and return them here
+        return self.search_bySHA1_nocache(query, options)
 
 
     def search_bySHA1_nocache(self, query, options=None):
         query_sha1s = query.split(',')
-        print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
-        feats, ok_ids = self.searcher.indexer.get_precomp_from_sha1(query_sha1s,["sentibank"])
-        if len(ok_ids[0]) < len(query_sha1s):
-            # fall back to URL query
-            rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s,["info:s3_url"])
-            print("[search_bySHA1_nocache: log] query_sha1s is: {}".format(query_sha1s))
-            urls = [row[1]["info:s3_url"] for row in rows]
-            # simulate query 
-            return self.search_byURL_nocache(','.join(urls), options)
-        corrupted = [i for i in range(len(query_sha1s)) if i not in ok_ids[0]]
-        # featuresfile may require a full path
-        featuresfile = "tmp"+str(time.time())
-        with open(featuresfile,'wb') as out:
-            for i,_ in enumerate(feats[0]):
-                try:
-                    tmp_feat = feats[0][i]
-                    print("[search_bySHA1_nocache: info] {} tmp_feat.shape was: {}".format(i, tmp_feat.shape))
-                    # TypeError: must be string or buffer, not list?
-                    out.write(tmp_feat)
-                except TypeError as inst:
-                    print("[search_bySHA1_nocache: error] tmp_feat was {}. Error was: {}".format(tmp_feat, inst))
         options_dict, errors = self.get_options_dict(options)
-        if "no_diskout" in options_dict:
-            out_res = self.searcher.indexer.hasher.get_similar_images_from_featuresfile_nodiskout(featuresfile, self.searcher.ratio)
-            outp = self.searcher.format_output_nodiskout(out_res, len(query_sha1s), corrupted, query_sha1s, options_dict)
-        else:
-            simname = self.searcher.indexer.hasher.get_similar_images_from_featuresfile(featuresfile, self.searcher.ratio)
-            outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
+        # get the URLs from HBase and search
+        rows_urls = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, columns=[self.column_url])
+        query_urls = [row[1][self.column_url] for row in rows_urls]
+        outp = self.searcher.search_image_list(query_urls, options_dict)
         outp_we = self.append_errors(outp, errors)
-        # cleanup
-        #os.remove(simname)
-        #os.remove(featuresfile)
         return outp_we
-        
 
-    def search_bySHA1(self, query, options=None):
-        # cached sha1 search
-        query_sha1s = [str(x) for x in query.split(',')]
-        print("[search_bySHA1] query_sha1s {}".format(query_sha1s))
-        # validate the sha1 here?
-        # retrieve similar images from hbase table 'escorts_images_similar_row_from_ts'
-        import numpy as np
-        corrupted = []
-        sim_rows = []
-        dec = 0
-        rows_sim = self.searcher.indexer.get_similar_images_from_sha1(query_sha1s)
-        retrieved_sha1s = [x[0] for x in rows_sim]
-        print("[search_bySHA1_cache] retrieved {}".format(retrieved_sha1s))
-        for i,sha1 in enumerate(query_sha1s):
-            if sha1 in retrieved_sha1s:
-                tmp_row = rows_sim[i-dec]
-                sha1s_sim = [x.split(':')[1] for x in tmp_row[1]]
-                dists_sim = [np.float32(tmp_row[1][x]) for x in tmp_row[1]]
-                # we should sort by distances
-                sorted_pos = np.argsort(dists_sim)
-                ids_sim = self.searcher.indexer.get_ids_from_sha1s_hbase(sha1s_sim)
-                print("[search_bySHA1_cache] found similar images {} with distances {} and ids {} for {}.".format(sha1s_sim, dists_sim, ids_sim, sha1))
-                #dict_ids = {}
-                #for t_id in ids_sim:
-                #    dict_ids[t_id[1]] = t_id[0]
-                pos_ok = []
-                sim_row = ""
-                for pos in sorted_pos:
-                    #if sha1s_sim[pos] in dict_ids:
-                    pos_ok.append(pos)
-                    if not sim_row:
-                        sim_row += str(sha1s_sim[pos])
-                    else:
-                        sim_row += " "+str(sha1s_sim[pos])
-                for pos in pos_ok:
-                    sim_row += " "+str(dists_sim[pos])
-                print("[search_bySHA1_cache] sim_row for {}: {}".format(sha1, sim_row))
-                sim_rows.append(sim_row)
-            else:
-                sim_rows.append("")
-                dec += 1
-        simname = "sim"+str(time.time())
-        with open(simname,'wb') as outsim:
-            for row in sim_rows:
-                outsim.write(row+"\n")
-        options_dict, errors = self.get_options_dict(options)
-        options_dict['sha1_sim'] = True
-        outp = self.searcher.format_output(simname, len(query_sha1s), corrupted, query_sha1s, options_dict)
-        outp_we = self.append_errors(outp, errors)
-        # cleanup
-        os.remove(simname)
-        return outp_we
-    
+        # NOT VALID: we actually do not push back the features to HBase anymore.
+        # # get the features from HBase and search
+        # rows_feats = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, columns=self.searcher.indexer.extractions_columns)
+        # # assume only one feature
+        # feats = [row[self.searcher.indexer.extractions_columns[0]] for row in rows_feats]
+        # return self.searcher.search_from_feats(feats, query_sha1s, options_dict)
+
 
     def search_byB64(self, query, options=None):
         # we can implement a version that computes the sha1
@@ -305,7 +229,9 @@ class APIResponder(Resource):
     def search_byB64_nocache(self, query, options=None):
         query_b64s = [str(x) for x in query.split(',')]
         options_dict, errors = self.get_options_dict(options)
-        return self.searcher.search_imageB64_list(query_b64s, options_dict)
+        outp = self.searcher.search_imageB64_list(query_b64s, options_dict)
+        outp_we = self.append_errors(outp, errors)
+        return outp_we
 
 
     def refresh(self):
@@ -346,45 +272,6 @@ class APIResponder(Resource):
         flash(images)
         headers = {'Content-Type': 'text/html'}
         return make_response(render_template('view_images.html'),200,headers)
-
-
-    def view_similar_images_sha1(self, query, options=None):
-        options_dict, errors = self.get_options_dict(options)
-        query_sha1s = [str(x) for x in query.split(',')]
-        print("[view_similar_images_sha1] querying with {} sha1s: {}".format(len(query_sha1s), query_sha1s))
-        sys.stdout.flush()
-        rows_sim = self.searcher.indexer.get_similar_images_from_sha1(query_sha1s)
-        similar_images_response = []
-        print("[view_similar_images_sha1] found similar images for {} sha1s out of {}.".format(len(rows_sim), len(query_sha1s)))
-        sys.stdout.flush()
-        for i in range(len(rows_sim)):
-            query_image_row = self.searcher.indexer.get_columns_from_sha1_rows([str(rows_sim[i][0])], ["info:s3_url"])
-            print("[view_similar_images_sha1] query_image_row: {}".format(query_image_row))
-            sys.stdout.flush()
-            one_res = [(query_image_row[0][1]["info:s3_url"], query_image_row[0][0])]
-            #similar_images.append("<h2>Query image:</h2>"+self.get_image_str(query_image_row[0])+"<h2>Query results:</h2>")
-            sim_sha1s = [x.split(':')[1] for x in rows_sim[i][1]]
-            sim_rows = self.searcher.indexer.get_columns_from_sha1_rows(sim_sha1s, ["info:s3_url"])
-            print("[view_similar_images_sha1] found {} sim_rows.".format(len(sim_rows)))
-            sys.stdout.flush()
-            one_sims = []
-            for row in sim_rows:
-                # should add distance here as third element
-                one_sims += ((row[1]["info:s3_url"], row[0]), '')
-            one_res.append(one_sims)
-            print("[view_similar_images_sha1] one_res: {}.".format(one_res))
-            sys.stdout.flush()
-            #similar_images[i] = Markup(similar_images[i]+"<br/><br/>")
-            similar_images_response.append(one_res)
-        if not similar_images_response:
-            similar_images_response.append([('','No results'),[('','','')]])
-        if "no_blur" in options_dict:
-            flash((options_dict["no_blur"],similar_images_response))
-        else:
-            flash((False,similar_images_response))
-        headers = {'Content-Type': 'text/html'}
-        sys.stdout.flush()
-        return make_response(render_template('view_similar_images.html'),200,headers)
 
 
     def view_similar_query_response(self, query_type, query, query_response, options=None):
