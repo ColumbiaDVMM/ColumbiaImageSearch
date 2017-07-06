@@ -61,6 +61,22 @@ def get_sha1_img_notransform_from_URL_StringIO(url, verbose=0):
     return None, None
 
 
+def get_sha1_img_notransform_from_B64(b64_str, verbose=0):
+    import base64
+    from cStringIO import StringIO
+    from scipy import misc
+    try:
+        r_sio = StringIO(base64.b64decode(b64_str))
+        sha1 = get_SHA1_from_data(r_sio.read())
+        r_sio.seek(0)
+        img_out = misc.imread(r_sio)
+        del r_sio
+        return sha1, img_out
+    except Exception as inst:
+        print "Could not read image from base 64 string. [error: {}]".format(inst)
+    return None, None
+
+
 class DeepSentibankNet(Network):
 
     def setup(self):
@@ -150,6 +166,13 @@ class DeepSentibankExtractor(object):
             img_out = self.preprocess_img(img_out)
         return sha1, img_out
 
+    def get_sha1_deepsentibank_preprocessed_img_from_B64(self, b64_str, verbose=0):
+        # could we use boto3?
+        sha1, img_out = get_sha1_img_notransform_from_B64(b64_str, verbose)
+        if img_out is not None:
+            img_out = self.preprocess_img(img_out)
+        return sha1, img_out
+
     # extract from URL
     def get_features_from_URL(self, url, features=['fc7'], verbose=False):
         img = self.get_deepsentibank_preprocessed_img_from_URL(url)
@@ -159,6 +182,12 @@ class DeepSentibankExtractor(object):
     def get_sha1_features_from_URL(self, url, features=['fc7'], verbose=False):
         sha1, img = self.get_sha1_deepsentibank_preprocessed_img_from_URL(url)
         return sha1, self.get_features_from_img(img, features, verbose)
+
+    # extract from B64
+    def get_sha1_features_from_B64(self, b64_str, features=['fc7'], verbose=False):
+        sha1, img = self.get_sha1_deepsentibank_preprocessed_img_from_B64(b64_str)
+        return sha1, self.get_features_from_img(img, features, verbose)
+
 
     # extract from image filename
     def get_features_from_img_filename(self, img_filename, features=['fc7'], verbose=False):
