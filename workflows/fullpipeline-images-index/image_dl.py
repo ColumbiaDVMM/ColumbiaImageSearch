@@ -67,6 +67,21 @@ def get_image_size_and_format(input):
     return width, height, format
 
 
+def get_SHA1_imginfo_from_StringIO(r_sio):
+    w,h,format = get_image_size_and_format(r_sio)
+    r_sio.seek(0)
+    data = r_sio.read()
+    # use a dict for img info so we can store any other info we may need
+    img_info = dict()
+    img_info['size'] = dict()
+    img_info['size']['width'] = w
+    img_info['size']['height'] = h
+    img_info['format'] = format
+    sha1hash = get_SHA1_from_data(data)
+    del data
+    return sha1hash,img_info
+
+
 def get_SHA1_imginfo_from_URL_StringIO(url,verbose=0):
     from cStringIO import StringIO
     import requests

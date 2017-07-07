@@ -50,7 +50,8 @@ default_max_samples_model = 5000000
 default_max_samples_subq = 5000000
 # CDR v3
 s3_url_prefix = None
-default_s3_url_prefix_pattern = "https://memex-summer2017-{}.s3.amazonaws.com"
+default_s3_url_prefix_pattern = "https://memex-summer2017-{}.s3.amazonaws.com/"
+default_s3_bucket_pattern = "memex-summer2017-{}"
 #default_es_host_pattern_v3 = "https://qpr17s{}.hyperiongray.com"
 default_es_host_pattern_v3 = "qpr17s{}.hyperiongray.com"
 
@@ -223,20 +224,44 @@ def clean_up_s3url_sha1(data):
         return []
 #-
 
-def get_SHA1_imginfo_from_URL(URL,verbose=0):
+def get_SHA1_imginfo_from_URL(URL, verbose=0):
     import image_dl
     import json
     sha1hash,img_info = image_dl.get_SHA1_imginfo_from_URL_StringIO(URL, verbose) # 1 is verbose level
     return sha1hash, json.dumps(img_info)
 
 
+def get_SHA1_imginfo_from_rsio(r_sio, verbose=0):
+    import image_dl
+    import json
+    sha1hash, img_info = image_dl.get_SHA1_imginfo_from_StringIO(r_sio)
+    return sha1hash, json.dumps(img_info)
+
+
 def check_get_sha1_imginfo_s3url(data):
     URL_S3 = data[0]
-    row_sha1, img_info = get_SHA1_imginfo_from_URL(URL_S3, 1)
-    if row_sha1:
-        out = [(URL_S3, (list([data[1][0]]), row_sha1, img_info))]
+    sha1hash, img_info = get_SHA1_imginfo_from_URL(URL_S3, 1)
+    if sha1hash:
+        out = [(URL_S3, (list([data[1][0]]), sha1hash, img_info))]
         #print out
         return out
+    return []
+
+
+def check_get_sha1_imginfo_froms3bucket(data, bucket):
+    URL_S3 = data[0]
+    image_key = URL_S3.split('s3.amazonaws.com/')[-1]
+    obj = bucket.get_key(image_key)
+    if obj:
+        from cStringIO import StringIO
+        r_sio = StringIO(obj.read())
+        sha1hash, img_info = get_SHA1_imginfo_from_rsio(r_sio)
+        if sha1hash:
+            out = [(URL_S3, (list([data[1][0]]), sha1hash, img_info))]
+            #print out
+            return out
+    else:
+        print "Could not retrieve object with key {} from URL {}".format(image_key, URL_S3)
     return []
 
 
@@ -743,7 +768,16 @@ def run_ingestion(args):
         # repartition first based on s3url_adid_rdd_red_count?
         # this could be done as a flatMapValues
         # s3url_adid_rdd_red.partitionBy(get_partitions_nb(args, s3url_adid_rdd_red_count)).flatMapValues(...)
-        s3url_infos_rdd = s3url_adid_rdd_red.flatMap(check_get_sha1_imginfo_s3url)
+        # TODO: need to deal with s3 auth for cdr v3
+        if args.cdr_format == 'v3':
+            # get s3 bucket for domain
+            import boto
+            s3_conn = boto.connect_s3(args.s3_access_key, args.s3_secret_key)
+            bucket = s3_conn.get_bucket(args.s3_bucket)
+            # download all images
+            s3url_infos_rdd = s3url_adid_rdd_red.flatMap(lambda x: check_get_sha1_imginfo_froms3bucket(x, bucket))
+        else:
+            s3url_infos_rdd = s3url_adid_rdd_red.flatMap(check_get_sha1_imginfo_s3url)
         
         print '[s3url_infos_rdd: first] {}'.format(s3url_infos_rdd.first())
         # transform to (SHA1, imginfo)
@@ -1450,7 +1484,6 @@ def set_missing_parameters(args):
 
     # deal with CDR v3
     if args.cdr_format == 'v3':
-
         global s3_url_prefix
         if args.s3_url_prefix:
             s3_url_prefix = args.s3_url_prefix
@@ -1459,6 +1492,7 @@ def set_missing_parameters(args):
         print 'Setting s3_url_prefix to {}'.format(s3_url_prefix)
         args.es_host = args.es_host_pattern_v3.format(args.es_domain[-1])
         print 'Setting args.es_host to {}'.format(args.es_host)
+        args.s3_bucket = args.s3_bucket_pattern.format(args.es_domain)
 
     return args
 
@@ -1687,6 +1721,9 @@ if __name__ == '__main__':
     es_group.add_argument("--cdr_format", dest="cdr_format", choices=['v2', 'v3'], default='v2')
     # deprecated, now detected from ingestion id.
     es_group.add_argument("--es_domain", dest="es_domain", default=None)
+    es_group.add_argument("--s3_access_key", dest="s3_access_key", default=None)
+    es_group.add_argument("--s3_secret_key", dest="s3_secret_key", default=None)
+    es_group.add_argument("--s3_bucket_pattern", dest="s3_bucket_pattern", default=default_s3_bucket_pattern)
     es_group.add_argument("--s3_url_prefix", dest="s3_url_prefix", default=None)
     es_group.add_argument("--s3_url_prefix_pattern", dest="s3_url_prefix_pattern", default=default_s3_url_prefix_pattern)
     es_group.add_argument("--es_ts_start", dest="es_ts_start", help="start timestamp in ms", default=None)
