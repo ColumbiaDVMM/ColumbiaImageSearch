@@ -151,13 +151,6 @@ def parse_isodate_to_ts(input_date):
     print "[parsed_date: {} from {}]".format(parsed_date, input_date)
     return calendar.timegm(parsed_date.utctimetuple())*1000
 
-    # import dateutil.parser
-    # import calendar
-    # calendar.timegm(parsed_date.utctimetuple())*1000
-    # parsed_date = dateutil.parser.parse(input_date)
-    # print "[parsed_date: {}]".format(parsed_date)
-    # return calendar.timegm(parsed_date.utctimetuple())*1000
-
 def reset_apache_conf():
     # for each domain create proxypass and add it to initial conf file
     # read initial apache conf file up to '</VirtualHost>'
@@ -289,10 +282,12 @@ def check_project_indexing_finished(project_name):
                     # if it is not, the job failed... what should we do?
                     # mark project as failed?
                     if data['projects'][project_name]['status'] == 'indexing':
+                        # TODO: check why resubmission does not work.
                         # try to rerun once
                         logger.info('[check_project_indexing_finished: log] rerunning ingestion %s which has failed once...' % (ingestion_id))
                         endpt = "/cu_imgsearch_manager/projects/{}".format(project_name)
-                        pingback_url = config['image']['base_service_url']+endpt
+                        #pingback_url = config['image']['base_service_url']+endpt
+                        pingback_url = config['image']['base_service_url_vpn']+endpt
                         domain_name = data['projects'][project_name]['domain']
                         rerun_output = rerun_job(job_id, data['projects'][project_name]['ingestion_id'], data['domains'][domain_name]['table_sha1infos'], pingback_url)
                         data['projects'][project_name]['status'] = 'rerunning'
@@ -403,7 +398,8 @@ def check_domain_service(project_sources, project_name):
         # setup service
         port, service_url = setup_service_url(domain_name)
         endpt = "/cu_imgsearch_manager/projects/{}".format(project_name)
-        pingback_url = config['image']['base_service_url']+endpt
+        #pingback_url = config['image']['base_service_url']+endpt
+        pingback_url = config['image']['base_service_url_vpn']+endpt
         # submit workflow to get images data
         logger.info('[check_domain_service: log] submitting workflow with parameters: %s, %s, %s' % (ingestion_id, config_json['HBI_table_sha1infos'], pingback_url))
         #job_id = _submit_buildindex_worfklow(ingestion_id, config_json['HBI_table_sha1infos'], pingback_url)

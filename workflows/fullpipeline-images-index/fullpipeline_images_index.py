@@ -51,7 +51,8 @@ default_max_samples_subq = 5000000
 # CDR v3
 s3_url_prefix = None
 default_s3_url_prefix_pattern = "https://memex-summer2017-{}.s3.amazonaws.com"
-default_es_host_pattern_v3 = "https://qpr17s{}.hyperiongray.com"
+#default_es_host_pattern_v3 = "https://qpr17s{}.hyperiongray.com"
+default_es_host_pattern_v3 = "qpr17s{}.hyperiongray.com"
 
 day_gap = 86400000 # One day
 valid_url_start = 'https://s3' 
@@ -287,7 +288,7 @@ def CDRv3_to_s3url_adid(data):
     """
     global s3_url_prefix
     tup_list = []
-    ad_id = data[0]
+    ad_id = str(data[0])
     # parse JSON
     json_x = json.loads(data[1])
     # look for images in objects field
@@ -295,7 +296,7 @@ def CDRv3_to_s3url_adid(data):
         # check that content_type corresponds to an image
         if obj_type.startswith("image"):
             # get url, some url may need unicode characters
-            relative_s3_url = unicode(jsonx["objects.obj_stored_url"][pos])
+            relative_s3_url = unicode(json_x["objects.obj_stored_url"][pos])
             s3_url = s3_url_prefix+relative_s3_url
             tup_list.append( (s3_url, ad_id) )
     return tup_list
@@ -519,7 +520,7 @@ def get_timestamp_range_CDR_v2(es_ts_start, es_ts_end):
     return range_timestamp
 
 def parse_tsms_to_isodate(input_ts):
-    return parse_ts_to_isodate(input_ts/1000)
+    return parse_ts_to_isodate(int(input_ts)/1000)
 
 def parse_ts_to_isodate(input_ts):
     import time
@@ -584,6 +585,8 @@ def get_s3url_adid_rdd(sc, basepath_save, es_man, es_ts_start, es_ts_end, hbase_
         print("[{}log] empty ingestion...".format(prefnout))
         return None
 
+    first_cdr = es_rdd_nopart.first()
+    print("[{}log] first es_rdd sample: {}".format(prefnout, first_cdr))
     # es_rdd_nopart is likely to be underpartitioned
     es_rdd_count = es_rdd_nopart.count()
     # should we partition based on count and max_samples_per_partition?
@@ -606,7 +609,9 @@ def get_s3url_adid_rdd(sc, basepath_save, es_man, es_ts_start, es_ts_end, hbase_
         s3url_adid_rdd = es_rdd.flatMap(CDRv3_to_s3url_adid)
     else:
         print "[get_s3url_adid_rdd: ERROR] Unkown CDR format: {}".format(options.cdr_format)
-
+    first_s3url_adid_rdd = s3url_adid_rdd.first()
+    print("[{}log] first s3url_adid_rdd sample: {}".format(prefnout, first_s3url_adid_rdd))
+    
     if args.save_inter_rdd:
         save_rdd_json(sc, basepath_save, rdd_name, s3url_adid_rdd, ingestion_id, hbase_man_update_out)
     return s3url_adid_rdd
@@ -1404,17 +1409,6 @@ def parse_ingestion_id(ingestion_id):
 
 
 def set_missing_parameters(args):
-    # deal with CDR v3
-    if args.cdr_format == 'v3':
-
-        global s3_url_prefix
-        if args.s3_url_prefix:
-            s3_url_prefix = args.s3_url_prefix
-        else:
-            s3_url_prefix = args.s3_url_prefix_pattern.format(args.es_domain) 
-        print 'Setting s3_url_prefix to {}'.format(s3_url_prefix)
-        args.es_host = args.es_host_pattern_v3.format(args.es_domain[-1])
-        print 'Setting args.es_host to {}'.format(es_host)
 
     # all pca_data, model_data, compute_data should be set to out_rdd_wfeat
     rdd_feat_path = args.base_hdfs_path+args.ingestion_id+'/images/info/out_rdd_wfeat'
@@ -1453,6 +1447,19 @@ def set_missing_parameters(args):
     args.es_domain = domain
     args.es_ts_start = es_ts_start
     args.es_ts_end = es_ts_end
+
+    # deal with CDR v3
+    if args.cdr_format == 'v3':
+
+        global s3_url_prefix
+        if args.s3_url_prefix:
+            s3_url_prefix = args.s3_url_prefix
+        else:
+            s3_url_prefix = args.s3_url_prefix_pattern.format(args.es_domain) 
+        print 'Setting s3_url_prefix to {}'.format(s3_url_prefix)
+        args.es_host = args.es_host_pattern_v3.format(args.es_domain[-1])
+        print 'Setting args.es_host to {}'.format(args.es_host)
+
     return args
 
 def adapt_parameters(args, nb_images):
