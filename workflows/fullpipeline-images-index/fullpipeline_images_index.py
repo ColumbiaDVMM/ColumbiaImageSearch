@@ -253,13 +253,17 @@ def check_get_sha1_imginfo_froms3bucket(data, bucket):
     image_key = URL_S3.split('s3.amazonaws.com/')[-1]
     obj = bucket.get_key(image_key)
     if obj:
+        import image_dl
         from cStringIO import StringIO
         r_sio = StringIO(obj.read())
-        sha1hash, img_info = get_SHA1_imginfo_from_rsio(r_sio)
-        if sha1hash:
-            out = [(URL_S3, (list([data[1][0]]), sha1hash, img_info))]
-            #print out
-            return out
+        try:
+            sha1hash, img_info = get_SHA1_imginfo_from_rsio(r_sio)
+            if sha1hash:
+                out = [(URL_S3, (list([data[1][0]]), sha1hash, img_info))]
+                #print out
+                return out
+        except image_dl.UnknownImageFormat:
+            pass
     else:
         print "Could not retrieve object with key {} from URL {}".format(image_key, URL_S3)
     return []
@@ -389,7 +393,7 @@ def safe_assign(a, c, field, fallback):
 
 
 def test_info_s3_url(dict_img):
-    return "info:s3_url" in dict_img and dict_img["info:s3_url"] and dict_img["info:s3_url"][0]!=u'None' and dict_img["info:s3_url"][0].startswith('https://s3') 
+    return "info:s3_url" in dict_img and dict_img["info:s3_url"] and dict_img["info:s3_url"][0]!=None and dict_img["info:s3_url"][0]!=u'None' and dict_img["info:s3_url"][0].startswith('https://s3') 
 
 
 def reduce_sha1_infos_discarding_wimginfo(a, b):
