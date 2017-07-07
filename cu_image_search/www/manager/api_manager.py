@@ -118,23 +118,23 @@ def _get_project_dir_path(project_name):
 def _get_domain_dir_path(domain_name):
     return os.path.join(config['image']['base_domain_dir_path'], domain_name)
 
+# deprecated
+# def _submit_worfklow(start_ts, end_ts, table_sha1, table_update, domain):
+#     payload = build_images_workflow_payload_v2(start_ts, end_ts, table_sha1, table_update, domain)
+#     json_submit = submit_worfklow(payload)
+#     job_id = json_submit['id']
+#     logger.info('[submit_worfklow: log] submitted workflow %s for domain %s.' % (job_id, domain))
+#     # can use job_id to check status with: get_job_info(job_id)
+#     return job_id
 
-def _submit_worfklow(start_ts, end_ts, table_sha1, table_update, domain):
-    payload = build_images_workflow_payload_v2(start_ts, end_ts, table_sha1, table_update, domain)
-    json_submit = submit_worfklow(payload)
-    job_id = json_submit['id']
-    logger.info('[submit_worfklow: log] submitted workflow %s for domain %s.' % (job_id, domain))
-    # can use job_id to check status with: get_job_info(job_id)
-    return job_id
-
-
-def _submit_buildindex_worfklow(ingestion_id, table_sha1infos, pingback_url):
-    payload = build_images_index_workflow_payload(ingestion_id, table_sha1infos, pingback_url)
-    logger.info('[submit_worfklow: log] submitted payload for ingestion_id: {}'.format(payload))
-    json_submit = submit_worfklow(payload)
-    job_id = json_submit['id']
-    logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
-    return job_id
+# deprecated
+# def _submit_buildindex_worfklow(ingestion_id, table_sha1infos, pingback_url):
+#     payload = build_images_index_workflow_payload(ingestion_id, table_sha1infos, pingback_url)
+#     logger.info('[submit_worfklow: log] submitted payload for ingestion_id: {}'.format(payload))
+#     json_submit = submit_worfklow(payload)
+#     job_id = json_submit['id']
+#     logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
+#     return job_id
 
 def _submit_buildindex_worfklow_qpr(ingestion_id, table_sha1infos, pingback_url):
     payload = build_images_index_qpr_workflow_payload(ingestion_id, table_sha1infos, pingback_url)

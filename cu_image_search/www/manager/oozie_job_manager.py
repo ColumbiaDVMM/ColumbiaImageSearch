@@ -63,7 +63,7 @@ def build_images_index_workflow_payload(ingestion_id, table_sha1, pingback_url, 
     return payload
 
 
-def build_images_index_qpr_workflow_payload(ingestion_id, table_sha1, pingback_url, workflow_path=build_images_index_workflow_path):
+def build_images_index_qpr_workflow_payload(ingestion_id, table_sha1, pingback_url, workflow_path=build_images_index_qpr_workflow_path):
     payload = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><configuration>"
     payload = append_property_toXML(payload, "user.name", "skaraman")
     payload = append_property_toXML(payload, "oozie.wf.application.path", workflow_path)
