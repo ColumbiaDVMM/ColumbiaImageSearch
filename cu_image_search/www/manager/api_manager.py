@@ -16,7 +16,7 @@ from flask_restful import Resource, Api
 from config import config
 from locker import Locker
 import rest
-from oozie_job_manager import build_images_workflow_payload_v2, build_images_index_workflow_payload, submit_worfklow, get_job_info, rerun_job
+from oozie_job_manager import build_images_workflow_payload_v2, build_images_index_workflow_payload, build_images_index_qpr_workflow_payload, submit_worfklow, get_job_info, rerun_job
 import pymongo
 from pymongo import MongoClient
 
