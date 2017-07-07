@@ -48,15 +48,21 @@ default_minV = 16
 default_max_samples_pca = 1000000
 default_max_samples_model = 5000000
 default_max_samples_subq = 5000000
+# CDR v3
+s3_url_prefix = None
+default_s3_url_prefix_pattern = "https://memex-summer2017-{}.s3.amazonaws.com"
+default_es_host_pattern_v3 = "https://qpr17s{}.hyperiongray.com"
 
 day_gap = 86400000 # One day
 valid_url_start = 'https://s3' 
 
-fields_cdr = ["obj_stored_url", "obj_parent", "content_type"]
+fields_cdr_v2 = ["obj_stored_url", "obj_parent", "content_type"]
+fields_cdr_v3 = ["objects.content_type", "objects.obj_stored_url"]
 fields_list = [("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded"), ("info","cu_feat_id"), ("info","img_info")]
 in_fields_list = ["s3_url", "img_info", "image_discarded", "cu_feat_id"]
 feat_column_name = "featnorm_tf"
-base_path_import = "hdfs://memex/user/skaraman/fullpipeline-images-index"
+#base_path_import = "hdfs://memex/user/skaraman/fullpipeline-images-index"
+base_path_import = "hdfs://memex/user/skaraman/fullpipeline-images-index-qpr2017"
 
 # the base_hdfs_path could be set with a parameter too
 if qpr:
@@ -265,7 +271,6 @@ def s3url_listadid_sha1_imginfo_to_sha1_alldict(data):
     return []
 
 
-
 ##-------------------
 ##-- END S3 URL functions
 
@@ -280,18 +285,19 @@ def CDRv3_to_s3url_adid(data):
 
     :param data: CDR v3 ad document in JSON format
     """
+    global s3_url_prefix
     tup_list = []
     ad_id = data[0]
     # parse JSON
     json_x = json.loads(data[1])
     # look for images in objects field
-    for obj in json_x["objects"]:
+    for pos,obj_type in enumerate(json_x["objects.content_type"]):
         # check that content_type corresponds to an image
-        if obj["content_type"][0].startswith("image/"):
+        if obj_type.startswith("image"):
             # get url, some url may need unicode characters
-            s3_url = unicode(obj["obj_stored_url"])
-            if s3_url.startswith('https://s3'):
-                tup_list.append( (s3_url, ad_id) )
+            relative_s3_url = unicode(jsonx["objects.obj_stored_url"][pos])
+            s3_url = s3_url_prefix+relative_s3_url
+            tup_list.append( (s3_url, ad_id) )
     return tup_list
 
 def CDRv2_to_s3url_adid(data):
@@ -497,9 +503,9 @@ def get_out_rdd(sc, basepath_save):
 
 ##-- Incremental update get RDDs main functions
 ##---------------
-def build_query_CDR(es_ts_start, es_ts_end, args):
-    print("Will query CDR from {} to {}".format(es_ts_start, es_ts_end))
 
+
+def get_timestamp_range_CDR_v2(es_ts_start, es_ts_end):
     if es_ts_start is not None:
         gte_range = "\"gte\" : "+str(es_ts_start)
     else:
@@ -509,17 +515,46 @@ def build_query_CDR(es_ts_start, es_ts_end, args):
     else:
         # max_ts or ts of now?
         lt_range = "\"lt\": "+str(max_ts)
-    # build range ts
     range_timestamp = "{\"range\" : {\"_timestamp\" : {"+",".join([gte_range, lt_range])+"}}}"
+    return range_timestamp
+
+def parse_tsms_to_isodate(input_ts):
+    return parse_ts_to_isodate(input_ts/1000)
+
+def parse_ts_to_isodate(input_ts):
+    import time
+    str_time = time.gmtime(input_ts)
+    parsed_date = time.strftime('%Y-%m-%dT%H:%M:%SZ', str_time)
+    print "[parsed_date: {} from {}]".format(parsed_date, input_ts)
+    return parsed_date
+
+def get_timestamp_range_CDR_v3(es_ts_start, es_ts_end):
+    # need to parse into ISO date
+    if es_ts_start is not None:
+        gte_range = "\"gte\" : \""+parse_tsms_to_isodate(es_ts_start)+"\""
+    else:
+        gte_range = "\"gte\" : \""+parse_tsms_to_isodate(0)+"\""
+    if es_ts_end is not None:
+        lt_range = "\"lt\": \""+parse_tsms_to_isodate(es_ts_end)+"\""
+    else:
+        lt_range = "\"lt\": \""+parse_tsms_to_isodate(max_ts)+"\""
+    range_timestamp = "{\"range\" : {\"timestamp_crawl\" : {"+",".join([gte_range, lt_range])+"}}}"
+    return range_timestamp
+
+
+def build_query_CDR(es_ts_start, es_ts_end, args):
+    print("Will query CDR {} from {} to {}".format(args.cdr_format, es_ts_start, es_ts_end))
     # build query
     query = None
     # will depend on args.cdr_format too
     if args.cdr_format == 'v2':
-        query = "{\"fields\": [\""+"\", \"".join(fields_cdr)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": "+range_timestamp+"}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
+        # build range ts
+        range_timestamp = get_timestamp_range_CDR_v2(es_ts_start, es_ts_end)
+        query = "{\"fields\": [\""+"\", \"".join(fields_cdr_v2)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"content_type\": \"image/jpeg\"}}, \"filter\": "+range_timestamp+"}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     elif args.cdr_format == 'v3':
-        print "[build_query_CDR: ERROR] CDR format v3 not yet supported."
-        # need to get fields objects.fields_cdr?
-        # and match: {"objects.content_type": "image/jpeg"?
+        # build range ts in ISO format
+        range_timestamp = get_timestamp_range_CDR_v3(es_ts_start, es_ts_end)
+        query = "{\"fields\": [\""+"\", \"".join(fields_cdr_v3)+"\"], \"query\": {\"filtered\": {\"query\": {\"match\": {\"objects.content_type\": \"image/\"}}, \"filter\": "+range_timestamp+"}}, \"sort\": [ { \"_timestamp\": { \"order\": \"asc\" } } ] }"
     else:
         print "[build_query_CDR: ERROR] Unkown CDR format: {}".format(options.cdr_format)
     return query
@@ -678,7 +713,10 @@ def run_ingestion(args):
         hbase_man_update_out = HbaseManager(sc, conf, hbase_fullhost, args.tab_update_name)
         
         # Setup ES manager
-        es_man = ES(sc, conf, args.es_index, args.es_domain, args.es_host, args.es_port, args.es_user, args.es_pass)
+        if args.cdr_format == 'v3':
+            es_man = ES(sc, conf, args.es_index, 'domain', args.es_host, args.es_port, args.es_user, args.es_pass)
+        else:
+            es_man = ES(sc, conf, args.es_index, args.es_domain, args.es_host, args.es_port, args.es_user, args.es_pass)
         es_man.set_output_json()
         es_man.set_read_metadata()
 
@@ -1366,6 +1404,18 @@ def parse_ingestion_id(ingestion_id):
 
 
 def set_missing_parameters(args):
+    # deal with CDR v3
+    if args.cdr_format == 'v3':
+
+        global s3_url_prefix
+        if args.s3_url_prefix:
+            s3_url_prefix = args.s3_url_prefix
+        else:
+            s3_url_prefix = args.s3_url_prefix_pattern.format(args.es_domain) 
+        print 'Setting s3_url_prefix to {}'.format(s3_url_prefix)
+        args.es_host = args.es_host_pattern_v3.format(args.es_domain[-1])
+        print 'Setting args.es_host to {}'.format(es_host)
+
     # all pca_data, model_data, compute_data should be set to out_rdd_wfeat
     rdd_feat_path = args.base_hdfs_path+args.ingestion_id+'/images/info/out_rdd_wfeat'
     if args.pca_data is None:
@@ -1621,7 +1671,8 @@ if __name__ == '__main__':
     hbase_group.add_argument("--table_update", dest="tab_update_name", required=True)
 
     # Define ES related options
-    es_group.add_argument("--es_host", dest="es_host", required=True)
+    es_group.add_argument("--es_host", dest="es_host", required=False)
+    es_group.add_argument("--es_host_pattern_v3", dest="es_host_pattern_v3", default=default_es_host_pattern_v3)
     es_group.add_argument("--es_user", dest="es_user", required=True)
     es_group.add_argument("--es_pass", dest="es_pass", required=True)
     es_group.add_argument("--es_port", dest="es_port", default=9200)
@@ -1629,6 +1680,8 @@ if __name__ == '__main__':
     es_group.add_argument("--cdr_format", dest="cdr_format", choices=['v2', 'v3'], default='v2')
     # deprecated, now detected from ingestion id.
     es_group.add_argument("--es_domain", dest="es_domain", default=None)
+    es_group.add_argument("--s3_url_prefix", dest="s3_url_prefix", default=None)
+    es_group.add_argument("--s3_url_prefix_pattern", dest="s3_url_prefix_pattern", default=default_s3_url_prefix_pattern)
     es_group.add_argument("--es_ts_start", dest="es_ts_start", help="start timestamp in ms", default=None)
     es_group.add_argument("--es_ts_end", dest="es_ts_end", help="end timestamp in ms", default=None)
     

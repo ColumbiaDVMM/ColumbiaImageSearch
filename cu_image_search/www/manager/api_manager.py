@@ -136,13 +136,27 @@ def _submit_buildindex_worfklow(ingestion_id, table_sha1infos, pingback_url):
     logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
     return job_id
 
+def _submit_buildindex_worfklow_qpr(ingestion_id, table_sha1infos, pingback_url):
+    payload = build_images_index_qpr_workflow_payload(ingestion_id, table_sha1infos, pingback_url)
+    logger.info('[submit_worfklow: log] submitted payload for ingestion_id: {}'.format(payload))
+    json_submit = submit_worfklow(payload)
+    job_id = json_submit['id']
+    logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
+    return job_id
+
 def parse_isodate_to_ts(input_date):
     import dateutil.parser
     import calendar
     parsed_date = dateutil.parser.parse(input_date)
-    print "[parsed_date: {}]".format(parsed_date)
+    print "[parsed_date: {} from {}]".format(parsed_date, input_date)
     return calendar.timegm(parsed_date.utctimetuple())*1000
 
+    # import dateutil.parser
+    # import calendar
+    # calendar.timegm(parsed_date.utctimetuple())*1000
+    # parsed_date = dateutil.parser.parse(input_date)
+    # print "[parsed_date: {}]".format(parsed_date)
+    # return calendar.timegm(parsed_date.utctimetuple())*1000
 
 def reset_apache_conf():
     # for each domain create proxypass and add it to initial conf file
@@ -296,7 +310,7 @@ def start_docker(port, domain_name):
     # call start_docker_columbia_image_search_qpr.sh with the right domain and port
     # this can take a while if the docker image was not build yet... 
     command = '{}{} -p {} -d {}'.format(config['image']['host_repo_path'], config['image']['setup_docker_path'], port, domain_name)
-    logger.info("[check_domain_service: log] Starting docker for domain {} with command: {}".format(domain_name, command))
+    logger.info("[start_docker: log] Starting docker for domain {} with command: {}".format(domain_name, command))
     docker_proc = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE)
 
 
@@ -305,6 +319,11 @@ def check_domain_service(project_sources, project_name):
     # why is project_sources a list actually? Assume we want the first entry? Or loop?
     one_source = project_sources[0]
     domain_name = one_source['type']
+    if domain_name not in ['domain1', 'domain2', 'domain3', 'domain4']:
+        err_msg = 'Invalid domain {} for Summer QPR 2017.'.format(domain_name)
+        logger.info('[check_domain_service: error] '+err_msg)
+        return -1, domain_name, None, None, err_msg
+
     start_ts, end_ts = get_start_end_ts(one_source)
     
     logger.info('[check_domain_service: log] domain_name: %s, start_ts: %s, end_ts: %s' % (domain_name, start_ts, end_ts))
@@ -387,7 +406,8 @@ def check_domain_service(project_sources, project_name):
         pingback_url = config['image']['base_service_url']+endpt
         # submit workflow to get images data
         logger.info('[check_domain_service: log] submitting workflow with parameters: %s, %s, %s' % (ingestion_id, config_json['HBI_table_sha1infos'], pingback_url))
-        job_id = _submit_buildindex_worfklow(ingestion_id, config_json['HBI_table_sha1infos'], pingback_url)
+        #job_id = _submit_buildindex_worfklow(ingestion_id, config_json['HBI_table_sha1infos'], pingback_url)
+        job_id = _submit_buildindex_worfklow_qpr(ingestion_id, config_json['HBI_table_sha1infos'], pingback_url)
         # save job id to be able to check status?
         config_json['job_ids'] = job_id
         # write out new config file
