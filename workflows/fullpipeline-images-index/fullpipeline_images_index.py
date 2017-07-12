@@ -38,8 +38,8 @@ max_ts = 9999999999999
 max_ads_image_dig = 20000
 max_ads_image_hbase = 20000
 max_ads_image = 20000
-max_samples_per_partition = 10000
-max_samples_per_partition_wfeat = 2000
+max_samples_per_partition = 50000
+max_samples_per_partition_wfeat = 20000
 default_partitions_nb = 240
 # for adapt_paramterers
 default_subqpow = 0.25
@@ -52,6 +52,7 @@ default_max_samples_subq = 5000000
 s3_url_prefix = None
 default_s3_url_prefix_pattern = "https://memex-summer2017-{}.s3.amazonaws.com/"
 default_s3_bucket_pattern = "memex-summer2017-{}"
+default_es_dump_pattern = "/user/worker/cdr3/{}/es/full"
 #default_es_host_pattern_v3 = "https://qpr17s{}.hyperiongray.com"
 default_es_host_pattern_v3 = "qpr17s{}.hyperiongray.com"
 
@@ -154,9 +155,14 @@ def check_hdfs_file(hdfs_file_path):
 
 def hdfs_file_exist(hdfs_file_path):
     out, err = check_hdfs_file(hdfs_file_path)
+    hdfs_file_exist = False
     # too restrictive as even log4j error would be interpreted as non existing file
     #hdfs_file_exist = "_SUCCESS" in out and not "_temporary" in out and not err
-    hdfs_file_exist = "_SUCCESS" in out
+    if out:
+        if "_temporary" not in out:
+            hdfs_file_exist = True
+    # Does not work for single file
+    #hdfs_file_exist = "_SUCCESS" in out
     return hdfs_file_exist
 
 def hdfs_single_file_exist(hdfs_file_path):
@@ -168,6 +174,17 @@ def hdfs_file_failed(hdfs_file_path):
     out, err = check_hdfs_file(hdfs_file_path)
     hdfs_file_failed = "_temporary" in out
     return hdfs_file_failed
+
+
+def load_rdd(sc, rdd_path):
+    rdd = None
+    try:
+        if hdfs_file_exist(rdd_path):
+            print("[load_rdd] trying to load rdd from {}.".format(rdd_path))
+            rdd = sc.sequenceFile(rdd_path)
+    except Exception as inst:
+        print("[load_rdd: caught error] could not load rdd from {}. Error was {}.".format(rdd_path, inst))
+    return rdd
 
 
 def load_rdd_json(sc, basepath_save, rdd_name):
@@ -326,6 +343,27 @@ def CDRv3_to_s3url_adid(data):
         if obj_type.startswith("image"):
             # get url, some url may need unicode characters
             relative_s3_url = unicode(json_x["objects.obj_stored_url"][pos])
+            s3_url = s3_url_prefix+relative_s3_url
+            tup_list.append( (s3_url, ad_id) )
+    return tup_list
+
+
+def CDRv3_from_hdfs_to_s3url_adid(data):
+    """ Create tuples (s3_url, ad_id) for documents in CDRv3 format loaded from hdfs.
+
+    :param data: CDR v3 ad document in JSON format
+    """
+    global s3_url_prefix
+    tup_list = []
+    ad_id = str(data[0])
+    # parse JSON
+    json_x = json.loads(data[1])
+    # look for images in objects field
+    for obj in json_x["objects"]:
+        # check that content_type corresponds to an image
+        if obj["content_type"] and obj["content_type"].startswith("image"):
+            # get url, some url may need unicode characters
+            relative_s3_url = unicode(obj["obj_stored_url"])
             s3_url = s3_url_prefix+relative_s3_url
             tup_list.append( (s3_url, ad_id) )
     return tup_list
@@ -594,23 +632,29 @@ def get_s3url_adid_rdd(sc, basepath_save, es_man, es_ts_start, es_ts_end, hbase_
     rdd_name = "s3url_adid_rdd"
     prefnout = "get_s3url_adid_rdd: "
 
-    # Try to load from disk (always? or only if args.restart is true?)
-    if args.restart:
-        s3url_adid_rdd = load_rdd_json(sc, basepath_save, rdd_name)
-        if s3url_adid_rdd is not None:
-            print("[{}log] {} loaded rdd from {}.".format(prefnout, rdd_name, basepath_save + "/" + rdd_name))
-            return s3url_adid_rdd
+    if args.load_from_es_dump:
+        # We should load from hdfs dump from ES computed by Amandeep
+        print("[{}log] trying to load rdd from {}.".format(prefnout, args.es_dump_file))
+        es_rdd_nopart = load_rdd(sc, args.es_dump_file)
+    else:
+        # Try to load from disk (always? or only if args.restart is true?)
+        if args.restart:
+            s3url_adid_rdd = load_rdd_json(sc, basepath_save, rdd_name)
+            if s3url_adid_rdd is not None:
+                print("[{}log] {} loaded rdd from {}.".format(prefnout, rdd_name, basepath_save + "/" + rdd_name))
+                return s3url_adid_rdd
 
-    # Format query to ES to get images
-    query = build_query_CDR(es_ts_start, es_ts_end, args)
-    if query is None:
-        print("[{}log] empty query...".format(prefnout))
-        return None
-    print("[{}log] query CDR: {}".format(prefnout, query))
-    
-    # Actually get images
-    es_rdd_nopart = es_man.es2rdd(query)
-    if es_rdd_nopart.isEmpty():
+        # Format query to ES to get images
+        query = build_query_CDR(es_ts_start, es_ts_end, args)
+        if query is None:
+            print("[{}log] empty query...".format(prefnout))
+            return None
+        print("[{}log] query CDR: {}".format(prefnout, query))
+        
+        # Actually get images
+        es_rdd_nopart = es_man.es2rdd(query)
+
+    if es_rdd_nopart is None or es_rdd_nopart.isEmpty():
         print("[{}log] empty ingestion...".format(prefnout))
         return None
 
@@ -635,7 +679,10 @@ def get_s3url_adid_rdd(sc, basepath_save, es_man, es_ts_start, es_ts_end, hbase_
     if args.cdr_format == 'v2':
         s3url_adid_rdd = es_rdd.flatMap(CDRv2_to_s3url_adid)
     elif args.cdr_format == 'v3':
-        s3url_adid_rdd = es_rdd.flatMap(CDRv3_to_s3url_adid)
+        if args.load_from_es_dump:
+            s3url_adid_rdd = es_rdd.flatMap(CDRv3_from_hdfs_to_s3url_adid)
+        else:
+            s3url_adid_rdd = es_rdd.flatMap(CDRv3_to_s3url_adid)
     else:
         print "[get_s3url_adid_rdd: ERROR] Unkown CDR format: {}".format(options.cdr_format)
     first_s3url_adid_rdd = s3url_adid_rdd.first()
@@ -685,15 +732,11 @@ def join_ingestion(hbase_man_sha1infos_join, ingest_rdd, options, ingest_rdd_cou
     sha1_infos_rdd = hbase_man_sha1infos_join.read_hbase_table()
     # we may need to merge some 'all_parent_ids'
     if not sha1_infos_rdd.isEmpty(): 
+        # we had some existing images, merge...
         sha1_infos_rdd_count = sha1_infos_rdd.count()
-        # use get_partitions_nb(options, rdd_count)
         nb_partitions_ingest = get_partitions_nb(options.max_samples_per_partition, options.nb_partitions, ingest_rdd_count)
         nb_partitions_sha1_infos = get_partitions_nb(options.max_samples_per_partition, options.nb_partitions, sha1_infos_rdd_count)
-        #nb_partitions_ingest = get_partitions_nb(options, ingest_rdd_count)
-        #nb_partitions_sha1_infos = get_partitions_nb(options, sha1_infos_rdd_count)
-        # partitioned rdd in the same number of partitions to minmize shuffle in the leftOuterJoin
         nb_partitions = max(nb_partitions_sha1_infos, nb_partitions_ingest)
-        #sha1_infos_rdd_json = sha1_infos_rdd.flatMap(sha1_key_json).partitionBy(nb_partitions)
         sha1_infos_rdd_json = sha1_infos_rdd.partitionBy(nb_partitions).flatMapValues(sha1_key_json_values)
         ingest_rdd_partitioned = ingest_rdd.partitionBy(nb_partitions)
         join_rdd = ingest_rdd_partitioned.leftOuterJoin(sha1_infos_rdd_json).flatMap(flatten_leftjoin)
@@ -761,7 +804,9 @@ def run_ingestion(args):
 
         if s3url_adid_rdd is None:
             print "No data retrieved!"
-            return
+            sc.clearFiles()
+            sc.stop()
+            return -1
 
         # reduce by key to download each image once
         s3url_adid_rdd_red = s3url_adid_rdd.flatMapValues(lambda x: [[x]]).reduceByKey(reduce_s3url_listadid)
@@ -910,14 +955,10 @@ def run_extraction(args):
     sc.addFile(base_path_import+'/features/tfdeepsentibank.npy')
     
     out_rdd = get_out_rdd(sc, basepath_save)
-    # should it be x[1] is not None?
-    #out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x is not None)
     out_rdd_wfeat = out_rdd.mapValues(extract).filter(lambda x: x[1] is not None)
     out_rdd_wfeat_count = out_rdd_wfeat.count()
 
     save_info_incremental_update(sc, hbase_man_update_out, ingestion_id, out_rdd_wfeat_count, "out_rdd_wfeat_count")
-
-    # TODO: repartition based on args.max_samples_per_partition_wfeat before saving to disk?
 
     # save to disk
     save_rdd_json(sc, basepath_save, "out_rdd_wfeat", out_rdd_wfeat, ingestion_id, hbase_man_update_out)
@@ -1498,6 +1539,10 @@ def set_missing_parameters(args):
         print 'Setting args.es_host to {}'.format(args.es_host)
         args.s3_bucket = args.s3_bucket_pattern.format(args.es_domain)
 
+        if args.load_from_es_dump:
+            if args.es_dump_file is None:
+                args.es_dump_file = args.es_dump_pattern.format(args.es_domain) 
+
     return args
 
 def adapt_parameters(args, nb_images):
@@ -1732,6 +1777,9 @@ if __name__ == '__main__':
     es_group.add_argument("--s3_url_prefix_pattern", dest="s3_url_prefix_pattern", default=default_s3_url_prefix_pattern)
     es_group.add_argument("--es_ts_start", dest="es_ts_start", help="start timestamp in ms", default=None)
     es_group.add_argument("--es_ts_end", dest="es_ts_end", help="end timestamp in ms", default=None)
+    es_group.add_argument("--es_dump_pattern", dest="es_dump_pattern", help="hdfs path pattern to dump of es data", default=default_es_dump_pattern)
+    es_group.add_argument("--es_dump_file", dest="es_dump_file", help="hdfs path to dump of es data", default=None)
+    es_group.add_argument("--load_from_es_dump", dest="load_from_es_dump", type=bool, help="boolean to load from hdfs dump of es data", default=False)
     
     # Define features reulated options
     feat_group.add_argument("--push_feats_to_hbase", dest="push_feats_to_hbase", type=bool, default=False, help="switch to save features in HBase")
@@ -1817,6 +1865,10 @@ if __name__ == '__main__':
     
     # step 1: get images, and count them
     nb_images = run_ingestion(args)
+
+    if nb_images == -1:
+        print "[STOP] Stopping process as no images could be retrieved..."
+        exit(0)
     
     # step 2: get features
     run_extraction(args)
