@@ -191,6 +191,7 @@ class APIResponder(Resource):
     def search_byURL_nocache(self, query, options=None):
         query_urls = get_clean_urls_from_query(query)
         options_dict, errors = self.get_options_dict(options)
+        # TODO: how to deal with URLs that requires identification e.g. for the summer QPR.
         outp = self.searcher.search_image_list(query_urls, options_dict)
         outp_we = self.append_errors(outp, errors)
         return outp_we
@@ -212,6 +213,7 @@ class APIResponder(Resource):
         return outp_we
 
         # NOT VALID: we actually do not push back the features to HBase anymore.
+        # But we could and actually use the features to do reranking 
         # # get the features from HBase and search
         # rows_feats = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, columns=self.searcher.indexer.extractions_columns)
         # # assume only one feature
@@ -252,8 +254,7 @@ class APIResponder(Resource):
             status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh.isoformat(' ')
         else:
             status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh
-        # TODO: we should add the count of iamges to the lopq searcher
-        #status_dict['indexed_images'] = len(self.searcher.indexer.sha1_featid_mapping)
+        status_dict['nb_indexed'] = str(self.searcher.searcher_lopq.nb_indexed)
         return status_dict
 
 

@@ -83,6 +83,9 @@ def multisequence(x, centroids):
 
 class LOPQSearcherBase(object):
 
+    def __init__(self):
+        self.nb_indexed = 0
+
     def add_data(self, data, ids=None, num_procs=1):
         """
         Add raw data into the search index.
@@ -274,6 +277,7 @@ class LOPQSearcherBase(object):
         raise NotImplementedError()
 
 class LOPQSearcher(LOPQSearcherBase):
+    
     def __init__(self, model):
         """
         Create an LOPQSearcher instance that encapsulates retrieving and ranking
@@ -304,6 +308,7 @@ class LOPQSearcher(LOPQSearcherBase):
             try:
                 cell = code[0]
                 self.index[cell].append((item_id, code))
+                self.nb_indexed += 1
             except Exception as inst:
                 print 'Could not push code {}. ({})'.format(code, inst)
 
@@ -381,6 +386,7 @@ class LOPQSearcherLMDB(LOPQSearcherBase):
                 key = key_prefix + key_suffix
                 val = self.encode_fine_codes(code[1])
                 txn.put(key, val)
+                self.nb_indexed += 1
         self.env.sync()
 
     def get_cell(self, cell):
