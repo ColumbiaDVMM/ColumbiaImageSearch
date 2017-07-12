@@ -82,9 +82,8 @@ def multisequence(x, centroids):
 
 
 class LOPQSearcherBase(object):
-
-    def __init__(self):
-        self.nb_indexed = 0
+    
+    nb_indexed = 0
 
     def add_data(self, data, ids=None, num_procs=1):
         """
