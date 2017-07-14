@@ -19,14 +19,15 @@ if [[ $install_python_pkgs -eq 1 ]];
 then
 	# install required python packages
 	echo "Installing python packages"
-	pip install --upgrade pip
-	pip install setuptools
+	pip install --user --upgrade pip
+	pip install --user setuptools
+        pip install --user --upgrade numpy
 	# run it twice because it seems to fail the first time sometimes...
 	pip install --user -r ${repo_path}/requirements.txt
 	pip install --user -r ${repo_path}/requirements.txt
 	# we should also install modified lopq version...
 	cd ${repo_path}/${path_lopq}
-	python setup.py install --force
+	python setup.py install --user --force
 	cd ${repo_path}
 fi
 

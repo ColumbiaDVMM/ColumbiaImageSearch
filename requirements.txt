@@ -1,11 +1,12 @@
 #setuptools # should be installed first before calling pip install -r requirements.txt
 
-numpy
+numpy>=1.6.1
+scipy>=0.9
+scikit-learn
 requests
 happybase
 urllib3[secure]
 python-dateutil
-scipy
 tensorflow
 
 # not needed for precomp
