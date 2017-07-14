@@ -12,6 +12,7 @@ with_cuda=false
 # get path of repo root
 repo_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../.. && pwd )"
 #repo_path=/home/ubuntu/memex/ColumbiaImageSearch/
+# make that an independent repo?
 path_lopq="workflows/build-lopq-index/lopq/python"
 
 ## Python
@@ -19,6 +20,7 @@ if [[ $install_python_pkgs -eq 1 ]];
 then
 	# install required python packages
 	echo "Installing python packages"
+	apt-get install -y python-cffi
 	pip install --user --upgrade pip
 	pip install --user setuptools
         pip install --user --upgrade numpy
