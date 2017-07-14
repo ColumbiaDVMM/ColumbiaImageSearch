@@ -1,6 +1,6 @@
 /usr/lib/spark/bin/spark-submit \
 --master yarn-client \
---executor-memory 15g  --executor-cores 4 --num-executors 16 --driver-memory 40g \
+--executor-memory 15g  --executor-cores 4 --num-executors 32 --driver-memory 40g \
 --conf spark.eventLog.enabled=true \
 --conf spark.eventLog.dir=hdfs://memex/user/spark/applicationHistory \
 --conf spark.yarn.historyServer.address=memex-spark-master.xdata.data-tactics-corp.com:18080 \
