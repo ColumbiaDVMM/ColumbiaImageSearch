@@ -5,7 +5,6 @@ import json
 import struct
 import numpy as np
 from collections import OrderedDict
-from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
 START_HDFS = '/user/'
 
@@ -48,6 +47,7 @@ class SearcherLOPQHBase():
         self.init_lopq()
         self.init_hbaseindexer()
         self.init_feature_extractor()
+        self.codes_path = self.global_conf['SE_codes_path']
         self.load_codes()
         self.url_field = 'info:s3_url'
         self.needed_output_columns = [self.url_field]
@@ -122,11 +122,10 @@ class SearcherLOPQHBase():
             raise ValueError("[SearcherLOPQHBase: error] unkown 'feature_extractor' {}.".format(self.global_conf[field]))
 
     def load_codes(self):
-        codes_path = self.global_conf['SE_codes_path']
-        if codes_path.startswith(START_HDFS):
-            self.searcher_lopq.add_codes_from_hdfs(codes_path)
+        if self.codes_path.startswith(START_HDFS):
+            self.searcher_lopq.add_codes_from_hdfs(self.codes_path)
         else:
-            self.searcher_lopq.add_codes_from_local(codes_path)
+            self.searcher_lopq.add_codes_from_local(self.codes_path)
 
     def check_ratio(self):
         '''Check if we need to set the ratio based on topfeature.'''

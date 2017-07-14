@@ -8,9 +8,6 @@ import numpy as np
 from datetime import datetime
 from generic_indexer import GenericIndexer
 from socket import timeout
-from ..memex_tools.image_dl import mkpath
-from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
-from ..memex_tools.binary_file import read_binary_file, write_binary_file
 
 TTransportException = happybase._thriftpy.transport.TTransportException
 TException = happybase._thriftpy.thrift.TException

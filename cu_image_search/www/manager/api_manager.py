@@ -16,7 +16,8 @@ from flask_restful import Resource, Api
 from config import config
 from locker import Locker
 import rest
-from oozie_job_manager import build_images_workflow_payload_v2, build_images_index_workflow_payload, build_images_index_qpr_workflow_payload, submit_worfklow, get_job_info, rerun_job
+#from oozie_job_manager import build_images_workflow_payload_v2, build_images_index_workflow_payload, build_images_index_qpr_workflow_payload, submit_worfklow, get_job_info, rerun_job
+from oozie_job_manager import build_images_index_qpr_loadesdump_workflow_payload, submit_worfklow, get_job_info, rerun_job
 import pymongo
 from pymongo import MongoClient
 
@@ -136,13 +137,24 @@ def _get_domain_dir_path(domain_name):
 #     logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
 #     return job_id
 
-def _submit_buildindex_worfklow_qpr(ingestion_id, table_sha1infos, pingback_url):
-    payload = build_images_index_qpr_workflow_payload(ingestion_id, table_sha1infos, pingback_url)
+# def _submit_buildindex_worfklow_qpr(ingestion_id, table_sha1infos, pingback_url):
+#     payload = build_images_index_qpr_workflow_payload(ingestion_id, table_sha1infos, pingback_url)
+#     logger.info('[submit_worfklow: log] submitted payload for ingestion_id: {}'.format(payload))
+#     json_submit = submit_worfklow(payload)
+#     job_id = json_submit['id']
+#     logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
+#     return job_id
+
+#HG ES instances are slow. Amandeep reads once the index and dumps to HDFS. Load from there
+# TODO: reference here the workflow from Amandeep that dumps the data?
+def _submit_buildindex_worfklow_qpr_loadesdump(ingestion_id, table_sha1infos, pingback_url):
+    payload = build_images_index_qpr_loadesdump_workflow_payload(ingestion_id, table_sha1infos, pingback_url)
     logger.info('[submit_worfklow: log] submitted payload for ingestion_id: {}'.format(payload))
     json_submit = submit_worfklow(payload)
     job_id = json_submit['id']
     logger.info('[submit_worfklow: log] submitted workflow for ingestion_id: %s.' % (ingestion_id))
     return job_id
+
 
 def parse_isodate_to_ts(input_date):
     import dateutil.parser
@@ -403,7 +415,7 @@ def check_domain_service(project_sources, project_name):
         # submit workflow to get images data
         logger.info('[check_domain_service: log] submitting workflow with parameters: %s, %s, %s' % (ingestion_id, config_json['HBI_table_sha1infos'], pingback_url))
         #job_id = _submit_buildindex_worfklow(ingestion_id, config_json['HBI_table_sha1infos'], pingback_url)
-        job_id = _submit_buildindex_worfklow_qpr(ingestion_id, config_json['HBI_table_sha1infos'], pingback_url)
+        job_id = _submit_buildindex_worfklow_qpr_loadesdump(ingestion_id, config_json['HBI_table_sha1infos'], pingback_url)
         # save job id to be able to check status?
         config_json['job_ids'] = job_id
         # write out new config file

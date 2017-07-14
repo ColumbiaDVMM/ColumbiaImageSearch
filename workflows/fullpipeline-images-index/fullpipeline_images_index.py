@@ -38,7 +38,7 @@ max_ts = 9999999999999
 max_ads_image_dig = 20000
 max_ads_image_hbase = 20000
 max_ads_image = 20000
-max_samples_per_partition = 50000
+max_samples_per_partition = 200000
 max_samples_per_partition_wfeat = 20000
 default_partitions_nb = 240
 # for adapt_paramterers
@@ -1100,8 +1100,12 @@ def reduce_pca(args, params):
     mu = params['mu']
 
     # Reduce dimension - eigenvalues assumed in ascending order
-    E = E[-args.pca_D:]
-    P = P[:,-args.pca_D:]
+    try:
+        E = E[-args.pca_D:]
+        P = P[:,-args.pca_D:]
+    except Exception as inst:
+        # If args.pca_D is bigger than actual features dimensions
+        print "[reduce_pca: error] Could not reduce PCA to {} dimensions".format(args.pca_D)
 
     # Balance variance across halves
     permuted_inds = eigenvalue_allocation(2, E)
