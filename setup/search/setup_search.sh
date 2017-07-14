@@ -23,7 +23,7 @@ then
 	apt-get install -y python-cffi
 	pip install --user --upgrade pip
 	pip install --user setuptools
-        pip install --user --upgrade numpy
+    pip install --user --upgrade numpy
 	# run it twice because it seems to fail the first time sometimes...
 	pip install --user -r ${repo_path}/requirements.txt
 	pip install --user -r ${repo_path}/requirements.txt
