@@ -1,12 +1,6 @@
-import os
-import sys
 import time
-import base64
-import shutil
 import happybase
-import numpy as np
 from datetime import datetime
-from socket import timeout
 
 TTransportException = happybase._thriftpy.transport.TTransportException
 TException = happybase._thriftpy.thrift.TException
@@ -17,6 +11,7 @@ batch_size = 100
 class HBaseIndexerMinimal(object):
 
     def __init__(self, global_conf_filename, prefix="HBFI_"):
+        import json
         self.verbose = 0
         self.prefix = prefix
         self.last_refresh = datetime.now()
@@ -52,8 +47,6 @@ class HBaseIndexerMinimal(object):
         # self.extractions_columns = self.get_param('extractions_columns')
         # if len(self.extractions_columns) != len(self.extractions_types):
         #     raise ValueError("[HBaseIndexerMinimal.read_conf: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
-
-
 
     def refresh_hbase_conn(self, calling_function, sleep_time=0):
         # this can take 4 seconds...

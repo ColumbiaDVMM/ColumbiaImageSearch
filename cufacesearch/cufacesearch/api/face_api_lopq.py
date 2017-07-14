@@ -112,7 +112,7 @@ class APIResponder(Resource):
                 errors.append(err_msg)
             for k in options_dict:
                 if k not in self.valid_options:
-                    err_msg = "[get_options: error] Unkown option {}".format(k)
+                    err_msg = "[get_options: error] Unknown option {}".format(k)
                     print(err_msg)
                     errors.append(err_msg)
         return options_dict, errors
@@ -143,7 +143,8 @@ class APIResponder(Resource):
 
 
     def search_bySHA1(self, query, options=None):
-        # could have precomputed similarities and return them here
+        # could use precomputed faces detections and features here
+        # could also have precomputed similarities and return them here
         return self.search_bySHA1_nocache(query, options)
 
 
@@ -173,13 +174,11 @@ class APIResponder(Resource):
 
 
     def refresh(self):
-        self.searcher.indexer.hasher.init_hasher()
-        if not self.searcher.indexer.initializing:
-            self.searcher.indexer.initialize_sha1_mapping()
-            return {'refresh': 'just run a new refresh'}
-        else:
-            self.searcher.indexer.refresh_inqueue = True
-            return {'refresh': 'pushed a refresh in queue.'}
+        # If new codes are avaible in HDFS?
+        from ..searcher.searcher_lopqhbase import SearcherLOPQHBase
+        new_searcher = SearcherLOPQHBase(self.searcher.global_conf_filename)
+        self.searcher = new_searcher
+        return {'refresh': 'just run a new refresh'}
 
 
     def status(self):
@@ -197,13 +196,14 @@ class APIResponder(Resource):
     def get_clean_urls_from_query(query):
         """ To deal with comma in URLs.
         """
-        tmp_query_urls = ['http' + x for x in query.split('http') if x]
+        tmp_query_urls = ['http'+str(x) for x in query.split('http') if x]
         query_urls = []
         for x in tmp_query_urls:
             if x[-1] == ',':
                 query_urls.append(x[:-1])
             else:
                 query_urls.append(x)
+        print "[get_clean_urls_from_query: info] {}".format(query_urls)
         return query_urls
 
 
@@ -243,9 +243,6 @@ class APIResponder(Resource):
 
         # Get errors
         options_dict, errors_options = self.get_options_dict(options)
-        errors_search = None
-        if "errors" in query_response:
-            errors_search = query_response["errors"]
 
         # Parse similar images response
         sim_images = query_response["images"]

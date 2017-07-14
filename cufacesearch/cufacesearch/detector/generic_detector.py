@@ -1,7 +1,10 @@
 class GenericFaceDetector(object):
 
+  image_dl_timeout = 4
+  verbose = 1
+
   def __init__(self):
-    self.image_dl_timeout = 4
+    pass
 
   def get_SHA1_from_data(self, data):
     sha1hash = None
@@ -18,6 +21,8 @@ class GenericFaceDetector(object):
   def detect_from_url(self, img_url, upsample=1):
     import requests
     from cStringIO import StringIO
+    if self.verbose > 0:
+      print "Downloading image from {}".format(img_url)
     r = requests.get(img_url, timeout=self.image_dl_timeout)
     if r.status_code == 200:
       if int(r.headers['content-length']) == 0:
