@@ -4,42 +4,10 @@ import json
 import numpy as np
 from collections import OrderedDict
 
+from output_mapping import DictOutput
+
+
 START_HDFS = '/user/'
-
-class DictOutput():
-
-  def __init__(self, mode='CamelCase'):
-    self.map = dict()
-    if mode == 'CamelCase':
-        self.fillDictCamelCase()
-    else:
-        self.fillDictOld()
-
-  def fillDictCamelCase(self):
-    self.map['query_sha1'] = "QuerySha1"
-    self.map['query_face'] = "QueryFace"
-    self.map['image_sha1s'] = "ImageSha1s"
-    self.map['similar_faces'] = "SimilarFaces"
-    self.map['faces'] = "Faces"
-    self.map['distances'] = "Distances"
-    self.map['number_images'] = "NumberImages"
-    self.map['number_faces'] = "NumberFaces"
-    self.map['number_similar_faces'] = "NumberSimilarFaces"
-    self.map['all_similar_faces'] = "AllSimilarFaces"
-    self.map['cached_image_urls'] = "CachedImageURLs"
-
-  def fillDictOld(self):
-    self.map['query_sha1'] = "query_sha1"
-    self.map['query_face'] = "query_face"
-    self.map['image_sha1s'] = "image_sha1s"
-    self.map['similar_faces'] = "similar_faces"
-    self.map['faces'] = "faces"
-    self.map['distances'] = "distances"
-    self.map['number_images'] = "number_images"
-    self.map['number_faces'] = "number_faces"
-    self.map['number_similar_faces'] = "number_similar_faces"
-    self.map['all_similar_faces'] = "all_similar_faces"
-    self.map['cached_image_urls'] = "cached_image_urls"
 
 
 class SearcherLOPQHBase():
@@ -58,6 +26,11 @@ class SearcherLOPQHBase():
     # should codes path be a list to deal with updates?
     # should we store that list in HBase?
     self.codes_path = self.get_param('codes_path')
+    dict_output_type = self.get_param('dict_output_type')
+    if dict_output_type:
+      self.do = DictOutput(dict_output_type)
+    else:
+      self.do = DictOutput()
     self.load_codes()
     self.url_field = 'info:s3_url'
     self.needed_output_columns = [self.url_field]
@@ -186,7 +159,6 @@ class SearcherLOPQHBase():
     print "[SearcherLOPQHBase.format_output: log] options are: {}".format(options_dict)
     start_build_output = time.time()
     output = []
-    do = DictOutput()
     images_query = set()
     nb_faces_query = 0
     nb_faces_similar = 0
@@ -200,13 +172,16 @@ class SearcherLOPQHBase():
       if not dets[i][1]:
         output.append(dict())
         out_i = len(output) - 1
-        output[out_i][do.map['query_sha1']] = dets[i][0]
+        output[out_i][self.do.map['query_sha1']] = dets[i][0]
+        if dets[i][2]:
+          output[out_i][self.do.map['query_url']] = dets[i][2]
+        output[out_i][self.do.map['img_info']] = dets[i][3:5]
         images_query.add(dets[i][0])
-        output[out_i][do.map['similar_faces']] = OrderedDict([[do.map['number_faces'], 0],
-                                                               [do.map['image_sha1s'], []],
-                                                               [do.map['faces'], []],
-                                                               [do.map['cached_image_urls'], []],
-                                                               [do.map['distances'], []]])
+        output[out_i][self.do.map['similar_faces']] = OrderedDict([[self.do.map['number_faces'], 0],
+                                                               [self.do.map['image_sha1s'], []],
+                                                               [self.do.map['faces'], []],
+                                                               [self.do.map['cached_image_urls'], []],
+                                                               [self.do.map['distances'], []]])
         continue
 
       # We found some faces...
@@ -216,8 +191,11 @@ class SearcherLOPQHBase():
         # Add one output for each face query
         output.append(dict())
         out_i = len(output) - 1
-        output[out_i][do.map['query_sha1']] = dets[i][0]
-        output[out_i][do.map['query_face']] = dets[i][1][j]
+        output[out_i][self.do.map['query_sha1']] = dets[i][0]
+        output[out_i][self.do.map['query_face']] = dets[i][1][j]
+        if dets[i][2]:
+          output[out_i][self.do.map['query_url']] = dets[i][2]
+        output[out_i][self.do.map['img_info']] = dets[i][3:]
         images_query.add(dets[i][0])
 
         nb_faces = 0
@@ -225,24 +203,28 @@ class SearcherLOPQHBase():
           if sim_faces[i][j]:
             nb_faces = len(sim_faces[i][j])
 
-        output[out_i][do.map['similar_faces']] = OrderedDict([[do.map['number_faces'], nb_faces],
-                                                              [do.map['image_sha1s'], []],
-                                                              [do.map['faces'], []],
-                                                              [do.map['cached_image_urls'], []],
-                                                              [do.map['distances'], []]])
+        output[out_i][self.do.map['similar_faces']] = OrderedDict([[self.do.map['number_faces'], nb_faces],
+                                                              [self.do.map['image_sha1s'], []],
+                                                              [self.do.map['faces'], []],
+                                                              [self.do.map['img_info'], []],
+                                                              [self.do.map['cached_image_urls'], []],
+                                                              [self.do.map['distances'], []]])
         # Explore list of similar faces
         for jj in range(nb_faces):
           sim_face = sim_faces[i][j][jj]
           nb_faces_similar += 1
-          output[out_i][do.map['similar_faces']][do.map['image_sha1s']].append(sim_images[i][j][jj][0].strip())
-          output[out_i][do.map['similar_faces']][do.map['cached_image_urls']].append(sim_images[i][j][jj][1][self.url_field].strip())
-          output[out_i][do.map['similar_faces']][do.map['faces']].append('-'.join(sim_face.split('_')[1:]))
-          output[out_i][do.map['similar_faces']][do.map['distances']].append(sim_score[i][j][jj])
+          output[out_i][self.do.map['similar_faces']][self.do.map['image_sha1s']].append(sim_images[i][j][jj][0].strip())
+          output[out_i][self.do.map['similar_faces']][self.do.map['cached_image_urls']].append(sim_images[i][j][jj][1][self.url_field].strip())
+          output[out_i][self.do.map['similar_faces']][self.do.map['faces']].append('-'.join(sim_face.split('_')[1:]))
+          # this is not in HBase for all/most images...
+          #osf_imginfo = sim_images[i][j][jj][1][self.img_info_field].strip()
+          output[out_i][self.do.map['similar_faces']][self.do.map['img_info']].append('')
+          output[out_i][self.do.map['similar_faces']][self.do.map['distances']].append(sim_score[i][j][jj])
 
-    outp = OrderedDict([[do.map['number_images'], len(images_query)],
-                        [do.map['number_faces'], nb_faces_query],
-                        [do.map['number_similar_faces'], nb_faces_similar],
-                        [do.map['all_similar_faces'], output]])
+    outp = OrderedDict([[self.do.map['number_images'], len(images_query)],
+                        [self.do.map['number_faces'], nb_faces_query],
+                        [self.do.map['number_similar_faces'], nb_faces_similar],
+                        [self.do.map['all_similar_faces'], output]])
 
     print "[SearcherLOPQHBase.format_output: log] build_output took: {}".format(time.time() - start_build_output)
     return outp
@@ -255,14 +237,16 @@ class SearcherLOPQHBase():
 
 
   def _search_from_any_list(self, image_list, detect_fn, options_dict):
-    list_sha1_id = []
     dets = []
     feats = []
     # for each image
     for image in image_list:
       # first detect faces
-      sha1, img, faces = detect_fn(image)
-      dets.append((sha1, faces))
+      sha1, img_type, width, height, img, faces = detect_fn(image)
+      if image.startswith('http'):
+        dets.append((sha1, faces, image, img_type, width, height))
+      else:
+        dets.append((sha1, faces, None, img_type, width, height))
       # if we found faces, get features for each face
       faces_feats = []
       # check if we were asked only to perform detection

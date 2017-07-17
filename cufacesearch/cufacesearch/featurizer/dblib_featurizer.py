@@ -3,6 +3,7 @@ www_pred_path = "http://dlib.net/files/"+pred_bz2_file
 rec_bz2_file = "dlib_face_recognition_resnet_model_v1.dat.bz2"
 www_rec_path = "http://dlib.net/files/"+rec_bz2_file
 
+
 def download_model(url, local_path, bz2_file):
   import os
   import urllib
@@ -17,6 +18,7 @@ def download_model(url, local_path, bz2_file):
   # need to unzip
   unzip_model(bz2_local_path, local_path)
 
+
 def unzip_model(bz2_model_path, local_path):
   print "Unzipping file: {}".format(bz2_model_path)
   import bz2
@@ -24,7 +26,6 @@ def unzip_model(bz2_model_path, local_path):
   with open(local_path, 'w') as out:
     data = bz2model.read()
     out.write(data)
-
 
 
 class DLibFeaturizer(object):
@@ -64,5 +65,8 @@ class DLibFeaturizer(object):
       print '[get_param: info] could not find {} in configuration'.format(key_param)
 
   def featurize(self, img, d):
-    shape = self.sp(img, d)
+    bbox = d
+    if type(d) == dict:
+      bbox = [d['left'], d['top'], d['right'], d['bottom']]
+    shape = self.sp(img, bbox)
     return self.facerec.compute_face_descriptor(img, shape)

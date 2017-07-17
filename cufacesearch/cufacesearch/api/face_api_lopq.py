@@ -5,6 +5,9 @@ from datetime import datetime
 from flask import Markup, flash, request, render_template, make_response
 from flask_restful import Resource
 
+from ..imgio.imgio import ImageMIMETypes, get_SHA1_img_type_from_B64, build_bbox_str_list
+
+
 from socket import *
 sock = socket()
 sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
@@ -12,15 +15,17 @@ sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 global_searcher = None
 global_start_time = None
 
+# should be under creative commons licence
+default_img = "https://c1.staticflickr.com/9/8542/8666789945_0077a6d060_z.jpg"
+
 
 class APIResponder(Resource):
 
 
     def __init__(self):
-
         self.searcher = global_searcher
         self.start_time = global_start_time
-        self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only"]
+        self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height"]
         self.column_url = "info:s3_url"
 
 
@@ -225,49 +230,76 @@ class APIResponder(Resource):
 
 
     def view_similar_query_response(self, query_type, query, query_response, options=None):
-        if query_type == 'URL':
-            query_urls = self.get_clean_urls_from_query(query)
-        elif query_type == 'B64':
-            # need to get embedded format for each b64 query
-            # TODO: deal with different image encoding
-            query_urls = ["data:image/jpeg;base64,"+str(q) for q in query.split(',')]
-        elif query_type == 'SHA1':
-            # need to get url for each sha1 query
-            query_urls = []
-            for one_query in query_response["images"]:
-                query_image_row = self.searcher.indexer.get_columns_from_sha1_rows([str(one_query["query_sha1"])], ["info:s3_url"])
-                query_urls.append(query_image_row[0][1]["info:s3_url"])
+
+      if query_type == 'B64':
+        # get :
+        # - sha1 to be able to map to query response
+        # - image type to make sure the image is displayed properly
+        # - embedded format for each b64 query
+        query_list = query.split(',')
+        query_b64_infos = [get_SHA1_img_type_from_B64(q) for q in query_list]
+        query_urls_map = dict()
+        for img_id,img_info in enumerate(query_b64_infos):
+          query_urls_map[img_info[0]] = "data:"+ImageMIMETypes[img_info[1]]+";base64,"+str(query_list[img_id])
+      elif query_type == 'SHA1' or query_type == "URL":
+        # URLs should already be in query response
+        pass
+      else:
+        print "[view_similar_query_response: error] Unknown query_type: {}".format(query_type)
+        return None
+
+      # Get errors
+      options_dict, errors_options = self.get_options_dict(options)
+
+      # Parse similar faces response
+      all_sim_faces = query_response[self.searcher.do.map['all_similar_faces']]
+      search_results = []
+      print "[view_similar_query_response: log] len(sim_faces): {}".format(len(all_sim_faces))
+      for i in range(len(all_sim_faces)):
+        # Parse query face, and build face tuple (sha1, url/b64 img, face bounding box)
+        query_face = all_sim_faces[i]
+        query_sha1 = query_face[self.searcher.do.map['query_sha1']]
+        if query_type == 'B64':
+          query_face_img = query_urls_map[query_sha1]
         else:
-            print "[view_similar_query_response: error] Unknown query_type: {}".format(query_type)
-            return None
+          query_face_img = query_face[self.searcher.do.map['query_url']]
+        query_face_bbox = query_face[self.searcher.do.map['query_face']]
+        query_face_bbox_compstr = build_bbox_str_list(query_face_bbox)
+        # face_width = query_face_bbox['right'] - query_face_bbox['left']
+        # face_height = query_face_bbox['bottom'] - query_face_bbox['top']
+        # query_face_bbox_compstr = []
+        # query_face_bbox_compstr.append(str(query_face_bbox['top']))
+        # query_face_bbox_compstr.append(str(query_face_bbox['left']))
+        # query_face_bbox_compstr.append(str(face_width))
+        # query_face_bbox_compstr.append(str(face_height))
+        img_size = query_face[self.searcher.do.map['img_info']][1:]
+        out_query_face = (query_sha1, query_face_img, query_face_bbox_compstr, img_size)
+        # Parse similar faces
+        out_similar_faces = []
+        similar_faces = query_face[self.searcher.do.map['similar_faces']]
+        for j in range(similar_faces[self.searcher.do.map['number_faces']]):
+          # build face tuple (sha1, url/b64 img, face bounding box, distance) for one similar face
+          osface_sha1 = similar_faces[self.searcher.do.map['image_sha1s']][j]
+          osface_url = similar_faces[self.searcher.do.map['cached_image_urls']][j]
+          osface_bbox = similar_faces[self.searcher.do.map['faces']][j]
+          osface_bbox_compstr = build_bbox_str_list(osface_bbox)
+          osface_img_size = similar_faces[self.searcher.do.map['img_info']][j][1:]
+          osface_dist = similar_faces[self.searcher.do.map['distances']][j]
+          out_similar_faces.append((osface_sha1, osface_url, osface_bbox_compstr, osface_dist, osface_img_size))
+        # build output
+        search_results.append([out_query_face, out_similar_faces])
 
-        # Get errors
-        options_dict, errors_options = self.get_options_dict(options)
+      # Prepare settings
+      settings = dict()
+      settings["no_blur"] = False
+      if "no_blur" in options_dict:
+        settings["no_blur"] = options_dict["no_blur"]
+      if "max_height" in options_dict:
+        settings["max_height"] = options_dict["max_height"]
 
-        # Parse similar images response
-        sim_images = query_response["images"]
-        similar_images_response = []
-        print "[view_similar_query_response: log] len(query_urls): {}, len(sim_images): {}".format(len(query_urls), len(sim_images))
-        for i in range(len(query_urls)):
-            if sim_images and len(sim_images)>=i:
-                one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
-                one_sims = []
-                for j,sim_sha1 in enumerate(sim_images[i]["similar_images"]["sha1"]):
-                    one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1, sim_images[i]["similar_images"]["distance"][j]),)
-                one_res.append(one_sims)
-            else:
-                one_res = [(query_urls[i], ""), [('','','')]]
-            similar_images_response.append(one_res)
-        if not similar_images_response:
-            similar_images_response.append([('','No results'),[('','','')]])
-        flash_message = (False, similar_images_response)
-        if "no_blur" in options_dict:
-            flash_message = (options_dict["no_blur"],similar_images_response)
-        flash(flash_message,'message')
-        headers = {'Content-Type': 'text/html'}
-        sys.stdout.flush()
-        # TODO: pass named arguments instead of flash messages 
-        return make_response(render_template('view_similar_images.html'),200,headers)
+      headers = {'Content-Type': 'text/html'}
 
-
-
+      return make_response(render_template('view_similar_faces_wbbox.html',
+                                           settings=settings,
+                                           search_results=search_results),
+                           200, headers)

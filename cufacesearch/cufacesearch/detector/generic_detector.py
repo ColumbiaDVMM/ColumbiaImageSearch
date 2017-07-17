@@ -1,3 +1,5 @@
+from ..imgio.imgio import get_buffer_from_URL, get_buffer_from_B64, get_SHA1_img_info_from_buffer
+
 class GenericFaceDetector(object):
 
   image_dl_timeout = 4
@@ -6,46 +8,21 @@ class GenericFaceDetector(object):
   def __init__(self):
     pass
 
-  def get_SHA1_from_data(self, data):
-    sha1hash = None
-    import hashlib
-    try:
-      sha1 = hashlib.sha1()
-      sha1.update(data)
-      sha1hash = sha1.hexdigest().upper()
-    except:
-      print "Could not read data to compute SHA1."
-    return sha1hash
-
 
   def detect_from_url(self, img_url, upsample=1):
-    import requests
-    from cStringIO import StringIO
-    if self.verbose > 0:
-      print "Downloading image from {}".format(img_url)
-    r = requests.get(img_url, timeout=self.image_dl_timeout)
-    if r.status_code == 200:
-      if int(r.headers['content-length']) == 0:
-        del r
-        raise ValueError("Empty image.")
-      else:
-        img_buffer = StringIO(r.content)
-        return self.detect_from_buffer(img_buffer, upsample)
+    return self.detect_from_buffer(get_buffer_from_URL(img_url), upsample)
 
 
   def detect_from_b64(self, base64str, up_sample=0):
-    from cStringIO import StringIO
-    import base64
-    img_buffer = StringIO(base64.b64decode(base64str))
-    return self.detect_from_buffer(img_buffer, up_sample)
+    return self.detect_from_buffer(get_buffer_from_B64(base64str), up_sample)
 
 
   def detect_from_buffer(self, img_buffer, up_sample=0):
-    from skimage import io as skio
-    sha1 = self.get_SHA1_from_data(img_buffer.read())
+    sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
     img_buffer.seek(0)
+    from skimage import io as skio
     img = skio.imread(img_buffer)
-    return sha1, img, self.detect_from_img(img, up_sample)
+    return sha1, img_type, width, height, img, self.detect_from_img(img, up_sample)
 
 
   def detect_from_img(self, img, up_sample=0):
