@@ -119,8 +119,8 @@ def build_bbox_str_list(bbox):
   face_width = bbox['right'] - bbox['left']
   face_height = bbox['bottom'] - bbox['top']
   bbox_str_list = []
-  bbox_str_list.append(str(bbox['top']))
   bbox_str_list.append(str(bbox['left']))
+  bbox_str_list.append(str(bbox['top']))
   bbox_str_list.append(str(face_width))
   bbox_str_list.append(str(face_height))
   return bbox_str_list

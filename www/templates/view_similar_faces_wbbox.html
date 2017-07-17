@@ -28,7 +28,7 @@
           ctxt_{{query_face_id}}.canvas.width = img_{{query_face[0]}}.width;
           ctxt_{{query_face_id}}.canvas.height = img_{{query_face[0]}}.height;
           ctxt_{{query_face_id}}.drawImage(img_{{query_face[0]}}, 0, 0);
-          ctxt_{{query_face_id}}.rect({{query_face[2][1]}},{{query_face[2][0]}},{{query_face[2][2]}},{{query_face[2][3]}});
+          ctxt_{{query_face_id}}.rect({{query_face[2][0]}},{{query_face[2][1]}},{{query_face[2][2]}},{{query_face[2][3]}});
           ctxt_{{query_face_id}}.lineWidth = 6;
           ctxt_{{query_face_id}}.strokeStyle = '#ff0000';
           ctxt_{{query_face_id}}.stroke();
@@ -46,7 +46,7 @@
             ctxt_res{{face_id}}_query{{query_face_id}}.canvas.width = img_{{sha1}}.width;
             ctxt_res{{face_id}}_query{{query_face_id}}.canvas.height = img_{{sha1}}.height;
             ctxt_res{{face_id}}_query{{query_face_id}}.drawImage(img_{{sha1}}, 0, 0);
-            ctxt_res{{face_id}}_query{{query_face_id}}.rect({{bbox[1]}},{{bbox[0]}},{{bbox[2]}},{{bbox[3]}});
+            ctxt_res{{face_id}}_query{{query_face_id}}.rect({{bbox[0]}},{{bbox[1]}},{{bbox[2]}},{{bbox[3]}});
             ctxt_res{{face_id}}_query{{query_face_id}}.lineWidth = 6;
             ctxt_res{{face_id}}_query{{query_face_id}}.strokeStyle = '#ff0000';
             ctxt_res{{face_id}}_query{{query_face_id}}.stroke();
