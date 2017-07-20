@@ -1,2 +1,4 @@
 scikit-image
 dlib
+requests
+python-tk
