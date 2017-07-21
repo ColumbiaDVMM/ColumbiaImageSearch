@@ -252,6 +252,7 @@ class SearcherLOPQHBase():
       # check if we were asked only to perform detection
       if "detect_only" not in options_dict or not options_dict["detect_only"]:
         for one_face in faces:
+          print one_face
           one_feat = self.featurizer.featurize(img, one_face)
           faces_feats.append(one_feat)
       feats.append(faces_feats)
@@ -279,14 +280,15 @@ class SearcherLOPQHBase():
         results = []
         if "detect_only" not in options_dict or not options_dict["detect_only"]:
           norm_feat = np.linalg.norm(feats[i][j])
-          pca_projected_feat = np.squeeze(self.searcher_lopq.model.apply_PCA(feats[i][j]/norm_feat))
-          #print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
-          # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
-          results, visited = self.searcher_lopq.search(pca_projected_feat,
-                                                       quota=self.quota,
-                                                       limit=self.sim_limit,
-                                                       with_dists=True)
-          print "[SearcherLOPQHBase.search_from_feats: log] got {} results, first one is: {}".format(len(results), results[0])
+          if self.searcher_lopq:
+            pca_projected_feat = np.squeeze(self.searcher_lopq.model.apply_PCA(feats[i][j]/norm_feat))
+            #print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
+            # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
+            results, visited = self.searcher_lopq.search(pca_projected_feat,
+                                                         quota=self.quota,
+                                                         limit=self.sim_limit,
+                                                         with_dists=True)
+            print "[SearcherLOPQHBase.search_from_feats: log] got {} results, first one is: {}".format(len(results), results[0])
         tmp_img_sim = []
         tmp_face_sim_ids = []
         tmp_face_sim_score = []

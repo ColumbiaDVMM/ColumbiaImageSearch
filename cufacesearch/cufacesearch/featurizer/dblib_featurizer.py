@@ -65,8 +65,7 @@ class DLibFeaturizer(object):
       print '[get_param: info] could not find {} in configuration'.format(key_param)
 
   def featurize(self, img, d):
-    bbox = d
-    if type(d) == dict:
-      bbox = [d['left'], d['top'], d['right'], d['bottom']]
-    shape = self.sp(img, bbox)
+    from dlib import rectangle
+    dlib_bbox = rectangle(d['left'], d['top'], d['right'], d['bottom'])
+    shape = self.sp(img, dlib_bbox)
     return self.facerec.compute_face_descriptor(img, shape)
