@@ -65,6 +65,7 @@ class DLibFeaturizer(object):
       print '[get_param: info] could not find {} in configuration'.format(key_param)
 
   def featurize(self, img, d):
+    #TODO: deal with B&W images
     from dlib import rectangle
     dlib_bbox = rectangle(d['left'], d['top'], d['right'], d['bottom'])
     shape = self.sp(img, dlib_bbox)

@@ -2,6 +2,8 @@ import os
 import numpy as np
 
 from generic_searcher import GenericSearcher
+# Beware: the loading function to use could depend on the featurizer type...
+from ..featurizer.featsio import load_face_features
 
 START_HDFS = '/user/'
 
@@ -47,7 +49,7 @@ class SearcherLOPQHBase(GenericSearcher):
             lopq_model = pickle.load(open(lopq_model_path, "rb"))
           else:
             print "[{}: error] Could not find lopq model at: {}".format(self.pp, lopq_model_path)
-            # TODO: should we try to train and save at lopq_model_path?
+            # Train and save model at lopq_model_path
             lopq_model = self.train_model(lopq_model_path)
       else:
         print "[{}: info] Emtpy lopq model path".format(self.pp)
@@ -63,22 +65,22 @@ class SearcherLOPQHBase(GenericSearcher):
 
   def train_model(self, lopq_model_path):
     features_path = self.get_param('features_path')
-    codes_path = self.get_param('codes_path')
     lopq_params = self.get_param('lopq_params')
-    if (os.path.isdir(features_path) or os.path.isfile(features_path)) and lopq_params and features_path and codes_path:
+    if os.path.exists(features_path) and lopq_params and features_path and self.codes_path:
       if self.model_type == "lopq":
         import json
+        import time
         import pickle
         from lopq.model import LOPQModel
-        # Beware: the loading function to use could depend on the featurizer type...
-        from ..featurizer.featsio import load_face_features
         jlp = json.loads(lopq_params)
         # we could have default values for those parameters and/or heuristic to estimate them based on data count...
         lopq_model = LOPQModel(V=jlp['V'], M=jlp['M'], subquantizer_clusters=jlp['subq'])
+        # we could have separate training/indexing features
         face_ids, data = load_face_features(features_path)
         msg = "[{}.train_model: info] Starting local training of 'lopq' model with parameters {} using features from {}."
         print msg.format(self.pp, lopq_params, features_path)
-        lopq_model.fit(data)
+        start_train = time.time()
+        lopq_model.fit(data, verbose=True)
         # save model
         out_dir = os.path.dirname(lopq_model_path)
         try:
@@ -86,30 +88,37 @@ class SearcherLOPQHBase(GenericSearcher):
         except:
           pass
         pickle.dump(lopq_model, lopq_model_path)
+        print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
+        # Compute codes too?
+        print "[{}.train_model: info] Computing codes.".format(self.pp)
+        self.compute_codes(face_ids, data, self.codes_path, model=lopq_model)
+        print "[{}.train_model: info] Saved codes at: {}".format(self.pp, self.codes_path)
       elif self.model_type == "lopq_pca":
         err_msg = "[{}.train_model: error] Local training of 'lopq_pca' model not yet implemented."
         raise NotImplementedError(err_msg.format(self.pp))
       else:
         raise ValueError("[{}.train_model: error] Unknown 'lopq' type {}.".format(self.pp, self.model_type))
-      # compute codes too?
-      from lopq.utils import compute_codes_parallel
-      # Beware: does that keep the ordering intact?
-      codes = compute_codes_parallel(data, lopq_model, self.num_procs)
-      out_dir = os.path.dirname(codes_path)
-      try:
-        os.makedirs(out_dir)
-      except:
-        pass
-      # to be saved as tsv, e.g. each line is face_id\tcode
-      with open(codes_path, 'wt') as outf:
-        for i,face_id in face_ids:
-          outf.write("{}\t{}\n".format(face_id, codes[i]))
     else:
       msg = "[{}.train_model: error] Could not train 'lopq' model. "
       msg += "Have you specified 'features_path' (and path exists?), 'codes_path' and 'lopq_params' in config?"
       print msg.format(self.pp)
-      print features_path, os.path.exists(features_path), codes_path, lopq_params
+      print features_path, os.path.exists(features_path), self.codes_path, lopq_params
 
+  def compute_codes(self, face_ids, data, codes_path, model=None):
+    from lopq.utils import compute_codes_parallel
+    # Beware: does that keep the ordering intact?
+    if model is None:
+      model = self.searcher.model
+    codes = compute_codes_parallel(data, model, self.num_procs)
+    out_dir = os.path.dirname(codes_path)
+    try:
+      os.makedirs(out_dir)
+    except:
+      pass
+    # to be saved as tsv, e.g. each line is face_id\tcode
+    with open(codes_path, 'wt') as outf:
+      for i, face_id in face_ids:
+        outf.write("{}\t{}\n".format(face_id, codes[i]))
 
   def load_codes(self):
     # TODO: how to deal with updates?
@@ -117,10 +126,20 @@ class SearcherLOPQHBase(GenericSearcher):
       if not self.searcher:
         print "[{}.load_codes: info] Not loading codes as searcher is not initialized.".format(self.pp)
         return
-      if self.codes_path.startswith(START_HDFS):
-        self.searcher.add_codes_from_hdfs(self.codes_path)
-      else:
-        self.searcher.add_codes_from_local(self.codes_path)
+      try:
+        if self.codes_path.startswith(START_HDFS):
+          self.searcher.add_codes_from_hdfs(self.codes_path)
+        else:
+          self.searcher.add_codes_from_local(self.codes_path)
+      except Exception as inst:
+        print "[{}.load_codes: info] Could not load codes from 'codes_path': {}".format(self.pp, self.codes_path)
+        # Try to compute codes from features files?
+        features_path = self.get_param('features_path')
+        if os.path.exists(features_path):
+          print "[{}.load_codes: info] Computing codes from 'features_path': {}".format(self.pp, features_path)
+          face_ids, data = load_face_features(features_path)
+          self.compute_codes(face_ids, data, self.codes_path)
+          self.searcher.add_codes_from_local(self.codes_path)
     else:
       print "[{}.load_codes: info] 'codes_path' is not defined or empty in configuration file.".format(self.pp)
 
