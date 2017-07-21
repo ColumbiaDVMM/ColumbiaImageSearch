@@ -131,7 +131,7 @@ class GenericSearcher():
     # search from all faces features
     return self.search_from_feats(dets, feats, options_dict)
 
-  # These are the 3 methods you should overwrite for a new searcher
+  # These are the 3 methods you should override for a new searcher
   def init_searcher(self):
     raise NotImplementedError('init_searcher')
 

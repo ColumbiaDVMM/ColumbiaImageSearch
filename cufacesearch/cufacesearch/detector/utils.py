@@ -10,6 +10,9 @@ def show_face(img, bbox, close_after=None):
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
 
+    if type(bbox) == type(dict()):
+        bbox = [bbox["left"], bbox["top"], bbox["right"], bbox["bottom"]]
+
     # Create figure and axes
     fig, ax = plt.subplots(1)
 

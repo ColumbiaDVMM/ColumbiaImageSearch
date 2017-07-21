@@ -839,6 +839,8 @@ class LOPQModelPCA(LOPQModel):
         """
         existing_parameters = (self.Cs, self.Rs, self.mus, self.subquantizers)
 
+
+        # TODO: we should train PCA first
         parameters = train(data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
                            kmeans_coarse_iters, kmeans_local_iters, n_init, subquantizer_sample_ratio,
                            random_state, verbose)

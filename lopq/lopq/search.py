@@ -213,22 +213,13 @@ class LOPQSearcherBase(object):
         return results, visited
 
 
-    def add_codes_from_local(self, local_path):
-        from fileinput import input
-        from glob import glob
+    def _add_codes_from_one_file(self, one_file, samples_count):
         import ast
-        # initialize counts
-        files_count = 0
-        samples_count = 0
-        # add files content one by one
-        for one_file in glob(local_path + "/part-*"):
-            data_in = ''.join(input(one_file))
-            ids = []
-            codes = []
-            files_count += 1
-            # read all samples in the file
-            for line in data_in.split('\n'):
-                if line: # some empty lines?
+        ids = []
+        codes = []
+        with open(one_file,'rt') as inf:
+            for line in inf:
+                if line:  # some empty lines?
                     one_id, one_code = line.split('\t')
                     ids.append(one_id)
                     # one_code is a string but should be seen as a list of tuples
@@ -236,9 +227,29 @@ class LOPQSearcherBase(object):
                     one_code_tuples = (tuple(one_code_list[0]), tuple(one_code_list[1]))
                     codes.append(one_code_tuples)
                     samples_count += 1
-            self.add_codes(codes, ids)
-        print 'Added {} samples from {} files in {}'.format(samples_count, files_count, local_path)
+        self.add_codes(codes, ids)
+        print 'Added {} samples from file in {}'.format(samples_count, one_file)
+        return samples_count
 
+    def add_codes_from_local(self, local_path):
+        import os
+        from glob import glob
+        # Initialize counts
+        files_count = 0
+        samples_count = 0
+        # Single file, computed locally
+        if os.path.isfile(local_path):
+            files_count += 1
+            # Add all samples in the file
+            samples_count = self._add_codes_from_one_file(local_path, samples_count)
+        else:
+            # Assume codes were computed in Spark and saved as an RDD
+            # Add files content one by one
+            for one_file in glob(local_path + "/part-*"):
+                files_count += 1
+                # Add all samples in the file
+                samples_count = self._add_codes_from_one_file(one_file, samples_count)
+        print 'Done. Added {} samples from {} files.'.format(samples_count, files_count)
 
     def add_codes_from_hdfs(self, hdfs_path):
         filename = copy_from_hdfs(hdfs_path)
