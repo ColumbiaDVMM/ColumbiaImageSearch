@@ -21,13 +21,11 @@ default_img = "https://c1.staticflickr.com/9/8542/8666789945_0077a6d060_z.jpg"
 
 class APIResponder(Resource):
 
-
     def __init__(self):
         self.searcher = global_searcher
         self.start_time = global_start_time
         self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height"]
         self.column_url = "info:s3_url"
-
 
     def get(self, mode):
         print("[get] received parameters: {}".format(request.args.keys()))
@@ -39,15 +37,12 @@ class APIResponder(Resource):
             return self.process_query(mode, query, options)
         else:
             return self.process_mode(mode)
- 
 
     def put(self, mode):
         return self.put_post(mode)
 
-
     def post(self, mode):
         return self.put_post(mode)        
-
 
     def put_post(self, mode):
         print("[put/post] received parameters: {}".format(request.form.keys()))
@@ -64,7 +59,6 @@ class APIResponder(Resource):
         else:
             return self.process_query(mode, query, options)
 
-
     def process_mode(self, mode):
         if mode == "status":
             return self.status()
@@ -72,7 +66,6 @@ class APIResponder(Resource):
             return self.refresh()
         else:
             return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give \'data\' parameter?'}
-
 
     def process_query(self, mode, query, options=None):
         start = time.time()
@@ -104,7 +97,6 @@ class APIResponder(Resource):
         resp['timing'] = time.time()-start
         return resp
 
-
     def get_options_dict(self, options):
         errors = []
         options_dict = dict()
@@ -122,7 +114,6 @@ class APIResponder(Resource):
                     errors.append(err_msg)
         return options_dict, errors
 
-
     def append_errors(self, outp, errors=[]):
         if errors:
             e_d = dict()
@@ -133,25 +124,20 @@ class APIResponder(Resource):
             outp['errors'] = e_d
         return outp
 
-
     def search_byURL(self, query, options=None):
         return self.search_byURL_nocache(query, options)
-
 
     def search_byURL_nocache(self, query, options=None):
         query_urls = self.get_clean_urls_from_query(query)
         options_dict, errors = self.get_options_dict(options)
-        # TODO: how to deal with URLs that requires identification e.g. for the summer QPR.
         outp = self.searcher.search_image_list(query_urls, options_dict)
         outp_we = self.append_errors(outp, errors)
         return outp_we
-
 
     def search_bySHA1(self, query, options=None):
         # could use precomputed faces detections and features here
         # could also have precomputed similarities and return them here
         return self.search_bySHA1_nocache(query, options)
-
 
     def search_bySHA1_nocache(self, query, options=None):
         query_sha1s = query.split(',')
@@ -169,7 +155,6 @@ class APIResponder(Resource):
         # left for later as we consider queries with b64 are for out of index images
         return self.search_byB64_nocache(query, options)
 
-
     def search_byB64_nocache(self, query, options=None):
         query_b64s = [str(x) for x in query.split(',')]
         options_dict, errors = self.get_options_dict(options)
@@ -177,14 +162,12 @@ class APIResponder(Resource):
         outp_we = self.append_errors(outp, errors)
         return outp_we
 
-
     def refresh(self):
         # If new codes are avaible in HDFS?
         from ..searcher.searcher_lopqhbase import SearcherLOPQHBase
         new_searcher = SearcherLOPQHBase(self.searcher.global_conf_filename)
         self.searcher = new_searcher
         return {'refresh': 'just run a new refresh'}
-
 
     def status(self):
         status_dict = {'status': 'OK'}
@@ -194,7 +177,7 @@ class APIResponder(Resource):
             status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh.isoformat(' ')
         else:
             status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh
-        status_dict['nb_indexed'] = str(self.searcher.searcher_lopq.nb_indexed)
+        status_dict['nb_indexed'] = str(self.searcher.searcher.nb_indexed)
         return status_dict
 
     @staticmethod
@@ -211,10 +194,8 @@ class APIResponder(Resource):
         print "[get_clean_urls_from_query: info] {}".format(query_urls)
         return query_urls
 
-
     def get_image_str(self, row):
         return "<img src=\"{}\" title=\"{}\" class=\"img_blur\">".format(row[1]["info:s3_url"],row[0])
-
 
     def view_image_sha1(self, query, options=None):
         query_sha1s = [str(x) for x in query.split(',')]
@@ -227,7 +208,6 @@ class APIResponder(Resource):
         flash(images)
         headers = {'Content-Type': 'text/html'}
         return make_response(render_template('view_images.html'),200,headers)
-
 
     def view_similar_query_response(self, query_type, query, query_response, options=None):
 
@@ -265,13 +245,6 @@ class APIResponder(Resource):
           query_face_img = query_face[self.searcher.do.map['query_url']]
         query_face_bbox = query_face[self.searcher.do.map['query_face']]
         query_face_bbox_compstr = build_bbox_str_list(query_face_bbox)
-        # face_width = query_face_bbox['right'] - query_face_bbox['left']
-        # face_height = query_face_bbox['bottom'] - query_face_bbox['top']
-        # query_face_bbox_compstr = []
-        # query_face_bbox_compstr.append(str(query_face_bbox['top']))
-        # query_face_bbox_compstr.append(str(query_face_bbox['left']))
-        # query_face_bbox_compstr.append(str(face_width))
-        # query_face_bbox_compstr.append(str(face_height))
         img_size = query_face[self.searcher.do.map['img_info']][1:]
         out_query_face = (query_sha1, query_face_img, query_face_bbox_compstr, img_size)
         # Parse similar faces

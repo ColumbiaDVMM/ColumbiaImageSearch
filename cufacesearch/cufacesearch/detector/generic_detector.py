@@ -17,6 +17,7 @@ class GenericFaceDetector(object):
     return self.detect_from_buffer(get_buffer_from_B64(base64str), up_sample)
 
 
+  # You may need to overwrite this method if your detector needs something else than a skimage
   def detect_from_buffer(self, img_buffer, up_sample=0):
     sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
     img_buffer.seek(0)
@@ -24,7 +25,7 @@ class GenericFaceDetector(object):
     img = skio.imread(img_buffer)
     return sha1, img_type, width, height, img, self.detect_from_img(img, up_sample)
 
-
+  # You have to overwrite this method.
   def detect_from_img(self, img, up_sample=0):
     """ This method implementation will depend on the actual detector being used.
 

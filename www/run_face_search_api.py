@@ -21,7 +21,8 @@ def after_request(response):
   return response
 
 # default conf file
-global_conf_file = '../conf/global_conf_facesearch.json'
+global_conf_file = '../conf/global_conf_facesearch_lopq.json'
+#global_conf_file = '../conf/global_conf_facesearch_faiss.json'
 
 api.add_resource(face_api_lopq.APIResponder, '/cufacesearch/<string:mode>')
 

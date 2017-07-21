@@ -36,3 +36,76 @@ class DictOutput():
     self.map['number_similar_faces'] = "number_similar_faces"
     self.map['all_similar_faces'] = "all_similar_faces"
     self.map['cached_image_urls'] = "cached_image_urls"
+
+  def format_output(self, dets, sim_images, sim_faces, sim_score, options_dict=dict()):
+    import time
+    from collections import OrderedDict
+    print "[format_output: log] options are: {}".format(options_dict)
+    start_build_output = time.time()
+    output = []
+    images_query = set()
+    nb_faces_query = 0
+    nb_faces_similar = 0
+
+    for i in range(len(dets)):
+
+      # No face detected in query
+      if not dets[i][1]:
+        output.append(dict())
+        out_i = len(output) - 1
+        output[out_i][self.map['query_sha1']] = dets[i][0]
+        if dets[i][2]:
+          output[out_i][self.map['query_url']] = dets[i][2]
+        output[out_i][self.map['img_info']] = dets[i][3:5]
+        images_query.add(dets[i][0])
+        output[out_i][self.map['similar_faces']] = OrderedDict([[self.map['number_faces'], 0],
+                                                               [self.map['image_sha1s'], []],
+                                                               [self.map['faces'], []],
+                                                               [self.map['cached_image_urls'], []],
+                                                               [self.map['distances'], []]])
+        continue
+
+      # We found some faces...
+      for j, face_bbox in enumerate(dets[i][1]):
+        nb_faces_query += 1
+
+        # Add one output for each face query
+        output.append(dict())
+        out_i = len(output) - 1
+        output[out_i][self.map['query_sha1']] = dets[i][0]
+        output[out_i][self.map['query_face']] = dets[i][1][j]
+        if dets[i][2]:
+          output[out_i][self.map['query_url']] = dets[i][2]
+        output[out_i][self.map['img_info']] = dets[i][3:]
+        images_query.add(dets[i][0])
+
+        nb_faces = 0
+        if sim_faces[i]:
+          if sim_faces[i][j]:
+            nb_faces = len(sim_faces[i][j])
+
+        output[out_i][self.map['similar_faces']] = OrderedDict([[self.map['number_faces'], nb_faces],
+                                                              [self.map['image_sha1s'], []],
+                                                              [self.map['faces'], []],
+                                                              [self.map['img_info'], []],
+                                                              [self.map['cached_image_urls'], []],
+                                                              [self.map['distances'], []]])
+        # Explore list of similar faces
+        for jj in range(nb_faces):
+          sim_face = sim_faces[i][j][jj]
+          nb_faces_similar += 1
+          output[out_i][self.map['similar_faces']][self.map['image_sha1s']].append(sim_images[i][j][jj][0].strip())
+          output[out_i][self.map['similar_faces']][self.map['cached_image_urls']].append(sim_images[i][j][jj][1][self.url_field].strip())
+          output[out_i][self.map['similar_faces']][self.map['faces']].append('-'.join(sim_face.split('_')[1:]))
+          # this is not in HBase for all/most images...
+          #osf_imginfo = sim_images[i][j][jj][1][self.img_info_field].strip()
+          output[out_i][self.map['similar_faces']][self.map['img_info']].append('')
+          output[out_i][self.map['similar_faces']][self.map['distances']].append(sim_score[i][j][jj])
+
+    outp = OrderedDict([[self.map['number_images'], len(images_query)],
+                        [self.map['number_faces'], nb_faces_query],
+                        [self.map['number_similar_faces'], nb_faces_similar],
+                        [self.map['all_similar_faces'], output]])
+
+    print "[format_output: log] build_output took: {}".format(time.time() - start_build_output)
+    return outp
