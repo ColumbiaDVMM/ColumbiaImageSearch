@@ -17,17 +17,21 @@ class GenericSearcher():
     self.verbose = 1
     self.top_feature = 0
 
-    # Read conf and initialize everything
+    # Read conf
     self.read_conf()
+
+    self.codes_path = self.get_param('codes_path')
+    self.dict_output_type = self.get_param('dict_output_type')
+
+    # Initialize everything
     self.init_detector()
     self.init_featurizer()
     self.init_hbaseindexer()
     self.init_searcher()
 
     # Initialize dict output for formatting
-    dict_output_type = self.get_param('dict_output_type')
-    if dict_output_type:
-      self.do = DictOutput(dict_output_type)
+    if self.dict_output_type:
+      self.do = DictOutput(self.dict_output_type)
     else:
       self.do = DictOutput()
 
@@ -37,7 +41,6 @@ class GenericSearcher():
 
     # should codes path be a list to deal with updates?
     # should we store that list in HBase?
-    self.codes_path = self.get_param('codes_path')
     self.load_codes()
 
   def get_param(self, param):

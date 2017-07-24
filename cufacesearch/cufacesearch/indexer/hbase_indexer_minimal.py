@@ -40,7 +40,14 @@ class HBaseIndexerMinimal(object):
         param_nb_threads = self.get_param('pool_thread')
         if param_nb_threads:
             self.nb_threads = param_nb_threads
-        self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host)
+        from thriftpy.transport import TTransportException
+        try:
+            # The timeout as parameter seems to cause issues?...
+            #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, timeout=10)
+            self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host)
+        except TTransportException as inst:
+            print "Could not initalize connection to HBase. Are you connected to the VPN?"
+            raise inst
 
         # # Extractions configuration (TO BE IMPLEMENTED)
         # self.extractions_types = self.get_param('extractions_types')
