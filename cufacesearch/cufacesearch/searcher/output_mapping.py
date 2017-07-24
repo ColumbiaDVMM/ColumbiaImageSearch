@@ -2,6 +2,8 @@ class DictOutput():
 
   def __init__(self, mode='CamelCase'):
     self.map = dict()
+    self.coord_map = ["left", "top", "right", "bottom"]
+
     if mode == 'CamelCase':
         self.fillDictCamelCase()
     else:
@@ -47,6 +49,9 @@ class DictOutput():
     nb_faces_query = 0
     nb_faces_similar = 0
 
+    #print 'dets',len(dets),dets
+    #print 'sim_faces', len(sim_faces), sim_faces
+
     for i in range(len(dets)):
 
       # No face detected in query
@@ -66,6 +71,7 @@ class DictOutput():
         continue
 
       # We found some faces...
+      #print len(dets[i][1])
       for j, face_bbox in enumerate(dets[i][1]):
         nb_faces_query += 1
 
@@ -80,8 +86,11 @@ class DictOutput():
         images_query.add(dets[i][0])
 
         nb_faces = 0
+        #print "sim_faces[i]",sim_faces[i]
+
         if sim_faces[i]:
-          if sim_faces[i][j]:
+          if len(sim_faces[i])>j and sim_faces[i][j]:
+            #print "sim_faces[i][j]",sim_faces[i][j]
             nb_faces = len(sim_faces[i][j])
 
         output[out_i][self.map['similar_faces']] = OrderedDict([[self.map['number_faces'], nb_faces],
@@ -90,13 +99,20 @@ class DictOutput():
                                                               [self.map['img_info'], []],
                                                               [self.map['cached_image_urls'], []],
                                                               [self.map['distances'], []]])
+
+        #print 'nb_faces: %d' % nb_faces
+
         # Explore list of similar faces
         for jj in range(nb_faces):
           sim_face = sim_faces[i][j][jj]
           nb_faces_similar += 1
           output[out_i][self.map['similar_faces']][self.map['image_sha1s']].append(sim_images[i][j][jj][0].strip())
           output[out_i][self.map['similar_faces']][self.map['cached_image_urls']].append(sim_images[i][j][jj][1][self.url_field].strip())
-          output[out_i][self.map['similar_faces']][self.map['faces']].append('-'.join(sim_face.split('_')[1:]))
+
+          tmp_face_dict = dict()
+          for tfi, tfcoord in enumerate(sim_face.split('_')[1:]):
+            tmp_face_dict[self.coord_map[tfi]] = int(tfcoord)
+          output[out_i][self.map['similar_faces']][self.map['faces']].append(tmp_face_dict)
           # this is not in HBase for all/most images...
           #osf_imginfo = sim_images[i][j][jj][1][self.img_info_field].strip()
           output[out_i][self.map['similar_faces']][self.map['img_info']].append('')

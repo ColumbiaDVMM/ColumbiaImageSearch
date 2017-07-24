@@ -13,7 +13,7 @@ class SearcherLOPQHBase(GenericSearcher):
     self.pp = "SearcherLOPQHBase"
     self.model_type = "lopq"
     # number of processors to use for parallel computation of codes
-    self.num_procs = 4
+    self.num_procs = 6
 
   def init_searcher(self):
     """ Initialize LOPQ model and searcher from `global_conf` value.
@@ -64,9 +64,9 @@ class SearcherLOPQHBase(GenericSearcher):
       # NB: an empty lopq_model would make sense only if we just want to detect...
 
   def train_model(self, lopq_model_path):
-    features_path = self.get_param('features_path')
+    train_features_path = self.get_param('train_features_path')
     lopq_params = self.get_param('lopq_params')
-    if os.path.exists(features_path) and lopq_params and features_path and self.codes_path:
+    if os.path.exists(train_features_path) and lopq_params and train_features_path:
       if self.model_type == "lopq":
         import json
         import time
@@ -76,10 +76,11 @@ class SearcherLOPQHBase(GenericSearcher):
         # we could have default values for those parameters and/or heuristic to estimate them based on data count...
         lopq_model = LOPQModel(V=jlp['V'], M=jlp['M'], subquantizer_clusters=jlp['subq'])
         # we could have separate training/indexing features
-        face_ids, data = load_face_features(features_path)
+        face_ids, data = load_face_features(train_features_path, verbose=True)
         msg = "[{}.train_model: info] Starting local training of 'lopq' model with parameters {} using features from {}."
-        print msg.format(self.pp, lopq_params, features_path)
+        print msg.format(self.pp, lopq_params, train_features_path)
         start_train = time.time()
+        # specify a n_init<10 (default value) to speed-up training?
         lopq_model.fit(data, verbose=True)
         # save model
         out_dir = os.path.dirname(lopq_model_path)
@@ -87,12 +88,9 @@ class SearcherLOPQHBase(GenericSearcher):
           os.makedirs(out_dir)
         except:
           pass
-        pickle.dump(lopq_model, lopq_model_path)
+        pickle.dump(lopq_model, open(lopq_model_path, 'wb'))
         print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
-        # Compute codes too?
-        print "[{}.train_model: info] Computing codes.".format(self.pp)
-        self.compute_codes(face_ids, data, self.codes_path, model=lopq_model)
-        print "[{}.train_model: info] Saved codes at: {}".format(self.pp, self.codes_path)
+        return lopq_model
       elif self.model_type == "lopq_pca":
         err_msg = "[{}.train_model: error] Local training of 'lopq_pca' model not yet implemented."
         raise NotImplementedError(err_msg.format(self.pp))
@@ -100,15 +98,17 @@ class SearcherLOPQHBase(GenericSearcher):
         raise ValueError("[{}.train_model: error] Unknown 'lopq' type {}.".format(self.pp, self.model_type))
     else:
       msg = "[{}.train_model: error] Could not train 'lopq' model. "
-      msg += "Have you specified 'features_path' (and path exists?), 'codes_path' and 'lopq_params' in config?"
+      msg += "Have you specified 'train_features_path' (and path exists?) and 'lopq_params' in config?"
       print msg.format(self.pp)
-      print features_path, os.path.exists(features_path), self.codes_path, lopq_params
+      print train_features_path, os.path.exists(train_features_path), lopq_params
 
   def compute_codes(self, face_ids, data, codes_path, model=None):
     from lopq.utils import compute_codes_parallel
-    # Beware: does that keep the ordering intact?
+    msg = "[{}.compute_codes: info] Computing codes for {} faces."
+    print msg.format(self.pp, len(face_ids))
     if model is None:
       model = self.searcher.model
+    # that keeps the ordering intact, but output is a chain
     codes = compute_codes_parallel(data, model, self.num_procs)
     out_dir = os.path.dirname(codes_path)
     try:
@@ -116,9 +116,10 @@ class SearcherLOPQHBase(GenericSearcher):
     except:
       pass
     # to be saved as tsv, e.g. each line is face_id\tcode
-    with open(codes_path, 'wt') as outf:
-      for i, face_id in face_ids:
-        outf.write("{}\t{}\n".format(face_id, codes[i]))
+    # allow for appending, beware to start from empty file...
+    with open(codes_path, 'at') as outf:
+      for i, code in enumerate(codes):
+        outf.write("{}\t{}\n".format(face_ids[i], [code.coarse, code.fine]))
 
   def load_codes(self):
     # TODO: how to deal with updates?
@@ -126,27 +127,34 @@ class SearcherLOPQHBase(GenericSearcher):
       if not self.searcher:
         print "[{}.load_codes: info] Not loading codes as searcher is not initialized.".format(self.pp)
         return
-      try:
-        if self.codes_path.startswith(START_HDFS):
-          self.searcher.add_codes_from_hdfs(self.codes_path)
+      if self.codes_path.startswith(START_HDFS):
+        self.searcher.add_codes_from_hdfs(self.codes_path)
+      else:
+        if os.path.exists(self.codes_path):
+          self.searcher.add_codes_from_local(self.codes_path)
         else:
-          self.searcher.add_codes_from_local(self.codes_path)
-      except Exception as inst:
-        print "[{}.load_codes: info] Could not load codes from 'codes_path': {}".format(self.pp, self.codes_path)
-        # Try to compute codes from features files?
-        features_path = self.get_param('features_path')
-        if os.path.exists(features_path):
-          print "[{}.load_codes: info] Computing codes from 'features_path': {}".format(self.pp, features_path)
-          face_ids, data = load_face_features(features_path)
-          self.compute_codes(face_ids, data, self.codes_path)
-          self.searcher.add_codes_from_local(self.codes_path)
+          # Try to compute codes from features files?
+          index_features_path = self.get_param('index_features_path')
+          import glob
+          if glob.glob(index_features_path):
+            print "[{}.load_codes: info] Computing codes from 'features_path': {}".format(self.pp, index_features_path)
+            for ifn in glob.glob(index_features_path):
+              for root, dirs, files in os.walk(ifn):
+                for basename in files:
+                  # TODO: allow features files not starting with 'part-'
+                  if basename.startswith('part-'):
+                    face_ids, data = load_face_features(os.path.join(root, basename), verbose=True)
+                    self.compute_codes(face_ids, data, self.codes_path)
+            self.searcher.add_codes_from_local(self.codes_path)
+          else:
+            print "[{}.load_codes: info] 'codes_path' and 'index_features_path' do no exists on disk. Nothing to index!".format(self.pp)
     else:
       print "[{}.load_codes: info] 'codes_path' is not defined or empty in configuration file.".format(self.pp)
 
   def search_from_feats(self, dets, feats, options_dict=dict()):
-    sim_images = []
-    sim_faces = []
-    sim_score = []
+    all_sim_images = []
+    all_sim_faces = []
+    all_sim_score = []
     # check what is the near duplicate config
     filter_near_dup = False
     if (self.near_dup and "near_dup" not in options_dict) or ("near_dup" in options_dict and options_dict["near_dup"]):
@@ -155,8 +163,19 @@ class SearcherLOPQHBase(GenericSearcher):
         near_dup_th = options_dict["near_dup_th"]
       else:
         near_dup_th = self.near_dup_th
+
+    max_returned = None
+    if "max_returned" in options_dict:
+      max_returned = options_dict["max_returned"]
+
+    #print dets
+
     # query for each feature
     for i in range(len(dets)):
+
+      sim_images = []
+      sim_faces = []
+      sim_score = []
 
       for j in range(len(dets[i][1])):
         results = []
@@ -169,24 +188,25 @@ class SearcherLOPQHBase(GenericSearcher):
               feat = np.squeeze(feats[i][j] / norm_feat)
             # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
             # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
-            results, visited = self.searcher.search(feat,
-                                                         quota=self.quota,
-                                                         limit=self.sim_limit,
-                                                         with_dists=True)
-            print "[{}.search_from_feats: log] got {} results, first one is: {}".format(self.pp, len(results), results[0])
+            results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
+            #print "[{}.search_from_feats: log] got {} results, first one is: {}".format(self.pp, len(results), results[0])
         tmp_img_sim = []
         tmp_face_sim_ids = []
         tmp_face_sim_score = []
-        for res in results:
+        for ires,res in enumerate(results):
           if (filter_near_dup and res.dist <= near_dup_th) or not filter_near_dup:
-            tmp_face_sim_ids.append(res.id)
-            # here id would be face_id that we could build as sha1_facebbox?
-            tmp_img_sim.append(str(res.id).split('_')[0])
-            tmp_face_sim_score.append(res.dist)
+            if not max_returned or (max_returned and ires < max_returned ):
+              tmp_face_sim_ids.append(res.id)
+              # here id would be face_id that we could build as sha1_facebbox?
+              tmp_img_sim.append(str(res.id).split('_')[0])
+              tmp_face_sim_score.append(res.dist)
+
+        #print tmp_img_sim
 
         if tmp_img_sim:
           rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
           # rows should contain id, s3_url of images
+          #print rows
           sim_images.append(rows)
           sim_faces.append(tmp_face_sim_ids)
           sim_score.append(tmp_face_sim_score)
@@ -195,5 +215,9 @@ class SearcherLOPQHBase(GenericSearcher):
           sim_faces.append([])
           sim_score.append([])
 
+      all_sim_images.append(sim_images)
+      all_sim_faces.append(sim_faces)
+      all_sim_score.append(sim_score)
+
     # format output
-    return self.do.format_output(dets, sim_images, sim_faces, sim_score, options_dict)
+    return self.do.format_output(dets, all_sim_images, all_sim_faces, all_sim_score, options_dict)

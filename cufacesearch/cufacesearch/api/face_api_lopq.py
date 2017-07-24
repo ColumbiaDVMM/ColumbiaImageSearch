@@ -24,7 +24,7 @@ class APIResponder(Resource):
     def __init__(self):
         self.searcher = global_searcher
         self.start_time = global_start_time
-        self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height"]
+        self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height", "max_returned"]
         self.column_url = "info:s3_url"
 
     def get(self, mode):
@@ -248,8 +248,9 @@ class APIResponder(Resource):
         img_size = query_face[self.searcher.do.map['img_info']][1:]
         out_query_face = (query_sha1, query_face_img, query_face_bbox_compstr, img_size)
         # Parse similar faces
-        out_similar_faces = []
         similar_faces = query_face[self.searcher.do.map['similar_faces']]
+        #print similar_faces[self.searcher.do.map['number_faces']]
+        out_similar_faces = []
         for j in range(similar_faces[self.searcher.do.map['number_faces']]):
           # build face tuple (sha1, url/b64 img, face bounding box, distance) for one similar face
           osface_sha1 = similar_faces[self.searcher.do.map['image_sha1s']][j]
@@ -260,7 +261,7 @@ class APIResponder(Resource):
           osface_dist = similar_faces[self.searcher.do.map['distances']][j]
           out_similar_faces.append((osface_sha1, osface_url, osface_bbox_compstr, osface_dist, osface_img_size))
         # build output
-        search_results.append([out_query_face, out_similar_faces])
+        search_results.append((out_query_face, [out_similar_faces]))
 
       # Prepare settings
       settings = dict()
@@ -271,6 +272,8 @@ class APIResponder(Resource):
         settings["max_height"] = options_dict["max_height"]
 
       headers = {'Content-Type': 'text/html'}
+
+      #print search_results
 
       return make_response(render_template('view_similar_faces_wbbox.html',
                                            settings=settings,

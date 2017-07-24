@@ -16,8 +16,6 @@ class GenericSearcher():
     self.searcher = None
     self.verbose = 1
     self.top_feature = 0
-    self.url_field = 'info:s3_url'
-    self.needed_output_columns = [self.url_field]
 
     # Read conf and initialize everything
     self.read_conf()
@@ -32,6 +30,10 @@ class GenericSearcher():
       self.do = DictOutput(dict_output_type)
     else:
       self.do = DictOutput()
+
+    self.url_field = 'info:s3_url'
+    self.do.url_field = self.url_field
+    self.needed_output_columns = [self.url_field]
 
     # should codes path be a list to deal with updates?
     # should we store that list in HBase?

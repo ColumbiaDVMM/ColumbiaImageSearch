@@ -35,8 +35,10 @@
         };
       </script>
       <h2>Query results:</h2>
-      {% for url, sha1, bbox, dist in similar_faces %}
-      {% set face_id = sha1+'_'.join(bbox) %}
+      {% for onesimface in similar_faces %}
+        <p>{{onesimeface}}</p>
+        {% for sha1, url, bbox, dist, iminfo in onesimface %}
+        {% set face_id = sha1+'_'.join(bbox) %}
         <canvas id="canvas_res_{{face_id}}_query_{{query_face_id}}">Your browser does not support the HTML5 canvas tag.</canvas>
         <script>
           var ctxt_res{{face_id}}_query{{query_face_id}} = document.getElementById('canvas_res_{{face_id}}_query_{{query_face_id}}').getContext("2d");
@@ -52,6 +54,7 @@
             ctxt_res{{face_id}}_query{{query_face_id}}.stroke();
           };
         </script>
+        {% endfor %}
       {% endfor %}
     {% endfor %}
   <script>
