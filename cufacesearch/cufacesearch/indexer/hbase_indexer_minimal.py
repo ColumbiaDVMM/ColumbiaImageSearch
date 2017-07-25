@@ -1,3 +1,4 @@
+import sys
 import time
 import happybase
 from datetime import datetime
@@ -56,10 +57,11 @@ class HBaseIndexerMinimal(object):
         #     raise ValueError("[HBaseIndexerMinimal.read_conf: error] Dimensions mismatch {} vs. {} for extractions_columns vs. extractions_types".format(len(self.extractions_columns),len(self.extractions_types)))
 
     def refresh_hbase_conn(self, calling_function, sleep_time=0):
-        # this can take 4 seconds...
+        # this can take up to 4 seconds...
         start_refresh = time.time()
         dt_iso = datetime.utcnow().isoformat()
         print("[HBaseIndexerMinimal.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function, dt_iso))
+        sys.stdout.flush()
         time.sleep(sleep_time)
         self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host)
         print("[HBaseIndexerMinimal.refresh_hbase_conn: log] Refreshed connection pool in {}s.".format(time.time()-start_refresh))
