@@ -317,6 +317,7 @@ class LOPQSearcher(LOPQSearcherBase):
         for item_id, code in zip(ids, codes):
             try:
                 cell = code[0]
+                # TODO: should we use a dictionary for 'code' too?
                 self.index[cell].append((item_id, code))
                 self.nb_indexed += 1
             except Exception as inst:
