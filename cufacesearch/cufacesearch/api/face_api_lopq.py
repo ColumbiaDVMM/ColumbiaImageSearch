@@ -1,3 +1,4 @@
+import sys
 import time
 import json
 from datetime import datetime
@@ -132,6 +133,7 @@ class APIResponder(Resource):
         options_dict, errors = self.get_options_dict(options)
         outp = self.searcher.search_image_list(query_urls, options_dict)
         outp_we = self.append_errors(outp, errors)
+        sys.stdout.flush()
         return outp_we
 
     def search_bySHA1(self, query, options=None):
@@ -147,6 +149,7 @@ class APIResponder(Resource):
         query_urls = [row[1][self.column_url] for row in rows_urls]
         outp = self.searcher.search_image_list(query_urls, options_dict)
         outp_we = self.append_errors(outp, errors)
+        sys.stdout.flush()
         return outp_we
 
     def search_byB64(self, query, options=None):
@@ -160,6 +163,7 @@ class APIResponder(Resource):
         options_dict, errors = self.get_options_dict(options)
         outp = self.searcher.search_imageB64_list(query_b64s, options_dict)
         outp_we = self.append_errors(outp, errors)
+        sys.stdout.flush()
         return outp_we
 
     def refresh(self):
@@ -274,7 +278,7 @@ class APIResponder(Resource):
       headers = {'Content-Type': 'text/html'}
 
       #print search_results
-
+      sys.stdout.flush()
       return make_response(render_template('view_similar_faces_wbbox.html',
                                            settings=settings,
                                            search_results=search_results),

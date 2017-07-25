@@ -1,3 +1,4 @@
+import sys
 from flask import Flask
 from flask_restful import Api
 from datetime import datetime
@@ -43,6 +44,7 @@ if __name__ == '__main__':
   # Initialize searcher object only once
   face_api_lopq.global_searcher = searcher_lopqhbase.SearcherLOPQHBase(global_conf_file)
   face_api_lopq.global_start_time = datetime.now()
+  sys.stdout.flush()
 
   # Start API
   print 'Starting Face Search API on port {}'.format(options.port)
