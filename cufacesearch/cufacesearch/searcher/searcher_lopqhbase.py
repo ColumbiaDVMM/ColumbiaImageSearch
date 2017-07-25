@@ -123,15 +123,20 @@ class SearcherLOPQHBase(GenericSearcher):
 
   def load_codes(self):
     # TODO: how to deal with updates?
+
     if self.codes_path:
       if not self.searcher:
         print "[{}.load_codes: info] Not loading codes as searcher is not initialized.".format(self.pp)
         return
+      import time
+      start_load = time.time()
       if self.codes_path.startswith(START_HDFS):
         self.searcher.add_codes_from_hdfs(self.codes_path)
+        print "[{}.load_codes: info] Loaded codes in {}s.".format(self.pp, time.time() - start_load)
       else:
         if os.path.exists(self.codes_path):
           self.searcher.add_codes_from_local(self.codes_path)
+          print "[{}.load_codes: info] Loaded codes in {}s.".format(self.pp, time.time() - start_load)
         else:
           # Try to compute codes from features files?
           index_features_path = self.get_param('index_features_path')
@@ -146,6 +151,7 @@ class SearcherLOPQHBase(GenericSearcher):
                     face_ids, data = load_face_features(os.path.join(root, basename), verbose=True)
                     self.compute_codes(face_ids, data, self.codes_path)
             self.searcher.add_codes_from_local(self.codes_path)
+            print "[{}.load_codes: info] Loaded codes in {}s.".format(self.pp, time.time() - start_load)
           else:
             print "[{}.load_codes: info] 'codes_path' and 'index_features_path' do no exists on disk. Nothing to index!".format(self.pp)
     else:
@@ -164,7 +170,7 @@ class SearcherLOPQHBase(GenericSearcher):
       else:
         near_dup_th = self.near_dup_th
 
-    max_returned = None
+    max_returned = self.sim_limit
     if "max_returned" in options_dict:
       max_returned = options_dict["max_returned"]
 
@@ -188,7 +194,8 @@ class SearcherLOPQHBase(GenericSearcher):
               feat = np.squeeze(feats[i][j] / norm_feat)
             # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
             # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
-            results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
+            #results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
+              results, visited = self.searcher.search(feat, quota=2 * max_returned, limit=max_returned, with_dists=True)
             #print "[{}.search_from_feats: log] got {} results, first one is: {}".format(self.pp, len(results), results[0])
         tmp_img_sim = []
         tmp_face_sim_ids = []

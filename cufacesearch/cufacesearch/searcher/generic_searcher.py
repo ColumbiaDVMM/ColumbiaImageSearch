@@ -53,7 +53,7 @@ class GenericSearcher():
   def read_conf(self):
     # these parameters may be overwritten by web call
     self.sim_limit = self.get_param('sim_limit')
-    self.quota = self.sim_limit * 10
+    self.quota = self.sim_limit * 2
     self.near_dup = bool(self.get_param('near_dup'))
     self.near_dup_th = self.get_param('near_dup_th')
     self.ratio = self.get_param('ratio')

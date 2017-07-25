@@ -418,7 +418,7 @@ class LOPQModel(object):
 
                 C: VxD/2 ndarray of coarse centroids
                 R: VxD/2xD/2 ndarray of fitted rotation matrices for each coarse cluster
-                mu: VxD/2 ndarray of mean residuals for each coar cluster
+                mu: VxD/2 ndarray of mean residuals for each coarse cluster
                 subquantizer: length M/2 list of SxD/M ndarrays of cluster centroids for each subvector
         """
 

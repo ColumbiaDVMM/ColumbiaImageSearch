@@ -1,9 +1,9 @@
 {
-  "FSE_sim_limit": 1000,
+  "FSE_sim_limit": 100,
   "FSE_near_dup": false,
   "FSE_near_dup_th": 0.5,
   "FSE_ratio": -1,
-  "FSE_top_feature": 1000,
+  "FSE_top_feature": 100,
   "FSE_lopq": "lopq",
   "FSE_lopqmodel": "../data/lopq/lopq_model_dlib.pkl",
   "FSE_codes_path": "../data/lopq/lopq_codes",
