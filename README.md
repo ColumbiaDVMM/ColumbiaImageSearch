@@ -23,4 +23,4 @@ Run the script 'run_face_search_api.py' in the folder 'www'
 - Matplotlib
 
 Ubuntu packages:
-- sudo apt-get install git python-pip python-dev libpng-dev libjpeg8-dev libfreetype6-dev pkg-config libopenblas-dev
+- sudo apt-get install git python-pip python-dev libpng-dev libjpeg8-dev libfreetype6-dev pkg-config libblas-dev liblapack-dev libatlas-base-dev gfortran cmake libboost-all-dev
