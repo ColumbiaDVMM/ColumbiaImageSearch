@@ -247,8 +247,11 @@ class APIResponder(Resource):
           query_face_img = query_urls_map[query_sha1]
         else:
           query_face_img = query_face[self.searcher.do.map['query_url']]
-        query_face_bbox = query_face[self.searcher.do.map['query_face']]
-        query_face_bbox_compstr = build_bbox_str_list(query_face_bbox)
+        if self.searcher.do.map['query_face'] in query_face:
+          query_face_bbox = query_face[self.searcher.do.map['query_face']]
+          query_face_bbox_compstr = build_bbox_str_list(query_face_bbox)
+        else:
+          query_face_bbox_compstr = []
         img_size = query_face[self.searcher.do.map['img_info']][1:]
         out_query_face = (query_sha1, query_face_img, query_face_bbox_compstr, img_size)
         # Parse similar faces

@@ -28,10 +28,12 @@
           ctxt_{{query_face_id}}.canvas.width = img_{{query_face[0]}}.width;
           ctxt_{{query_face_id}}.canvas.height = img_{{query_face[0]}}.height;
           ctxt_{{query_face_id}}.drawImage(img_{{query_face[0]}}, 0, 0);
+          {% if query_face[2]|length == 4 %}
           ctxt_{{query_face_id}}.rect({{query_face[2][0]}},{{query_face[2][1]}},{{query_face[2][2]}},{{query_face[2][3]}});
           ctxt_{{query_face_id}}.lineWidth = 6;
           ctxt_{{query_face_id}}.strokeStyle = '#ff0000';
           ctxt_{{query_face_id}}.stroke();
+          {% endif %}
         };
       </script>
       <h2>Query results:</h2>

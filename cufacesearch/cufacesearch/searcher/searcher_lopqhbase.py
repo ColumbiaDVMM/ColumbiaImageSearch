@@ -66,7 +66,7 @@ class SearcherLOPQHBase(GenericSearcher):
   def train_model(self, lopq_model_path):
     train_features_path = self.get_param('train_features_path')
     lopq_params = self.get_param('lopq_params')
-    if os.path.exists(train_features_path) and lopq_params and train_features_path:
+    if train_features_path and lopq_params and os.path.exists(train_features_path):
       if self.model_type == "lopq":
         import json
         import time
@@ -100,7 +100,7 @@ class SearcherLOPQHBase(GenericSearcher):
       msg = "[{}.train_model: error] Could not train 'lopq' model. "
       msg += "Have you specified 'train_features_path' (and path exists?) and 'lopq_params' in config?"
       print msg.format(self.pp)
-      print train_features_path, os.path.exists(train_features_path), lopq_params
+      #print train_features_path, os.path.exists(train_features_path), lopq_params
 
   def compute_codes(self, face_ids, data, codes_path, model=None):
     from lopq.utils import compute_codes_parallel
