@@ -770,6 +770,8 @@ class LOPQModel(object):
 
 
 class LOPQModelPCA(LOPQModel):
+    # TODO: remove methods that are not override
+
     def __init__(self, V=8, M=4, subquantizer_clusters=256, parameters=None):
         """
         Create an LOPQModel instance that encapsulates a complete LOPQ model with parameters and hyperparameters.

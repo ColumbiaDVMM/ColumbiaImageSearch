@@ -195,7 +195,7 @@ class SearcherLOPQHBase(GenericSearcher):
             # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
             # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
             #results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
-              results, visited = self.searcher.search(feat, quota=2 * max_returned, limit=max_returned, with_dists=True)
+            results, visited = self.searcher.search(feat, quota=2 * max_returned, limit=max_returned, with_dists=True)
             #print "[{}.search_from_feats: log] got {} results, first one is: {}".format(self.pp, len(results), results[0])
         tmp_img_sim = []
         tmp_face_sim_ids = []
