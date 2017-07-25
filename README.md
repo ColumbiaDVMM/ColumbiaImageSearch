@@ -19,3 +19,8 @@ Run the script 'run_face_search_api.py' in the folder 'www'
 
 - DLib
 - Happybase
+- Scikit image
+- Matplotlib
+
+Ubuntu packages:
+- sudo apt-get install git python-pip python-dev libpng-dev libjpeg8-dev libfreetype6-dev pkg-config libopenblas-dev
