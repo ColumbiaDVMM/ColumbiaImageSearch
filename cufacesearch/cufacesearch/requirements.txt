@@ -1,4 +1,9 @@
+numpy
 scikit-image
 dlib
+happybase
+flask
+flask_restful
+matplotlib
 requests
 gevent
