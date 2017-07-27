@@ -16,4 +16,4 @@ for sha1, data in rows:
       face_bbox = key.split('face:dlib_feat_dlib_face_')[-1].split('_')
       feat_b64 = np.frombuffer(base64.b64decode(data[key]), dtype=np.float32)
       print feat_b64.shape, feat_b64
-      show_face_from_URL(url, face_bbox, close_after=1)
+      show_face_from_URL(url, map(int, face_bbox), close_after=1)
