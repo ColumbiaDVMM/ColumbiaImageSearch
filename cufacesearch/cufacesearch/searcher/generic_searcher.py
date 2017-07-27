@@ -115,10 +115,17 @@ class GenericSearcher():
   def _search_from_any_list(self, image_list, detect_fn, options_dict):
     dets = []
     feats = []
+    import time
+    total_detect = 0.0
+    total_featurize = 0.0
     # for each image
     for image in image_list:
       # first detect faces
+      start_detect = time.time()
       sha1, img_type, width, height, img, faces = detect_fn(image)
+      detect_time = time.time() - start_detect
+      print 'Detect in one image in {:0.3}s.'.format(detect_time)
+      total_detect += detect_time
       if image.startswith('http'):
         dets.append((sha1, faces, image, img_type, width, height))
       else:
@@ -129,7 +136,11 @@ class GenericSearcher():
       if "detect_only" not in options_dict or not options_dict["detect_only"]:
         for one_face in faces:
           print one_face
+          start_featurize = time.time()
           one_feat = self.featurizer.featurize(img, one_face)
+          featurize_time = time.time() - start_featurize
+          print 'Featurized one face in {:0.3}s.'.format(featurize_time)
+          total_featurize += featurize_time
           faces_feats.append(one_feat)
       feats.append(faces_feats)
 

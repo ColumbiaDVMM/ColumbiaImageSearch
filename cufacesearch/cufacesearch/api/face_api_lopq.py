@@ -25,6 +25,7 @@ class APIResponder(Resource):
     def __init__(self):
         self.searcher = global_searcher
         self.start_time = global_start_time
+        # how to blur canvas images but keep the face clean?
         self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height", "max_returned"]
         self.column_url = "info:s3_url"
 
@@ -95,7 +96,7 @@ class APIResponder(Resource):
             return self.view_similar_query_response('SHA1', query, query_reponse, options)
         else:
             return {'error': 'unknown_mode: '+str(mode)}
-        resp['timing'] = time.time()-start
+        resp['Timing'] = time.time()-start
         return resp
 
     def get_options_dict(self, options):

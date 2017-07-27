@@ -158,6 +158,8 @@ class SearcherLOPQHBase(GenericSearcher):
       print "[{}.load_codes: info] 'codes_path' is not defined or empty in configuration file.".format(self.pp)
 
   def search_from_feats(self, dets, feats, options_dict=dict()):
+    import time
+    start_search = time.time()
     all_sim_images = []
     all_sim_faces = []
     all_sim_score = []
@@ -225,6 +227,9 @@ class SearcherLOPQHBase(GenericSearcher):
       all_sim_images.append(sim_images)
       all_sim_faces.append(sim_faces)
       all_sim_score.append(sim_score)
+
+    search_time = time.time() - start_search
+    print 'Search performed in {:0.3}s.'.format(search_time)
 
     # format output
     return self.do.format_output(dets, all_sim_images, all_sim_faces, all_sim_score, options_dict)
