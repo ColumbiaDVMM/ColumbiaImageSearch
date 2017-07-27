@@ -188,16 +188,17 @@ class SearcherLOPQHBase(GenericSearcher):
       for j in range(len(dets[i][1])):
         results = []
         if "detect_only" not in options_dict or not options_dict["detect_only"]:
-          norm_feat = np.linalg.norm(feats[i][j])
           if self.searcher:
             if self.model_type == "lopq_pca":
-              feat = np.squeeze(self.searcher.model.apply_PCA(feats[i][j] / norm_feat))
+              feat = np.squeeze(self.searcher.model.apply_PCA(feats[i][j]))
             else:
-              feat = np.squeeze(feats[i][j] / norm_feat)
+              feat = np.squeeze(feats[i][j])
+            norm_feat = np.linalg.norm(feat)
+            normed_feat = feat / norm_feat
             # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
             # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
             #results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
-            results, visited = self.searcher.search(feat, quota=2 * max_returned, limit=max_returned, with_dists=True)
+            results, visited = self.searcher.search(normed_feat, quota=2 * max_returned, limit=max_returned, with_dists=True)
             #print "[{}.search_from_feats: log] got {} results, first one is: {}".format(self.pp, len(results), results[0])
         tmp_img_sim = []
         tmp_face_sim_ids = []

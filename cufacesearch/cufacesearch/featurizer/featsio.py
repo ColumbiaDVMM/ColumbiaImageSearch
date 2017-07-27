@@ -1,5 +1,27 @@
 import numpy as np
 
+
+def parse_feat_line(line):
+  # Expected line format is:
+  # sha1\ts3_url\t./local_path_to_be_ignored.jpg\tface_top\tface_bottom\tface_left\tface_right\tfeat_val1\t...\n
+  fields = line.strip().split('\t')
+  sha1 = fields[0]
+  url = fields[1]
+  # Cast face bbox coordinates to integers
+  tmp_bbox = [int(x) for x in fields[3:7]]
+  # Reorder bbox as left, top, right, bottom
+  out_bbox = [tmp_bbox[2], tmp_bbox[0], tmp_bbox[3], tmp_bbox[1]]
+  # Cast face features as a numpy array of float32
+  tmp_feat = np.expand_dims(np.fromstring(' '.join(fields[7:]), dtype=np.float32, sep=" "), axis=0)
+  # Normalize feature?
+  if tmp_feat.any():
+    norm_feat = np.linalg.norm(tmp_feat)
+    out_feat = tmp_feat / norm_feat
+  else:
+    out_feat = tmp_feat
+  return sha1, url, out_bbox, out_feat
+
+
 def read_features_from_tsv(tsv_file, verbose=False):
   # Initialize
   images_sha1s = []
@@ -10,28 +32,26 @@ def read_features_from_tsv(tsv_file, verbose=False):
   # Read every line
   with open(tsv_file, 'rt') as infile:
     for line in infile:
-      # Expected line format is:
-      # sha1\ts3_url\t./local_path_to_be_ignored.jpg\tface_top\tface_bottom\tface_left\tface_right\tfeat_val1\t...\n
-      fields = line.strip().split('\t')
-      tmp_sha1 = fields[0]
-      # cast face bbox coordinates to integers
-      tmp_bbox = [int(x) for x in fields[3:7]]
-      # cast face features to floats and as numpy array
-      tmp_feat = np.expand_dims(np.fromstring(' '.join(fields[7:]), dtype=np.float32, sep=" "), axis=0)
+      # Parse line
+      tmp_sha1, tmp_url, tmp_bbox, tmp_feat = parse_feat_line(line)
+
       if tmp_feat.any():
+        # Accumulate images info
         images_sha1s.append(tmp_sha1)
-        images_urls.append(fields[1])
+        images_urls.append(tmp_url)
 
-        # reorder in left, top, right, bottom
-        faces_bbox.append(tuple([tmp_bbox[2], tmp_bbox[0], tmp_bbox[3], tmp_bbox[1]]))
+        # Reorder bbox as left, top, right, bottom. Deprecated, now done in parse_feat_line
+        #faces_bbox.append(tuple([tmp_bbox[2], tmp_bbox[0], tmp_bbox[3], tmp_bbox[1]]))
+        faces_bbox.append(tuple(tmp_bbox))
 
+        # Accumulate features
         if faces_feats is None:
           faces_feats = tmp_feat
         else:
           try:
             faces_feats = np.concatenate((faces_feats, tmp_feat))
           except Exception as inst:
-            print faces_feats.shape, tmp_feat.shape, tmp_feat, fields
+            print faces_feats.shape, tmp_feat.shape, tmp_feat
             raise inst
       else:
         if verbose:
