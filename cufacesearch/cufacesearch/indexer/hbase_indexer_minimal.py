@@ -5,7 +5,7 @@ from datetime import datetime
 
 TTransportException = happybase._thriftpy.transport.TTransportException
 TException = happybase._thriftpy.thrift.TException
-max_errors = 5
+max_errors = 2
 # reading a lot of data from HBase at once can be unstable
 batch_size = 100 
 
@@ -18,6 +18,9 @@ class HBaseIndexerMinimal(object):
         self.last_refresh = datetime.now()
         self.global_conf_filename = global_conf_filename
         self.global_conf = json.load(open(global_conf_filename,'rt'))
+        self.transport_type = 'buffered' # this is happybase default
+        #self.transport_type = 'framed'
+        self.timeout = 4
         self.read_conf()
         
     def get_param(self, param):
@@ -36,7 +39,9 @@ class HBaseIndexerMinimal(object):
         """
         # HBase conf
         self.hbase_host = self.get_param('host')
-        self.table_sha1infos_name = self.get_param('table_sha1infos')        
+        self.table_sha1infos_name = self.get_param('table_sha1infos')
+        self.table_updateinfos_name = self.get_param('table_updateinfos')
+        print self.table_sha1infos_name, self.table_updateinfos_name
         self.nb_threads = 1
         param_nb_threads = self.get_param('pool_thread')
         if param_nb_threads:
@@ -45,7 +50,7 @@ class HBaseIndexerMinimal(object):
         try:
             # The timeout as parameter seems to cause issues?...
             #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, timeout=10)
-            self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host)
+            self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
         except TTransportException as inst:
             print "Could not initalize connection to HBase. Are you connected to the VPN?"
             raise inst
@@ -63,7 +68,7 @@ class HBaseIndexerMinimal(object):
         print("[HBaseIndexerMinimal.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function, dt_iso))
         sys.stdout.flush()
         time.sleep(sleep_time)
-        self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host)
+        self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
         print("[HBaseIndexerMinimal.refresh_hbase_conn: log] Refreshed connection pool in {}s.".format(time.time()-start_refresh))
 
 
@@ -73,10 +78,47 @@ class HBaseIndexerMinimal(object):
         return None
 
 
+    def scan_from_row(self, table_name, row_start=None, columns=None, previous_err=0, inst=None):
+        self.check_errors(previous_err, "scan_from_row", inst)
+        try:
+            with self.pool.connection(timeout=self.timeout) as connection:
+                hbase_table = connection.table(table_name)
+                # scan table from row_start, and accumulate in rows the information of the columns that are needed
+                rows = []
+                for one_row in hbase_table.scan(row_start=row_start, columns=columns, batch_size=2):
+                    rows.extend(one_row)
+                    if self.verbose:
+                        print("[scan_from_row: log] got {} rows.".format(len(rows)))
+                        sys.stdout.flush()
+                return rows
+        except Exception as inst:
+            print inst
+            # try to force longer sleep time...
+            self.refresh_hbase_conn("scan_from_row", sleep_time=4)
+            return self.scan_from_row(table_name, row_start, columns, previous_err + 1, inst)
+
+
+    def get_updates_from_date(self, start_date, previous_err=0, inst=None):
+        # start_date should be in format YYYY-MM-DD
+        rows = None
+        self.check_errors(previous_err, "get_updates_from_date", inst)
+        # build row_start as index_update_YYYY-MM-DD
+        row_start = "index_update_"+start_date
+        print row_start
+        columns = ["info:list_sha1s"]
+        try:
+            rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, columns=columns)
+        except Exception as inst: # try to catch any exception
+            print "[get_updates_from_date: error] {}".format(inst)
+            self.refresh_hbase_conn("get_updates_from_date")
+            return self.get_updates_from_date(start_date, previous_err+1, inst)
+        return rows
+
+
     def get_rows_by_batch(self, list_queries, table_name, columns=None, previous_err=0, inst=None):
         self.check_errors(previous_err, "get_rows_by_batch", inst)
         try:
-            with self.pool.connection() as connection:
+            with self.pool.connection(timeout=self.timeout) as connection:
                 hbase_table = connection.table(table_name)
                 # slice list_queries in batches of batch_size to query
                 rows = []
@@ -107,7 +149,7 @@ class HBaseIndexerMinimal(object):
         return rows
 
 
-    # # Something like this could be used to get precomptued face features
+    # # Something like this could be used to get precomputed face features
     # # But we should get a JSON listing all faces found features and parse it...
     # # (TO BE IMPLEMENTED)
     # def get_precomp_from_sha1(self, list_sha1s, list_type):
