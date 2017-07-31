@@ -7,7 +7,8 @@ TTransportException = happybase._thriftpy.transport.TTransportException
 TException = happybase._thriftpy.thrift.TException
 max_errors = 2
 # reading a lot of data from HBase at once can be unstable
-batch_size = 100 
+batch_size = 100
+# Is the connection pool causing some issue? Could we use a single connection?
 
 class HBaseIndexerMinimal(object):
 
