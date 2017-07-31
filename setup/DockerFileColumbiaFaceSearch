@@ -12,15 +12,15 @@ FROM ubuntu:trusty
 ENV DEBIAN_FRONTEND noninteractive
 RUN \
   apt-get update && \
-  apt-get install -y --no-install-recommends apt-utils software-properties-common && \
-  add-apt-repository -y ppa:fkrull/deadsnakes-python2.7  && \
+  apt-get install -y --no-install-recommends apt-utils software-properties-common --force-yes && \
+  add-apt-repository -y ppa:fkrull/deadsnakes-python2.7 --force-yes && \
   apt-get update && \
-  apt-get -y upgrade && \
+  apt-get -y upgrade --force-yes && \
   apt-get install locales && \
   locale-gen en_US.UTF-8 && \
-  apt-get install -y build-essential --no-install-recommends && \
-  apt-get install -y curl git python-dev libpng-dev libjpeg8-dev libfreetype6-dev pkg-config libblas-dev liblapack-dev libatlas-base-dev gfortran cmake libboost-all-dev --no-install-recommends && \
-  apt-get install -y nano less screen openssh-client && \
+  apt-get install -y build-essential --no-install-recommends --force-yes && \
+  apt-get install -y curl git python-dev libpng-dev libjpeg8-dev libfreetype6-dev pkg-config libblas-dev liblapack-dev libatlas-base-dev gfortran cmake libboost-all-dev --no-install-recommends --force-yes && \
+  apt-get install -y nano less screen openssh-client --force-yes && \
   curl --silent --show-error --retry 5 https://bootstrap.pypa.io/get-pip.py | sudo python
 
 
