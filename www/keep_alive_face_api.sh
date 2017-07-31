@@ -2,6 +2,7 @@
 
 sleep_time=10
 
+CONF_FILE="/home/ubuntu/memex/ColumbiaFaceSearch/conf/global_conf_facesearch_lopq_pretrained_docker_v2.json"
 LOG_FOLDER="/home/ubuntu/memex/data/logs/"
 echo "LOG_FOLDER:" ${LOG_FOLDER}
 mkdir -p ${LOG_FOLDER}
