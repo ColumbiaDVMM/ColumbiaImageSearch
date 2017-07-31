@@ -54,7 +54,7 @@ then
   # Then we should run setup_face_search.sh
   ${SUDO} docker run -tid -v ${repo_path}:${indocker_repo_path} -v ${data_path}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag}
   # Run without detach so we wait for setup to complete
-  ${SUDO} docker exec -it ${docker_name} ${indocker_repo_path}/setup/setup_face_search.sh -r ${indocker_repo_path}
+  ${SUDO} docker exec -it ${docker_name} bash ${indocker_repo_path}/setup/setup_face_search.sh -r ${indocker_repo_path}
 
   # Commit
   ${SUDO} docker commit ${docker_name} ${docker_image}:${docker_image_tag}
@@ -72,4 +72,4 @@ ${SUDO} docker rm ${docker_name}
 ## Start API
 ${SUDO} docker run ${ports_mapping} -tid -v ${repo_path}:${indocker_repo_path} -v ${data_path}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag}
 echo "Starting face search API"
-${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/www/keep_alive_face_api.sh
+${SUDO} docker exec -itd ${docker_name} bash ${indocker_repo_path}/www/keep_alive_face_api.sh
