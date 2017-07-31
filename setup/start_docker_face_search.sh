@@ -16,7 +16,7 @@ docker_image="columbiafacesearch"
 docker_image_tag="1.0"
 docker_image_build_tag="0.9"
 docker_name="columbia_university_face_search"
-docker_file=${repo_path}"/setup/DockerfileColumbiaFaceSearch"
+docker_file=${repo_path}"/setup/DockerFileColumbiaFaceSearch"
 
 ports_mapping="-p "${PORT}":5000"
 
