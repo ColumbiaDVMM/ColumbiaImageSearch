@@ -16,10 +16,11 @@ class DLibFaceDetector(GenericFaceDetector):
   #   } for d in self.detector(img, up_sample)]
 
   def detect_from_img(self, img, up_sample=1):
+    dets, scores, idx =self.detector.run(img, up_sample, 0)
     return [{
       "left": d.left(),
       "top": d.top(),
       "right": d.right(),
       "bottom": d.bottom(),
-      "score": score
-    } for d, score, idx in self.detector.run(img, up_sample, 0)]
+      "score": scores[i]
+    } for i, d in enumerate(dets)]
