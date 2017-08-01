@@ -2,8 +2,8 @@
 
 #NB: This script has to be called WITHIN the docker
 install_python_pkgs=1
-install_caffe=0
-compile_hashing=0
+install_caffe=1
+compile_hashing=1
 
 # have a parameter to build caffe with or without gpu support?
 with_cuda=false

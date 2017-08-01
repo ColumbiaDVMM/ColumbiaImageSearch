@@ -61,6 +61,7 @@ def get_image_size_and_format(input):
             raise UnknownImageFormat("ValueError" + msg)
         except Exception as e:
             raise UnknownImageFormat(e.__class__.__name__ + msg)
+    # Are some other commons types needed?
     else:
         raise UnknownImageFormat("Sorry, don't know how to get information from this file.")
 

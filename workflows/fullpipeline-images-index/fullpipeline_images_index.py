@@ -8,6 +8,7 @@ import base64
 import datetime
 import happybase
 import subprocess
+from subprocess import CalledProcessError
 import numpy as np
 import cPickle as pkl
 
@@ -996,12 +997,20 @@ def save_hdfs_pickle(m, pkl_path):
 
 def copy_from_hdfs(hdfs_path):
     tmp_dir = mkdtemp()
-    subprocess.call(['hadoop', 'fs', '-copyToLocal', hdfs_path, tmp_dir])
+    try:
+        subprocess.check_call(['hadoop', 'fs', '-copyToLocal', hdfs_path, tmp_dir])
+    except CalledProcessError:
+        print "Copying {} locally failed. Trying again".format(hdfs_path)
+        return copy_from_hdfs(hdfs_path)
     return os.path.join(tmp_dir, hdfs_path.split('/')[-1])
 
 
 def copy_to_hdfs(f, hdfs_path):
-    subprocess.call(['hadoop', 'fs', '-copyFromLocal', f.name, hdfs_path])
+    try:
+        subprocess.check_call(['hadoop', 'fs', '-copyFromLocal', f.name, hdfs_path])
+    except CalledProcessError:
+        print "Copying {} to hdfs failed. Trying again".format(f.name)
+        return copy_to_hdfs(f, hdfs_path)
 
 
 def default_data_loading(sc, data_path, sampling_ratio, seed, args=None, repartition=False):
@@ -1560,10 +1569,10 @@ def adapt_parameters(args, nb_images):
     # TODO: we could adapt the following parameters to optimize speed/quality
     # - V: default 16
     # some heuristics to set this parameters so they scale with data
-    args.V = max(4*np.ceil(np.sqrt(nb_images/args.img_per_cell)),args.minV)
+    args.V = int(max(4*np.ceil(np.sqrt(nb_images/args.img_per_cell)),args.minV))
     # - M: default 8
     # - subquantizer_clusters: 256
-    args.subquantizer_clusters = max(np.ceil(8*np.power(nb_images,args.subqpow)),args.subquantizer_clusters)
+    args.subquantizer_clusters = int(max(np.ceil(8*np.power(nb_images,args.subqpow)),args.subquantizer_clusters))
     # set this value such that we do not use more than 1M samples?
     # - sampling_ratio_pca: default 1.0
     args.sampling_ratio_pca = min(args.max_samples_pca/nb_images, 1.0)

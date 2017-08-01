@@ -2,20 +2,50 @@
 
 with_cuda=false
 
-# for different domains we could dynamically name the docker_name
-# use arguments for the following values?
-# - domain
+# use arguments for the following values:
 # - port
-# - update_path
+# - domain_name
+# - data_path
+while getopts d:n:p: option
+do
+  case "${option}"
+  in
+  d) DATA_PATH=${OPTARG};;
+  n) DOMAIN_NAME=${OPTARG};;
+  p) PORT=${OPTARG};;
+  esac
+done
 
-# how to create the different global_conf files for the different domains?
+if [ ${DATA_PATH+x} ]; then
+  echo "DATA_PATH: "${DATA_PATH}
+else
+  echo "DATA_PATH not set. Use -d to set DATA_PATH please."
+  exit -1
+fi
+if [ ${DOMAIN_NAME+x} ]; then
+  echo "DOMAIN_NAME: "${DOMAIN_NAME}
+else
+  echo "DOMAIN_NAME not set. Use -n to set DOMAIN_NAME please."
+  exit -1
+fi
+if [ ${PORT+x} ]; then
+  echo "PORT: "${PORT}
+else
+  echo "PORT not set. Use -p to set PORT please."
+  exit -1
+fi
 
 ## Variables that could be changed
-docker_image="columbiaimagesearch"
-#docker_image_tag="0.8" # build 0.8, install cuda if needed, run setup_search.sh, commit as 0.9
-docker_image_tag="0.9"
-docker_name="columbia_university_search_similar_images"
+docker_image="cuimgsearch"
+docker_image_build_tag="0.1"
+docker_image_cuda_tag="0.2"
+docker_image_tag="1.0"
+docker_name="cuimgsearch_"${DOMAIN_NAME}
 docker_file="DockerfileColumbiaImageSearch"
+
+indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
+indocker_data_path=/home/ubuntu/memex/data
+
 if (( $with_cuda ));
 then
   nvidia_install_dir="/srv/NVIDIA"
@@ -24,12 +54,8 @@ else
   nvidia_install_dir=""
   docker_nvidia_devices=""
 fi
-# while testing without an actual GPU
-#docker_nvidia_devices=""
-#ports_mapping="-p 85:5000"
-# to test
-#ports_mapping="-p 88:5000"
-ports_mapping="-p 81:5000"
+
+ports_mapping="-p 80:5000"
 repo_path=$(dirname $(dirname $(pwd)))
 echo "repo_path is:"${repo_path}
 
@@ -51,7 +77,7 @@ testDockerExists() {
 
 # build docker image from docker file
 buildDocker() {
-    ${SUDO} docker build -t ${docker_image}:${docker_image_tag} -f ${docker_file} .
+    ${SUDO} docker build -t ${docker_image}:${docker_image_build_tag} -f ${docker_file} .
 }
 
 # build if needed
@@ -59,15 +85,27 @@ testDockerExists
 echo ${docker_exists}
 if [[ ${docker_exists} -eq 0 ]];
 then
-        echo "Building docker image "${docker_image}" from docker file: "${docker_file}
+    echo "Building docker image "${docker_image}" from docker file: "${docker_file}
 	buildDocker
-        if (( $with_cuda ));
-        then
-	  # cuda and NVIDIA drivers have to be installed in the same way in the docker than in the host.
-	  # I was using the run shell script to install cuda 8.0 and the package nvidia-375
-	  echo "Please install cuda now"
-	  docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v${nvidia_install_dir}:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
-        fi
+
+    if (( $with_cuda )); # Not fully tested
+    then
+        # cuda and NVIDIA drivers have to be installed in the same way in the docker than in the host.
+        # I was using the run shell script to install cuda 8.0 and the package nvidia-375
+        # Should we stop docker container that could be running from build first?
+        echo "Please install cuda now"
+        docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:${indocker_repo_path} -v${nvidia_install_dir}:/home/ubuntu/setup_cuda -v ${DATA_PATH}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag} /bin/bash
+
+        # Commit
+        ${SUDO} docker commit ${docker_name} ${docker_image}:${docker_image_cuda_tag}
+    fi
+
+    # Setup environment
+    ${SUDO} docker exec -it ${docker_name} ${indocker_repo_path}/setup/search/setup_search.sh
+    # Commit
+    ${SUDO} docker commit ${docker_name} ${docker_image}:${docker_image_tag}
+
+
 else
 	echo "Docker image "${docker_image}" already built."
 fi
@@ -78,10 +116,9 @@ echo "Starting docker "${docker_name}" from image "${docker_image}":"${docker_im
 ${SUDO} docker stop ${docker_name}
 ${SUDO} docker rm ${docker_name}
 
-# We should store that for re-use
-echo -n 'Please enter update path: '
-read search_update_path
-
 # no need for NVIDIA directory after install
 #docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v/srv/NVIDIA:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
-${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:${indocker_repo_path} -v ${DATA_PATH}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+
+# Run API
+${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh

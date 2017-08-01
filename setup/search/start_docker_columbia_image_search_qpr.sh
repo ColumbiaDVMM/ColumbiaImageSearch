@@ -31,8 +31,10 @@ else
 fi
 
 repo_path=/home/ubuntu/ColumbiaImageSearch/
-indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
 update_path=/home/ubuntu/data_domains/${DOMAIN}/
+
+indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
+indocker_update_path=/home/ubuntu/memex/update
 
 # how to create the different global_conf files for the different domains?
 
@@ -98,14 +100,14 @@ then
 	  # I was using the run shell script to install cuda 8.0 and the package nvidia-375
     # How to install automatically without interactions?
 	  echo "Please install cuda now"
-	  docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v${nvidia_install_dir}:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+	  docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:${indocker_repo_path} -v${nvidia_install_dir}:/home/ubuntu/setup_cuda -v ${search_update_path}:${indocker_update_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag} /bin/bash
     # Commit?
   fi
 
   echo "Setting up docker image "${docker_image}
 
   # Then we should run setup_search.sh
-  ${SUDO} docker run ${docker_nvidia_devices} -tid -v ${repo_path}:${indocker_repo_path} -v ${update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag}
+  ${SUDO} docker run ${docker_nvidia_devices} -tid -v ${repo_path}:${indocker_repo_path} -v ${update_path}:${indocker_update_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag}
   # Run without detach so we wait for setup to complete
   ${SUDO} docker exec -it ${docker_name} ${indocker_repo_path}/setup/search/setup_search.sh
 
