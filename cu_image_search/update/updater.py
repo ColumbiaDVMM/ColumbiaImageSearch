@@ -35,6 +35,9 @@ class Updater():
         elif self.global_conf[field]=="cdr_ingester":
             from ..ingester.cdr_ingester import CDRIngester
             self.ingester = CDRIngester(self.global_conf_filename)
+        elif self.global_conf[field] == "local_ingester":
+            from ..ingester.local_ingester import LocalIngester
+            self.ingester = LocalIngester(self.global_conf_filename)
         elif self.global_conf[field]=="hbase_ingester":
             from ..ingester.hbase_ingester import HBaseIngester
             self.ingester = HBaseIngester(self.global_conf_filename)
@@ -64,7 +67,7 @@ class Updater():
         """ Runs an update.
         """
         try:
-            #start = self.indexer.get_next_batch_start()
+            start = self.indexer.get_next_batch_start()
             self.ingester.set_start(start)
             self.ingester.set_fail_less_than_batch(False)
             batch = self.ingester.get_batch()

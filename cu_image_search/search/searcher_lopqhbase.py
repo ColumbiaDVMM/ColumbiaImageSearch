@@ -187,7 +187,7 @@ class SearcherLOPQHBase():
         return outp
 
     def search_image_list(self, image_list, options_dict=dict()):
-        # initilization
+        # initialization
         search_id = str(time.time())
         # get sha1s and feats for each URL in image_list
         list_sha1_id = []
@@ -200,7 +200,7 @@ class SearcherLOPQHBase():
 
 
     def search_imageB64_list(self, imageB64_list, options_dict=dict()):
-        # initilization
+        # initialization
         search_id = str(time.time())
         # get sha1s and feats for each URL in image_list
         list_sha1_id = []

@@ -359,7 +359,7 @@ class Searcher():
         return outp
 
     def search_one_imagepath(self,image_path):
-    	# initilization
+        # initialization
         search_id = str(time.time())
         all_img_filenames = [image_path]
         return self.search_from_image_filenames(all_img_filenames,search_id)

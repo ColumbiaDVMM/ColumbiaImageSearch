@@ -1,10 +1,9 @@
 import os
-import sys
 import time
-import MySQLdb
 from generic_indexer import GenericIndexer
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
+# Make that a local file indexer scheme
 class LocalIndexer(GenericIndexer):
 
     def read_conf(self):
@@ -19,12 +18,13 @@ class LocalIndexer(GenericIndexer):
         self.feature_extractor_type = self.global_conf['LI_feature_extractor']
         self.master_update_filepath = self.global_conf['LI_master_update_filepath']
         self.base_update_path = self.global_conf['LI_base_update_path']
-        try:
-            self.demo = self.global_conf['LI_demo']
-        except:
-            self.demo = None
-        # Initialize db config
-        self.read_db_conf()
+        self.save_index_path = self.global_conf['LI_save_index_path']
+        # New things we should save?
+        self.set_indexed_sha1 = set()
+        self.list_indexed_sha1 = []
+        self.max_file_id = 0
+        self.unique_images = []
+        self.full_images = []
 
     def initialize_indexer_backend(self):
         """ Initialize backend.
@@ -32,28 +32,21 @@ class LocalIndexer(GenericIndexer):
         print "[LocalIndexer: log] initialized with:\n\
                     \t- image_downloader: {}\n\
                     \t- feature_extractor_type: {}\n\
-                    \t- hasher_type: {}\n\
-                    \t- and db_conf values: {}, {}, {}, {}.".format(self.image_downloader_type,
-                        self.feature_extractor_type,self.hasher_type,self.local_db_host,
-                        self.local_db_user,self.local_db_pwd,self.local_dbname)
-        # Initialize image_downloader, feature_extractor and hasher
-        self.initialize_image_downloader()
+                    \t- hasher_type: {}".format(self.image_downloader_type,
+                        self.feature_extractor_type,self.hasher_type)
+        # Initialize feature_extractor and hasher
         self.initialize_feature_extractor()
         self.initialize_hasher()
-        self.db = None
-
-    def initialize_image_downloader(self):
-        if self.image_downloader_type=="file_downloader":
-            from ..image_downloader.file_downloader import FileDownloader
-            self.image_downloader = FileDownloader(self.global_conf_filename)
-        else:
-            raise ValueError("[LocalIndexer.initialize_indexer_backend error] Unsupported image_downloader_type: {}.".format(self.image_downloader_type))
-        
+        # Load from save index path?
+        self.load_from_disk()
 
     def initialize_feature_extractor(self):
         if self.feature_extractor_type=="sentibank_cmdline":
             from ..feature_extractor.sentibank_cmdline import SentiBankCmdLine
             self.feature_extractor = SentiBankCmdLine(self.global_conf_filename)
+        elif self.feature_extractor_type == "sentibank_tensorflow":
+            from ..feature_extractor.sentibank_tensorflow import SentiBankTensorflow
+            self.feature_extractor = SentiBankTensorflow(self.global_conf_filename)
         else:
             raise ValueError("[LocalIndexer.initialize_feature_extractor: error] Unknown feature_extractor_type: {}.".format(self.feature_extractor_type))
 
@@ -61,27 +54,18 @@ class LocalIndexer(GenericIndexer):
         if self.hasher_type=="hasher_cmdline":
             from ..hasher.hasher_cmdline import HasherCmdLine
             self.hasher = HasherCmdLine(self.global_conf_filename)
+        elif self.hasher_type == "hasher_swig":
+            from ..hasher.hasher_swig import HasherSwig
+            print "[HBaseIndexer.initialize_hasher: log] Setting hasher_type to hasher_swig."
+            self.hasher = HasherSwig(self.global_conf_filename)
         else:
             raise ValueError("[LocalIndexer.initialize_hasher: error] Unknown hasher_type: {}.".format(self.hasher_type))
-
-    def read_db_conf(self):
-        self.local_db_host = self.global_conf['LI_local_db_host']
-        self.local_db_user = self.global_conf['LI_local_db_user']
-        self.local_db_pwd = self.global_conf['LI_local_db_pwd']
-        self.local_dbname = self.global_conf['LI_local_dbname']
-
-    def open_localdb_connection(self):
-        if not self.db:
-            self.db = MySQLdb.connect(host=self.local_db_host,user=self.local_db_user,passwd=self.local_db_pwd,db=self.local_dbname)
-
-    def close_localdb_connection(self):
-        self.db.close()
 
     def get_next_batch_start(self):
         """ Get start value for next update batch
         :returns htid: Biggest htid in local database.
         """
-        return self.get_max_ht_id()
+        return self.max_file_id
 
     def get_precomp_from_ids(self,list_ids,list_type):
         res = []
@@ -91,110 +75,46 @@ class LocalIndexer(GenericIndexer):
             res.append(self.hasher.get_precomp_hashcodes(list_ids))
         return res
 
-    def get_precomp_from_sha1(self,list_sha1_id,list_type):
+    def get_precomp_from_sha1(self,list_sha1_id, list_type):
         list_ids_sha1_found = self.get_ids_from_sha1s(list_sha1_id)
         list_ids = [x[0] for x in list_ids_sha1_found]
-        res = self.get_precomp_from_ids(list_ids,list_type)
+        res = self.get_precomp_from_ids(list_ids, list_type)
         final_res = []
         for one_type_res in res:
             found_ids = one_type_res[1]
             final_res.append((one_type_res[0],[x[1] for i,x in enumerate(list_ids_sha1_found) if i in found_ids]))
         return final_res
 
-    def get_max_unique_id(self):
-        """ Get max `id` from `uniqueIds` table in local MySQL.
-        """
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        c.execute('select id from uniqueIds ORDER BY id DESC limit 1;')
-        remax = c.fetchall()
-        if len(remax):
-            umax = int(remax[0][0])
-        else:
-            umax = 0
-        c.close()
-        return umax
 
-    def get_max_ht_id(self):
-        """ Get max `htid` from `fullIds` table in local MySQL.
-        """
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        c.execute('select htid from fullIds ORDER BY id DESC limit 1;')
-        remax = c.fetchall()
-        if len(remax):
-            fmax = int(remax[0][0])
-        else:
-            fmax = 0
-        return fmax
-
-    def get_max_full_id(self):
-        """ Get max `id` from `fullIds` table in local MySQL.
-        """
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        c.execute('select id from fullIds ORDER BY id DESC limit 1;')
-        remax = c.fetchall()
-        if len(remax):
-            fmax = int(remax[0][0])
-        else:
-            fmax = 0
-        c.close()
-        return fmax
-
-    def get_ids_from_sha1s(self,sha1_list):
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        sql='SELECT id,sha1 FROM uniqueIds WHERE sha1 in (%s);' 
-        in_p=', '.join(map(lambda x: '%s', sha1_list))
-        sqlq = sql % (in_p)
-        c.execute(sqlq, sha1_list)
-        re = c.fetchall()
-        # return both id and sha1 to detect missing ones
-        uniques_ids = [(int(i[0]),i[1]) for i in re]
-        c.close()
-        return uniques_ids
-
-    def get_sha1s_htid_url_from_ids(self,ids_list):
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        sql='SELECT sha1,htid,location,id FROM uniqueIds WHERE id in (%s);' 
-        in_p=', '.join(map(lambda x: '%s', ids_list))
-        sqlq = sql % (in_p)
-        c.execute(sqlq, ids_list)
-        re = c.fetchall()
-        uniques_ids = [(i[0],int(i[1]),i[2],int(i[3])) for i in re]
-        c.close()
+    def get_ids_from_sha1s(self, sha1_list):
+        nb_sha1 = len(sha1_list)
+        uniques_ids = [None]*nb_sha1
+        sha1_found = 0
+        for i, indexed_sha1 in self.list_indexed_sha1:
+            try:
+                sha1_pos = sha1_list.index(indexed_sha1)
+                uniques_ids[sha1_pos] = i
+                sha1_found += 1
+                if sha1_found == nb_sha1:
+                    break
+            except:
+                pass
+        if sha1_found != nb_sha1:
+            print "[get_ids_from_sha1s: warning] We do not find all sha1s: {} found out of {}".format(sha1_found, nb_sha1)
         return uniques_ids
 
 
-    def get_all_dup_from_ids(self,ids_list):
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        # we could use 'BETWEEN ids_list[0] AND ids_list[1]' if we were sure ids_list were consecutives...
-        sql='SELECT `fullIds`.`htid`,`uniqueIds`.`sha1` FROM uniqueIds JOIN fullIds ON `uniqueIds`.`htid` = `fullIds`.`uid` WHERE `uniqueIds`.`id` IN (%s);' 
-        in_p=', '.join(map(lambda x: '%s', ids_list))
-        sqlq = sql % (in_p)
-        c.execute(sqlq, ids_list)
-        re = c.fetchall()
-        dups_ids = [(int(i[0]),i[1]) for i in re]
-        c.close()
-        return dups_ids
+    def get_old_unique_ids(self, unique_sha1):
+        # Get sha1s already indexed
+        old_uniques = []
+        old_uniques_id = []
+        for sha1 in unique_sha1:
+            if sha1 in self.set_indexed_sha1:
+                old_uniques.append(sha1)
+                old_uniques_id.append(self.list_indexed_sha1.index[sha1])
+        return old_uniques, old_uniques_id
 
-    def get_old_unique_ids(self,unique_sha1):
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        sql='SELECT htid,sha1 FROM uniqueIds WHERE sha1 in (%s);' 
-        in_p=', '.join(map(lambda x: '%s', unique_sha1))
-        sqlq = sql % (in_p)
-        c.execute(sqlq, unique_sha1)
-        re = c.fetchall()
-        old_uniques = [i[1] for i in re]
-        old_uniques_htid = [int(i[0]) for i in re]
-        c.close()
-        return old_uniques,old_uniques_htid
-
-    def get_new_unique_images(self,sha1_images):
+    def get_new_unique_images(self, sha1_images):
         # get unique images 
         sha1_list = [img_item[-1] for img_item in sha1_images]
         unique_sha1 = sorted(set(sha1_list))
@@ -202,67 +122,56 @@ class LocalIndexer(GenericIndexer):
         unique_idx = [sha1_list.index(sha1) for sha1 in unique_sha1]
         full_idx = [unique_sha1.index(sha1) for sha1 in sha1_list]
         
-        old_uniques,old_uniques_htid = self.get_old_unique_ids(unique_sha1)
+        old_uniques, old_uniques_id = self.get_old_unique_ids(unique_sha1)
         
         new_uniques=[]
-        unique_htid = []
+        unique_id = []
         new_files=[]
         for i in range(0,len(unique_sha1)):
             if unique_sha1[i] not in old_uniques:
                 img_item = sha1_images[unique_idx[i]]
-                new_uniques.append((int(img_item[0]),img_item[1],img_item[-1]))
+                new_uniques.append((int(img_item[0]), img_item[1], img_item[-1]))
                 new_files.append(img_item[-2])
-                unique_htid.append(new_uniques[-1][0])
+                unique_id.append(new_uniques[-1][0])
             else:
-                unique_htid.append(old_uniques_htid[old_uniques.index(unique_sha1[i])])
+                unique_id.append(old_uniques_id[old_uniques.index(unique_sha1[i])])
         new_fulls = []
         for i in range(0,len(sha1_images)):
-            new_fulls.append((int(sha1_images[i][0]),unique_htid[full_idx[i]]))
+            new_fulls.append((int(sha1_images[i][0]),unique_id[full_idx[i]]))
         print "[LocalIndexer.get_new_unique_images: log] We have {} new unique images.".format(len(new_files))
-        return new_files,new_uniques,new_fulls
+        return new_files, new_uniques, new_fulls
 
-    def insert_new_uniques(self,new_uniques):
+    def insert_new_uniques(self, new_uniques):
         """ Insert new_uniques ids in the local database.
 
-        :param new_uniques: list of tuples (htid, location, sha1) to be inserted.
+        :param new_uniques: list of tuples (image_id, location, sha1) to be inserted.
         :type new_uniques: list
         """
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        if len(new_uniques):
-            insert_statement = "INSERT IGNORE INTO uniqueIds (htid, location, sha1) VALUES {}".format(','.join(map(str,new_uniques)))
-            print insert_statement
-            c.execute(insert_statement)
-        c.close()
+        self.unique_images.extend(new_uniques)
+        for _, _, sha1 in new_uniques:
+            self.set_indexed_sha1.add(sha1)
+            self.list_indexed_sha1.append(sha1)
+        self.max_unique_id = len(self.set_indexed_sha1)
 
-    def insert_new_fulls(self,new_fulls):
+    def insert_new_fulls(self, new_fulls):
         """ Insert new_fulls ids in the local database.
 
-        :param new_fulls: list of tuples (htid, uid) to be inserted.
+        :param new_fulls: list of tuples (image_id, unique_id) to be inserted.
         :type new_fulls: list
         """
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        if len(new_fulls):
-            insert_statement = "INSERT IGNORE INTO fullIds (htid, uid) VALUES {}".format(','.join(map(str,new_fulls)))
-            print insert_statement
-            c.execute(insert_statement)
-        c.close()
+        self.full_images.extend(new_fulls)
+        self.max_file_id += len(new_fulls)
 
     def check_batch(self,umax,umax_new,num_new_unique,fmax_new,fmax,num_readable,hashbits_filepath,feature_filepath):
         if umax_new-umax != num_new_unique:
-            print 'Update failed! unique table size mismatch!',umax_new,umax,num_new_unique
-            print 'You might need to run:\n\
-            alter table uniqueIds AUTO_INCREMENT = 1;\n\
-            alter table fullIds AUTO_INCREMENT = 1;\n\
-            in the local mysql to reset the incremental id.'
+            print 'Update failed! unique infos size mismatch!',umax_new,umax,num_new_unique
         # TODO: replace hard coded values by hash_nb_bits/8 and feats_nb_dim*4.
         elif os.stat(hashbits_filepath).st_size!=num_new_unique*32:
             print 'Update failed! hash bits size mismatch!',os.stat(hashbits_filepath).st_size,num_new_unique*32
         elif os.stat(feature_filepath).st_size!=num_new_unique*16384:
             print 'Update failed! feature size mismatch!',os.stat(feature_filepath).st_size,num_new_unique*16384
         elif fmax_new-fmax != num_readable:
-            print 'Update warning! full table size mismatch!',fmax_new,fmax,num_readable
+            print 'Update warning! full infos size mismatch!',fmax_new,fmax,num_readable
         else:
             return True
         return False
@@ -289,84 +198,65 @@ class LocalIndexer(GenericIndexer):
         else:
             self.update_master_file(update_id)
             self.hasher.compress_feats()
-            #vmtouch hashing and features folder
-            #os.system('./cache.sh')
-            ## delete img cache # should be done in search.
-            #os.system('find img -name "*sim_*.txt" -exec rm -rf {} \;')
-            #os.system('find img -name "*sim_*.json" -exec rm -rf {} \;')
+            self.save_to_disk()
             
 
-    def index_batch(self,batch):
-        """ Index a batch in the form of a list of (id,url,other_data)
+    def index_batch(self, batch):
+        """ Index a batch in the form of a list of (id, path, other_data)
         """
         # Download images
         timestr= time.strftime("%b-%d-%Y-%H-%M-%S", time.localtime(time.time()))
-        startid = str(batch[0][0])
-        lastid = str(batch[-1][0])
-        update_id = timestr+'_'+startid+'_'+lastid
+        update_id = timestr
         print "[LocalIndexer.index_batch: log] Starting udpate {}".format(update_id)
-        readable_images = self.image_downloader.download_images(batch,update_id)
-        #print readable_images
         # Compute sha1
-        sha1_images = [img+(get_SHA1_from_file(img[-1]),) for img in readable_images]
+        sha1_images = [img+(get_SHA1_from_file(img[1]),) for img in batch]
         # Find new images
-        new_files,new_uniques,new_fulls = self.get_new_unique_images(sha1_images)
+        new_files, new_uniques, new_fulls = self.get_new_unique_images(sha1_images)
         # Compute features
-        features_filename,ins_num = self.feature_extractor.compute_features(new_files,update_id)
+        features_filename,ins_num = self.feature_extractor.compute_features(new_files, update_id)
         # Compute hashcodes
-        hashbits_filepath = self.hasher.compute_hashcodes(features_filename,ins_num,update_id)
+        hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
         # Record current biggest ids
-        umax = self.get_max_unique_id()
-        fmax = self.get_max_full_id()
+        umax = self.max_unique_id
+        fmax = self.max_file_id
         # Insert new ids
         self.insert_new_uniques(new_uniques)
         self.insert_new_fulls(new_fulls)
         # Check that batch processing went well
-        umax_new = self.get_max_unique_id()
-        fmax_new = self.get_max_full_id()
-        update_success = self.check_batch(umax,umax_new,len(new_uniques),fmax_new,fmax,len(sha1_images),hashbits_filepath,features_filename)
+        umax_new = self.max_unique_id
+        fmax_new = self.max_file_id
+        update_success = self.check_batch(umax, umax_new, len(new_uniques), fmax_new,fmax, len(sha1_images),
+                                          hashbits_filepath, features_filename)
         if update_success:
             print "Update succesful!"
-            self.db.commit()
-        self.close_localdb_connection()
-        self.finalize_update(update_success,hashbits_filepath,features_filename,update_id)
+            # what should we do here? Save index? Basically just max_file_id?
+        self.finalize_update(update_success, hashbits_filepath, features_filename, update_id)
 
-    def get_sim_infos(self,nums):
+    def get_sim_infos(self, nums):
+
+        #'image_urls',sim[0] # Needed, actually local path
+        #'cached_image_urls',sim[1] # Empty
+        #'page_urls',sim[2] # Empty
+        #'ht_ads_id',sim[3] # Empty
+        #'ht_images_id',sim[4] # Empty
+        #'sha1',sim[5] # Needed
+
         # should be something like get sim all infos? in local indexer.
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        sql='SELECT NULL,location,NULL,NULL,htid,sha1 FROM uniqueIds WHERE id in (%s) ORDER BY FIELD(id, %s)' 
-        #sql='SELECT cdr_id,location,NULL,timestamp,htid,sha1 FROM uniqueIdsCDR WHERE feat_id in (%s) ORDER BY FIELD(feat_id, %s)' 
-
-        query_num = []
-        for i in range(len(nums)):
-            query_num.append(int(nums[i])+1)
-        in_p=', '.join(map(lambda x: '%s', query_num))
-        sqlq = sql % (in_p,in_p)
-        #print sqlq
-        c.execute(sqlq, query_num*2)
-        out = c.fetchall()
-        c.close()
+        nb_sim = len(nums)
+        out = [(None, None, None, None, None, None)]*nb_sim
+        sha1_found = 0
+        for image_id, location, sha1 in self.unique_images:
+            try:
+                nums_pos = nums.index(image_id)
+                out[nums_pos] = (location, None, None, None, None, sha1)
+                sha1_found += 1
+                if nb_sim == sha1_found:
+                    break
+            except:
+                pass
+        if sha1_found != nb_sim:
+            print "[get_sim_infos: warning] We do not find all sha1s: {} found out of {}".format(sha1_found,
+                                                                                                      nb_sim)
         return out
 
-    def get_url_infos(self,tmp_sim):
-        self.open_localdb_connection()
-        c = self.db.cursor()
-        # uid is the htid of the unique image
-        if not self.demo:
-            sql='SELECT htid,uid FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
-        else:
-            sql='SELECT htid,uid,url,location,ads_url,ads_id FROM fullIds WHERE uid in (%s) ORDER BY FIELD(uid, %s)' 
-        query_num = [simj[4] for simj in tmp_sim if simj[4]]
-        out = None
-        if query_num:
-            in_p=', '.join(map(lambda x: '%s', query_num))
-            sqlq = sql % (in_p,in_p)
-            c.execute(sqlq, query_num*2)
-            out = c.fetchall()
-        if not out:
-            out = tmp_sim
-        c.close()
-        return out
 
-        

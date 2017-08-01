@@ -1,14 +1,11 @@
-import os
-import sys
 import time
 import json
-import struct
-import MySQLdb
 import numpy as np
-from collections import OrderedDict 
-from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
+from collections import OrderedDict
+from ..memex_tools.sha1_tools import get_SHA1_from_file
 
-class Searcher():
+
+class SearcherFileLocal():
 
     def __init__(self,global_conf_filename):
         self.global_conf_filename = global_conf_filename
@@ -23,7 +20,6 @@ class Searcher():
         self.sim_limit = self.global_conf['SE_sim_limit']
         self.near_dup = self.global_conf['SE_near_dup']
         self.near_dup_th =  self.global_conf['SE_near_dup_th']
-        self.get_dup = self.global_conf['SE_get_dup']
         self.ratio = self.global_conf['SE_ratio']
 
     def init_ingester(self):
@@ -43,7 +39,7 @@ class Searcher():
             from ..ingester.cdr_ingester import CDRIngester
             self.ingester = CDRIngester(self.global_conf_filename)
         else:
-            raise ValueError("[Searcher: error] unkown 'ingester' {}.".format(self.global_conf[field]))
+            raise ValueError("[Searcher: error] unknown 'ingester' {}.".format(self.global_conf[field]))
 
     def init_indexer(self):
         """ Initialize `indexer` from `global_conf['SE_indexer']` value.
@@ -62,7 +58,7 @@ class Searcher():
             from ..indexer.hbase_indexer import HBaseIndexer
             self.indexer = HBaseIndexer(self.global_conf_filename)
         else:
-            raise ValueError("[Searcher: error] unkown 'indexer' {}.".format(self.global_conf[field]))
+            raise ValueError("[Searcher: error] unknown 'indexer' {}.".format(self.global_conf[field]))
 
     def filter_near_dup(self,nums):
         # nums is a list of ids then distances
@@ -81,41 +77,9 @@ class Searcher():
         #print "[Searcher.filter_near_dup: log] temp_nums {}".format(temp_nums)
         return temp_nums
 
-    def get_dup_infos(self,sim,sim_score):
-        new_sim = []
-        new_sim_score = []
 
-        for i in range(0,len(sim)):    
-            new_sim.append([])
-            new_sim_score.append([])
-            tmpresult = self.indexer.get_url_infos(sim[i])
-            #print "[Searcher.get_dup_infos: log] tmpresult {}".format(tmpresult)
-            #print len(tmpresult)
-            p = 0
-            for k in tmpresult:
-                if sim[i][p][4]!=k[1]:
-                    p = p+1
-                if not self.indexer.demo:
-                    new_sim[i].append((sim[i][p][0],sim[i][p][1],sim[i][p][2],sim[i][p][3],k[0],sim[i][p][5]))
-                else:
-                    new_sim[i].append((k[2],k[3],k[4],k[5],k[0],sim[i][p][5]))
-                new_sim_score[i].append(sim_score[i][p])
-                    
-        return new_sim,new_sim_score
-
-
-    def expand_metadata(self,sim):
-        for i in range(0,len(sim)):    
-            if not sim[i]: # empty
-                continue
-            #print "[Searcher.expand_metadata: log] sim[i] before expansion {}".format(sim[i])
-            sim[i] = self.ingester.expand_metadata(sim[i])
-            #print "[Searcher.expand_metadata: log] sim[i] after expansion {}".format(sim[i])
-        return sim
-
-
-    def read_sim(self,simname,nb_query):
-    	# intialization
+    def read_sim(self, simname, nb_query):
+        # initialization
         sim = []
         sim_score = []
         
@@ -143,24 +107,16 @@ class Searcher():
         f.close()
         return sim,sim_score
 
-    def format_output(self, simname, nb_query, corrupted, outputname):
-    	# read hashing similarity results
-        sim,sim_score = self.read_sim(simname,nb_query)
-        
-        # get_duplicates if needed
-        if self.get_dup:
-            #print "[Searcher.format_output: log] sim before get_dup_infos {}".format(sim)
-            sim,sim_score = self.get_dup_infos(sim,sim_score)
-            #print "[Searcher.format_output: log] sim after get_dup_infos {}".format(sim)
+    def format_output(self, simname, list_sha1_id, nb_query, corrupted, outputname):
+        # read hashing similarity results
+        sim, sim_score = self.read_sim(simname, nb_query)
 
-        # expand metadata
-        sim = self.expand_metadata(sim)
-        
         # build final output
         output = []
         dec = 0
         for i in range(0,nb_query):    
             output.append(dict())
+            output[i]['query_sha1'] = list_sha1_id[i]
             if i in corrupted:
                 output[i]['similar_images']= OrderedDict([['number',0],['image_urls',[]],['cached_image_urls',[]],['page_urls',[]],['ht_ads_id',[]],['ht_images_id',[]],['sha1',[]],['distance',[]]])
                 dec += 1
@@ -181,51 +137,35 @@ class Searcher():
         json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
 
     def search_one_imagepath(self,image_path):
-    	# initilization
+        # initialization
         search_id = str(time.time())
         all_img_filenames = [image_path]
-        return self.search_from_image_filenames(all_img_filenames,search_id)
+        return self.search_from_image_filenames(all_img_filenames, search_id)
         
-    def search_image_list(self,image_list):
-        # initilization
+    def search_image_list(self, image_list):
+        # initialization
         search_id = str(time.time())
-        i = 0
-        # read all images
-        dl_images = []
-        batch = []
+
+        # read list of images
         all_img_filenames = []
         for line in open(image_list):
             image_line = line.replace('\n','')
             if len(image_line)>2:
-                # Check if image or web address
-                if image_line[0:4]=="http":
-                    # Push image to be downloaded image
-                    batch.append((i,image_line,None))
-                    dl_images.append(i)
                 all_img_filenames.append(image_line)
-                i+=1
-        #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        # download the images we need
-        if batch:
-            readable_images = self.indexer.image_downloader.download_images(batch,search_id)
-            for i,img_tup in enumerate(readable_images):
-                #print "[Searcher.search_image_list: log] {} readable image tuple {}.".format(i,img_tup)
-                dl_pos = dl_images.index(img_tup[0])
-                all_img_filenames[dl_images[dl_pos]]=img_tup[-1]
-        #print "[Searcher.search_image_list: log] all_img_filenames: {}.".format(all_img_filenames)
-        return self.search_from_image_filenames(all_img_filenames,search_id)
 
-    def search_from_image_filenames(self,all_img_filenames,search_id):
+        return self.search_from_image_filenames(all_img_filenames, search_id)
+
+    def search_from_image_filenames(self, all_img_filenames, search_id):
         # compute all sha1s
         corrupted = []
         list_sha1_id = []
         valid_images = []
-        for i,image_name in enumerate(all_img_filenames):
+        for i, image_name in enumerate(all_img_filenames):
             if image_name[0:4]!="http":
                 sha1 = get_SHA1_from_file(image_name)
                 if sha1:
                     list_sha1_id.append(sha1)
-                    valid_images.append((i,sha1,image_name))
+                    valid_images.append((i, sha1, image_name))
                 else:
                     corrupted.append(i)
             else: # we did not manage to download image
@@ -238,6 +178,7 @@ class Searcher():
         list_sha1_found = [x[1] for x in list_ids_sha1_found]
         #print "[Searcher.search_from_image_filenames: log] list_sha1_id {}".format(list_sha1_id)
         #print "[Searcher.search_from_image_filenames: log] list_sha1_found {}".format(list_sha1_found)
+        # this is to keep proper ordering
         list_ids_found = [tmp_list_ids_found[list_sha1_found.index(sha1)] for sha1 in list_sha1_id if sha1 in list_sha1_found]
         #print "[Searcher.search_from_image_filenames: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
         #print "[Searcher.search_from_image_filenames: log] list_ids_found {}".format(list_ids_found)
@@ -251,7 +192,7 @@ class Searcher():
         new_files = []
         all_valid_images = []
         precomp_img_filenames=[]
-        for i,sha1,image_name in valid_images:
+        for i, sha1, image_name in valid_images:
             if sha1 in list_sha1_found: # image is indexed
                 precomp_img_filenames.append(image_name)
             else:
@@ -259,7 +200,7 @@ class Searcher():
             all_valid_images.append(all_img_filenames[i])
         print "[Searcher.search_from_image_filenames: log] all_valid_images {}".format(all_valid_images)
         print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
-        features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files,search_id)
+        features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files, search_id)
         if ins_num!=len(new_files):
             raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
         # merge feats with features_filename
@@ -280,7 +221,7 @@ class Searcher():
                     tmp_feat = np.frombuffer(new_feats.read(read_dim),dtype=read_type)
                 out.write(tmp_feat)
         # query with merged features_filename
-        simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile,self.ratio)
+        simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
         outputname = simname[:-4]+".json"
-        self.format_output(simname, len(all_img_filenames), corrupted, outputname)
+        self.format_output(simname, list_sha1_id, len(all_img_filenames), corrupted, outputname)
         return outputname

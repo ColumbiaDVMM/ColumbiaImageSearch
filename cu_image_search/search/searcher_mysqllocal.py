@@ -20,7 +20,7 @@ class Searcher():
         self.init_ingester() # just for expand metada
 
     def read_conf(self):
-    	# these parameters may be overwritten by web call
+        # these parameters may be overwritten by web call
         self.features_dim = self.global_conf['FE_features_dim']
         self.sim_limit = self.global_conf['SE_sim_limit']
         self.near_dup = self.global_conf['SE_near_dup']
@@ -117,7 +117,7 @@ class Searcher():
 
 
     def read_sim(self,simname,nb_query):
-    	# intialization
+        # initialization
         sim = []
         sim_score = []
         
@@ -146,7 +146,7 @@ class Searcher():
         return sim,sim_score
 
     def format_output(self, simname, nb_query, corrupted, outputname):
-    	# read hashing similarity results
+        # read hashing similarity results
         sim,sim_score = self.read_sim(simname,nb_query)
         
         # get_duplicates if needed
@@ -183,13 +183,13 @@ class Searcher():
         json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
 
     def search_one_imagepath(self,image_path):
-    	# initilization
+        # initialization
         search_id = str(time.time())
         all_img_filenames = [image_path]
         return self.search_from_image_filenames(all_img_filenames,search_id)
         
     def search_image_list(self,image_list):
-        # initilization
+        # initialization
         search_id = str(time.time())
         i = 0
         # read all images
