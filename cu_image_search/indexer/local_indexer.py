@@ -1,5 +1,6 @@
 import os
 import time
+import pickle
 from generic_indexer import GenericIndexer
 from ..memex_tools.sha1_tools import get_SHA1_from_file, get_SHA1_from_data
 
@@ -25,6 +26,25 @@ class LocalIndexer(GenericIndexer):
         self.max_file_id = 0
         self.unique_images = []
         self.full_images = []
+
+    def load_from_disk(self):
+        # Load from self.save_index_path
+        index_from_disk = pickle.load(open(self.save_index_path,'rb'))
+        self.set_indexed_sha1 = index_from_disk['set_indexed_sha1']
+        self.list_indexed_sha1 = index_from_disk['list_indexed_sha1']
+        self.max_file_id = index_from_disk['max_file_id']
+        self.unique_images = index_from_disk['unique_images']
+        self.full_images = index_from_disk['full_images']
+
+    def save_to_disk(self):
+        # Save to self.save_index_path
+        index_to_disk = dict()
+        index_to_disk['set_indexed_sha1'] = self.set_indexed_sha1
+        index_to_disk['list_indexed_sha1'] = self.list_indexed_sha1
+        index_to_disk['max_file_id'] = self.max_file_id
+        index_to_disk['unique_images'] = self.unique_images
+        index_to_disk['full_images'] = self.full_images
+        pickle.dump(index_to_disk, open(self.save_index_path,'wb'))
 
     def initialize_indexer_backend(self):
         """ Initialize backend.

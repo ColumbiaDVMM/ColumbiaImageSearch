@@ -1,5 +1,12 @@
 {
-        "batch_size": 1000,
+        "batch_size": 100,
+        "LI_image_downloader":"file_downloader",
+        "LI_hasher":"hasher_swig",
+        "LI_feature_extractor":"sentibank_tensorflow",
+        "LI_master_update_filepath":"/home/ubuntu/memex/update/master.txt",
+        "LI_base_update_path":"/home/ubuntu/memex/update/",
+        "LI_save_index_path":"/home/ubuntu/memex/update/index.pkl",
+        "LI_in_data_dir":"/Users/svebor/Documents/Workspace/CodeColumbia/Datasets/Caltech101",
         "FD_dl_image_path":"/home/ubuntu/memex/update/images/",
         "FD_dl_pool_size":2,
         "FE_features_dim":4096,

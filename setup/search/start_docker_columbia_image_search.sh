@@ -2,17 +2,22 @@
 
 with_cuda=false
 
+# Example:
+# ./start_docker_columbia_image_search.sh -d ../../../tmp_data_local -c ../../conf/global_var_sample_local.json -n caltech101 -p 80
+
+
 # use arguments for the following values:
 # - port
 # - domain_name
 # - data_path
-while getopts d:n:p: option
+while getopts d:n:p:c: option
 do
   case "${option}"
   in
   d) DATA_PATH=${OPTARG};;
   n) DOMAIN_NAME=${OPTARG};;
   p) PORT=${OPTARG};;
+  c) CONF=${OPTARG};;
   esac
 done
 
@@ -20,6 +25,12 @@ if [ ${DATA_PATH+x} ]; then
   echo "DATA_PATH: "${DATA_PATH}
 else
   echo "DATA_PATH not set. Use -d to set DATA_PATH please."
+  exit -1
+fi
+if [ ${CONF+x} ]; then
+  echo "CONF: "${CONF}
+else
+  echo "CONF not set. Use -c to set CONF please."
   exit -1
 fi
 if [ ${DOMAIN_NAME+x} ]; then
@@ -121,4 +132,4 @@ ${SUDO} docker rm ${docker_name}
 ${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:${indocker_repo_path} -v ${DATA_PATH}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
 
 # Run API
-${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh
+${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh -c ${CONF}
