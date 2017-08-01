@@ -22,4 +22,4 @@ class DLibFaceDetector(GenericFaceDetector):
       "right": d.right(),
       "bottom": d.bottom(),
       "score": score
-    } for d, score, idx in self.detector.run(img, up_sample)]
+    } for d, score, idx in self.detector.run(img, up_sample, 0)]
