@@ -1,0 +1,17 @@
+{
+        "batch_size": 1000,
+        "FD_dl_image_path":"/home/ubuntu/memex/update/images/",
+        "FD_dl_pool_size":2,
+        "FE_features_dim":4096,
+        "HA_bits_num":256,
+	    "HA_base_update_path":"/home/ubuntu/memex/update/indexing/",
+        "HA_path":"../hashing_new/",
+        "SE_sim_limit":1000,
+        "SE_near_dup":true,
+        "SE_near_dup_th":0.15,
+        "SE_get_dup":true,
+        "SE_ratio":0.00005,
+        "SE_indexer":"local_indexer",
+        "SE_ingester":"local_ingester",
+        "indexer_verbose":1
+}
