@@ -66,8 +66,8 @@ class DLibFeaturizer(object):
 
   def featurize(self, img, d):
     #TODO: deal with B&W images
-    print img.shape,len(img.shape)
-    if len(img.shape):
+    #print img.shape,len(img.shape)
+    if len(img.shape)==2:
       import skimage
       img = skimage.color.gray2rgb(img)
     from dlib import rectangle
