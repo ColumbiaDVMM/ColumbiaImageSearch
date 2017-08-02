@@ -37,7 +37,7 @@ def get_clean_urls_from_query(query):
     tmp_query_urls = []
     print "query.split('http')", query.split('http')
     for x in query.split('http'):
-        if x and query.split('http')>1:
+        if x and len(query.split('http'))>1:
             tmp_query_urls.append('http'+x)
         elif x:
             # Local image
