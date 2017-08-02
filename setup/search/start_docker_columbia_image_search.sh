@@ -3,7 +3,7 @@
 with_cuda=false
 
 # Example:
-# ./start_docker_columbia_image_search.sh -d ../../../tmp_data_local -c ../../conf/global_var_sample_local.json -n caltech101 -p 80
+# ./start_docker_columbia_image_search.sh -d /Users/svebor/Documents/Workspace/CodeColumbia/Datasets/Caltech101 -c ../../conf/global_var_sample_local.json -n caltech101 -p 80
 
 
 # use arguments for the following values:
@@ -54,8 +54,9 @@ docker_image_tag="1.0"
 docker_name="cuimgsearch_"${DOMAIN_NAME}
 docker_file="DockerfileColumbiaImageSearch"
 
-indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
-indocker_data_path=/home/ubuntu/memex/data
+indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch/
+indocker_data_path=/home/ubuntu/memex/data/
+indocker_update_path=/home/ubuntu/memex/update/
 
 if (( $with_cuda ));
 then
@@ -69,6 +70,7 @@ fi
 ports_mapping="-p 80:5000"
 repo_path=$(dirname $(dirname $(pwd)))
 echo "repo_path is:"${repo_path}
+update_path=${repo_path}/update_${DOMAIN_NAME}
 
 ## Docker requires sudo privilege, check if we already have them
 # this seems to fail on OpenStack where ubuntu has sudo privilege but cannot interact with docker without sudo
@@ -105,17 +107,19 @@ then
         # I was using the run shell script to install cuda 8.0 and the package nvidia-375
         # Should we stop docker container that could be running from build first?
         echo "Please install cuda now"
-        docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:${indocker_repo_path} -v${nvidia_install_dir}:/home/ubuntu/setup_cuda -v ${DATA_PATH}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag} /bin/bash
+        ${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:${indocker_repo_path} -v ${nvidia_install_dir}:/home/ubuntu/setup_cuda -v ${DATA_PATH}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag} /bin/bash
 
         # Commit
         ${SUDO} docker commit ${docker_name} ${docker_image}:${docker_image_cuda_tag}
+        docker_image_build_tag=${docker_image_cuda_tag}
     fi
+
+    ${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -itd -v ${repo_path}:${indocker_repo_path}  -v ${DATA_PATH}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_build_tag} /bin/bash
 
     # Setup environment
     ${SUDO} docker exec -it ${docker_name} ${indocker_repo_path}/setup/search/setup_search.sh
     # Commit
     ${SUDO} docker commit ${docker_name} ${docker_image}:${docker_image_tag}
-
 
 else
 	echo "Docker image "${docker_image}" already built."
@@ -129,7 +133,11 @@ ${SUDO} docker rm ${docker_name}
 
 # no need for NVIDIA directory after install
 #docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:/home/ubuntu/memex/ColumbiaImageSearch -v/srv/NVIDIA:/home/ubuntu/setup_cuda -v ${search_update_path}:/home/ubuntu/memex/update --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
-${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -ti -v ${repo_path}:${indocker_repo_path} -v ${DATA_PATH}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+${SUDO} docker run ${ports_mapping} ${docker_nvidia_devices} -itd -v ${update_path}:${indocker_update_path}  -v ${repo_path}:${indocker_repo_path} -v ${DATA_PATH}:${indocker_data_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag} /bin/bash
+
+# Start update process
+#${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/scripts/run_update.sh -c ${indocker_repo_path}${CONF} && sleep 5 && ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh -c ${indocker_repo_path}${CONF}
+${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/scripts/run_update.sh -c ${indocker_repo_path}${CONF}
 
 # Run API
-${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh -c ${CONF}
+${SUDO} docker exec -itd ${docker_name} ${indocker_repo_path}/cu_image_search/www/keep_alive_api.sh -c ${indocker_repo_path}${CONF}

@@ -119,7 +119,7 @@ class DeepSentibankExtractor(object):
 
     # setup network
     def init_net(self):
-        print "[init_net] Loading DeepSentibank net..."
+        print "[init_net] Loading DeepSentibank net from {}...".format(self.modelpath)
         sys.stdout.flush()
         start_init = time.time()
         self.input_data = tf.placeholder(tf.float32, shape=self.net_input_size)

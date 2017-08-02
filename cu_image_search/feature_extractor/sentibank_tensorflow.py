@@ -1,15 +1,24 @@
 import os
 import sys
-import time
 import json
-import math
-import numpy as np
-from scipy import misc
 from ..memex_tools.image_dl import mkpath
 import tfdeepsentibank
 
 
 class SentiBankTensorflow():
+
+
+    def dl_file(self, url, outpath):
+        import requests
+        response = requests.get(url, stream=True)
+
+        # Throw an error for bad status codes
+        response.raise_for_status()
+        if not os.path.exists(outpath):
+            with open(outpath, 'wb') as handle:
+                for block in response.iter_content(1024):
+                    handle.write(block)
+
 
     def __init__(self, global_conf_filename):
         self.global_conf = json.load(open(global_conf_filename,'rt'))
@@ -25,9 +34,36 @@ class SentiBankTensorflow():
         self.features_path = os.path.join(self.base_update_path,'features/')
         self.features_dim = self.global_conf["FE_features_dim"]
         mkpath(self.features_path)
+        local_tfsb_path = os.path.join(self.sentibank_path,'tfdeepsentibank.npy')
+        local_imgnetmean_path = os.path.join(self.sentibank_path,'imagenet_mean.npy')
+        if not os.path.exists(self.sentibank_path):
+            mkpath(self.sentibank_path)
+        # Try to download model and imagenet mean? Where should we put them?
+        # They are in Svebor's Dropbox for now...
+        # urllib.urlretrieve seems to hang forever sometimes...
+        if not os.path.exists(local_tfsb_path):
+            from . import tfsentibank_npy_urldlpath, imagenet_mean_npy_urldlpath
+            import urllib
+            print "Downloading Sentibank model..."
+            sys.stdout.flush()
+            #urllib.urlretrieve(tfsentibank_npy_urldlpath, local_tfsb_path)
+            self.dl_file(tfsentibank_npy_urldlpath, local_tfsb_path)
+            print "Done."
+            sys.stdout.flush()
+        if not os.path.exists(local_imgnetmean_path):
+            from . import tfsentibank_npy_urldlpath, imagenet_mean_npy_urldlpath
+            import urllib
+            # Hangs forever?
+            print "Downloading ImageNet mean..."
+            sys.stdout.flush()
+            #urllib.urlretrieve(imagenet_mean_npy_urldlpath, local_imgnetmean_path)
+            self.dl_file(imagenet_mean_npy_urldlpath, local_imgnetmean_path)
+            print "Done."
+            sys.stdout.flush()
         print "[SentiBankTensorflow.init: log] sentibank_path is {}.".format(self.sentibank_path)
         print "[SentiBankTensorflow.init: log] features_path is {}.".format(self.features_path)
-        self.DSE = tfdeepsentibank.DeepSentibankExtractor(os.path.join(self.sentibank_path,'tfdeepsentibank.npy'), os.path.join(self.sentibank_path,'imagenet_mean.npy'))
+        sys.stdout.flush()
+        self.DSE = tfdeepsentibank.DeepSentibankExtractor(local_tfsb_path, local_imgnetmean_path)
 
 
     def compute_features(self, new_files, startid):

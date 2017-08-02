@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import pickle
 from generic_indexer import GenericIndexer
@@ -18,23 +19,34 @@ class LocalIndexer(GenericIndexer):
         self.hasher_type = self.global_conf['LI_hasher']
         self.feature_extractor_type = self.global_conf['LI_feature_extractor']
         self.master_update_filepath = self.global_conf['LI_master_update_filepath']
-        self.base_update_path = self.global_conf['LI_base_update_path']
+        #self.base_update_path = self.global_conf['LI_base_update_path']
         self.save_index_path = self.global_conf['LI_save_index_path']
+
         # New things we should save?
         self.set_indexed_sha1 = set()
         self.list_indexed_sha1 = []
         self.max_file_id = 0
+        self.max_unique_id = 0
         self.unique_images = []
         self.full_images = []
 
+    def get_nb_images_indexed(self):
+        return self.max_unique_id
+
+
+    def initialize_sha1_mapping(self):
+        self.load_from_disk()
+
     def load_from_disk(self):
         # Load from self.save_index_path
-        index_from_disk = pickle.load(open(self.save_index_path,'rb'))
-        self.set_indexed_sha1 = index_from_disk['set_indexed_sha1']
-        self.list_indexed_sha1 = index_from_disk['list_indexed_sha1']
-        self.max_file_id = index_from_disk['max_file_id']
-        self.unique_images = index_from_disk['unique_images']
-        self.full_images = index_from_disk['full_images']
+        if os.path.exists(self.save_index_path):
+            index_from_disk = pickle.load(open(self.save_index_path,'rb'))
+            self.set_indexed_sha1 = index_from_disk['set_indexed_sha1']
+            self.list_indexed_sha1 = index_from_disk['list_indexed_sha1']
+            self.max_file_id = index_from_disk['max_file_id']
+            self.max_unique_id = index_from_disk['max_unique_id']
+            self.unique_images = index_from_disk['unique_images']
+            self.full_images = index_from_disk['full_images']
 
     def save_to_disk(self):
         # Save to self.save_index_path
@@ -42,6 +54,7 @@ class LocalIndexer(GenericIndexer):
         index_to_disk['set_indexed_sha1'] = self.set_indexed_sha1
         index_to_disk['list_indexed_sha1'] = self.list_indexed_sha1
         index_to_disk['max_file_id'] = self.max_file_id
+        index_to_disk['max_unique_id'] = self.max_unique_id
         index_to_disk['unique_images'] = self.unique_images
         index_to_disk['full_images'] = self.full_images
         pickle.dump(index_to_disk, open(self.save_index_path,'wb'))
@@ -54,11 +67,27 @@ class LocalIndexer(GenericIndexer):
                     \t- feature_extractor_type: {}\n\
                     \t- hasher_type: {}".format(self.image_downloader_type,
                         self.feature_extractor_type,self.hasher_type)
+        sys.stdout.flush()
         # Initialize feature_extractor and hasher
         self.initialize_feature_extractor()
+        sys.stdout.flush()
         self.initialize_hasher()
+        sys.stdout.flush()
+        # For the API actually
+        self.initialize_image_downloader()
+        sys.stdout.flush()
         # Load from save index path?
         self.load_from_disk()
+        sys.stdout.flush()
+        self.initializing = False
+
+    def initialize_image_downloader(self):
+        if self.image_downloader_type=="file_downloader":
+            from ..image_downloader.file_downloader import FileDownloader
+            self.image_downloader = FileDownloader(self.global_conf_filename)
+        else:
+            raise ValueError("[LocalIndexer.initialize_indexer_backend error] Unsupported image_downloader_type: {}.".format(self.image_downloader_type))
+
 
     def initialize_feature_extractor(self):
         if self.feature_extractor_type=="sentibank_cmdline":
@@ -197,9 +226,9 @@ class LocalIndexer(GenericIndexer):
         return False
 
     def update_master_file(self,update_id):
-        """ Appends `update_id` to the `master_update_filepath`.
+        """ Append `update_id` to the `master_update_filepath`.
         """
-        with open(self.master_update_filepath, "a") as f:
+        with open(self.master_update_filepath, "at") as f:
                 f.write(update_id+'\n')
 
     def finalize_update(self,success,hashbits_filepath,feature_filepath,update_id):
@@ -215,10 +244,12 @@ class LocalIndexer(GenericIndexer):
                 os.remove(hashbits_filepath)
             if os.path.isfile(feature_filepath):
                 os.remove(feature_filepath)
+            return False
         else:
             self.update_master_file(update_id)
             self.hasher.compress_feats()
             self.save_to_disk()
+            return True
             
 
     def index_batch(self, batch):
@@ -234,8 +265,12 @@ class LocalIndexer(GenericIndexer):
         new_files, new_uniques, new_fulls = self.get_new_unique_images(sha1_images)
         # Compute features
         features_filename,ins_num = self.feature_extractor.compute_features(new_files, update_id)
+        suffix = ''.join(features_filename.split(update_id)[1:]).replace('.dat','')
+        print suffix
         # Compute hashcodes
+        # this normalize features_filename
         hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
+        features_filepath = features_filename.replace('.dat', '_norm')
         # Record current biggest ids
         umax = self.max_unique_id
         fmax = self.max_file_id
@@ -246,11 +281,12 @@ class LocalIndexer(GenericIndexer):
         umax_new = self.max_unique_id
         fmax_new = self.max_file_id
         update_success = self.check_batch(umax, umax_new, len(new_uniques), fmax_new,fmax, len(sha1_images),
-                                          hashbits_filepath, features_filename)
+                                          hashbits_filepath, features_filepath)
         if update_success:
             print "Update succesful!"
             # what should we do here? Save index? Basically just max_file_id?
-        self.finalize_update(update_success, hashbits_filepath, features_filename, update_id)
+
+        return self.finalize_update(update_success, hashbits_filepath, features_filepath, update_id+suffix)
 
     def get_sim_infos(self, nums):
 

@@ -9,6 +9,7 @@ class GenericIndexer():
     def __init__(self,global_conf_filename):
         self.backend = None
         self.verbose = 0
+        self.initializing = True
         self.last_refresh = datetime.now()
         self.global_conf_filename = global_conf_filename
         self.global_conf = json.load(open(global_conf_filename,'rt'))

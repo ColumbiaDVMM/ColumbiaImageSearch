@@ -49,6 +49,7 @@ class HasherSwig(GenericHasher):
         hop.HasherObjectPy_set_bit_num(self.hasher, self.bits_num)
         hop.HasherObjectPy_set_base_updatepath(self.hasher, str(self.base_update_path))
         #hop.HasherObjectPy_set_base_modelpath(self.hasher, "/home/ubuntu/memex/data/")
+        # Model files still need to be in self.hashing_execfile for updates...
         hop.HasherObjectPy_set_base_modelpath(self.hasher, str(self.base_model_path))
         self.init_hasher()
 

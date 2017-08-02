@@ -18,15 +18,15 @@ ENV DEBIAN_FRONTEND noninteractive
 # installed as a pacakge in host.
 RUN \
   apt-get update && \
-  apt-get install -y --no-install-recommends apt-utils software-properties-common && \
+  apt-get install -y --force-yes --no-install-recommends apt-utils software-properties-common && \
   add-apt-repository -y ppa:fkrull/deadsnakes-python2.7  && \
   apt-get update && \
   apt-get -y upgrade && \
   apt-get install locales && \
   locale-gen en_US.UTF-8 && \
-  apt-get install -y build-essential --no-install-recommends && \
-  apt-get install -y curl initramfs-tools libssl-dev libprotobuf-dev libleveldb-dev libsnappy-dev libopencv-dev libhdf5-serial-dev protobuf-compiler libgflags-dev libgoogle-glog-dev liblmdb-dev libatlas-base-dev libboost-all-dev libblas-dev liblapack-dev cmake psmisc git swig wget gfortran jpeginfo libopencv-dev python-dev python-cffi nvidia-375 --no-install-recommends && \
-  apt-get install -y nano less screen openssh-client && \
+  apt-get install -y --force-yes build-essential --no-install-recommends && \
+  apt-get install -y --force-yes curl initramfs-tools libssl-dev libprotobuf-dev libleveldb-dev libsnappy-dev libopencv-dev libhdf5-serial-dev protobuf-compiler libgflags-dev libgoogle-glog-dev liblmdb-dev libatlas-base-dev libboost-all-dev libblas-dev liblapack-dev cmake psmisc git swig wget gfortran jpeginfo libopencv-dev python-dev python-cffi nvidia-375 --no-install-recommends && \
+  apt-get install -y --force-yes nano less screen openssh-client && \
   curl --silent --show-error --retry 5 https://bootstrap.pypa.io/get-pip.py | sudo python
 
 

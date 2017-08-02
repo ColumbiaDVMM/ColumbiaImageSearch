@@ -40,7 +40,7 @@ class HasherCmdLine(GenericHasher):
             self.master_update_file = self.global_conf['HA_master_update_file']
 
 
-    def compute_hashcodes(self,features_filename,ins_num,startid):
+    def compute_hashcodes(self,features_filename, ins_num,startid):
         """ Compute ITQ hashcodes for the features in 'features_filename'
 
         :param features_filename: filepath for the binary file containing the features
@@ -49,7 +49,6 @@ class HasherCmdLine(GenericHasher):
         :type ins_num: integer
         :returns hashbits_filepath: filepath for the binary file containing the hashcodes
         """
-        feature_filepath = features_filename[:-4]+'_norm'
         # we could be passing additional arguments here
         command = self.hashing_execpath+'hashing_update '+features_filename+' '+str(ins_num)+' '+self.model_path
         proc = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)

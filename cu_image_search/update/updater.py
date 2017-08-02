@@ -14,10 +14,12 @@ class Updater():
         """
         self.ingester = None
         self.indexer = None
+        self.has_indexed = False
         self.global_conf_filename = global_conf_filename
         self.global_conf = json.load(open(self.global_conf_filename,'rt'))
         self.init_ingester()
         self.init_indexer()
+        self.refresh_URL = 'http://127.0.0.1:5000/cu_image_search/refresh'
 
     def init_ingester(self):
         """ Initialize `ingester` from `global_conf['ingester']` value.
@@ -63,16 +65,35 @@ class Updater():
         else:
             raise ValueError("[Updater: error] unkown 'indexer' {}.".format(self.global_conf[field]))
 
+    def refresh_API(self):
+        """ Forces a refresh of the API index.
+        """
+        import requests
+        r = requests.get(self.refresh_URL)
+        if r.status_code == 200:
+            print("[Updater: refresh_API] refresh call return: {}".format(r.content))
+        return True
+
     def run_update(self):
         """ Runs an update.
         """
         try:
+            self.has_indexed = False
             start = self.indexer.get_next_batch_start()
+            print "[run_update: log] Set start to {}".format(start)
+            sys.stdout.flush()
             self.ingester.set_start(start)
             self.ingester.set_fail_less_than_batch(False)
             batch = self.ingester.get_batch()
-            #print batch
-            self.indexer.index_batch(batch)
+            print "[run_update: log] Got batch of length {}".format(len(batch))
+            sys.stdout.flush()
+            if len(batch)>0:
+                #print batch
+                batch_indexed = self.indexer.index_batch(batch)
+                print "[run_update: log] Indexed batch of length {}".format(len(batch))
+                if batch_indexed:
+                    self.has_indexed = True
+                sys.stdout.flush()
         except Exception as inst:
             print "[Updater.run_udpate: error] {}".format(inst)
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -80,3 +101,4 @@ class Updater():
             traceback.print_tb(exc_traceback, file=sys.stdout)
             print "*** print_exception:"
             traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stdout)
+            sys.stdout.flush()

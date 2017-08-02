@@ -2,7 +2,7 @@
 
 #NB: This script has to be called WITHIN the docker
 install_python_pkgs=1
-install_caffe=1
+install_caffe=1 # Not needed if you use tfsentibank
 compile_hashing=1
 
 # have a parameter to build caffe with or without gpu support?

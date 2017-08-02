@@ -75,6 +75,9 @@ class HBaseIndexer(GenericIndexer):
         self.set_sha1_indexed = set()
         self.initialize_sha1_mapping()
 
+    def get_nb_images_indexed(self):
+        return len(self.sha1_featid_mapping)
+
     def initialize_sha1_mapping(self):
         if self.refresh_inqueue:
             self.refresh_inqueue = False

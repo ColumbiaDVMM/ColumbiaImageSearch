@@ -10,17 +10,14 @@ import os
 import sys
 import time
 import json
-from datetime import datetime
-from collections import OrderedDict
 import imghdr
 from datetime import datetime
 from argparse import ArgumentParser
 
-from PIL import Image, ImageFile
+from PIL import Image
 #Image.LOAD_TRUNCATED_IMAGES = True
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
 from StringIO import StringIO
-import happybase
 sys.path.append('../..')
 
 import cu_image_search
@@ -369,7 +366,8 @@ class APIResponder(Resource):
             status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh.isoformat(' ')
         else:
             status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh
-        status_dict['indexed_images'] = len(self.searcher.indexer.sha1_featid_mapping)
+        #status_dict['indexed_images'] = len(self.searcher.indexer.sha1_featid_mapping)
+        status_dict['indexed_images'] = self.searcher.indexer.get_nb_images_indexed()
         return status_dict
 
 
