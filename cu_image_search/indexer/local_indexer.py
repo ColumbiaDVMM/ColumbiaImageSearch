@@ -265,8 +265,6 @@ class LocalIndexer(GenericIndexer):
         new_files, new_uniques, new_fulls = self.get_new_unique_images(sha1_images)
         # Compute features
         features_filename,ins_num = self.feature_extractor.compute_features(new_files, update_id)
-        suffix = ''.join(features_filename.split(update_id)[1:]).replace('.dat','')
-        print suffix
         # Compute hashcodes
         # this normalize features_filename
         hashbits_filepath = self.hasher.compute_hashcodes(features_filename, ins_num, update_id)
@@ -286,7 +284,7 @@ class LocalIndexer(GenericIndexer):
             print "Update succesful!"
             # what should we do here? Save index? Basically just max_file_id?
 
-        return self.finalize_update(update_success, hashbits_filepath, features_filepath, update_id+suffix)
+        return self.finalize_update(update_success, hashbits_filepath, features_filepath, update_id)
 
     def get_sim_infos(self, nums):
 

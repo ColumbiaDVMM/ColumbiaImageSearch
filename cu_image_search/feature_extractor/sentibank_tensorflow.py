@@ -72,7 +72,8 @@ class SentiBankTensorflow():
         feats = [self.DSE.get_features_from_img_filename(img_filename)[0] for img_filename in new_files]
         # save to disk to keep the rest of the pipeline equal for now
         # will be read in hasher_swig get_similar_images_from_featuresfile and passed to set_query_feats_from_disk
-        featurefilename = os.path.join(self.features_path, str(startid)+'-features_fc7.dat')
+        #featurefilename = os.path.join(self.features_path, str(startid)+'-features_fc7.dat')
+        featurefilename = os.path.join(self.features_path, str(startid) + '.dat')
         # features should be written in binary format
         with open(featurefilename, 'wb') as outfile:
             for feat in feats:

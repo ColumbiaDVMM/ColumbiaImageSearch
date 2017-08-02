@@ -33,8 +33,10 @@ int main(int argc, char** argv){
         norm = atoi(argv[3]);
     if (argc>4)
         pm.update_files_listname = string(argv[4]);
-    if (argc>5)
+    if (argc>5) {
         bit_num = atoi(argv[5]);
+        cout << "set bit_num to: " << bit_num << endl;
+    }
     pm.set_paths(norm, bit_num);
 
     // File names vectors, prefix and suffix.
@@ -81,7 +83,8 @@ int main(int argc, char** argv){
         }
         // Use hashcodes here so we can delete initial features.
         //data_num=filesize(update_feature_files[i])/(sizeof(float)*feature_dim);
-        data_num=filesize(update_hash_files[i])/(bit_num/sizeof(char));
+        //data_num=filesize(update_hash_files[i])/(bit_num/sizeof(char));
+        data_num=filesize(update_hash_files[i])/(bit_num/8);
         idx_num=filesize(update_compidx_files[i])/sizeof(unsigned long long int);
         if (idx_num-1!=data_num) {
             // We have a mismatch indices vs features
