@@ -137,12 +137,12 @@ class LocalIndexer(GenericIndexer):
 
     def get_ids_from_sha1s(self, sha1_list):
         nb_sha1 = len(sha1_list)
-        uniques_ids = [None]*nb_sha1
+        uniques_ids = []
         sha1_found = 0
-        for i, indexed_sha1 in self.list_indexed_sha1:
+        for i, indexed_sha1 in enumerate(self.list_indexed_sha1):
             try:
-                sha1_pos = sha1_list.index(indexed_sha1)
-                uniques_ids[sha1_pos] = i
+                _ = sha1_list.index(indexed_sha1)
+                uniques_ids.append((i, indexed_sha1))
                 sha1_found += 1
                 if sha1_found == nb_sha1:
                     break

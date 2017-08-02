@@ -12,7 +12,6 @@ class SearcherFileLocal():
         self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.read_conf()
         self.init_indexer()
-        self.init_ingester() # just for expand metada
 
     def read_conf(self):
         # these parameters may be overwritten by web call
@@ -21,25 +20,6 @@ class SearcherFileLocal():
         self.near_dup = self.global_conf['SE_near_dup']
         self.near_dup_th =  self.global_conf['SE_near_dup_th']
         self.ratio = self.global_conf['SE_ratio']
-
-    def init_ingester(self):
-        """ Initialize `SE_ingester` from `global_conf['ingester']` value.
-
-        Currently supported ingester types are:
-        - mysql_ingester
-        - cdr_ingester
-        """
-        field = 'SE_ingester'
-        if field not in self.global_conf:
-            raise ValueError("[Searcher: error] "+field+" is not defined in configuration file.")
-        if self.global_conf[field]=="mysql_ingester":
-            from ..ingester.mysql_ingester import MySQLIngester
-            self.ingester = MySQLIngester(self.global_conf_filename)
-        elif self.global_conf[field]=="cdr_ingester":
-            from ..ingester.cdr_ingester import CDRIngester
-            self.ingester = CDRIngester(self.global_conf_filename)
-        else:
-            raise ValueError("[Searcher: error] unknown 'ingester' {}.".format(self.global_conf[field]))
 
     def init_indexer(self):
         """ Initialize `indexer` from `global_conf['SE_indexer']` value.
@@ -136,26 +116,35 @@ class SearcherFileLocal():
         #print "[Searcher.format_output: log] outp {}".format(outp)
         json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
 
-    def search_one_imagepath(self,image_path):
+    def search_one_imagepath(self, image_path):
         # initialization
         search_id = str(time.time())
         all_img_filenames = [image_path]
         return self.search_from_image_filenames(all_img_filenames, search_id)
         
-    def search_image_list(self, image_list):
+    def search_image_list(self, query_urls, options_dict):
         # initialization
         search_id = str(time.time())
 
         # read list of images
-        all_img_filenames = []
-        for line in open(image_list):
-            image_line = line.replace('\n','')
-            if len(image_line)>2:
-                all_img_filenames.append(image_line)
+        all_img_filenames = [None]*len(query_urls)
+        URL_images = []
+        for pos,image in enumerate(query_urls):
+            if image[0:4] == "http":
+                URL_images.append((pos,image))
+            else:
+                all_img_filenames[pos] = image
 
-        return self.search_from_image_filenames(all_img_filenames, search_id)
+        if URL_images:
+            readable_images = self.indexer.image_downloader.download_images(URL_images, search_id)
+            print readable_images
+            for img_tup in readable_images:
+                # print "[Searcher.search_image_list: log] {} readable image tuple {}.".format(i,img_tup)
+                all_img_filenames[img_tup[0]] = img_tup[-1]
 
-    def search_from_image_filenames(self, all_img_filenames, search_id):
+        return self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
+
+    def search_from_image_filenames(self, all_img_filenames, search_id, options_dict):
         # compute all sha1s
         corrupted = []
         list_sha1_id = []

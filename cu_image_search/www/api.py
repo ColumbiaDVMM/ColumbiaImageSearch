@@ -21,7 +21,7 @@ from StringIO import StringIO
 sys.path.append('../..')
 
 import cu_image_search
-from cu_image_search.search import searcher_hbaseremote
+from cu_image_search.search import searcher_hbaseremote, searcher_filelocal
 
 app = Flask(__name__)
 app.secret_key = "secret_key"
@@ -484,8 +484,14 @@ if __name__ == '__main__':
     if options.conf_file is not None:
         print "Setting conf file to: {}".format(options.conf_file)
         global_conf_file = options.conf_file
- 
-    global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
+
+    conf = json.load(open(global_conf_file,'rt'))
+
+    if "SE_searcher" in conf:
+        if conf["SE_searcher"] == "searcher_filelocal":
+            global_searcher = searcher_filelocal.SearcherFileLocal(global_conf_file)
+    if global_searcher is None:
+        global_searcher = searcher_hbaseremote.Searcher(global_conf_file)
     global_start_time = datetime.now()
     
     ## This cannot recover from an 'IOError: [Errno 32] Broken pipe' error when client disconnect before response has been sent e.g. nginx timeout at memexproxy...

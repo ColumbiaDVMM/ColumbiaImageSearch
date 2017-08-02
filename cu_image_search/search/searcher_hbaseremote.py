@@ -52,7 +52,7 @@ class Searcher():
         self.needed_output_columns = ['info:s3_url']
 
     def read_conf(self):
-    	# these parameters may be overwritten by web call
+        # these parameters may be overwritten by web call
         self.features_dim = self.global_conf['FE_features_dim']
         self.sim_limit = self.global_conf['SE_sim_limit']
         self.near_dup = self.global_conf['SE_near_dup']
@@ -152,7 +152,7 @@ class Searcher():
 
 
     def read_sim(self, simname, nb_query, options_dict=dict()):
-    	# intialization
+        # intialization
         sim = []
         sim_score = []
         

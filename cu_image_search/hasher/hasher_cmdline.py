@@ -129,6 +129,7 @@ class HasherCmdLine(GenericHasher):
             for feat_id in list_feats_id:
                 f_prein.write(struct.pack('i',feat_id))
         # query for features
+        # only works if update file is named "update_list_dev.txt"
         command = self.hashing_execpath+"get_precomp_{} {} {} {}".format(str_precomp,query_precomp_fn,X_fn,self.base_update_path)
         print("[HasherCmdLine.get_precomp_X: log] running command: {}".format(command))
         sys.stdout.flush()
