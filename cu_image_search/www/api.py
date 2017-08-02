@@ -35,6 +35,7 @@ def get_clean_urls_from_query(query):
     """ To deal with comma in URLs
     """
     tmp_query_urls = []
+    print "query.split('http')", query.split('http')
     for x in query.split('http'):
         if x and query.split('http')>1:
             tmp_query_urls.append('http'+x)
@@ -47,6 +48,7 @@ def get_clean_urls_from_query(query):
             query_urls.append(x[:-1])
         else:
             query_urls.append(x)
+    print "get_clean_urls_from_query: ",query_urls
     return query_urls
 
 @app.after_request
