@@ -1,4 +1,4 @@
-from flask import Flask, Markup, flash, request, render_template, make_response
+from flask import Flask, Markup, flash, request, render_template, make_response, send_from_directory
 from flask_restful import Resource, Api
 
 from socket import *
@@ -460,14 +460,18 @@ class APIResponder(Resource):
         similar_images_response = []
         print "[view_similar_query_response: log] len(query_urls): {}, len(sim_images): {}".format(len(query_urls), len(sim_images))
         for i in range(len(query_urls)):
+            url = query_urls[i]
+            if not url.startswith('http'):
+                # This will not work, need to serve static files.
+                url = "/show_image/image?data=" + url
             if sim_images and len(sim_images)>=i:
-                one_res = [(query_urls[i], sim_images[i]["query_sha1"])]
+                one_res = [(url, sim_images[i]["query_sha1"])]
                 one_sims = []
                 for j,sim_sha1 in enumerate(sim_images[i]["similar_images"]["sha1"]):
                     one_sims += ((sim_images[i]["similar_images"]["cached_image_urls"][j], sim_sha1, sim_images[i]["similar_images"]["distance"][j]),)
                 one_res.append(one_sims)
             else:
-                one_res = [(query_urls[i], ""), [('','','')]]
+                one_res = [(url, ""), [('','','')]]
             similar_images_response.append(one_res)
         if not similar_images_response:
             similar_images_response.append([('','No results'),[('','','')]])
@@ -481,7 +485,27 @@ class APIResponder(Resource):
         return make_response(render_template('view_similar_images.html'),200,headers)
 
 
+class ServeImage(Resource):
+
+    def __init__(self):
+        #print 'Initialized ServeImage'
+        pass
+
+    def get(self, mode):
+        #print("[get] received parameters: {}".format(request.args.keys()))
+        query = request.args.get('data')
+        #print("[get] received data: {}".format(query))
+        sys.stdout.flush()
+        if query and mode == "image":
+            #print "Trying to show image from {}".format(query)
+            if os.path.exists(query):
+                return send_from_directory(os.path.dirname(query), os.path.basename(query))
+            else:
+                print "[ServeImage: log] Looks like image {} does not exists...".format(query)
+
+
 api.add_resource(APIResponder, '/cu_image_search/<string:mode>')
+api.add_resource(ServeImage, '/show_image/<string:mode>')
 
 
 if __name__ == '__main__':

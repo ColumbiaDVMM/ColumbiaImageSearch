@@ -133,11 +133,11 @@ class SearcherFileLocal():
             output[i]['similar_images']= OrderedDict([['number',len(sim[ii])],['image_urls',[]],['cached_image_urls',[]],['page_urls',[]],['ht_ads_id',[]],['ht_images_id',[]],['sha1',[]],['distance',[]]])
             for simj in sim[ii]:
                 url = simj[0]
-                print url, self.ingester.host_data_dir, self.ingester.data_dir
-                if self.ingester.host_data_dir:
+                #print url, self.ingester.host_data_dir, self.ingester.data_dir
+                if not url.startswith('http'):
                     # This will not work, need to serve static files.
-                    url = "file://"+url.replace(self.ingester.data_dir, self.ingester.host_data_dir)
-                print url, self.ingester.host_data_dir, self.ingester.data_dir
+                    url = "/show_image/image?data="+url
+                #print url, self.ingester.host_data_dir, self.ingester.data_dir
                 output[i]['similar_images']['image_urls'].append(url)
                 output[i]['similar_images']['cached_image_urls'].append(url)
                 output[i]['similar_images']['page_urls'].append(simj[2])
