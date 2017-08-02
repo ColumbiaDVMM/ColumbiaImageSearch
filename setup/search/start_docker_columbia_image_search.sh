@@ -9,7 +9,8 @@ with_cuda=false
 # use arguments for the following values:
 # - port
 # - domain_name
-# - data_path
+# - conf
+# - data_path [could be set to . or anything if you do not use local file indexing]
 while getopts d:n:p:c: option
 do
   case "${option}"
