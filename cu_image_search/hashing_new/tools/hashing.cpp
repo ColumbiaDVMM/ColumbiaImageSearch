@@ -33,8 +33,10 @@ int main(int argc, char** argv){
         bit_num = atoi(argv[4]);
     if (argc>5)
         ratio = (float)atof(argv[5]);
-    if (argc>6)
+    if (argc>6) {}
         norm = atoi(argv[6]);
+        cout << "set bit_num to: " << bit_num << endl;
+    }
     pm.set_paths(norm, bit_num);
     // Is actually never used? To deal with very large queries?
     int read_thres = (int)(1.0f/ratio);
@@ -107,6 +109,7 @@ int main(int argc, char** argv){
             std::cout << "Cannot load the itq updates! File "<< update_hash_files[i] << std::endl;
             return -1;
         }
+        // Issue with  sizeof(int)?
         read_size = sizeof(int)*data_nums[i]*int_num;
         read_in.read(read_pos, read_size);
         read_in.close();

@@ -20,6 +20,9 @@ class SearcherFileLocal():
         self.near_dup = self.global_conf['SE_near_dup']
         self.near_dup_th =  self.global_conf['SE_near_dup_th']
         self.ratio = self.global_conf['SE_ratio']
+        self.topfeature = 0
+        if "SE_topfeature" in self.global_conf:
+            self.topfeature = int(self.global_conf['SE_topfeature'])
 
     def init_indexer(self):
         """ Initialize `indexer` from `global_conf['SE_indexer']` value.
@@ -39,6 +42,14 @@ class SearcherFileLocal():
             self.indexer = HBaseIndexer(self.global_conf_filename)
         else:
             raise ValueError("[Searcher: error] unknown 'indexer' {}.".format(self.global_conf[field]))
+
+    def check_ratio(self):
+        '''Check if we need to set the ratio based on topfeature.'''
+        if self.topfeature > 0:
+            self.ratio = self.topfeature*1.0/self.indexer.get_nb_images_indexed()
+            msg = "[Searcher.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
+            print msg.format(self.ratio, self.topfeature, self.indexer.get_nb_images_indexed())
+
 
     def filter_near_dup(self,nums):
         # nums is a list of ids then distances
@@ -87,7 +98,7 @@ class SearcherFileLocal():
         f.close()
         return sim,sim_score
 
-    def format_output(self, simname, list_sha1_id, nb_query, corrupted, outputname):
+    def format_output(self, simname, list_sha1_id, nb_query, corrupted):
         # read hashing similarity results
         sim, sim_score = self.read_sim(simname, nb_query)
 
@@ -114,7 +125,8 @@ class SearcherFileLocal():
         #print "[Searcher.format_output: log] output {}".format(output)
         outp = OrderedDict([['number',nb_query],['images',output]])
         #print "[Searcher.format_output: log] outp {}".format(outp)
-        json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)    
+        #json.dump(outp, open(outputname,'w'),indent=4, sort_keys=False)
+        return  outp
 
     def search_one_imagepath(self, image_path):
         # initialization
@@ -210,7 +222,9 @@ class SearcherFileLocal():
                     tmp_feat = np.frombuffer(new_feats.read(read_dim),dtype=read_type)
                 out.write(tmp_feat)
         # query with merged features_filename
+        self.check_ratio()
         simname = self.indexer.hasher.get_similar_images_from_featuresfile(final_featuresfile, self.ratio)
-        outputname = simname[:-4]+".json"
-        self.format_output(simname, list_sha1_id, len(all_img_filenames), corrupted, outputname)
-        return outputname
+        #outputname = simname[:-4]+".json"
+        outp = self.format_output(simname, list_sha1_id, len(all_img_filenames), corrupted)
+        #return outp, outputname
+        return outp

@@ -297,11 +297,13 @@ class LocalIndexer(GenericIndexer):
 
         # should be something like get sim all infos? in local indexer.
         nb_sim = len(nums)
+        int_nums = map(int,nums)
+        print "[get_sim_infos: log] nums: {}, unique_images: {}".format(int_nums, self.unique_images[:10])
         out = [(None, None, None, None, None, None)]*nb_sim
         sha1_found = 0
         for image_id, location, sha1 in self.unique_images:
             try:
-                nums_pos = nums.index(image_id)
+                nums_pos = int_nums.index(int(image_id))
                 out[nums_pos] = (location, None, None, None, None, sha1)
                 sha1_found += 1
                 if nb_sim == sha1_found:
@@ -309,7 +311,7 @@ class LocalIndexer(GenericIndexer):
             except:
                 pass
         if sha1_found != nb_sim:
-            print "[get_sim_infos: warning] We do not find all sha1s: {} found out of {}".format(sha1_found,
+            print "[get_sim_infos: warning] We did not find all sha1s: {} found out of {}".format(sha1_found,
                                                                                                       nb_sim)
         return out
 

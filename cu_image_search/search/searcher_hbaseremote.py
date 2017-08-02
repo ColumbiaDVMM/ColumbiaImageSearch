@@ -158,7 +158,7 @@ class Searcher():
         
         # read similar images
         count = 0
-        f = open(simname);
+        f = open(simname)
         for line in f:
             #sim_index.append([])
             nums = line.replace(' \n','').split(' ')
@@ -226,7 +226,7 @@ class Searcher():
             count = count + 1
             if count == nb_query:
                 break
-        f.close()
+
         return sim,sim_score
 
 
