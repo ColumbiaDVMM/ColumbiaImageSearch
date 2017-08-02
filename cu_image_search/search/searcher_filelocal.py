@@ -12,6 +12,7 @@ class SearcherFileLocal():
         self.global_conf = json.load(open(global_conf_filename,'rt'))
         self.read_conf()
         self.init_indexer()
+        self.init_ingester()
 
     def read_conf(self):
         # these parameters may be overwritten by web call
@@ -42,6 +43,22 @@ class SearcherFileLocal():
             self.indexer = HBaseIndexer(self.global_conf_filename)
         else:
             raise ValueError("[Searcher: error] unknown 'indexer' {}.".format(self.global_conf[field]))
+
+    def init_ingester(self):
+        """ Initialize `ingester` from `global_conf['SE_ingester']` value.
+
+        Currently supported indexer types are:
+        - local_ingester
+        - hbase_indexer
+        """
+        field = 'SE_ingester'
+        if field not in self.global_conf:
+            raise ValueError("[Searcher: error] "+field+" is not defined in configuration file.")
+        if self.global_conf[field]=="local_ingester":
+            from ..ingester.local_ingester import LocalIngester
+            self.ingester = LocalIngester(self.global_conf_filename)
+        else:
+            raise ValueError("[Searcher: error] unknown 'ingester' {}.".format(self.global_conf[field]))
 
     def check_ratio(self):
         '''Check if we need to set the ratio based on topfeature.'''
@@ -115,8 +132,14 @@ class SearcherFileLocal():
             ii = i - dec
             output[i]['similar_images']= OrderedDict([['number',len(sim[ii])],['image_urls',[]],['cached_image_urls',[]],['page_urls',[]],['ht_ads_id',[]],['ht_images_id',[]],['sha1',[]],['distance',[]]])
             for simj in sim[ii]:
-                output[i]['similar_images']['image_urls'].append(simj[0])
-                output[i]['similar_images']['cached_image_urls'].append(simj[1])
+                url = simj[0]
+                print url, self.ingester.host_data_dir, self.ingester.data_dir
+                if self.ingester.host_data_dir:
+                    # This will not work, need to serve static files.
+                    url = "file://"+url.replace(self.ingester.data_dir, self.ingester.host_data_dir)
+                print url, self.ingester.host_data_dir, self.ingester.data_dir
+                output[i]['similar_images']['image_urls'].append(url)
+                output[i]['similar_images']['cached_image_urls'].append(url)
                 output[i]['similar_images']['page_urls'].append(simj[2])
                 output[i]['similar_images']['ht_ads_id'].append(simj[3])
                 output[i]['similar_images']['ht_images_id'].append(simj[4])

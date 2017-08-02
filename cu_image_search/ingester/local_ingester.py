@@ -6,6 +6,9 @@ class LocalIngester(GenericIngester):
     """ Use information contained in `self.global_conf` to initialize `self.source`
     """
     self.data_dir = self.global_conf['LI_in_data_dir']
+    self.host_data_dir = None
+    if 'LI_host_in_data_dir' in self.global_conf:
+      self.host_data_dir = self.global_conf['LI_host_in_data_dir']
     self.allowed_patterns = self.global_conf['LI_allowed_patterns']
     self.list_files = []
     self.filled_list = False

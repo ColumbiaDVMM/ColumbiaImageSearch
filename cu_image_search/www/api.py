@@ -34,7 +34,13 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 def get_clean_urls_from_query(query):
     """ To deal with comma in URLs
     """
-    tmp_query_urls = ['http'+x for x in query.split('http') if x]
+    tmp_query_urls = []
+    for x in query.split('http'):
+        if x and query.split('http')>1:
+            tmp_query_urls.append('http'+x)
+        elif x:
+            # Local image
+            tmp_query_urls.append(x)
     query_urls = []
     for x in tmp_query_urls:
         if x[-1]==',':

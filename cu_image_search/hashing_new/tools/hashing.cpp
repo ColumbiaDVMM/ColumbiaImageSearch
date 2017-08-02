@@ -33,7 +33,7 @@ int main(int argc, char** argv){
         bit_num = atoi(argv[4]);
     if (argc>5)
         ratio = (float)atof(argv[5]);
-    if (argc>6) {}
+    if (argc>6) {
         norm = atoi(argv[6]);
         cout << "set bit_num to: " << bit_num << endl;
     }
