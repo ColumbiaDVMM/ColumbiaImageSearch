@@ -1,3 +1,4 @@
+import sys
 import time
 import json
 import numpy as np
@@ -177,6 +178,8 @@ class SearcherFileLocal():
                 # print "[Searcher.search_image_list: log] {} readable image tuple {}.".format(i,img_tup)
                 all_img_filenames[img_tup[0]] = img_tup[-1]
 
+        print "all_img_filenames: ",all_img_filenames
+
         return self.search_from_image_filenames(all_img_filenames, search_id, options_dict)
 
     def search_from_image_filenames(self, all_img_filenames, search_id, options_dict):
@@ -195,6 +198,9 @@ class SearcherFileLocal():
             else: # we did not manage to download image
                 # need to deal with that in output formatting too
                 corrupted.append(i)
+
+        print "valid_images",valid_images
+        sys.stdout.flush()
         #print "[Searcher.search_from_image_filenames: log] valid_images {}".format(valid_images)
         # get indexed images
         list_ids_sha1_found = self.indexer.get_ids_from_sha1s(list_sha1_id)
@@ -207,9 +213,10 @@ class SearcherFileLocal():
         #print "[Searcher.search_from_image_filenames: log] tmp_list_ids_found {}".format(tmp_list_ids_found)
         #print "[Searcher.search_from_image_filenames: log] list_ids_found {}".format(list_ids_found)
         # get there features
-        feats,ok_ids = self.indexer.hasher.get_precomp_feats(list_ids_found)
-        if len(ok_ids)!=len(list_ids_found):
-            raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
+        if list_ids_found:
+            feats, ok_ids = self.indexer.hasher.get_precomp_feats(list_ids_found)
+            if len(ok_ids)!=len(list_ids_found):
+                raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough precomputed features ({}) from list of {} images.".format(len(ok_ids),len(list_ids_found)))
         # compute new images features
         not_indexed_sha1 = set(list_sha1_id)-set(list_sha1_found)
         #res = self.indexer.get_precomp_from_sha1(list_ids_sha1_found)
@@ -224,7 +231,8 @@ class SearcherFileLocal():
             all_valid_images.append(all_img_filenames[i])
         print "[Searcher.search_from_image_filenames: log] all_valid_images {}".format(all_valid_images)
         print "[Searcher.search_from_image_filenames: log] new_files {}".format(new_files)
-        features_filename,ins_num = self.indexer.feature_extractor.compute_features(new_files, search_id)
+        sys.stdout.flush()
+        features_filename, ins_num = self.indexer.feature_extractor.compute_features(new_files, search_id)
         if ins_num!=len(new_files):
             raise ValueError("[Searcher.search_from_image_filenames: error] We did not get enough features ({}) from list of {} images.".format(ins_num,len(new_files)))
         # merge feats with features_filename
@@ -243,6 +251,11 @@ class SearcherFileLocal():
                 else:
                     # read from new feats
                     tmp_feat = np.frombuffer(new_feats.read(read_dim),dtype=read_type)
+                # Should tmp_feat be normalized?
+                print "tmp_feat",tmp_feat
+                tmp_feat = tmp_feat/np.linalg.norm(tmp_feat)
+                print "tmp_feat normed", tmp_feat
+                sys.stdout.flush()
                 out.write(tmp_feat)
         # query with merged features_filename
         self.check_ratio()

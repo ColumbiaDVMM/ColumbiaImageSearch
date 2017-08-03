@@ -68,7 +68,7 @@ else
   docker_nvidia_devices=""
 fi
 
-ports_mapping="-p 80:5000"
+ports_mapping="-p "${PORT}":5000"
 repo_path=$(dirname $(dirname $(pwd)))
 echo "repo_path is:"${repo_path}
 update_path=${repo_path}/update_${DOMAIN_NAME}
