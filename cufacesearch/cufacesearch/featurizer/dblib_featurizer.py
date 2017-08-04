@@ -13,7 +13,7 @@ def download_model(url, local_path, bz2_file):
     os.makedirs(out_dir)
   except:
     pass
-  bz2_local_path = os.path.join(out_dir,bz2_file)
+  bz2_local_path = os.path.join(out_dir, bz2_file)
   urllib.urlretrieve(url, bz2_local_path)
   # need to unzip
   unzip_model(bz2_local_path, local_path)
@@ -30,16 +30,21 @@ def unzip_model(bz2_model_path, local_path):
 
 class DLibFeaturizer(object):
 
-  def __init__(self, global_conf_filename, prefix="DLIBFEAT_"):
+  def __init__(self, global_conf_in, prefix="DLIBFEAT_"):
     #TODO read predictor_path, face_rec_model_path from conf
+    #TODO do not get config FILE but config dict
     import dlib
     import json
     import os
-    self.global_conf_filename = global_conf_filename
+    #self.global_conf_filename = global_conf_filename
     self.prefix = prefix
     self.verbose = 0
-    self.global_conf = json.load(open(global_conf_filename, 'rt'))
-    pred_path = str(self.get_param('pred_path'))
+    if type(global_conf_in)==dict:
+      self.global_conf = global_conf_in
+    else:
+      self.global_conf = json.load(open(global_conf_in, 'rt'))
+    print "[DLibFeaturizer.log] global_conf: {}".format(self.global_conf)
+    pred_path = self.get_param('pred_path')
     if not pred_path:
       raise ValueError('[DLibFeaturizer: error] pred_path was not set in config file.')
     # test if file exits there
@@ -47,7 +52,7 @@ class DLibFeaturizer(object):
       # download file if not
       download_model(www_pred_path, pred_path, pred_bz2_file)
     self.sp = dlib.shape_predictor(pred_path)
-    rec_path = str(self.get_param('rec_path'))
+    rec_path = self.get_param('rec_path')
     if not pred_path:
       raise ValueError('[DLibFeaturizer: error] pred_path was not set in config file.')
     # test if file exits there

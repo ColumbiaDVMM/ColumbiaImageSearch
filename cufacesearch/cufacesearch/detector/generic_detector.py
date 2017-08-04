@@ -9,8 +9,8 @@ class GenericFaceDetector(object):
     pass
 
 
-  def detect_from_url(self, img_url, upsample=1):
-    return self.detect_from_buffer(get_buffer_from_URL(img_url), upsample)
+  def detect_from_url(self, img_url, up_sample=1, image_dl_timeout=4):
+    return self.detect_from_buffer(get_buffer_from_URL(img_url, image_dl_timeout=image_dl_timeout), up_sample=up_sample)
 
 
   def detect_from_b64(self, base64str, up_sample=0):

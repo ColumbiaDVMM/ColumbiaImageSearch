@@ -1,4 +1,13 @@
 import numpy as np
+import base64
+
+def featB64encode(feat):
+  norm_feat = np.linalg.norm(feat)
+  out_feat = feat / norm_feat
+  return base64.b64encode(out_feat)
+
+def featB64decode(feat_B64):
+  return np.frombuffer(base64.b64decode(feat_B64), dtype=np.float32)
 
 
 def parse_feat_line(line):
