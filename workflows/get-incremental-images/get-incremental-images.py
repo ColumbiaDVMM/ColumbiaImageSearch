@@ -720,7 +720,8 @@ def get_ingestion_start_end_id(c_options):
             start_date = dateutil.parser.parse(c_options.day_to_process)
             es_ts_end = calendar.timegm(start_date.utctimetuple())*1000
             es_ts_start = es_ts_end - day_gap
-            ingestion_id = datetime.date.fromtimestamp((es_ts_start) / 1000).isoformat()
+            # Should use es_ts_end to build ingestion_id to be consistent with previous version of the workflow
+            ingestion_id = datetime.date.fromtimestamp((es_ts_end) / 1000).isoformat()
         except Exception as inst:
             print "[get_ingestion_start_end_id: log] Could not parse 'day_to_process'. Getting everything form the CDR."
 
