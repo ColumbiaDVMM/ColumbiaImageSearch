@@ -10,7 +10,8 @@ from pyspark import SparkContext, SparkConf, StorageLevel
 from elastic_manager import ES
 from hbase_manager import HbaseManager
 
-dev = True
+#dev = True
+dev = False
 
 # Some parameters
 default_identifier = None
@@ -19,10 +20,12 @@ max_ts = 9999999999999
 max_ads_image_dig = 20000
 max_ads_image_hbase = 20000
 max_ads_image = 20000
-max_samples_per_partition = 10000
-default_partitions_nb = 240
+#max_samples_per_partition = 10000
+max_samples_per_partition = 20000
+default_partitions_nb = 64
 day_gap = 86400000 # One day
-valid_url_start = 'https://s3' 
+valid_url_start = 'https://s3'
+compression = "org.apache.hadoop.io.compress.GzipCodec"
 
 fields_cdr = ["obj_stored_url", "obj_parent", "content_type"]
 fields_list = [("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded"), ("info","cu_feat_id"), ("info","img_info")]
@@ -30,10 +33,10 @@ fields_list = [("info","s3_url"), ("info","all_parent_ids"), ("info","image_disc
 # the base_hdfs_path could be set with a parameter too
 if dev:
     dev_release_suffix = "_dev"
-    base_hdfs_path = '/user/skaraman/data/images_incremental_update_dev/'
+    base_hdfs_path = '/user/skaraman/data/test_get_images_v2/'
     #base_hdfs_path = "/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/tmpdata/"
 else:
-    dev_release_suffix = "_release"
+    dev_release_suffix = ""
     base_hdfs_path = '/user/worker/dig2/incremental/'
 
 ##-- Hbase (happybase)
@@ -123,7 +126,8 @@ def save_rdd_json(basepath_save, rdd_name, rdd, incr_update_id, hbase_man_update
         try:
             if not hdfs_file_exist(rdd_path):
                 print("[save_rdd_json] saving rdd to {}.".format(rdd_path))
-                rdd.mapValues(json.dumps).saveAsSequenceFile(rdd_path)
+                #rdd.mapValues(json.dumps).saveAsSequenceFile(rdd_path)
+                rdd.mapValues(json.dumps).saveAsSequenceFile(rdd_path, compressionCodecClass=compression)
             else:
                 print("[save_rdd_json] skipped saving rdd to {}. File already exists.".format(rdd_path))
             save_info_incremental_update(hbase_man_update_out, incr_update_id, rdd_path, rdd_name+"_path")
@@ -223,6 +227,7 @@ def CDRv3_to_s3url_adid(data):
 
     :param data: CDR v3 ad document in JSON format
     """
+    # TODO: check this is correct comparing to full-pipeline workflow.
     tup_list = []
     ad_id = data[0]
     # parse JSON
@@ -257,32 +262,16 @@ def CDRv2_to_s3url_adid(data):
     return tup_list
 
 
-# def sha1_key_json(data):
-#     # when data was read from HBase
-#     # should we use flatMapValues to call that function
-#     # thus we would receive just data[1]?
-#     sha1 = data[0]
-#     json_x = [json.loads(x) for x in data[1].split("\n")]
-#     v = dict()
-#     for field in fields_list:
-#         try:
-#             if field[1]!='s3_url':
-#                 v[':'.join(field)] = list(set([x for x in get_list_value(json_x,field)[0].strip().split(',')]))
-#             else:
-#                 v[':'.join(field)] = [unicode(get_list_value(json_x,field)[0].strip())]
-#         except: # field not in row
-#             pass
-#     return [(sha1, v)]
-
 def sha1_key_json_values(data):
     # when data was read from HBase and called with flatMapValues
     json_x = [json.loads(x) for x in data.split("\n")]
     v = dict()
     for field in fields_list:
         try:
-            if field[1]!='s3_url':
+            # if field is a list of ids
+            if field[1]!='s3_url' and field[1]!='img_info': 
                 v[':'.join(field)] = list(set([x for x in get_list_value(json_x,field)[0].strip().split(',')]))
-            else:
+            else: # s3url or img_info
                 v[':'.join(field)] = [unicode(get_list_value(json_x,field)[0].strip())]
         except: # field not in row
             pass
@@ -608,7 +597,8 @@ def save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion
             out_rdd_save = out_rdd.filter(filter_out_rdd).map(out_to_amandeep_dict_str_wimginfo)
             if not out_rdd_save.isEmpty():
                 # how to force overwrite here?
-                out_rdd_save.saveAsSequenceFile(out_rdd_path)
+                #out_rdd_save.saveAsSequenceFile(out_rdd_path)
+                out_rdd_save.saveAsSequenceFile(out_rdd_path, compressionCodecClass=compression)
                 save_info_incremental_update(hbase_man_update_out, ingestion_id, out_rdd_path, rdd_name+"_path")
             else:
                 print("[save_out_rdd_to_hdfs] 'out_rdd_save' is empty.")
@@ -685,9 +675,12 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
     # s3url_adid_rdd_red.partitionBy(get_partitions_nb(c_options, s3url_adid_rdd_red_count)).flatMapValues(...)
     s3url_infos_rdd = s3url_adid_rdd_red.flatMap(check_get_sha1_imginfo_s3url)
     
+    print '[s3url_infos_rdd: first] {}'.format(s3url_infos_rdd.first())
     # transform to (SHA1, imginfo)
     sha1_infos_rdd = s3url_infos_rdd.flatMap(s3url_listadid_sha1_imginfo_to_sha1_alldict)
+    print '[sha1_infos_rdd: first] {}'.format(sha1_infos_rdd.first())
     ingest_rdd = sha1_infos_rdd.reduceByKey(reduce_sha1_infos_discarding_wimginfo)
+    print '[ingest_rdd: first] {}'.format(ingest_rdd.first())
     ingest_rdd_count = ingest_rdd.count()
     save_info_incremental_update(hbase_man_update_out, ingestion_id, ingest_rdd_count, "ingest_rdd_count")
 
@@ -697,6 +690,7 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
 
     # join with existing sha1
     out_rdd = join_ingestion(hbase_man_sha1infos_join, ingest_rdd, c_options, ingest_rdd_count)
+    print '[out_rdd: first] {}'.format(out_rdd.first())
     save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion_id, "out_rdd")
     save_out_rdd_to_hbase(out_rdd, hbase_man_sha1infos_out)
 
@@ -767,13 +761,13 @@ if __name__ == '__main__':
     # Define ES related options
     es_group.add_argument("--es_host", dest="es_host", required=True)
     es_group.add_argument("--es_domain", dest="es_domain", required=True)
-    es_group.add_argument("--es_user",  dest="es_user", required=True)
-    es_group.add_argument("--es_pass",  dest="es_pass", required=True)
-    es_group.add_argument("--es_port",  dest="es_port", default=9200)
+    es_group.add_argument("--es_user", dest="es_user", required=True)
+    es_group.add_argument("--es_pass", dest="es_pass", required=True)
+    es_group.add_argument("--es_port", dest="es_port", default=9200)
     es_group.add_argument("--es_index", dest="es_index", default='memex-domains')
-    es_group.add_argument("--es_ts_start",  dest="es_ts_start", default=None)
-    es_group.add_argument("--es_ts_end",  dest="es_ts_end", default=None)
-    es_group.add_argument("--cdr_format",  dest="cdr_format", choices=['v2', 'v3'], default='v2')
+    es_group.add_argument("--es_ts_start", dest="es_ts_start", help="start timestamp in ms", default=None)
+    es_group.add_argument("--es_ts_end", dest="es_ts_end", help="end timestamp in ms", default=None)
+    es_group.add_argument("--cdr_format", dest="cdr_format", choices=['v2', 'v3'], default='v2')
     
     # Define job related options
     job_group.add_argument("-r", "--restart", dest="restart", default=False, action="store_true")
@@ -788,10 +782,8 @@ if __name__ == '__main__':
     job_group.add_argument("-d", "--day_to_process", dest="day_to_process", help="using format YYYY-MM-DD", default=None)
     job_group.add_argument("--max_samples_per_partition", dest="max_samples_per_partition", type=int, default=max_samples_per_partition)
     job_group.add_argument("--base_hdfs_path", dest="base_hdfs_path", default=base_hdfs_path)
-    # should we still allow the input of day to process and estimate ts start and end from it?
     
     # Parse
-    
     try:
         c_options = parser.parse_args()
         print "Got options:", c_options

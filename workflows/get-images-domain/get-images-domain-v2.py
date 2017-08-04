@@ -1,19 +1,17 @@
 import sys
 print(sys.version)
 
-import os
 import json
 import time
 import datetime
-import happybase
 import subprocess
-
 from argparse import ArgumentParser
 from pyspark import SparkContext, SparkConf, StorageLevel
 from elastic_manager import ES
 from hbase_manager import HbaseManager
 
 dev = True
+#dev = False
 
 # Some parameters
 default_identifier = None
@@ -22,10 +20,12 @@ max_ts = 9999999999999
 max_ads_image_dig = 20000
 max_ads_image_hbase = 20000
 max_ads_image = 20000
-max_samples_per_partition = 10000
-default_partitions_nb = 240
+#max_samples_per_partition = 10000
+max_samples_per_partition = 200000
+default_partitions_nb = 64
 day_gap = 86400000 # One day
-valid_url_start = 'https://s3' 
+valid_url_start = 'https://s3'
+compression = "org.apache.hadoop.io.compress.GzipCodec"
 
 fields_cdr = ["obj_stored_url", "obj_parent", "content_type"]
 fields_list = [("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded"), ("info","cu_feat_id"), ("info","img_info")]
@@ -33,7 +33,7 @@ fields_list = [("info","s3_url"), ("info","all_parent_ids"), ("info","image_disc
 # the base_hdfs_path could be set with a parameter too
 if dev:
     dev_release_suffix = "_dev"
-    base_hdfs_path = '/user/skaraman/data/images_summerqpr2017/'
+    base_hdfs_path = '/user/skaraman/data/test_get_images_v2/'
     #base_hdfs_path = "/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/tmpdata/"
 else:
     dev_release_suffix = "_release"
@@ -126,7 +126,8 @@ def save_rdd_json(basepath_save, rdd_name, rdd, incr_update_id, hbase_man_update
         try:
             if not hdfs_file_exist(rdd_path):
                 print("[save_rdd_json] saving rdd to {}.".format(rdd_path))
-                rdd.mapValues(json.dumps).saveAsSequenceFile(rdd_path)
+                #rdd.mapValues(json.dumps).saveAsSequenceFile(rdd_path)
+                rdd.mapValues(json.dumps).saveAsSequenceFile(rdd_path, compressionCodecClass=compression)
             else:
                 print("[save_rdd_json] skipped saving rdd to {}. File already exists.".format(rdd_path))
             save_info_incremental_update(hbase_man_update_out, incr_update_id, rdd_path, rdd_name+"_path")
@@ -226,6 +227,7 @@ def CDRv3_to_s3url_adid(data):
 
     :param data: CDR v3 ad document in JSON format
     """
+    # TODO: check this is correct comparing to full-pipeline workflow.
     tup_list = []
     ad_id = data[0]
     # parse JSON
@@ -259,23 +261,6 @@ def CDRv2_to_s3url_adid(data):
         print "[CDRv2_to_s3url_adid: warning] {} not an image document!".format(data[0])
     return tup_list
 
-
-# def sha1_key_json(data):
-#     # when data was read from HBase
-#     # should we use flatMapValues to call that function
-#     # thus we would receive just data[1]?
-#     sha1 = data[0]
-#     json_x = [json.loads(x) for x in data[1].split("\n")]
-#     v = dict()
-#     for field in fields_list:
-#         try:
-#             if field[1]!='s3_url':
-#                 v[':'.join(field)] = list(set([x for x in get_list_value(json_x,field)[0].strip().split(',')]))
-#             else:
-#                 v[':'.join(field)] = [unicode(get_list_value(json_x,field)[0].strip())]
-#         except: # field not in row
-#             pass
-#     return [(sha1, v)]
 
 def sha1_key_json_values(data):
     # when data was read from HBase and called with flatMapValues
@@ -612,7 +597,8 @@ def save_out_rdd_to_hdfs(basepath_save, out_rdd, hbase_man_update_out, ingestion
             out_rdd_save = out_rdd.filter(filter_out_rdd).map(out_to_amandeep_dict_str_wimginfo)
             if not out_rdd_save.isEmpty():
                 # how to force overwrite here?
-                out_rdd_save.saveAsSequenceFile(out_rdd_path)
+                #out_rdd_save.saveAsSequenceFile(out_rdd_path)
+                out_rdd_save.saveAsSequenceFile(out_rdd_path, compressionCodecClass=compression)
                 save_info_incremental_update(hbase_man_update_out, ingestion_id, out_rdd_path, rdd_name+"_path")
             else:
                 print("[save_out_rdd_to_hdfs] 'out_rdd_save' is empty.")
@@ -716,9 +702,12 @@ def run_ingestion(es_man, hbase_man_sha1infos_join, hbase_man_sha1infos_out, hba
 
 
 def get_ingestion_start_end_id(c_options):
-    # Get es_ts_start and es_ts_end
+
     es_ts_start = None
     es_ts_end = None
+    ingestion_id = None
+
+    # Get es_ts_start and es_ts_end
     if c_options.es_ts_start is not None:
         es_ts_start = c_options.es_ts_start
     if c_options.es_ts_end is not None:
@@ -731,15 +720,19 @@ def get_ingestion_start_end_id(c_options):
             start_date = dateutil.parser.parse(c_options.day_to_process)
             es_ts_end = calendar.timegm(start_date.utctimetuple())*1000
             es_ts_start = es_ts_end - day_gap
+            ingestion_id = datetime.date.fromtimestamp((es_ts_start) / 1000).isoformat()
         except Exception as inst:
             print "[get_ingestion_start_end_id: log] Could not parse 'day_to_process'. Getting everything form the CDR."
-    # Otherwise we want ALL images
+
+    # Otherwise consider we want ALL images
     if es_ts_start is None:
         es_ts_start = 0
     if es_ts_end is None:
         es_ts_end = max_ts
-    # form ingestion id
-    ingestion_id = '-'.join([c_options.es_domain, str(es_ts_start), str(es_ts_end)])
+
+    # Form ingestion id if not set yet
+    if ingestion_id is None:
+        ingestion_id = '-'.join([c_options.es_domain, str(es_ts_start), str(es_ts_end)])
 
     return es_ts_start, es_ts_end, ingestion_id
 
@@ -789,10 +782,8 @@ if __name__ == '__main__':
     job_group.add_argument("-d", "--day_to_process", dest="day_to_process", help="using format YYYY-MM-DD", default=None)
     job_group.add_argument("--max_samples_per_partition", dest="max_samples_per_partition", type=int, default=max_samples_per_partition)
     job_group.add_argument("--base_hdfs_path", dest="base_hdfs_path", default=base_hdfs_path)
-    # should we still allow the input of day to process and estimate ts start and end from it?
     
     # Parse
-    
     try:
         c_options = parser.parse_args()
         print "Got options:", c_options
