@@ -5,6 +5,7 @@ Author: [Svebor Karaman](mailto:svebor.karaman@columbia.edu)
 This package is the key component of the face search tool developed for the [MEMEX project](https://www.darpa.mil/program/memex).
 
 The package is divided into multiple modules:
+
 - api: Flask API to expose the face search index.
 - detector: detect faces in images.
 - featurizer: compute a discriminative feature from a face bounding box.

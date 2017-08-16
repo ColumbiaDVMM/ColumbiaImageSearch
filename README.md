@@ -22,6 +22,7 @@ check the README.md in that folder for additional information.
 
 If you want to install the tool without docker, you should first install the packages needed. 
 For Ubuntu:
+
 - sudo apt-get install git python-pip python-dev libpng-dev libjpeg8-dev libfreetype6-dev pkg-config libblas-dev liblapack-dev libatlas-base-dev gfortran cmake libboost-all-dev
 
 #### Setup python packages 
@@ -34,6 +35,7 @@ path of this repo should be enough.
 Run the script [keep_alive_face_api.sh](./www/keep_alive_face_api.sh).
 
 Edit the following parameters to match your installation:
+
 - CONF_FILE
 - API_FOLDER
 - LOG_FOLDER
