@@ -9,6 +9,11 @@ from pyspark import SparkContext
 from argparse import ArgumentParser
 
 # --
+# Globals
+detector = None
+featurizer = None
+
+# --
 # Detect faces
 
 def detect_faces(img_url, args):
@@ -16,7 +21,14 @@ def detect_faces(img_url, args):
   global detector
   try:
     _ = detector
+    if detector is None:
+      msg = "Detector not yet loaded"
+      print msg
+      sys.stdout.flush()
+      raise ValueError(msg)
   except:
+    print "Loading detection model"
+    sys.stdout.flush()
     from cufacesearch.detector.dblib_detector import DLibFaceDetector
     detector = DLibFaceDetector()
 
@@ -63,7 +75,14 @@ def featurize_faces(data, conf):
   global featurizer
   try:
     _ = featurizer
+    if featurizer is None:
+      msg = "Featurizer not yet loaded"
+      print msg
+      sys.stdout.flush()
+      raise ValueError(msg)
   except:
+    print "Loading featurizer model"
+    sys.stdout.flush()
     from cufacesearch.featurizer.dblib_featurizer import DLibFeaturizer
     featurizer = DLibFeaturizer(conf)
 
@@ -119,7 +138,7 @@ if __name__ == "__main__":
   parser.add_argument("--input", dest='input', type=str, required=True)
   parser.add_argument("--detection_output", dest='detection_output', type=str, default=None)
   parser.add_argument("--features_output", dest='features_output', type=str, required=True)
-  parser.add_argument("--nb_partitions", dest='nb_partitions', type=int, default=20000)
+  parser.add_argument("--nb_partitions", dest='nb_partitions', type=int, default=500)
   parser.add_argument("--up_sample", dest='up_sample', type=int, default=1)
   parser.add_argument("--image_dl_timeout", dest='image_dl_timeout', type=int, default=20)
 
