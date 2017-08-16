@@ -20,3 +20,7 @@ pip install --user setuptools
 pip install --user --upgrade numpy
 pip install -e ${repo_path}/cufacesearch
 pip install -e ${repo_path}/lopq
+
+
+#NB: The lopq package is a work-in-progress modification of LOPQ from the repo [https://github.com/yahoo/lopq](https://github.com/yahoo/lopq), see also [https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq](https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq).
+#The modifications aim to better integrate the PCA pre-processing, but is actually not yet used in the current version of the search index.

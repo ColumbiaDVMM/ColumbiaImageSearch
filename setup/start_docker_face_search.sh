@@ -3,12 +3,13 @@
 ## Adjust that to the actual host values
 repo_path=/srv/skaraman/facesearch/columbiafacesearch/
 data_path=/srv/skaraman/facesearch/face_data/
+PORT=5000
 
 # You should not need to change that,
 # and if you do, make sure that the config file reflects these changes
 indocker_repo_path=/home/ubuntu/memex/ColumbiaFaceSearch
 indocker_data_path=/home/ubuntu/memex/data
-PORT=5000
+
 
 ## Variables that could be changed
 docker_image="columbiafacesearch"

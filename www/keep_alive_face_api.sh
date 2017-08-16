@@ -3,10 +3,10 @@
 sleep_time=10
 
 CONF_FILE="/home/ubuntu/memex/ColumbiaFaceSearch/conf/global_conf_facesearch_lopq_pretrained_docker_v2.json"
+API_FOLDER="/home/ubuntu/memex/ColumbiaFaceSearch/www/"
 LOG_FOLDER="/home/ubuntu/memex/data/logs/"
 echo "LOG_FOLDER:" ${LOG_FOLDER}
 mkdir -p ${LOG_FOLDER}
-API_FOLDER="/home/ubuntu/memex/ColumbiaFaceSearch/www/"
 API_TYPE="run_face_search_api"
 LOG_KEEP_ALIVE="logFaceAPI_keep_alive.txt"
 LOG_API="logFaceAPI$(date +%Y-%m-%d).txt"
