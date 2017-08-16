@@ -119,7 +119,7 @@ if __name__ == "__main__":
   parser.add_argument("--input", dest='input', type=str, required=True)
   parser.add_argument("--detection_output", dest='detection_output', type=str, default=None)
   parser.add_argument("--features_output", dest='features_output', type=str, required=True)
-  parser.add_argument("--nb_partitions", dest='nb_partitions', type=int, default=7000)
+  parser.add_argument("--nb_partitions", dest='nb_partitions', type=int, default=20000)
   parser.add_argument("--up_sample", dest='up_sample', type=int, default=1)
   parser.add_argument("--image_dl_timeout", dest='image_dl_timeout', type=int, default=20)
 
