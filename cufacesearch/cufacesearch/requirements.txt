@@ -7,3 +7,4 @@ flask_restful
 matplotlib
 requests
 gevent
+kafka-python

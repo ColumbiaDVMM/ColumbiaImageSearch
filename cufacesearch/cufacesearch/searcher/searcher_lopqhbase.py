@@ -29,7 +29,7 @@ class SearcherLOPQHBase(GenericSearcher):
       self.model_type = lopq_model_type
       # this is from our modified LOPQ package...
       # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq/python
-      # 'LOPQModelPCA' will be the type of the model loaded from pickle file
+      # 'LOPQModelPCA' could be the type of the model loaded from pickle file
       from lopq.model import LOPQModel, LOPQModelPCA
       lopq_model_path = self.get_param('lopqmodel')
       if lopq_model_path:

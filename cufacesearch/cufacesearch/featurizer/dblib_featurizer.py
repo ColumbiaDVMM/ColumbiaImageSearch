@@ -51,7 +51,7 @@ class DLibFeaturizer(object):
     if not os.path.exists(pred_path):
       # download file if not
       download_model(www_pred_path, pred_path, pred_bz2_file)
-    self.sp = dlib.shape_predictor(pred_path)
+    self.sp = dlib.shape_predictor(str(pred_path))
     rec_path = self.get_param('rec_path')
     if not pred_path:
       raise ValueError('[DLibFeaturizer: error] pred_path was not set in config file.')
@@ -59,7 +59,7 @@ class DLibFeaturizer(object):
     if not os.path.exists(rec_path):
       # download file if not
       download_model(www_rec_path, rec_path, rec_bz2_file)
-    self.facerec = dlib.face_recognition_model_v1(rec_path)
+    self.facerec = dlib.face_recognition_model_v1(str(rec_path))
 
 
   def get_param(self, param):
