@@ -1,5 +1,12 @@
 from ..imgio.imgio import get_buffer_from_URL, get_buffer_from_B64, get_SHA1_img_info_from_buffer
 
+def get_detector(detector_type):
+  if detector_type == "dblib_detector":
+    import dblib_detector
+    return dblib_detector.DLibFaceDetector()
+  else:
+    raise ValueError("[{}: error] unknown 'detector' {}.".format("get_detector", detector_type))
+
 class GenericFaceDetector(object):
 
   image_dl_timeout = 4
@@ -24,6 +31,12 @@ class GenericFaceDetector(object):
     from skimage import io as skio
     img = skio.imread(img_buffer)
     return sha1, img_type, width, height, img, self.detect_from_img(img, up_sample)
+
+  def detect_from_buffer_noinfos(self, img_buffer, up_sample=0):
+    from skimage import io as skio
+    img = skio.imread(img_buffer)
+    return img, self.detect_from_img(img, up_sample)
+
 
   # You have to override this method.
   def detect_from_img(self, img, up_sample=0):
