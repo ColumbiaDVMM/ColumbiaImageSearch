@@ -3,9 +3,17 @@ www_pred_path = "http://dlib.net/files/"+pred_bz2_file
 rec_bz2_file = "dlib_face_recognition_resnet_model_v1.dat.bz2"
 www_rec_path = "http://dlib.net/files/"+rec_bz2_file
 
+from .generic_featurizer import GenericFeaturizer
+import os
+import dlib
 
 def download_model(url, local_path, bz2_file):
-  import os
+  """ Download model from 'url' to the directory of 'local_path' and unzip to 'local_path'.
+
+  :param url: url of model to download
+  :param local_path: final local path of unzipped model
+  :param bz2_file: bz2 local filename
+  """
   import urllib
   print "Downloading model from: {}".format(url)
   out_dir = os.path.dirname(local_path)
@@ -15,11 +23,16 @@ def download_model(url, local_path, bz2_file):
     pass
   bz2_local_path = os.path.join(out_dir, bz2_file)
   urllib.urlretrieve(url, bz2_local_path)
-  # need to unzip
+  # Need to unzip
   unzip_model(bz2_local_path, local_path)
 
 
 def unzip_model(bz2_model_path, local_path):
+  """ Unzip dlib model from 'bz2_model_path' to 'local_path'.
+
+  :param bz2_model_path: input file to unzip.
+  :param local_path: output path.
+  """
   print "Unzipping file: {}".format(bz2_model_path)
   import bz2
   bz2model = bz2.BZ2File(bz2_model_path, 'r')
@@ -28,54 +41,50 @@ def unzip_model(bz2_model_path, local_path):
     out.write(data)
 
 
-class DLibFeaturizer(object):
+class DLibFeaturizer(GenericFeaturizer):
 
   def __init__(self, global_conf_in, prefix="DLIBFEAT_"):
-    #TODO read predictor_path, face_rec_model_path from conf
-    #TODO do not get config FILE but config dict
-    import dlib
-    import json
-    import os
-    #self.global_conf_filename = global_conf_filename
-    self.prefix = prefix
-    self.verbose = 0
-    if type(global_conf_in)==dict:
-      self.global_conf = global_conf_in
-    else:
-      self.global_conf = json.load(open(global_conf_in, 'rt'))
-    print "[DLibFeaturizer.log] global_conf: {}".format(self.global_conf)
-    pred_path = self.get_param('pred_path')
+    super(DLibFeaturizer, self).__init__(global_conf_in, prefix)
+    if self.verbose > 0:
+      print "[DLibFeaturizer.log] global_conf: {}".format(self.global_conf)
+
+    # Get shape predictor
+    pred_path = self.get_required_param('pred_path')
     if not pred_path:
       raise ValueError('[DLibFeaturizer: error] pred_path was not set in config file.')
-    # test if file exits there
+    # Test if file exits there
     if not os.path.exists(pred_path):
-      # download file if not
+      # Download file if not
       download_model(www_pred_path, pred_path, pred_bz2_file)
+    # Intialize shape predictor
     self.sp = dlib.shape_predictor(str(pred_path))
-    rec_path = self.get_param('rec_path')
+
+    # Get recognizer model
+    rec_path = self.get_required_param('rec_path')
     if not pred_path:
       raise ValueError('[DLibFeaturizer: error] pred_path was not set in config file.')
-    # test if file exits there
+    # Test if file exits there
     if not os.path.exists(rec_path):
-      # download file if not
+      # Download file if not
       download_model(www_rec_path, rec_path, rec_bz2_file)
+    # Initialize recognizer model
     self.facerec = dlib.face_recognition_model_v1(str(rec_path))
 
 
-  def get_param(self, param):
-    key_param = self.prefix + param
-    if key_param in self.global_conf:
-      return self.global_conf[key_param]
-    if self.verbose:
-      print '[get_param: info] could not find {} in configuration'.format(key_param)
-
   def featurize(self, img, d):
-    #TODO: deal with B&W images
-    #print img.shape,len(img.shape)
+    """ Compute face feature of the face bounding box in 'd' in the image 'img'.
+
+    :param img: image (a scikit-image)
+    :param d: bounding box dictionary
+    :return: face feature
+    """
+    # Deal with B&W images
     if len(img.shape)==2:
       import skimage
       img = skimage.color.gray2rgb(img)
+    # Build dlib rectangle from bounding box
     from dlib import rectangle
     dlib_bbox = rectangle(d['left'], d['top'], d['right'], d['bottom'])
     shape = self.sp(img, dlib_bbox)
+    # Return feature
     return self.facerec.compute_face_descriptor(img, shape)

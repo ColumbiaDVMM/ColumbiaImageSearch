@@ -1,4 +1,3 @@
-import sys
 import time
 import json
 from datetime import datetime
@@ -6,7 +5,8 @@ from datetime import datetime
 from flask import Markup, flash, request, render_template, make_response
 from flask_restful import Resource
 
-from ..imgio.imgio import ImageMIMETypes, get_SHA1_img_type_from_B64, build_bbox_str_list
+from ..imgio.imgio import ImageMIMETypes, get_SHA1_img_type_from_B64
+from ..detector.utils import build_bbox_str_list
 
 
 from socket import *
@@ -17,6 +17,7 @@ global_searcher = None
 global_start_time = None
 
 # should be under creative commons licence
+# never used actually...
 default_img = "https://c1.staticflickr.com/9/8542/8666789945_0077a6d060_z.jpg"
 
 

@@ -1,4 +1,5 @@
 from ..imgio.imgio import get_buffer_from_URL, get_buffer_from_B64, get_SHA1_img_info_from_buffer
+from skimage import io as skio
 
 def get_detector(detector_type):
   if detector_type == "dblib_detector":
@@ -28,12 +29,10 @@ class GenericFaceDetector(object):
   def detect_from_buffer(self, img_buffer, up_sample=0):
     sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
     img_buffer.seek(0)
-    from skimage import io as skio
     img = skio.imread(img_buffer)
     return sha1, img_type, width, height, img, self.detect_from_img(img, up_sample)
 
   def detect_from_buffer_noinfos(self, img_buffer, up_sample=0):
-    from skimage import io as skio
     img = skio.imread(img_buffer)
     return img, self.detect_from_img(img, up_sample)
 

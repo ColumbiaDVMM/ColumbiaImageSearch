@@ -1,4 +1,3 @@
-import ArgumentParser
 from .generic_kafka_processor import GenericKafkaProcessor
 
 default_prefix = "KFP_"
@@ -27,8 +26,9 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     """ Initialize Feature Extractor from `global_conf` value.
     """
     featurizer_type = self.get_required_param('featurizer')
+    # should be featurizer factory?
     from ..featurizer.generic_featurizer import get_featurizer
-    self.featurizer = DLibFeaturizer(self.global_conf_filename)
+    self.featurizer = get_featurizer(featurizer_type, self.global_conf_filename)
 
 
   def set_pp(self):
@@ -49,20 +49,3 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     # Push to face_out_topic
     for face_msg in list_faces_msg:
       self.producer.send(self.face_out_topic, face_msg)
-
-
-if __name__ == "__main__":
-
-  # Get conf file
-  parser = ArgumentParser()
-  parser.add_argument("-c", "--conf", dest="conf_file", required=True)
-  parser.add_argument("-p", "--prefix", dest="prefix", default=default_prefix)
-  options = parser.parse_args()
-
-  # Initialize
-  kfp = KafkaFaceProcessor(options.conf_file)
-
-  # Ingest
-  while True:
-    for msg in kfp.consumer:
-      kfp.process_one(msg)
