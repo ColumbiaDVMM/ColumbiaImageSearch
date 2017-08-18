@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from generic_searcher import GenericSearcher
+from generic_searcher import GenericSearcher, default_prefix
 # Beware: the loading function to use could depend on the featurizer type...
 from ..featurizer.featsio import load_face_features
 
@@ -9,23 +9,23 @@ START_HDFS = '/user/'
 
 class SearcherLOPQHBase(GenericSearcher):
 
-  def set_pp(self):
-    self.pp = "SearcherLOPQHBase"
+  def __init__(self, global_conf_in, prefix=default_prefix):
     self.model_type = "lopq"
     # number of processors to use for parallel computation of codes
     self.num_procs = 6
+    super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
+
+  def set_pp(self):
+    self.pp = "SearcherLOPQHBase"
 
   def init_searcher(self):
     """ Initialize LOPQ model and searcher from `global_conf` value.
     """
     import pickle
     # Get model type from conf file
-    lopq_model_type = self.get_param('lopq')
+    lopq_model_type = self.get_required_param('lopq')
     lopq_model = None
-    # Deal with potential different LOPQ model types
-    if not lopq_model_type:
-      raise ValueError("[{}: error] 'lopq' is not defined in configuration file.".format(self.pp))
-    elif lopq_model_type == "lopq" or lopq_model_type == "lopq_pca":
+    if lopq_model_type == "lopq" or lopq_model_type == "lopq_pca":
       self.model_type = lopq_model_type
       # this is from our modified LOPQ package...
       # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq/python

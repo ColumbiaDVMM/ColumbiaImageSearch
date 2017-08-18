@@ -11,15 +11,15 @@ max_errors = 2
 batch_size = 100
 # Is the connection pool causing some issue? Could we use a single connection?
 
+
 class HBaseIndexerMinimal(ConfReader):
 
   def __init__(self, global_conf_in, prefix="HBFI_"):
-    super(HBaseIndexerMinimal, self).__init__(global_conf_in, prefix)
     self.last_refresh = datetime.now()
-    self.transport_type = 'buffered' # this is happybase default
-    #self.transport_type = 'framed'
+    self.transport_type = 'buffered'  # this is happybase default
+    # self.transport_type = 'framed'
     self.timeout = 4
-    self.read_conf()
+    super(HBaseIndexerMinimal, self).__init__(global_conf_in, prefix)
 
   def set_pp(self):
     self.pp = "HBaseIndexerMinimal"
@@ -30,12 +30,15 @@ class HBaseIndexerMinimal(ConfReader):
     Will read parameters 'host', 'table_sha1infos'...
     from self.global_conf.
     """
+    super(HBaseIndexerMinimal, self).read_conf()
     # HBase conf
     self.hbase_host = self.get_required_param('host')
     self.table_sha1infos_name = self.get_required_param('table_sha1infos')
     # TODO: would be deprecated for Kafka ingestion?
     self.table_updateinfos_name = self.get_param('table_updateinfos')
-    print self.table_sha1infos_name, self.table_updateinfos_name
+    if self.verbose > 0:
+      print_msg = "[{}.read_conf: info] HBase tables name: {} (sha1infos), {} (updateinfos)"
+      print print_msg.format(self.pp, self.table_sha1infos_name, self.table_updateinfos_name)
     self.nb_threads = 1
     param_nb_threads = self.get_param('pool_thread')
     if param_nb_threads:
@@ -46,7 +49,8 @@ class HBaseIndexerMinimal(ConfReader):
       #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, timeout=10)
       self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
     except TTransportException as inst:
-      print "Could not initalize connection to HBase. Are you connected to the VPN?"
+      print_msg = "[{}.read_conf: error] Could not initalize connection to HBase. Are you connected to the VPN?"
+      print print_msg.format(self.pp)
       raise inst
 
       # # Extractions configuration (TO BE IMPLEMENTED)
@@ -59,11 +63,13 @@ class HBaseIndexerMinimal(ConfReader):
     # this can take up to 4 seconds...
     start_refresh = time.time()
     dt_iso = datetime.utcnow().isoformat()
-    print("[HBaseIndexerMinimal.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool.".format(calling_function, dt_iso))
+    print_msg = "[{}.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool."
+    print print_msg.format(self.pp, calling_function, dt_iso)
     sys.stdout.flush()
     time.sleep(sleep_time)
     self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
-    print("[HBaseIndexerMinimal.refresh_hbase_conn: log] Refreshed connection pool in {}s.".format(time.time()-start_refresh))
+    print_msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
+    print print_msg.format(self.pp, time.time()-start_refresh)
 
 
   def check_errors(self, previous_err, function_name, inst=None):

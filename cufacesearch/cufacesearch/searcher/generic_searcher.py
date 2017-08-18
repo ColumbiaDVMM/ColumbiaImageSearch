@@ -1,9 +1,12 @@
 from output_mapping import DictOutput
 from ..common.conf_reader import ConfReader
 
+default_prefix = "FSE_"
+
+
 class GenericSearcher(ConfReader):
 
-  def __init__(self, global_conf_in, prefix="FSE_"):
+  def __init__(self, global_conf_in, prefix=default_prefix):
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
 
     # Initialize attributes
@@ -57,7 +60,7 @@ class GenericSearcher(ConfReader):
       raise ValueError("[{}: error] 'indexer' is not defined in configuration file.".format(self.pp))
     elif indexer_type == "hbase_indexer_minimal":
       from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal
-      self.indexer = HBaseIndexerMinimal(self.global_conf_filename)
+      self.indexer = HBaseIndexerMinimal(self.global_conf)
     else:
       raise ValueError("[{}: error] unknown 'indexer' {}.".format(self.pp, indexer_type))
 

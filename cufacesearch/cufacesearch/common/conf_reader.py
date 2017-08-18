@@ -10,8 +10,8 @@ class ConfReader(object):
     :param prefix: prefix to prepend to get parameters of the current class.
     """
     self.pp = None
-    self.verbose = 0
     self.set_pp()
+    self.verbose = 0
     if type(global_conf_in)==dict:
       print '[{}.init: info] got dictionary configuration.'.format(self.pp)
       self.global_conf = global_conf_in

@@ -70,6 +70,8 @@ class DLibFeaturizer(GenericFeaturizer):
     # Initialize recognizer model
     self.facerec = dlib.face_recognition_model_v1(str(rec_path))
 
+  def set_pp(self):
+    self.pp = "DLibFeaturizer"
 
   def featurize(self, img, d):
     """ Compute face feature of the face bounding box in 'd' in the image 'img'.

@@ -13,6 +13,7 @@
   "FSE_featurizer": "dlib_featurizer",
   "HBFI_host": "10.1.94.57",
   "HBFI_table_sha1infos": "escorts_images_sha1_infos_from_ts",
+  "HBFI_verbose": 2,
   "HBFI_pool_thread": 2,
   "DLIBFEAT_pred_path": "./data/shape_predictor_68_face_landmarks.dat",
   "DLIBFEAT_rec_path": "./data/dlib_face_recognition_resnet_model_v1.dat"
