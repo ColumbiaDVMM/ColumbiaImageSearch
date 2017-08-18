@@ -1,5 +1,8 @@
-from .generic_kafka_processor import GenericKafkaProcessor
+import json
 import multiprocessing
+from .generic_kafka_processor import GenericKafkaProcessor
+from ..imgio.imgio import buffer_to_B64
+
 
 default_prefix = "KIP_"
 
@@ -13,18 +16,19 @@ class KafkaImageProcessor(GenericKafkaProcessor):
     # any additional initialization needed, like producer specific output logic
     self.cdr_out_topic = self.get_required_param('cdr_out_topic')
     self.images_out_topic = self.get_required_param('images_out_topic')
-    # TODO: also get s3 url prefix
+    # TODO: get s3 url prefix from actual location
     # for now "object_stored_prefix" in "_meta" of domain CDR
-    self.url_prefix = ""
+    # but just get from conf
+    self.url_prefix = self.get_required_param('obj_stored_prefix')
 
   def set_pp(self):
     self.pp = "KafkaImageProcessor"
 
-  def get_images_urls(self, msg):
+  def get_images_urls(self, msg_value):
     # Filter 'objects' array based on 'content_type' to get only images urls
     list_urls = []
-    if 'objects' in msg.value:
-      for obj_pos, obj_val in msg.value['objects']:
+    if 'objects' in msg_value:
+      for obj_pos, obj_val in enumerate(msg_value['objects']):
         if 'content_type' in obj_val and obj_val['content_type'].startswith("image"):
           # prepend prefix so images URLs are actually valid
           image_url = self.url_prefix + obj_val['obj_stored_url']
@@ -35,43 +39,57 @@ class KafkaImageProcessor(GenericKafkaProcessor):
 
     return list_urls
   
-  def build_cdr_msg(self, msg, dict_imgs):
+  def build_cdr_msg(self, msg_value, dict_imgs):
     # Edit 'objects' array to add 'img_infos', and 'img_sha1' for images
     for url in dict_imgs:
       img = dict_imgs[url]
-      tmp_obj = msg.value['objects'][img['obj_pos']]
+      tmp_obj = msg_value['objects'][img['obj_pos']]
       tmp_obj['img_infos'] = img['img_infos']
       tmp_obj['img_sha1'] = img['sha1']
-      msg.value['objects'][img['obj_pos']] = tmp_obj
+      msg_value['objects'][img['obj_pos']] = tmp_obj
     # should we return just the value?
-    return msg
+    return json.dumps(msg_value).encode('utf-8')
 
   def build_image_msg(self, dict_imgs):
-    # Build list of tuple (sha1, s3_url, img_infos, img_buffer)
+    # Build dict ouput for each image with fields 's3_url', 'sha1', 'img_infos' and 'img_buffer'
     img_out_msgs = []
     for url in dict_imgs:
-      img_out_msgs.append((dict_imgs[url]['sha1'], url, dict_imgs[url]['img_infos'], dict_imgs[url]['img_buffer']),)
+      tmp_dict_out = dict()
+      tmp_dict_out['s3_url'] = url
+      tmp_dict_out['sha1'] = dict_imgs[url]['sha1']
+      tmp_dict_out['img_infos'] = dict_imgs[url]['img_infos']
+      # encode buffer in B64?
+      tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
+      img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
     return img_out_msgs
 
 
   def process_one(self, msg):
     from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
-    print ("%s:%d:%d: key=%s value=%s" % (msg.topic, msg.partition,
-                                          msg.offset, msg.key,
-                                          msg.value))
+    #print "%s:%d:%d: key=%s value=%s" % (msg.topic, msg.partition, msg.offset, msg.key, msg.value)
+    print "%s:%d:%d: key=%s" % (msg.topic, msg.partition, msg.offset, msg.key)
+    msg_value = json.loads(msg.value)
 
     # From msg value get list_urls for image objects only
-    list_urls = self.get_images_urls(msg)
+    list_urls = self.get_images_urls(msg_value)
 
     # Get images data and infos
     dict_imgs = dict()
     for url, obj_pos in list_urls:
+      if self.verbose > 1:
+        print_msg = "[{}.process_one: info] Downloading image from: {}"
+        print print_msg.format(self.pp, url)
       img_buffer = get_buffer_from_URL(url)
-      sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
-      dict_imgs[url] = {'obj_pos': obj_pos, 'buffer': img_buffer, 'sha1': sha1, 'img_infos': {'format': img_type, 'width': width, 'height': height}}
+      if img_buffer:
+        sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
+        dict_imgs[url] = {'obj_pos': obj_pos, 'img_buffer': img_buffer, 'sha1': sha1, 'img_infos': {'format': img_type, 'width': width, 'height': height}}
+      else:
+        if self.verbose > 0:
+          print_msg = "[{}.process_one: info] Could not download image from: {}"
+          print print_msg.format(self.pp, url)
 
     # Push to cdr_out_topic
-    self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg, dict_imgs))
+    self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
 
     # Push to images_out_topic
     for img_out_msg in self.build_image_msg(dict_imgs):

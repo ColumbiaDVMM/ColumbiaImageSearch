@@ -123,7 +123,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
   def load_codes(self):
     # TODO: how to deal with updates?
-
+    # this takes 10 minutes...
     if self.codes_path:
       if not self.searcher:
         print "[{}.load_codes: info] Not loading codes as searcher is not initialized.".format(self.pp)

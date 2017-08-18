@@ -1,5 +1,7 @@
 import time
+import json
 import datetime
+from kafka import KafkaProducer
 from elasticsearch import Elasticsearch
 from ..common.conf_reader import ConfReader
 
@@ -10,25 +12,41 @@ class CDRIngester(ConfReader):
   def __init__(self, global_conf_filename, prefix=default_prefix):
     super(CDRIngester, self).__init__(global_conf_filename, prefix)
     self.batch_size = 10
+    self.producer = None
     self.initialize_source()
+    self.initialize_output()
+    # Technically should be read from '_meta' of ES instance
+    # GET memex-domains/_mapping/domain
+    self.obj_stored_prefix = self.get_required_param('obj_stored_prefix')
 
   def set_pp(self):
     self.pp = "CDRIngester"
 
   def initialize_source(self):
-    """ Use information contained in `self.global_conf` to initialize ElasticSearch
+    """ Use information contained in `self.global_conf` to initialize ElasticSearch source
     """
     self.els_index = self.get_required_param('es_index')
     self.els_doc_type = self.get_required_param('es_doc_type')
     self.els_instance = self.get_required_param('es_instance')
     self.els_user = self.get_required_param('es_user')
     self.els_pass = self.get_required_param('es_pass')
-    init_msg = "[CDRIngester: log] CDRIngester initialized with values:\n- index: {};\n- instance: {};\n- user: {};\n- pass: {}."
-    print init_msg.format(self.els_index, self.els_instance, self.els_user, self.els_pass)
+    init_source_msg = "[{}: log] CDRIngester source initialized with values:\n- index: {};\n- instance: {};\n- user: {};\n- pass: {}."
+    print init_source_msg.format(self.pp, self.els_index, self.els_instance, self.els_user, self.els_pass)
+
+  def initialize_output(self):
+    """ Use information contained in `self.global_conf` to initialize Kafka output
+    """
+    self.out_servers = self.get_param('out_servers')
+    self.out_topic = self.get_required_param('out_topic')
+    if self.out_servers:
+      self.producer = KafkaProducer(bootstrap_servers=self.out_servers)
+    else:
+      self.producer = KafkaProducer()
+    init_out_msg = "[{}: log] CDRIngester output initialized with values:\n- out_servers: {};\n- out_topic: {}."
+    print init_out_msg.format(self.pp, self.out_servers, self.out_topic)
 
   def get_prefix(self):
-    # GET memex-domains/_mapping/domain
-    self.prefix = self.get_required_param('obj_stored_prefix')
+    return self.obj_stored_prefix
 
   def get_batch(self, team="HG"):
     """ Should return a batch of CDR document posted by requested crawling team
@@ -57,7 +75,7 @@ class CDRIngester(ConfReader):
 
     scrollId = response['_scroll_id']
     response = es.scroll(scroll_id=scrollId, scroll="5m")
-    while len(response['hits']['hits'])>0 and len(cdr_infos)<self.batch_size:
+    while len(response['hits']['hits']) > 0 and len(cdr_infos) < self.batch_size:
       print "Getting "+str(len(response['hits']['hits']))+" docs."
       cdr_infos.extend(response['hits']['hits'])
       scrollId = response['_scroll_id']
@@ -80,4 +98,9 @@ class CDRIngester(ConfReader):
     if len(cdr_infos)>self.batch_size:
       return cdr_infos
 
-    # TODO: Have a producer to push to a Kafka queue
+  def push_batch(self):
+    cdr_infos = self.get_batch()
+    print "[{}.push_batch: info] Got {} documents.".format(self.pp, len(cdr_infos))
+    for doc in cdr_infos:
+      self.producer.send(self.out_topic, json.dumps(doc['_source']).encode('utf-8'))
+    print "[{}.push_batch: info] Pushed {} documents to topic {}.".format(self.pp, len(cdr_infos), self.out_topic)

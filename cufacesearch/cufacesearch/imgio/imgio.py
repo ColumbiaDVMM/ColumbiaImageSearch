@@ -94,6 +94,15 @@ def get_SHA1_img_info_from_buffer(img_buffer):
   return sha1, img_type, width, height
 
 
+def buffer_to_B64(img_buffer):
+  import base64
+  # make sure buffer is at beginning
+  img_buffer.seek(0)
+  data = img_buffer.read()
+  b64_from_data = base64.b64encode(data)
+  return b64_from_data
+
+
 def get_buffer_from_B64(base64str):
   from cStringIO import StringIO
   import base64
@@ -113,5 +122,3 @@ def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4):
     else:
       img_buffer = StringIO(r.content)
       return img_buffer
-
-#TODO: to be moved to some other place.
