@@ -67,7 +67,10 @@ class HBaseIndexerMinimal(ConfReader):
     print print_msg.format(self.pp, calling_function, dt_iso)
     sys.stdout.flush()
     time.sleep(sleep_time)
-    self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
+    # This can hang for a long time?
+    # Should we add timeout (in ms: http://happybase.readthedocs.io/en/latest/api.html#connection)?
+    #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
+    self.pool = happybase.ConnectionPool(timeout=1000, size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
     print_msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
     print print_msg.format(self.pp, time.time()-start_refresh)
 
