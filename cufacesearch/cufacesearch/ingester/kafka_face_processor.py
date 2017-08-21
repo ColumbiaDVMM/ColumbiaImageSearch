@@ -1,4 +1,5 @@
 from .generic_kafka_processor import GenericKafkaProcessor
+from ..imgio.imgio import get_buffer_from_B64
 
 default_prefix = "KFP_"
 
@@ -11,40 +12,80 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     self.face_out_topic = self.get_required_param('face_out_topic')
     self.detector = None
     self.featurizer = None
+    self.detector_type = ""
+    self.featurizer_type = ""
     self.init_detector()
     self.init_featurizer()
+    self.init_indexer()
 
   def init_detector(self):
     """ Initialize Face Detector from `global_conf` value.
     """
-    # Get indexed type from conf file
-    detector_type = self.get_required_param('detector')
+    # Get detector type from conf file
+    self.detector_type = self.get_required_param('detector')
+    # Get corresponding detector object
     from ..detector.generic_detector import get_detector
-    self.detector = get_detector(detector_type)
+    self.detector = get_detector(self.detector_type)
 
   def init_featurizer(self):
     """ Initialize Feature Extractor from `global_conf` value.
     """
-    featurizer_type = self.get_required_param('featurizer')
-    # should be featurizer factory?
+    # Get featurizer type from conf file
+    self.featurizer_type = self.get_required_param('featurizer')
+    # Get corresponding featurizer object
     from ..featurizer.generic_featurizer import get_featurizer
-    self.featurizer = get_featurizer(featurizer_type, self.global_conf_filename)
+    self.featurizer = get_featurizer(self.featurizer_type, self.global_conf_filename)
 
+  def init_indexer(self):
+    """ Initialize Indexer from `global_conf` value.
+    """
+    # Get featurizer type from conf file
+    self.featurizer_type = self.get_required_param('featurizer')
+    # Get corresponding featurizer object
+    from ..featurizer.generic_featurizer import get_featurizer
+    self.featurizer = get_featurizer(self.featurizer_type, self.global_conf_filename)
 
   def set_pp(self):
     self.pp = "KafkaFaceProcessor"
 
-  def process_one(self, msg):
-    # msg is coming as tuple (sha1, s3_url, img_infos, img_buffer)
+  def init_out_dict(self, sha1):
+    tmp_dict_out = dict()
+    tmp_dict_out['sha1'] = sha1
+    tmp_dict_out['detector_type'] = self.detector_type
+    tmp_dict_out['featurizer_type'] = self.featurizer_type
+    tmp_dict_out['facefound'] = False
+    return tmp_dict_out
 
-    # Detect faces and featurize each face
+  def process_one(self, msg):
+    # msg is coming as json with fields: sha1, s3_url, img_infos, img_buffer
+    # see 'build_image_msg' of KafkaImageProcessor
+    # buffer is B64 encoded and should be decoded with get_buffer_from_B64
+    import json
+    import base64
+
+    # Check if sha1 is in DB with column 'ext:'+detector_type+'_facefound' set
+    # Need to setup a HBaseIndexer...
+
+    # Detect faces
     list_faces_msg = []
-    # should we upsample or not?
-    img, dets = self.detector.detect_from_buffer_noinfos(msg[3], up_sample=0)
-    for one_face in dets:
-      one_feat = self.featurizer.featurize(img, one_face)
-      # should we base64 encode the feature?
-      list_faces_msg.append((msg[0], one_face, one_feat),)
+    img, dets = self.detector.detect_from_buffer_noinfos(get_buffer_from_B64(msg['img_buffer']), up_sample=1)
+    if dets:
+      # For each detected face...
+      for one_face in dets:
+        # Compute face feature
+        one_feat = self.featurizer.featurize(img, one_face)
+        # Build out dictionary
+        tmp_dict_out = self.init_out_dict(msg['sha1'])
+        tmp_dict_out['facefound'] = True
+        tmp_dict_out['face_bbox'] = one_face
+        # base64 encode the feature to be dumped
+        tmp_dict_out['face_feat'] = base64.b64encode(one_feat)
+        # Dump as JSON
+        list_faces_msg.append(json.dumps(tmp_dict_out).encode('utf-8'))
+    else:
+      # Push one default dict with 'facefound' set to False
+      tmp_dict_out = self.init_out_dict(msg['sha1'])
+      list_faces_msg.append(json.dumps(tmp_dict_out).encode('utf-8'))
 
     # Push to face_out_topic
     for face_msg in list_faces_msg:

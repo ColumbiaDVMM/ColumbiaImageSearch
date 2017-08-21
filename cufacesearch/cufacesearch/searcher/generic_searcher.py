@@ -11,6 +11,9 @@ class GenericSearcher(ConfReader):
 
     # Initialize attributes
     self.searcher = None
+    self.detector = None
+    self.featurizer = None
+    self.indexer = None
     self.verbose = 1
     self.top_feature = 0
 

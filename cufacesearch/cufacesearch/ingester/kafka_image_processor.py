@@ -63,7 +63,6 @@ class KafkaImageProcessor(GenericKafkaProcessor):
       img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
     return img_out_msgs
 
-
   def process_one(self, msg):
     from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
     #print "%s:%d:%d: key=%s value=%s" % (msg.topic, msg.partition, msg.offset, msg.key, msg.value)

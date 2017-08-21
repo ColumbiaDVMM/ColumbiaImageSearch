@@ -19,6 +19,11 @@ class HBaseIndexerMinimal(ConfReader):
     self.transport_type = 'buffered'  # this is happybase default
     # self.transport_type = 'framed'
     self.timeout = 4
+    # to store count of batches of updates pushed
+    self.dict_up = dict()
+    self.batch_update_size = 10000
+    # could be set in parameters
+    self.column_list_sha1s = "info:list_sha1s"
     super(HBaseIndexerMinimal, self).__init__(global_conf_in, prefix)
 
   def set_pp(self):
@@ -100,7 +105,6 @@ class HBaseIndexerMinimal(ConfReader):
       self.refresh_hbase_conn("scan_from_row", sleep_time=4)
       return self.scan_from_row(table_name, row_start, columns, previous_err + 1, inst)
 
-
   def get_updates_from_date(self, start_date, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD
     rows = None
@@ -108,7 +112,7 @@ class HBaseIndexerMinimal(ConfReader):
     # build row_start as index_update_YYYY-MM-DD
     row_start = "index_update_"+start_date
     print row_start
-    columns = ["info:list_sha1s"]
+    columns = [self.column_list_sha1s]
     try:
       rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, columns=columns)
     except Exception as inst: # try to catch any exception
@@ -117,6 +121,47 @@ class HBaseIndexerMinimal(ConfReader):
       return self.get_updates_from_date(start_date, previous_err+1, inst)
     return rows
 
+  def get_today_string(self):
+    return datetime.datetime.today().strftime('%Y-%m-%d')
+
+  def get_next_update_id(self, today=None):
+    # get today's date as in format YYYY-MM-DD
+    if today is None:
+      today = self.get_today_string()
+    if today not in self.dict_up:
+      self.dict_up = dict()
+      self.dict_up[today] = 0
+    else:
+      self.dict_up[today] += 1
+    update_id = "index_update_" + today + "_" + str(self.dict_up[today])
+    return update_id, today
+
+  def get_batch_update(self, list_sha1s):
+    l = len(list_sha1s)
+    for ndx in range(0, l, self.batch_update_size):
+      yield list_sha1s[ndx:min(ndx + self.batch_update_size, l)]
+
+  def push_list_updates(self, list_sha1s, previous_err=0, inst=None):
+    self.check_errors(previous_err, "push_list_updates", inst)
+    today = None
+    nb_batch_pushed = 0
+    # build batches of self.batch_update_size of images updates
+    try:
+      with self.pool.connection() as connection:
+        # Initialize happybase batch
+        table_updateinfos = connection.table(self.table_updateinfos_name)
+        b = table_updateinfos.batch(batch_size=10)
+        for batch_list_sha1s in self.get_batch_update(list_sha1s):
+          update_id, today = self.get_next_update_id(today)
+          b.put(update_id, {self.column_list_sha1s: ','.join(batch_list_sha1s)})
+          nb_batch_pushed += 1
+        b.send()
+    except Exception as inst: # try to catch any exception
+      print "[push_list_updates: error] {}".format(inst)
+      self.dict_up[self.get_today_string()] = 0
+      self.refresh_hbase_conn("push_list_updates")
+      return self.push_list_updates(list_sha1s, previous_err+1, inst)
+    return nb_batch_pushed
 
   def get_rows_by_batch(self, list_queries, table_name, columns=None, previous_err=0, inst=None):
     self.check_errors(previous_err, "get_rows_by_batch", inst)
@@ -137,7 +182,6 @@ class HBaseIndexerMinimal(ConfReader):
       # try to force longer sleep time...
       self.refresh_hbase_conn("get_rows_by_batch", sleep_time=4)
       return self.get_rows_by_batch(list_queries, table_name, columns, previous_err+1, inst)
-
 
   def get_columns_from_sha1_rows(self, list_sha1s, columns, previous_err=0, inst=None):
     rows = None
