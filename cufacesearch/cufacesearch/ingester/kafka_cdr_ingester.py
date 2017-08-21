@@ -12,7 +12,17 @@ class CDRIngester(ConfReader):
   def __init__(self, global_conf_filename, prefix=default_prefix):
     super(CDRIngester, self).__init__(global_conf_filename, prefix)
     self.batch_size = 10
+    # Producer related attributes
     self.producer = None
+    self.out_servers = None
+    self.out_topic = None
+    # ES related attributes
+    self.els_index = None
+    self.els_doc_type = None
+    self.els_instance = None
+    self.els_user = None
+    self.els_pass = None
+    # Initialize
     self.initialize_source()
     self.initialize_output()
     # Technically should be read from '_meta' of ES instance
@@ -30,7 +40,8 @@ class CDRIngester(ConfReader):
     self.els_instance = self.get_required_param('es_instance')
     self.els_user = self.get_required_param('es_user')
     self.els_pass = self.get_required_param('es_pass')
-    init_source_msg = "[{}: log] CDRIngester source initialized with values:\n- index: {};\n- instance: {};\n- user: {};\n- pass: {}."
+    init_source_msg = "[{}: log] CDRIngester source initialized with values:\n"
+    init_source_msg += "- index: {};\n- instance: {};\n- user: {};\n- pass: {}."
     print init_source_msg.format(self.pp, self.els_index, self.els_instance, self.els_user, self.els_pass)
 
   def initialize_output(self):
@@ -58,19 +69,20 @@ class CDRIngester(ConfReader):
 
     while True:
       try:
-        if self.verbose>0:
-          print "[CDRIngester.get_batch: log] ElasticSearch query at:",str(datetime.datetime.now())
+        if self.verbose > 0:
+          print "[{}.get_batch: log] ElasticSearch query at:".format(self.pp, str(datetime.datetime.now()))
         response = es.search(index=self.els_index, doc_type=self.els_doc_type, body=query, search_type="scan", scroll="5m")
         break
       except Exception as inst:
-        if self.verbose>0:
-          print "[CDRIngester.get_batch: log] ElasticSearch error when requesting:",query,"... at:",str(datetime.datetime.now())
-          print "[CDRIngester.get_batch: log] {}".format(inst)
+        if self.verbose > 0:
+          log_msg = "[{}.get_batch: log] ElasticSearch error when requesting: {} at {}"
+          print log_msg.format(self.pp, query, str(datetime.datetime.now()))
+          print "[{}.get_batch: log] {}".format(self.pp, inst)
         # Could be just a timeout that will be solved next time we query...
         # Give ES a little rest first.
           time.sleep(10)
 
-    if self.verbose>0:
+    if self.verbose > 0:
       "[CDRIngester: log] Got "+str(response['hits']['total'])+" results in "+str(response['took'])+"ms."
 
     scrollId = response['_scroll_id']
@@ -82,20 +94,21 @@ class CDRIngester(ConfReader):
       # Scrolling can fail quite often.
       while True:
         try:
-          if self.verbose>0:
+          if self.verbose > 0:
             print "[CDRIngester.get_batch: log] ElasticSearch query at:",str(datetime.datetime.now())
           response = es.scroll(scroll_id=scrollId, scroll="5m")
           break
         except Exception as inst:
-          if self.verbose>0:
-            print "[CDRIngester.get_batch: log] ElasticSearch error when requesting:",query,"... at:",str(datetime.datetime.now())
-            print "[CDRIngester.get_batch: log] {}".format(inst)
+          if self.verbose > 0:
+            log_msg = "[{}.get_batch: log] ElasticSearch error when requesting: {} at {}"
+            print log_msg.format(self.pp, query, str(datetime.datetime.now()))
+            print "[{}.get_batch: log] {}".format(self.pp, inst)
           # Could be just a timeout that will be solved next time we query...
           # Give ES a little rest first.
           time.sleep(10)
 
-    # Trim to get exactly `self.batch_size` samples?
-    if len(cdr_infos)>self.batch_size:
+    # We could trim to get exactly `self.batch_size` samples
+    if len(cdr_infos) > self.batch_size:
       return cdr_infos
 
   def push_batch(self):
