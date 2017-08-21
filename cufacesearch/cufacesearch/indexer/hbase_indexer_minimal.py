@@ -79,12 +79,31 @@ class HBaseIndexerMinimal(ConfReader):
     print_msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
     print print_msg.format(self.pp, time.time()-start_refresh)
 
-
   def check_errors(self, previous_err, function_name, inst=None):
     if previous_err >= max_errors:
       raise Exception("[HBaseIndexerMinimal: error] function {} reached maximum number of error {}. Error was: {}".format(function_name, max_errors, inst))
     return None
 
+  def get_create_table(self, table_name, conn=None, families={'info': dict()}):
+    try:
+      if conn is None:
+        from happybase.connection import Connection
+        conn = Connection(self.hbase_host)
+      try:
+        # what exception would be raised if table does not exist, actually none.
+        # need to try to access families to get error
+        table = conn.table(table_name)
+        # this would fail if table does not exist
+        _ = table.families()
+        return table
+      except Exception as inst:
+        print "[get_create_table: info] table {} does not exist (yet)".format(table_name)
+        conn.create_table(table_name, families)
+        table = conn.table(table_name)
+        print "[get_create_table: info] created table {}".format(table_name)
+        return table
+    except Exception as inst:
+      print inst
 
   def scan_from_row(self, table_name, row_start=None, columns=None, previous_err=0, inst=None):
     self.check_errors(previous_err, "scan_from_row", inst)
@@ -147,9 +166,9 @@ class HBaseIndexerMinimal(ConfReader):
     nb_batch_pushed = 0
     # build batches of self.batch_update_size of images updates
     try:
-      with self.pool.connection() as connection:
-        # Initialize happybase batch
-        table_updateinfos = connection.table(self.table_updateinfos_name)
+      # Initialize happybase batch
+      with self.pool.connection(timeout=self.timeout) as connection:
+        table_updateinfos = self.get_create_table(self.table_updateinfos_name, conn=connection)
         b = table_updateinfos.batch(batch_size=10)
         for batch_list_sha1s in self.get_batch_update(list_sha1s):
           update_id, today = self.get_next_update_id(today)
@@ -167,7 +186,8 @@ class HBaseIndexerMinimal(ConfReader):
     self.check_errors(previous_err, "get_rows_by_batch", inst)
     try:
       with self.pool.connection(timeout=self.timeout) as connection:
-        hbase_table = connection.table(table_name)
+        #hbase_table = connection.table(table_name)
+        hbase_table = self.get_create_table(table_name)
         # slice list_queries in batches of batch_size to query
         rows = []
         nb_batch = 0

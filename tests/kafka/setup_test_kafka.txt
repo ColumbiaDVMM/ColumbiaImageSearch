@@ -1,0 +1,21 @@
+# In kafka 'kafka_2.11-0.10.2.1' directory
+
+# Start zookeeper and kafka
+bin/zookeeper-server-start.sh config/zookeeper.properties
+bin/kafka-server-start.sh config/server.properties
+
+# Creates topics
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic hg-crawl
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic ext-crawl
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic ht-images
+
+# Check topics list
+bin/kafka-topics.sh --list --zookeeper localhost:2181
+
+# If needed, you can delete a topic with
+#
+
+# In 'scripts' folder of this repo..
+# Start ingestion scripts
+
+# Push data to topics
