@@ -1,6 +1,8 @@
 from kafka import KafkaConsumer, KafkaProducer
 from ..common.conf_reader import ConfReader
 
+# Should we consider using Kafka Streams ?
+
 class GenericKafkaProcessor(ConfReader):
 
   def __init__(self, global_conf_filename, prefix=""):
@@ -26,7 +28,7 @@ class GenericKafkaProcessor(ConfReader):
     # see all options at: http://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html
     # could also have parameters for key_deserializer, value_deserializer
     if servers:
-      self.consumer = KafkaConsumer(topic,  group_id=group, bootstrap_servers=servers)
+      self.consumer = KafkaConsumer(topic, group_id=group, bootstrap_servers=servers)
     else:
       self.consumer = KafkaConsumer(topic, group_id=group)
 
