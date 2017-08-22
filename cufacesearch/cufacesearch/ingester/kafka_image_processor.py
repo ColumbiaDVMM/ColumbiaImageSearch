@@ -10,7 +10,9 @@ default_prefix = "KIP_"
 # https://github.com/dpkp/kafka-python/blob/master/example.py
 class KafkaImageProcessor(GenericKafkaProcessor):
 
-  def __init__(self, global_conf_filename, prefix=default_prefix):
+  def __init__(self, global_conf_filename, prefix=default_prefix, pid=None):
+    # when running as deamon
+    self.pid = pid
     # call GenericKafkaProcessor init (and others potentially)
     super(KafkaImageProcessor, self).__init__(global_conf_filename, prefix)
     # any additional initialization needed, like producer specific output logic
@@ -23,9 +25,13 @@ class KafkaImageProcessor(GenericKafkaProcessor):
     self.dl_count = 0
     self.dl_failed = 0
     self.dl_time = 0
+    self.set_pp()
 
   def set_pp(self):
     self.pp = "KafkaImageProcessor"
+    if self.pid:
+      self.pp += ":"+str(self.pid)
+
 
   def get_images_urls(self, msg_value):
     # Filter 'objects' array based on 'content_type' to get only images urls
@@ -74,12 +80,12 @@ class KafkaImageProcessor(GenericKafkaProcessor):
     self.dl_failed += 1
     self.dl_time += time.time() - start_dl
 
-  def process_one(self, msg):
+  def process_one(self, msg, pid=None):
     from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
     #print "%s:%d:%d: key=%s value=%s" % (msg.topic, msg.partition, msg.offset, msg.key, msg.value)
-    print_msg = "%s:%d:%d, dl count: %d, failed: %d, time: %f"
-    avg_dl_time = self.dl_time/max(1,self.dl_count + self.dl_failed)
-    print print_msg % (msg.topic, msg.partition, msg.offset, self.dl_count, self.dl_failed, avg_dl_time)
+    avg_dl_time = self.dl_time / max(1, self.dl_count + self.dl_failed)
+    print_msg = "[%s] %s:%d:%d, dl count: %d, failed: %d, time: %f"
+    print print_msg % (self.pp, msg.topic, msg.partition, msg.offset, self.dl_count, self.dl_failed, avg_dl_time)
     msg_value = json.loads(msg.value)
 
     # From msg value get list_urls for image objects only
@@ -115,7 +121,7 @@ class KafkaImageProcessor(GenericKafkaProcessor):
     for img_out_msg in self.build_image_msg(dict_imgs):
       self.producer.send(self.images_out_topic, img_out_msg)
 
-# TODO: test deamon
+
 class DeamonKafkaImageProcessor(multiprocessing.Process):
 
   daemon = True
@@ -126,8 +132,7 @@ class DeamonKafkaImageProcessor(multiprocessing.Process):
     self.prefix = prefix
 
   def run(self):
-
-    kip = KafkaImageProcessor(self.conf, prefix=self.prefix)
+    kip = KafkaImageProcessor(self.conf, prefix=self.prefix, pid=self.pid)
 
     for msg in kip.consumer:
       kip.process_one(msg)
