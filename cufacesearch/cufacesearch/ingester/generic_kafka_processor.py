@@ -11,7 +11,6 @@ class GenericKafkaProcessor(ConfReader):
     # Initialize attributes
     self.consumer = None
     self.producer = None
-    self.verbose = 2
 
     # Initialize everything
     self.init_consumer()

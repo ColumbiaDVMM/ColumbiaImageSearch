@@ -34,16 +34,13 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     self.featurizer_type = self.get_required_param('featurizer')
     # Get corresponding featurizer object
     from ..featurizer.generic_featurizer import get_featurizer
-    self.featurizer = get_featurizer(self.featurizer_type, self.global_conf_filename)
+    self.featurizer = get_featurizer(self.featurizer_type, self.global_conf)
 
   def init_indexer(self):
     """ Initialize Indexer from `global_conf` value.
     """
-    # Get featurizer type from conf file
-    self.featurizer_type = self.get_required_param('featurizer')
-    # Get corresponding featurizer object
-    from ..featurizer.generic_featurizer import get_featurizer
-    self.featurizer = get_featurizer(self.featurizer_type, self.global_conf_filename)
+    from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal
+    self.indexer = HBaseIndexerMinimal(self.global_conf)
 
   def set_pp(self):
     self.pp = "KafkaFaceProcessor"

@@ -4,10 +4,12 @@
 bin/zookeeper-server-start.sh config/zookeeper.properties
 bin/kafka-server-start.sh config/server.properties
 
+
 # Creates topics
-bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic hg-crawl
-bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic ext-crawl
-bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic ht-images
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic hg-crawl-weapons
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic ext-crawl-weapons
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic images-weapons
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic images-weapons-faces
 
 # Check topics list
 bin/kafka-topics.sh --list --zookeeper localhost:2181
@@ -15,12 +17,13 @@ bin/kafka-topics.sh --list --zookeeper localhost:2181
 # If needed, you can delete a topic with
 # bin/kafka-topics.sh --zookeeper localhost:2181 --delete --topic TOPIC-TO-BE-DELETED
 
-# From root folder of this repo...
 
+# Edit global_conf_facesearch_kafka.json into global_conf_facesearch_kafka_test.json by adding user/pass etc
+# Then, from root folder of this repo...
 # Push some data to crawl topic
-python scripts/ingestion/push_cdr_doc_to_kafka.py -c conf/global_conf_facesearch_kafka.json
+python scripts/ingestion/push_cdr_doc_to_kafka.py -c conf/global_conf_facesearch_kafka_test.json
 
 # Start ingestion scripts
-python scripts/ingestion/run_image_ingestion.py -c conf/global_conf_facesearch_kafka.json
-python scripts/ingestion/run_face_ingestion.py -c conf/global_conf_facesearch_kafka.json
+python scripts/ingestion/run_image_ingestion.py -c conf/global_conf_facesearch_kafka_test.json
+python scripts/ingestion/run_face_ingestion.py -c conf/global_conf_facesearch_kafka_test.json
 

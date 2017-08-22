@@ -8,3 +8,4 @@ matplotlib
 requests
 gevent
 kafka-python
+elasticsearch

@@ -1,8 +1,8 @@
 import json
+import time
 import multiprocessing
 from .generic_kafka_processor import GenericKafkaProcessor
 from ..imgio.imgio import buffer_to_B64
-
 
 default_prefix = "KIP_"
 
@@ -20,6 +20,9 @@ class KafkaImageProcessor(GenericKafkaProcessor):
     # for now "object_stored_prefix" in "_meta" of domain CDR
     # but just get from conf
     self.url_prefix = self.get_required_param('obj_stored_prefix')
+    self.dl_count = 0
+    self.dl_failed = 0
+    self.dl_time = 0
 
   def set_pp(self):
     self.pp = "KafkaImageProcessor"
@@ -63,10 +66,20 @@ class KafkaImageProcessor(GenericKafkaProcessor):
       img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
     return img_out_msgs
 
+  def toc_dl_ok(self, start_dl):
+    self.dl_count += 1
+    self.dl_time += time.time() - start_dl
+
+  def toc_dl_failed(self, start_dl):
+    self.dl_failed += 1
+    self.dl_time += time.time() - start_dl
+
   def process_one(self, msg):
     from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
     #print "%s:%d:%d: key=%s value=%s" % (msg.topic, msg.partition, msg.offset, msg.key, msg.value)
-    print "%s:%d:%d: key=%s" % (msg.topic, msg.partition, msg.offset, msg.key)
+    print_msg = "%s:%d:%d, dl count: %d, failed: %d, time: %f"
+    avg_dl_time = self.dl_time/max(1,self.dl_count + self.dl_failed)
+    print print_msg % (msg.topic, msg.partition, msg.offset, self.dl_count, self.dl_failed, avg_dl_time)
     msg_value = json.loads(msg.value)
 
     # From msg value get list_urls for image objects only
@@ -75,18 +88,26 @@ class KafkaImageProcessor(GenericKafkaProcessor):
     # Get images data and infos
     dict_imgs = dict()
     for url, obj_pos in list_urls:
-      if self.verbose > 1:
+      start_dl = time.time()
+      if self.verbose > 2:
         print_msg = "[{}.process_one: info] Downloading image from: {}"
         print print_msg.format(self.pp, url)
-      img_buffer = get_buffer_from_URL(url)
-      if img_buffer:
-        sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
-        dict_imgs[url] = {'obj_pos': obj_pos, 'img_buffer': img_buffer, 'sha1': sha1, 'img_infos': {'format': img_type, 'width': width, 'height': height}}
-      else:
+      try:
+        img_buffer = get_buffer_from_URL(url)
+        if img_buffer:
+          sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
+          dict_imgs[url] = {'obj_pos': obj_pos, 'img_buffer': img_buffer, 'sha1': sha1, 'img_infos': {'format': img_type, 'width': width, 'height': height}}
+          self.toc_dl_ok(start_dl)
+        else:
+          self.toc_dl_failed(start_dl)
+          if self.verbose > 1:
+            print_msg = "[{}.process_one: info] Could not download image from: {}"
+            print print_msg.format(self.pp, url)
+      except Exception as inst:
+        self.toc_dl_failed(start_dl)
         if self.verbose > 0:
-          print_msg = "[{}.process_one: info] Could not download image from: {}"
-          print print_msg.format(self.pp, url)
-
+          print_msg = "[{}.process_one: error] Could not download image from: {} ({})"
+          print print_msg.format(self.pp, url, inst)
     # Push to cdr_out_topic
     self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
 
