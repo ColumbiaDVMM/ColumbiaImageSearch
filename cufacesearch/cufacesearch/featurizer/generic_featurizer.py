@@ -1,7 +1,8 @@
 from ..common.conf_reader import ConfReader
 
 def get_featurizer(featurizer_type, global_conf_filename):
-  if featurizer_type == "dlib_featurizer":
+  #if featurizer_type == "dlib_featurizer":
+  if featurizer_type == "dlib":
     from dblib_featurizer import DLibFeaturizer
     return DLibFeaturizer(global_conf_filename)
   else:

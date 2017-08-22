@@ -1,11 +1,15 @@
+import multiprocessing
 from .generic_kafka_processor import GenericKafkaProcessor
 from ..imgio.imgio import get_buffer_from_B64
+
 
 default_prefix = "KFP_"
 
 class KafkaFaceProcessor(GenericKafkaProcessor):
 
-  def __init__(self, conf, prefix=default_prefix):
+  def __init__(self, conf, prefix=default_prefix, pid=None):
+    # when running as deamon
+    self.pid = pid
     # call GenericKafkaProcessor init (and others potentially)
     super(KafkaFaceProcessor, self).__init__(conf, prefix)
     # any additional initialization needed, like producer specific output logic
@@ -17,6 +21,11 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     self.init_detector()
     self.init_featurizer()
     self.init_indexer()
+
+  def set_pp(self):
+    self.pp = "KafkaFaceProcessor"
+    if self.pid:
+      self.pp += ":"+str(self.pid)
 
   def init_detector(self):
     """ Initialize Face Detector from `global_conf` value.
@@ -41,9 +50,6 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     """
     from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal
     self.indexer = HBaseIndexerMinimal(self.global_conf)
-
-  def set_pp(self):
-    self.pp = "KafkaFaceProcessor"
 
   def init_out_dict(self, sha1):
     tmp_dict_out = dict()
@@ -87,3 +93,19 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     # Push to face_out_topic
     for face_msg in list_faces_msg:
       self.producer.send(self.face_out_topic, face_msg)
+
+
+class DeamonKafkaFaceProcessor(multiprocessing.Process):
+
+  daemon = True
+
+  def __init__(self, conf, prefix=default_prefix):
+    super(DeamonKafkaFaceProcessor, self).__init__()
+    self.conf = conf
+    self.prefix = prefix
+
+  def run(self):
+    kip = KafkaFaceProcessor(self.conf, prefix=self.prefix, pid=self.pid)
+
+    for msg in kip.consumer:
+      kip.process_one(msg)
