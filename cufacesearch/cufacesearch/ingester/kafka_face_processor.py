@@ -107,8 +107,8 @@ class DeamonKafkaFaceProcessor(multiprocessing.Process):
   def run(self):
     try:
       print "Starting worker KafkaFaceProcessor.{}".format(self.pid)
-      kip = KafkaFaceProcessor(self.conf, prefix=self.prefix, pid=self.pid)
-      for msg in kip.consumer:
-        kip.process_one(msg)
+      kp = KafkaFaceProcessor(self.conf, prefix=self.prefix, pid=self.pid)
+      for msg in kp.consumer:
+        kp.process_one(msg)
     except Exception as inst:
       print "KafkaFaceProcessor.{} died ()".format(self.pid, inst)

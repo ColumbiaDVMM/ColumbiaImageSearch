@@ -134,8 +134,8 @@ class DeamonKafkaImageProcessor(multiprocessing.Process):
   def run(self):
     try:
       print "Starting worker KafkaImageProcessor.{}".format(self.pid)
-      kip = KafkaImageProcessor(self.conf, prefix=self.prefix, pid=self.pid)
-      for msg in kip.consumer:
-        kip.process_one(msg)
+      kp = KafkaImageProcessor(self.conf, prefix=self.prefix, pid=self.pid)
+      for msg in kp.consumer:
+        kp.process_one(msg)
     except Exception as inst:
       print "KafkaImageProcessor.{} died ()".format(self.pid, inst)
