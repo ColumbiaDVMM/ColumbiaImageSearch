@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from cufacesearch.ingester.kafka_image_processor import KafkaImageProcessor, DeamonKafkaImageProcessor, default_prefix
+from cufacesearch.ingester.kafka_image_processor import KafkaImageProcessor, DaemonKafkaImageProcessor, default_prefix
 
 if __name__ == "__main__":
 
@@ -13,8 +13,8 @@ if __name__ == "__main__":
 
   if options.deamon:  # use daemon
     for w in range(options.workers):
-      print "Starting DeamonKafkaImageProcessor worker #{}".format(w)
-      dkip = DeamonKafkaImageProcessor(options.conf_file, prefix=options.prefix)
+      print "Starting DaemonKafkaImageProcessor worker #{}".format(w)
+      dkip = DaemonKafkaImageProcessor(options.conf_file, prefix=options.prefix)
       dkip.start()
     # How should we exit properly?
   else:

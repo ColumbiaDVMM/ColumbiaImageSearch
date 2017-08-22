@@ -95,12 +95,12 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
       self.producer.send(self.face_out_topic, face_msg)
 
 
-class DeamonKafkaFaceProcessor(multiprocessing.Process):
+class DaemonKafkaFaceProcessor(multiprocessing.Process):
 
   daemon = True
 
   def __init__(self, conf, prefix=default_prefix):
-    super(DeamonKafkaFaceProcessor, self).__init__()
+    super(DaemonKafkaFaceProcessor, self).__init__()
     self.conf = conf
     self.prefix = prefix
 

@@ -122,12 +122,12 @@ class KafkaImageProcessor(GenericKafkaProcessor):
       self.producer.send(self.images_out_topic, img_out_msg)
 
 
-class DeamonKafkaImageProcessor(multiprocessing.Process):
+class DaemonKafkaImageProcessor(multiprocessing.Process):
 
   daemon = True
 
   def __init__(self, conf, prefix=default_prefix):
-    super(DeamonKafkaImageProcessor, self).__init__()
+    super(DaemonKafkaImageProcessor, self).__init__()
     self.conf = conf
     self.prefix = prefix
 

@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from cufacesearch.ingester.kafka_face_processor import KafkaFaceProcessor, DeamonKafkaFaceProcessor, default_prefix
+from cufacesearch.ingester.kafka_face_processor import KafkaFaceProcessor, DaemonKafkaFaceProcessor, default_prefix
 
 if __name__ == "__main__":
 
@@ -13,8 +13,8 @@ if __name__ == "__main__":
 
   if options.deamon:  # use daemon
     for w in range(options.workers):
-      print "Starting DeamonKafkaFaceProcessor worker #{}".format(w)
-      dkip = DeamonKafkaFaceProcessor(options.conf_file, prefix=options.prefix)
+      print "Starting DaemonKafkaFaceProcessor worker #{}".format(w)
+      dkip = DaemonKafkaFaceProcessor(options.conf_file, prefix=options.prefix)
       dkip.start()
       # How should we exit properly?
   else:
