@@ -17,6 +17,7 @@ if __name__ == "__main__":
 
   if options.deamon:  # use daemon
     for w in range(options.workers):
+      # How to pass 'max_message' ?
       print "Starting DaemonKafkaImageProcessor worker #{}".format(w)
       dkip = DaemonKafkaImageProcessor(options.conf_file, prefix=options.prefix)
       dkip.start()

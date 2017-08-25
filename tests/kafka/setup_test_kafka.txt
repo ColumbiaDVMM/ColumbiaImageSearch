@@ -13,6 +13,9 @@ bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 -
 
 # Check topics list
 bin/kafka-topics.sh --list --zookeeper localhost:2181
+# Check topic conifg
+bin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic  ht-images
+
 
 # If needed, you can delete a topic with
 # bin/kafka-topics.sh --zookeeper localhost:2181 --delete --topic TOPIC-TO-BE-DELETED

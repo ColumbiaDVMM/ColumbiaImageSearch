@@ -1,3 +1,7 @@
+import os
+import sys
+import time
+
 import multiprocessing
 from .generic_kafka_processor import GenericKafkaProcessor
 from ..imgio.imgio import get_buffer_from_B64
@@ -64,40 +68,53 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     tmp_dict_out['featurizer_type'] = self.featurizer_type
     return tmp_dict_out
 
-  def process_one(self, msg):
+  def process_one(self, full_msg):
     # msg is coming as json with fields: sha1, s3_url, img_infos, img_buffer
     # see 'build_image_msg' of KafkaImageProcessor
     # buffer is B64 encoded and should be decoded with get_buffer_from_B64
-    import json
+    try:
 
-    # Check if sha1 is in DB with column 'ext:'+detector_type+'_facefound' set for row msg['sha1']
-    # Need to setup a HBaseIndexer...
+      self.print_stats(full_msg)
+      start_process = time.time()
 
-    # Detect faces
-    list_faces_msg = []
-    img, dets = self.detector.detect_from_buffer_noinfos(get_buffer_from_B64(msg['img_buffer']), up_sample=1)
-    if dets:
-      # For each detected face...
-      for one_face in dets:
-        # Compute face feature
-        one_feat = self.featurizer.featurize(img, one_face)
-        # Build out dictionary
+      import json
+      msg = json.loads(full_msg.value)
+      #print msg
+
+      # Check if sha1 is in DB with column 'ext:'+detector_type+'_facefound' set for row msg['sha1']
+      # Need to setup a HBaseIndexer...
+
+      # Detect faces
+      list_faces_msg = []
+      img, dets = self.detector.detect_from_buffer_noinfos(get_buffer_from_B64(msg['img_buffer']), up_sample=1)
+      if dets:
+        # For each detected face...
+        for one_face in dets:
+          # Compute face feature
+          one_feat = self.featurizer.featurize(img, one_face)
+          # Build out dictionary
+          tmp_dict_out = self.init_out_dict(msg['sha1'])
+          tmp_dict_out['facefound'] = True
+          tmp_dict_out['face_bbox'] = one_face
+          # base64 encode the feature to be dumped
+          tmp_dict_out['face_feat'] = featB64encode(one_feat)
+          # Dump as JSON
+          list_faces_msg.append(json.dumps(tmp_dict_out).encode('utf-8'))
+      else:
+        # Push one default dict with 'facefound' set to False
         tmp_dict_out = self.init_out_dict(msg['sha1'])
-        tmp_dict_out['facefound'] = True
-        tmp_dict_out['face_bbox'] = one_face
-        # base64 encode the feature to be dumped
-        tmp_dict_out['face_feat'] = featB64encode(one_feat)
-        # Dump as JSON
         list_faces_msg.append(json.dumps(tmp_dict_out).encode('utf-8'))
-    else:
-      # Push one default dict with 'facefound' set to False
-      tmp_dict_out = self.init_out_dict(msg['sha1'])
-      list_faces_msg.append(json.dumps(tmp_dict_out).encode('utf-8'))
 
-    # Push to face_out_topic
-    for face_msg in list_faces_msg:
-      self.producer.send(self.face_out_topic, face_msg)
+      # Push to face_out_topic
+      for face_msg in list_faces_msg:
+        self.producer.send(self.face_out_topic, face_msg)
 
+      self.toc_process_ok(start_process)
+    except Exception as inst:
+      self.toc_process_failed(start_process)
+      exc_type, exc_obj, exc_tb = sys.exc_info()
+      fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+      raise type(inst)("{} {}:{}, {}".format(self.pp, fname, exc_tb.tb_lineno, inst))
 
 class DaemonKafkaFaceProcessor(multiprocessing.Process):
 
@@ -109,10 +126,13 @@ class DaemonKafkaFaceProcessor(multiprocessing.Process):
     self.prefix = prefix
 
   def run(self):
+
     try:
       print "Starting worker KafkaFaceProcessor.{}".format(self.pid)
       kp = KafkaFaceProcessor(self.conf, prefix=self.prefix, pid=self.pid)
       for msg in kp.consumer:
         kp.process_one(msg)
     except Exception as inst:
-      print "KafkaFaceProcessor.{} died ()".format(self.pid, inst)
+      exc_type, exc_obj, exc_tb = sys.exc_info()
+      fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+      print "KafkaFaceProcessor.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)

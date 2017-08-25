@@ -1,3 +1,4 @@
+import time
 from kafka import KafkaConsumer, KafkaProducer
 from ..common.conf_reader import ConfReader
 
@@ -16,6 +17,12 @@ class GenericKafkaProcessor(ConfReader):
     # Initialize attributes
     self.consumer = None
     self.producer = None
+
+    # Initialize stats attributes
+    self.process_count = 0
+    self.process_failed = 0
+    self.process_time = 0
+    self.display_count = 100
 
     # Initialize everything
     self.init_consumer()
@@ -49,6 +56,20 @@ class GenericKafkaProcessor(ConfReader):
         else:
           dict_args[str(sec_key)] = str(security[sec_key])
     return dict_args
+
+  def toc_process_ok(self, start_process):
+    self.process_count += 1
+    self.process_time += time.time() - start_process
+
+  def toc_process_failed(self, start_process):
+    self.process_failed += 1
+    self.process_time += time.time() - start_process
+
+  def print_stats(self, msg):
+    if (self.process_count + self.process_failed) % self.display_count == 0:
+      avg_process_time = self.process_time / max(1, self.process_count + self.process_failed)
+      print_msg = "[%s] (%s:%d:%d) process count: %d, failed: %d, time: %f"
+      print print_msg % (self.pp, msg.topic, msg.partition, msg.offset, self.process_count, self.process_failed, avg_process_time)
 
   def set_pp(self):
     self.pp = "GenericKafkaProcessor"

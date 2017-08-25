@@ -6,10 +6,10 @@ default_image_dl_timeout = 1
 
 # Could be moved to a factory
 def get_detector(detector_type):
-  #if detector_type == "dblib_detector":
-  if detector_type == "dblib":
-    import dblib_detector
-    return dblib_detector.DLibFaceDetector()
+  #if detector_type == "dlib_detector":
+  if detector_type == "dlib":
+    import dlib_detector
+    return dlib_detector.DLibFaceDetector()
   else:
     raise ValueError("[{}: error] unknown 'detector' {}.".format("get_detector", detector_type))
 
