@@ -56,7 +56,6 @@ class KafkaImageProcessor(GenericKafkaProcessor):
       tmp_obj['img_info'] = img['img_info']
       tmp_obj['img_sha1'] = img['sha1']
       msg_value['objects'][img['obj_pos']] = tmp_obj
-    # should we return just the value?
     return json.dumps(msg_value).encode('utf-8')
 
   def build_image_msg(self, dict_imgs):

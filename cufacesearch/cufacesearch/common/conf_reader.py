@@ -23,14 +23,15 @@ class ConfReader(object):
 
   def set_pp(self):
     """ Sets pretty print name 'self.pp'.
+
+    Should be overridden in any child class.
     """
-    # NB: should be overridden in any child class
     self.pp = "ConfReader"
 
   def read_conf(self):
     """ Read generic parameters from configuration file.
 
-    Currently, just reads 'verbose'.
+    Currently, just reads 'verbose'. Can be overriden in any child class to get specific parameters.
     """
     # read some generic parameters
     verbose = self.get_param('verbose')

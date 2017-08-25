@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from cufacesearch.ingester.kafka_image_processor import KafkaImageProcessor, DaemonKafkaImageProcessor, default_prefix
+import time
 
 if __name__ == "__main__":
 
@@ -9,7 +10,10 @@ if __name__ == "__main__":
   parser.add_argument("-p", "--prefix", dest="prefix", default=default_prefix)
   parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
   parser.add_argument("-w", "--workers", dest="workers", type=int, default=8)
+  parser.add_argument("-m", "--max_message", dest="max_message", type=int, default=0)
   options = parser.parse_args()
+
+  nb_msg = 0
 
   if options.deamon:  # use daemon
     for w in range(options.workers):
@@ -25,4 +29,7 @@ if __name__ == "__main__":
     while True:
       for msg in kip.consumer:
         kip.process_one(msg)
-
+        nb_msg += 1
+        if options.max_message > 0 and nb_msg >= options.max_message:
+          time.sleep(10)
+          exit()
