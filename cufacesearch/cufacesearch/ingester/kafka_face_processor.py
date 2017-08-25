@@ -1,6 +1,7 @@
 import multiprocessing
 from .generic_kafka_processor import GenericKafkaProcessor
 from ..imgio.imgio import get_buffer_from_B64
+from ..featurizer.featsio import featB64encode
 
 
 default_prefix = "KFP_"
@@ -54,9 +55,13 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
   def init_out_dict(self, sha1):
     tmp_dict_out = dict()
     tmp_dict_out['sha1'] = sha1
+    tmp_dict_out['facefound'] = False
+    # This should be used to mark this image as processed by this combination detector/featurizer
+    # e.g. pushing at least a column 'dlib_feat_dlib_face_facefound' with value False
+    # features should be pushed as B64 encoded in a column 'dlib_feat_dlib_face_BBOX_SCORE',
+    # BBOX order should be: left, top, right, bottom. See workflows/push_facedata_to_hbase.py
     tmp_dict_out['detector_type'] = self.detector_type
     tmp_dict_out['featurizer_type'] = self.featurizer_type
-    tmp_dict_out['facefound'] = False
     return tmp_dict_out
 
   def process_one(self, msg):
@@ -64,9 +69,8 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     # see 'build_image_msg' of KafkaImageProcessor
     # buffer is B64 encoded and should be decoded with get_buffer_from_B64
     import json
-    import base64
 
-    # Check if sha1 is in DB with column 'ext:'+detector_type+'_facefound' set
+    # Check if sha1 is in DB with column 'ext:'+detector_type+'_facefound' set for row msg['sha1']
     # Need to setup a HBaseIndexer...
 
     # Detect faces
@@ -82,7 +86,7 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
         tmp_dict_out['facefound'] = True
         tmp_dict_out['face_bbox'] = one_face
         # base64 encode the feature to be dumped
-        tmp_dict_out['face_feat'] = base64.b64encode(one_feat)
+        tmp_dict_out['face_feat'] = featB64encode(one_feat)
         # Dump as JSON
         list_faces_msg.append(json.dumps(tmp_dict_out).encode('utf-8'))
     else:

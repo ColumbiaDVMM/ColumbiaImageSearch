@@ -163,24 +163,30 @@ class HBaseIndexerMinimal(ConfReader):
   def push_list_updates(self, list_sha1s, previous_err=0, inst=None):
     self.check_errors(previous_err, "push_list_updates", inst)
     today = None
-    nb_batch_pushed = 0
-    # build batches of self.batch_update_size of images updates
+    dict_updates = dict()
+    # Build batches of self.batch_update_size of images updates
+    # NB: this batching is redundant with what is done in 'full_image_updater_kafka_to_hbase'
+    # but ensures batches have the right size even if called from somewhere else...
+    for batch_list_sha1s in self.get_batch_update(list_sha1s):
+      update_id, today = self.get_next_update_id(today)
+      dict_updates[update_id] = {self.column_list_sha1s: ','.join(batch_list_sha1s)}
+    # Push them
+    self.push_dict_rows(dict_updates, self.table_updateinfos_name)
+
+  def push_dict_rows(self, dict_rows, table_name, previous_err=0, inst=None):
+    self.check_errors(previous_err, "push_dict_rows", inst)
     try:
-      # Initialize happybase batch
       with self.pool.connection(timeout=self.timeout) as connection:
-        table_updateinfos = self.get_create_table(self.table_updateinfos_name, conn=connection)
-        b = table_updateinfos.batch(batch_size=10)
-        for batch_list_sha1s in self.get_batch_update(list_sha1s):
-          update_id, today = self.get_next_update_id(today)
-          b.put(update_id, {self.column_list_sha1s: ','.join(batch_list_sha1s)})
-          nb_batch_pushed += 1
+        table = self.get_create_table(table_name, conn=connection)
+        b = table.batch(batch_size=10)
+        # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
+        for k in dict_rows:
+          b.put(k, dict_rows[k])
         b.send()
     except Exception as inst: # try to catch any exception
-      print "[push_list_updates: error] {}".format(inst)
-      self.dict_up[self.get_today_string()] = 0
-      self.refresh_hbase_conn("push_list_updates")
-      return self.push_list_updates(list_sha1s, previous_err+1, inst)
-    return nb_batch_pushed
+      print "[push_dict_rows: error] {}".format(inst)
+      self.refresh_hbase_conn("push_dict_rows")
+      return self.push_rows(dict_rows, table_name, previous_err+1, inst)
 
   def get_rows_by_batch(self, list_queries, table_name, columns=None, previous_err=0, inst=None):
     self.check_errors(previous_err, "get_rows_by_batch", inst)
