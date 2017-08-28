@@ -11,10 +11,24 @@ bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 -
 bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic images-weapons
 bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 4 --topic images-weapons-faces
 
+
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 16 --topic ext-backpage-test
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 16 --topic images-backpage-test
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic faces-backpage-test
+
 # Check topics list
 bin/kafka-topics.sh --list --zookeeper localhost:2181
 # Check topic conifg
 bin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic  ht-images
+
+bin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic ext-backpage-test
+bin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic images-backpage-test
+bin/kafka-topics.sh --describe --zookeeper localhost:2181 --topic faces-backpage-test
+
+# Check number of samples?
+bin/kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic faces-backpage-test --time -1
+
+bin/kafka-console-consumer.sh --zookeeper localhost:2181 --topic faces-backpage-test --from-beginning --max-messages 1
 
 
 # If needed, you can delete a topic with

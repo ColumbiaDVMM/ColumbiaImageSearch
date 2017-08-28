@@ -8,6 +8,7 @@ if __name__ == "__main__":
   parser.add_argument("-c", "--conf", dest="conf_file", required=True)
   parser.add_argument("-p", "--prefix", dest="prefix", default=default_prefix)
   parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
+  # Should be set to number of CPUs
   parser.add_argument("-w", "--workers", dest="workers", type=int, default=8)
   options = parser.parse_args()
 

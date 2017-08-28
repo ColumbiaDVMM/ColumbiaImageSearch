@@ -108,6 +108,8 @@ class KafkaImageProcessor(GenericKafkaProcessor):
     # Push to cdr_out_topic
     self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
 
+    # TODO: we could have all extraction registered here, and not pushing an image if it has been processed by
+    # all extractions. But that violates the consumer design of Kafka...
     # Push to images_out_topic
     for img_out_msg in self.build_image_msg(dict_imgs):
       self.producer.send(self.images_out_topic, img_out_msg)

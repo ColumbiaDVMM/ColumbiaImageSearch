@@ -9,8 +9,9 @@ TException = happybase._thriftpy.thrift.TException
 max_errors = 2
 # reading a lot of data from HBase at once can be unstable
 batch_size = 100
-# Is the connection pool causing some issue? Could we use a single connection?
+str_processed = "processed"
 
+# Is the connection pool causing some issue? Could we use a single connection?
 
 class HBaseIndexerMinimal(ConfReader):
 
@@ -83,6 +84,9 @@ class HBaseIndexerMinimal(ConfReader):
     if previous_err >= max_errors:
       raise Exception("[HBaseIndexerMinimal: error] function {} reached maximum number of error {}. Error was: {}".format(function_name, max_errors, inst))
     return None
+
+  def get_check_column(self, extraction):
+    return "ext:"+"_".join([extraction, str_processed])
 
   def get_create_table(self, table_name, conn=None, families={'info': dict()}):
     try:
@@ -188,12 +192,15 @@ class HBaseIndexerMinimal(ConfReader):
       self.refresh_hbase_conn("push_dict_rows")
       return self.push_rows(dict_rows, table_name, previous_err+1, inst)
 
-  def get_rows_by_batch(self, list_queries, table_name, columns=None, previous_err=0, inst=None):
+  def get_rows_by_batch(self, list_queries, table_name, families=None, columns=None, previous_err=0, inst=None):
     self.check_errors(previous_err, "get_rows_by_batch", inst)
     try:
       with self.pool.connection(timeout=self.timeout) as connection:
         #hbase_table = connection.table(table_name)
-        hbase_table = self.get_create_table(table_name)
+        if families:
+          hbase_table = self.get_create_table(table_name, families=families)
+        else:
+          hbase_table = self.get_create_table(table_name)
         # slice list_queries in batches of batch_size to query
         rows = []
         nb_batch = 0
@@ -207,18 +214,19 @@ class HBaseIndexerMinimal(ConfReader):
     except Exception as inst:
       # try to force longer sleep time...
       self.refresh_hbase_conn("get_rows_by_batch", sleep_time=4)
-      return self.get_rows_by_batch(list_queries, table_name, columns, previous_err+1, inst)
+      return self.get_rows_by_batch(list_queries, table_name, families=families, columns=columns,
+                                    previous_err=previous_err+1, inst=inst)
 
-  def get_columns_from_sha1_rows(self, list_sha1s, columns, previous_err=0, inst=None):
+  def get_columns_from_sha1_rows(self, list_sha1s, columns, families=None, previous_err=0, inst=None):
     rows = None
     self.check_errors(previous_err, "get_columns_from_sha1_rows", inst)
     if list_sha1s:
       try:
-        rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name, columns=columns)
+        rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name, families=families, columns=columns)
       except Exception as inst: # try to catch any exception
         print "[get_columns_from_sha1_rows: error] {}".format(inst)
         self.refresh_hbase_conn("get_columns_from_sha1_rows")
-        return self.get_columns_from_sha1_rows(list_sha1s, columns, previous_err+1, inst)
+        return self.get_columns_from_sha1_rows(list_sha1s, columns, families=families, previous_err=previous_err+1, inst=inst)
     return rows
 
 
