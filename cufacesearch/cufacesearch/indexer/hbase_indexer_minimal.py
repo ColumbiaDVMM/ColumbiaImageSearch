@@ -49,6 +49,10 @@ class HBaseIndexerMinimal(ConfReader):
     param_nb_threads = self.get_param('pool_thread')
     if param_nb_threads:
       self.nb_threads = param_nb_threads
+    batch_update_size = self.get_param('batch_update_size')
+    if batch_update_size:
+      if int(batch_update_size) > 0:
+        self.batch_update_size = int(batch_update_size)
     from thriftpy.transport import TTransportException
     try:
       # The timeout as parameter seems to cause issues?...
@@ -145,7 +149,7 @@ class HBaseIndexerMinimal(ConfReader):
     return rows
 
   def get_today_string(self):
-    return datetime.datetime.today().strftime('%Y-%m-%d')
+    return datetime.today().strftime('%Y-%m-%d')
 
   def get_next_update_id(self, today=None):
     # get today's date as in format YYYY-MM-DD
@@ -190,7 +194,7 @@ class HBaseIndexerMinimal(ConfReader):
     except Exception as inst: # try to catch any exception
       print "[push_dict_rows: error] {}".format(inst)
       self.refresh_hbase_conn("push_dict_rows")
-      return self.push_rows(dict_rows, table_name, previous_err+1, inst)
+      return self.push_dict_rows(dict_rows, table_name, previous_err+1, inst)
 
   def get_rows_by_batch(self, list_queries, table_name, families=None, columns=None, previous_err=0, inst=None):
     self.check_errors(previous_err, "get_rows_by_batch", inst)

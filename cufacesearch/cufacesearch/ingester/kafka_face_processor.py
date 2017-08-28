@@ -77,6 +77,9 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     # Build bbox string as left_top_right_bottom_score
     return "_".join(["{}"]*5).format(bbox["left"], bbox["top"], bbox["right"], bbox["bottom"], bbox["score"])
 
+  # This could also be done in a separate process with a single consumer from self.face_out_topic
+  # Similarly to the full_image_updater...
+  # I have had some issues with many connections opened with happybase to the same HBase instance...
   def build_hbase_dict(self, list_faces_msg):
     dict_rows = dict()
     for msg_str in list_faces_msg:
