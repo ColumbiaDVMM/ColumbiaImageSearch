@@ -1,3 +1,5 @@
+import os
+import sys
 import json
 import time
 import multiprocessing
@@ -203,4 +205,6 @@ class DaemonKafkaImageDownloader(multiprocessing.Process):
       for msg in kp.consumer:
         kp.process_one(msg)
     except Exception as inst:
-      print "KafkaImageDownloader.{} died ()".format(self.pid, inst)
+      exc_type, exc_obj, exc_tb = sys.exc_info()
+      fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+      print "KafkaImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
