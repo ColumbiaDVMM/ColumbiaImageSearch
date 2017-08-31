@@ -7,6 +7,8 @@ from ..imgio.imgio import buffer_to_B64
 default_prefix = "KIP_"
 default_prefix_frompkl = "KIPFP_"
 
+# TODO: This class should be rewritten to actually extract features from images...
+# Should we have a generic extractor to inherit from, with just a different process_one_core() method?...
 
 class KafkaImageProcessor(GenericKafkaProcessor):
 

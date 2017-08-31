@@ -30,6 +30,9 @@ class GenericKafkaProcessor(ConfReader):
     self.init_consumer()
     self.init_producer()
 
+    # Set print prefix
+    self.set_pp()
+
   def get_param_type(self, param_key):
     spk = str(param_key)
     if spk in KafkaConsumer.DEFAULT_CONFIG:

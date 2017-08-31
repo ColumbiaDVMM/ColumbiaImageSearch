@@ -22,10 +22,10 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     # for now "object_stored_prefix" in "_meta" of domain CDR
     # but just get from conf
     self.url_prefix = self.get_required_param('obj_stored_prefix')
-    self.process_count = 0
-    self.process_failed = 0
-    self.process_time = 0
+
+    # Set print prefix
     self.set_pp()
+
 
   def set_pp(self):
     self.pp = "KafkaImageDownloader"
@@ -59,14 +59,14 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     return json.dumps(msg_value).encode('utf-8')
 
   def build_image_msg(self, dict_imgs):
-    # Build dict ouput for each image with fields 's3_url', 'sha1', 'img_info' and 'img_buffer'
+    # Build dict output for each image with fields 's3_url', 'sha1', 'img_info' and 'img_buffer'
     img_out_msgs = []
     for url in dict_imgs:
       tmp_dict_out = dict()
       tmp_dict_out['s3_url'] = url
       tmp_dict_out['sha1'] = dict_imgs[url]['sha1']
       tmp_dict_out['img_info'] = dict_imgs[url]['img_info']
-      # encode buffer in B64?
+      # encode buffer in B64 for JSON dumping
       tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
       img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
     return img_out_msgs
@@ -75,7 +75,6 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
 
     self.print_stats(msg)
-
     msg_value = json.loads(msg.value)
 
     # From msg value get list_urls for image objects only
@@ -125,10 +124,7 @@ class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
     # any additional initialization needed, like producer specific output logic
     self.images_out_topic = self.get_required_param('producer_cdr_out_topic')
     self.pkl_path = self.get_required_param('pkl_path')
-    self.process_count = 0
-    self.process_failed = 0
-    self.process_time = 0
-    self.display_count = 100
+
     self.set_pp()
 
   def set_pp(self):
