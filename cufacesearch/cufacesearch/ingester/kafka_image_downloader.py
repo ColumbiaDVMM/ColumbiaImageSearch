@@ -83,6 +83,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     # Get images data and infos
     dict_imgs = dict()
     for url, obj_pos in list_urls:
+      # process time is by image and not by msg...
       start_process = time.time()
       if self.verbose > 2:
         print_msg = "[{}.process_one: info] Downloading image from: {}"
