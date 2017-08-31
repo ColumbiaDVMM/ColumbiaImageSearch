@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from cufacesearch.ingester.kafka_image_processor import KafkaImageProcessor, DaemonKafkaImageProcessor, default_prefix
+from cufacesearch.ingester.kafka_image_downloader import KafkaImageDownloader, DaemonKafkaImageDownloader, default_prefix
 import time
 
 if __name__ == "__main__":
@@ -18,13 +18,13 @@ if __name__ == "__main__":
   if options.deamon:  # use daemon
     for w in range(options.workers):
       # How to pass 'max_message' ?
-      print "Starting DaemonKafkaImageProcessor worker #{}".format(w)
-      dkip = DaemonKafkaImageProcessor(options.conf_file, prefix=options.prefix)
+      print "Starting DaemonKafkaImageDownloader worker #{}".format(w)
+      dkip = DaemonKafkaImageDownloader(options.conf_file, prefix=options.prefix)
       dkip.start()
     # How should we exit properly?
   else:
     # Initialize
-    kip = KafkaImageProcessor(options.conf_file, prefix=options.prefix)
+    kip = KafkaImageDownloader(options.conf_file, prefix=options.prefix)
 
     # Ingest
     while True:

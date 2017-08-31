@@ -22,7 +22,7 @@ class HBaseIndexerMinimal(ConfReader):
     self.timeout = 4
     # to store count of batches of updates pushed
     self.dict_up = dict()
-    self.batch_update_size = 10000
+    self.batch_update_size = 1000
     # could be set in parameters
     self.column_list_sha1s = "info:list_sha1s"
     super(HBaseIndexerMinimal, self).__init__(global_conf_in, prefix)
@@ -111,6 +111,7 @@ class HBaseIndexerMinimal(ConfReader):
         print "[get_create_table: info] created table {}".format(table_name)
         return table
     except Exception as inst:
+      # may fail if families in dictionary do not match those of an existing table
       print inst
 
   def scan_from_row(self, table_name, row_start=None, columns=None, previous_err=0, inst=None):
@@ -160,6 +161,7 @@ class HBaseIndexerMinimal(ConfReader):
       self.dict_up[today] = 0
     else:
       self.dict_up[today] += 1
+    # we could add the extraction type here...
     update_id = "index_update_" + today + "_" + str(self.dict_up[today])
     return update_id, today
 
@@ -216,8 +218,8 @@ class HBaseIndexerMinimal(ConfReader):
           print("[get_rows_by_batch: log] got {} rows using {} batches.".format(len(rows), nb_batch))
         return rows
     except Exception as inst:
-      # try to force longer sleep time...
-      self.refresh_hbase_conn("get_rows_by_batch", sleep_time=4)
+      # try to force longer sleep time if error repeats...
+      self.refresh_hbase_conn("get_rows_by_batch", sleep_time=previous_err)
       return self.get_rows_by_batch(list_queries, table_name, families=families, columns=columns,
                                     previous_err=previous_err+1, inst=inst)
 

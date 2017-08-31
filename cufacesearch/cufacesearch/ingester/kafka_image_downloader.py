@@ -4,17 +4,17 @@ import multiprocessing
 from .generic_kafka_processor import GenericKafkaProcessor
 from ..imgio.imgio import buffer_to_B64
 
-default_prefix = "KIP_"
-default_prefix_frompkl = "KIPFP_"
+default_prefix = "KID_"
+default_prefix_frompkl = "KIDFP_"
 
 
-class KafkaImageProcessor(GenericKafkaProcessor):
+class KafkaImageDownloader(GenericKafkaProcessor):
 
   def __init__(self, global_conf_filename, prefix=default_prefix, pid=None):
     # when running as deamon
     self.pid = pid
     # call GenericKafkaProcessor init (and others potentially)
-    super(KafkaImageProcessor, self).__init__(global_conf_filename, prefix)
+    super(KafkaImageDownloader, self).__init__(global_conf_filename, prefix)
     # any additional initialization needed, like producer specific output logic
     self.cdr_out_topic = self.get_required_param('producer_cdr_out_topic')
     self.images_out_topic = self.get_required_param('producer_images_out_topic')
@@ -28,7 +28,7 @@ class KafkaImageProcessor(GenericKafkaProcessor):
     self.set_pp()
 
   def set_pp(self):
-    self.pp = "KafkaImageProcessor"
+    self.pp = "KafkaImageDownloader"
     if self.pid:
       self.pp += ":"+str(self.pid)
 
@@ -114,16 +114,16 @@ class KafkaImageProcessor(GenericKafkaProcessor):
       self.producer.send(self.images_out_topic, img_out_msg)
 
 
-class KafkaImageProcessorFromPkl(GenericKafkaProcessor):
+class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
   # To push list of images to be processed from a pickle file containing a dictionary
   # {'update_ids': update['update_ids'], 'update_images': out_update_images}
   # with 'out_update_images' being a list of tuples (sha1, url)
 
   def __init__(self, global_conf_filename, prefix=default_prefix_frompkl):
     # call GenericKafkaProcessor init (and others potentially)
-    super(KafkaImageProcessorFromPkl, self).__init__(global_conf_filename, prefix)
+    super(KafkaImageDownloaderFromPkl, self).__init__(global_conf_filename, prefix)
     # any additional initialization needed, like producer specific output logic
-    self.images_out_topic = self.get_required_param('images_out_topic')
+    self.images_out_topic = self.get_required_param('producer_cdr_out_topic')
     self.pkl_path = self.get_required_param('pkl_path')
     self.process_count = 0
     self.process_failed = 0
@@ -132,7 +132,7 @@ class KafkaImageProcessorFromPkl(GenericKafkaProcessor):
     self.set_pp()
 
   def set_pp(self):
-    self.pp = "KafkaImageProcessorFromPkl"
+    self.pp = "KafkaImageDownloaderFromPkl"
 
   def get_next_img(self):
     import pickle
@@ -191,20 +191,20 @@ class KafkaImageProcessorFromPkl(GenericKafkaProcessor):
       for img_out_msg in self.build_image_msg(dict_imgs):
         self.producer.send(self.images_out_topic, img_out_msg)
 
-class DaemonKafkaImageProcessor(multiprocessing.Process):
+class DaemonKafkaImageDownloader(multiprocessing.Process):
 
   daemon = True
 
   def __init__(self, conf, prefix=default_prefix):
-    super(DaemonKafkaImageProcessor, self).__init__()
+    super(DaemonKafkaImageDownloader, self).__init__()
     self.conf = conf
     self.prefix = prefix
 
   def run(self):
     try:
-      print "Starting worker KafkaImageProcessor.{}".format(self.pid)
-      kp = KafkaImageProcessor(self.conf, prefix=self.prefix, pid=self.pid)
+      print "Starting worker KafkaImageDownloader.{}".format(self.pid)
+      kp = KafkaImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
       for msg in kp.consumer:
         kp.process_one(msg)
     except Exception as inst:
-      print "KafkaImageProcessor.{} died ()".format(self.pid, inst)
+      print "KafkaImageDownloader.{} died ()".format(self.pid, inst)
