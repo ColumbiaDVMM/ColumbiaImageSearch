@@ -13,7 +13,7 @@ layers {
   transform_param {
     mirror: false
     crop_size: 227
-    mean_file: "./features_extract/imagenet_mean.binaryproto"
+    mean_file: "imagenet_mean.binaryproto"
   }
 }
 layers {
