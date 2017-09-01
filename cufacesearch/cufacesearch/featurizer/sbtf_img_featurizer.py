@@ -13,6 +13,7 @@ import tensorflow as tf
 from scipy import misc
 
 from .generic_featurizer import GenericFeaturizer
+from ..common.dl import download_file
 
 
 
