@@ -1,4 +1,6 @@
+import os
 import time
+from datetime import datetime
 from kafka import KafkaConsumer, KafkaProducer
 from ..common.conf_reader import ConfReader
 
@@ -24,6 +26,7 @@ class GenericKafkaProcessor(ConfReader):
     self.process_failed = 0
     # Should we have separate timings for each cases?
     self.process_time = 0
+    self.start_time = time.time()
     self.display_count = 100
 
     # Initialize everything
@@ -77,9 +80,16 @@ class GenericKafkaProcessor(ConfReader):
   def print_stats(self, msg):
     tot = self.process_count + self.process_failed + self.process_skip
     if tot % self.display_count == 0:
+      # also use os.times() https://stackoverflow.com/questions/276281/cpu-usage-per-process-in-python
+      display_time = datetime.today().strftime('%Y/%m/%d-%H:%M.%S')
       avg_process_time = self.process_time / max(1, tot)
-      print_msg = "[%s] (%s:%d:%d) process count: %d, skipped: %d, failed: %d, time: %f"
-      print print_msg % (self.pp, msg.topic, msg.partition, msg.offset, self.process_count, self.process_skip, self.process_failed, avg_process_time)
+      utime, stime, _, _, _ = os.times()
+      runtime = time.time() - self.start_time
+      #print_msg = "[%s:%s] (%s:%d:%d) (img proc. count: %d, skipped: %d, failed: %d, avg. time: %.2f) (time run: %.2f, cpu: %.2f, cpu/run: %.2f)"
+      print_msg = "[%s:%s] (%s:%d:%d) (img proc. count: %d, skipped: %d, failed: %d, avg. time: %.2f) (time run: %.2f, cpu: %.2f)"
+      print print_msg % (self.pp, display_time, msg.topic, msg.partition, msg.offset,
+                         self.process_count, self.process_skip, self.process_failed, avg_process_time,
+                         runtime, stime)
 
   def set_pp(self):
     self.pp = "GenericKafkaProcessor"
