@@ -8,6 +8,8 @@ default_prefix = "KIP_"
 default_prefix_frompkl = "KIPFP_"
 
 # TODO: This class should be rewritten to actually extract features from images...
+# TODO: Work on getting a pycaffe sentibank featurizer. Check we get same feature values than command line in 'sentibank_cmdline'
+# at 'https://github.com/ColumbiaDVMM/ColumbiaImageSearch/blob/master/cu_image_search/feature_extractor/sentibank_cmdline.py'
 # Should we have a generic extractor to inherit from, with just a different process_one_core() method?...
 
 class KafkaImageProcessor(GenericKafkaProcessor):
