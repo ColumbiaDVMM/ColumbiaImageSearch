@@ -11,7 +11,6 @@ default_prefix_frompkl = "KIDFP_"
 
 
 class KafkaImageDownloader(GenericKafkaProcessor):
-
   def __init__(self, global_conf_filename, prefix=default_prefix, pid=None):
     # when running as deamon
     self.pid = pid
@@ -28,12 +27,10 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     # Set print prefix
     self.set_pp()
 
-
   def set_pp(self):
     self.pp = "KafkaImageDownloader"
     if self.pid:
-      self.pp += ":"+str(self.pid)
-
+      self.pp += "." + str(self.pid)
 
   def get_images_urls(self, msg_value):
     # Filter 'objects' array based on 'content_type' to get only images urls
@@ -49,7 +46,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
       print "[{}.get_images_urls: info] Message had not 'objects' fields.".format(self.pp)
 
     return list_urls
-  
+
   def build_cdr_msg(self, msg_value, dict_imgs):
     # Edit 'objects' array to add 'img_info', and 'img_sha1' for images
     for url in dict_imgs:
@@ -84,6 +81,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
 
     # Get images data and infos
     dict_imgs = dict()
+    # Could we multi-thread that?
     for url, obj_pos in list_urls:
       start_process = time.time()
       if self.verbose > 2:
@@ -93,7 +91,8 @@ class KafkaImageDownloader(GenericKafkaProcessor):
         img_buffer = get_buffer_from_URL(url)
         if img_buffer:
           sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
-          dict_imgs[url] = {'obj_pos': obj_pos, 'img_buffer': img_buffer, 'sha1': sha1, 'img_info': {'format': img_type, 'width': width, 'height': height}}
+          dict_imgs[url] = {'obj_pos': obj_pos, 'img_buffer': img_buffer, 'sha1': sha1,
+                            'img_info': {'format': img_type, 'width': width, 'height': height}}
           self.toc_process_ok(start_process)
         else:
           self.toc_process_failed(start_process)
@@ -105,6 +104,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
         if self.verbose > 0:
           print_msg = "[{}.process_one: error] Could not download image from: {} ({})"
           print print_msg.format(self.pp, url, inst)
+          sys.stdout.flush()
 
     # Push to cdr_out_topic
     self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
@@ -134,7 +134,7 @@ class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
 
   def get_next_img(self):
     import pickle
-    update = pickle.load(open(self.pkl_path,'rb'))
+    update = pickle.load(open(self.pkl_path, 'rb'))
     for sha1, url in update['update_images']:
       yield sha1, url
 
@@ -163,6 +163,7 @@ class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
         print print_msg % (self.pp, self.process_count, self.process_failed, avg_process_time)
 
       dict_imgs = dict()
+      # Could we multi-thread that?
       start_process = time.time()
       if self.verbose > 2:
         print_msg = "[{}.process_one: info] Downloading image from: {}"
@@ -189,8 +190,8 @@ class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
       for img_out_msg in self.build_image_msg(dict_imgs):
         self.producer.send(self.images_out_topic, img_out_msg)
 
-class DaemonKafkaImageDownloader(multiprocessing.Process):
 
+class DaemonKafkaImageDownloader(multiprocessing.Process):
   daemon = True
 
   def __init__(self, conf, prefix=default_prefix):
@@ -199,12 +200,14 @@ class DaemonKafkaImageDownloader(multiprocessing.Process):
     self.prefix = prefix
 
   def run(self):
-    try:
-      print "Starting worker KafkaImageDownloader.{}".format(self.pid)
-      kp = KafkaImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
-      for msg in kp.consumer:
-        kp.process_one(msg)
-    except Exception as inst:
-      exc_type, exc_obj, exc_tb = sys.exc_info()
-      fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-      print "KafkaImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
+    while True:
+      try:
+        print "Starting worker KafkaImageDownloader.{}".format(self.pid)
+        kp = KafkaImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
+        for msg in kp.consumer:
+          kp.process_one(msg)
+      except Exception as inst:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print "KafkaImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
+      time.sleep(10)

@@ -32,3 +32,12 @@ def download_file(url, local_path):
   except:
     pass
   urllib.request.urlretrieve(url, local_path, reporthook)
+
+def mkpath(outpath):
+  pos_slash = [pos for pos, c in enumerate(outpath) if c == "/"]
+  for pos in pos_slash:
+    try:
+      os.mkdir(outpath[:pos])
+    except:
+      pass
+

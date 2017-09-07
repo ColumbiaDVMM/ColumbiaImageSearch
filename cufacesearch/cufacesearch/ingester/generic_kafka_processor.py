@@ -83,13 +83,15 @@ class GenericKafkaProcessor(ConfReader):
       # also use os.times() https://stackoverflow.com/questions/276281/cpu-usage-per-process-in-python
       display_time = datetime.today().strftime('%Y/%m/%d-%H:%M.%S')
       avg_process_time = self.process_time / max(1, tot)
-      utime, stime, _, _, _ = os.times()
-      runtime = time.time() - self.start_time
-      #print_msg = "[%s:%s] (%s:%d:%d) (img proc. count: %d, skipped: %d, failed: %d, avg. time: %.2f) (time run: %.2f, cpu: %.2f, cpu/run: %.2f)"
-      print_msg = "[%s:%s] (%s:%d:%d) (img proc. count: %d, skipped: %d, failed: %d, avg. time: %.2f) (time run: %.2f, cpu: %.2f)"
-      print print_msg % (self.pp, display_time, msg.topic, msg.partition, msg.offset,
-                         self.process_count, self.process_skip, self.process_failed, avg_process_time,
-                         runtime, stime)
+      print_msg = "[%s] (%s:%d:%d) process count: %d, skipped: %d, failed: %d, time: %f"
+      print print_msg % (self.pp, msg.topic, msg.partition, msg.offset, self.process_count, self.process_skip, self.process_failed, avg_process_time)
+      # Should we commit manually offsets here?
+      try:
+        self.consumer.commit()
+      except Exception as inst:
+        # Could get
+        # CommitFailedError: Commit cannot be completed since the group has already rebalanced and assigned the partitions to another member. This means that the time between subsequent calls to poll() was longer than the configured session.timeout.ms, which typically implies that the poll loop is spending too much time message processing. You can address this either by increasing the session timeout or by reducing the maximum size of batches returned in poll() with max.poll.records.
+        print "[{}: warning] commit failed, with error {}".format(self.pp, inst)
 
   def set_pp(self):
     self.pp = "GenericKafkaProcessor"
@@ -117,6 +119,11 @@ class GenericKafkaProcessor(ConfReader):
       for opt_key in options:
         # Try to properly cast options here
         dict_args[str(opt_key)] = self.get_param_type(opt_key)(options[opt_key])
+
+    # Also set client_id, using hostname and self.pp
+    # Beware: issue if 'client_id' has ':' in it?
+    import socket
+    dict_args['client_id'] = socket.gethostname() + '-' + self.pp
 
     # Instantiate consumer
     if self.verbose > 0:
