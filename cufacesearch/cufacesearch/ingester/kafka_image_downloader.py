@@ -81,6 +81,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
 
     # Get images data and infos
     dict_imgs = dict()
+    # Could we multi-thread that?
     for url, obj_pos in list_urls:
       start_process = time.time()
       if self.verbose > 2:
@@ -162,6 +163,7 @@ class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
         print print_msg % (self.pp, self.process_count, self.process_failed, avg_process_time)
 
       dict_imgs = dict()
+      # Could we multi-thread that?
       start_process = time.time()
       if self.verbose > 2:
         print_msg = "[{}.process_one: info] Downloading image from: {}"
@@ -198,12 +200,14 @@ class DaemonKafkaImageDownloader(multiprocessing.Process):
     self.prefix = prefix
 
   def run(self):
-    try:
-      print "Starting worker KafkaImageDownloader.{}".format(self.pid)
-      kp = KafkaImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
-      for msg in kp.consumer:
-        kp.process_one(msg)
-    except Exception as inst:
-      exc_type, exc_obj, exc_tb = sys.exc_info()
-      fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-      print "KafkaImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
+    while True:
+      try:
+        print "Starting worker KafkaImageDownloader.{}".format(self.pid)
+        kp = KafkaImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
+        for msg in kp.consumer:
+          kp.process_one(msg)
+      except Exception as inst:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print "KafkaImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
+      time.sleep(10)
