@@ -1,4 +1,4 @@
-import os
+import sys
 import time
 from datetime import datetime
 from kafka import KafkaConsumer, KafkaProducer
@@ -85,6 +85,7 @@ class GenericKafkaProcessor(ConfReader):
       avg_process_time = self.process_time / max(1, tot)
       print_msg = "[%s] (%s:%d:%d) process count: %d, skipped: %d, failed: %d, time: %f"
       print print_msg % (self.pp, msg.topic, msg.partition, msg.offset, self.process_count, self.process_skip, self.process_failed, avg_process_time)
+      sys.stdout.flush()
       # Should we commit manually offsets here?
       try:
         self.consumer.commit()
@@ -128,6 +129,7 @@ class GenericKafkaProcessor(ConfReader):
     # Instantiate consumer
     if self.verbose > 0:
       print "[{}] Starting consumer for topic '{}' with parameters {}".format(self.pp, topic, dict_args)
+      sys.stdout.flush()
 
     self.consumer = KafkaConsumer(topic, **dict_args)
 
