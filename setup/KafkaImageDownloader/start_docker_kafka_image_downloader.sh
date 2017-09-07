@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Adjust that to the actual host values
-base_path=/media/data/Code/MEMEX/
+base_path=~
 repo_path=${base_path}/columbiafacesearch/
 PORT=5000
 
