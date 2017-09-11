@@ -37,10 +37,11 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
       print "[{}.log] global_conf: {}".format(self.pp, self.global_conf)
 
     # could be loaded from conf
-    self.output_blobs = ['fc7']
+    self.output_blobs = ['data','fc7']
     self.device = 'CPU'
     self.features_dim = 4096
     self.read_dim = self.features_dim * 4
+    self.data_read_dim = 618348
     self.read_type = np.float32
     self.dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -129,7 +130,9 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
       f.writelines([filename + ' 0\n' for filename in img_files])
 
     command = self.caffe_exec + ' '  + self.sbcaffe_path + ' ' + self.sentibank_prototxt + ' ' \
-              + ','.join(self.output_blobs) + ' ' + self.features_filename + ' ' + str(1) + ' ' + self.device
+              + ','.join(self.output_blobs) + ' ' \
+              + ','.join([self.features_filename+'-'+feat for feat in self.output_blobs]) + ' ' \
+              + str(1) + ' ' + self.device
     print "[SentiBankCmdLine.compute_features: log] command {}.".format(command)
     sys.stdout.flush()
     output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
@@ -138,8 +141,9 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
     sys.stdout.flush()
     # os.system(command)
     os.remove(img_files[0])
-    feats, ok_ids = read_binary_file(self.features_filename+'.dat', 'sbfeat', [sha1], self.read_dim, self.read_type)
-    return feats[0]
+    feats, ok_ids = read_binary_file(self.features_filename+'-fc7.dat', 'sbfeat', [sha1], self.read_dim, self.read_type)
+    data, ok_ids = read_binary_file(self.features_filename + '-data.dat', 'data', [sha1], self.data_read_dim, self.read_type)
+    return feats[0], data[0]
 
 
 
