@@ -1,0 +1,21 @@
+{
+  "KPRINT_verbose": 1,
+  "KPRINT_consumer_topics": "backpage-test-ext",
+  "KPRINT_consumer_group": "backpage-test-ext-printers2",
+  "KPRINT_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KPRINT_consumer_security": {
+    "security_protocol":"SSL",
+    "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
+    "ssl_certfile":"../../data/keys/hg-kafka-client-cert.pem",
+    "ssl_keyfile":"../../data/keys/hg-kafka-client-key.pem",
+    "ssl_check_hostname":false
+  },
+  "KPRINT_print_fields": ["objects"],
+  "KPRINT_consumer_options": {
+    "auto_offset_reset": "earliest",
+    "max_poll_records": 2,
+    "session_timeout_ms": 10000,
+    "request_timeout_ms": 30000
+  }
+}
+
