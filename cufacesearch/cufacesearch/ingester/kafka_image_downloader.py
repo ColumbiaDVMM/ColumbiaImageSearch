@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import threading
 import multiprocessing
 from .generic_kafka_processor import GenericKafkaProcessor
 from ..imgio.imgio import buffer_to_B64
@@ -116,6 +117,123 @@ class KafkaImageDownloader(GenericKafkaProcessor):
       self.producer.send(self.images_out_topic, img_out_msg)
 
 
+class ThreadedDownloader(threading.Thread):
+
+  def __init__(self, q_in, q_out):
+    threading.Thread.__init__(self)
+    self.q_in = q_in
+    self.q_out = q_out
+
+  def run(self):
+    from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
+
+    while self.q_in.empty() == False:
+      try:
+        # The queue should already have items, no need to block
+        url, obj_pos = self.q_in.get(False)
+      except:
+        continue
+
+      img_buffer = None
+      img_info = None
+      inst = None
+      start_process = time.time()
+      try:
+        img_buffer = get_buffer_from_URL(url)
+        if img_buffer:
+          sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
+          img_info = (sha1, img_type, width, height)
+          end_process = time.time()
+        else:
+          end_process = time.time()
+      except Exception as inst:
+        end_process = time.time()
+
+      # Push
+      self.q_out.put((url, obj_pos, img_buffer, img_info, start_process, end_process, inst))
+
+      # Mark as done
+      self.q_in.task_done()
+
+class KafkaThreadedImageDownloader(KafkaImageDownloader):
+
+  def __init__(self, global_conf_filename, prefix=default_prefix, pid=None):
+    super(KafkaThreadedImageDownloader, self).__init__(global_conf_filename, prefix, pid)
+    # Get number of threads
+    self.nb_threads = self.get_required_param('nb_threads')
+
+  def set_pp(self):
+    self.pp = "KafkaThreadedImageDownloader"
+    if self.pid:
+      self.pp += "." + str(self.pid)
+
+
+  def process_one(self, msg):
+    self.print_stats(msg)
+    msg_value = json.loads(msg.value)
+
+    # From msg value get list_urls for image objects only
+    list_urls = self.get_images_urls(msg_value)
+
+    # Initialize queues
+    from Queue import Queue
+    self.q_in = Queue(0)
+    self.q_out = Queue(0)
+    threads = []
+
+    if list_urls:
+      # Fill input queue
+      for item in list_urls:
+        self.q_in.put(item)
+
+      # Start threads, at most one per image
+      for i in range(min(self.nb_threads, len(list_urls))):
+        # should read (url, obj_pos) from self.q_in
+        # and push (url, obj_pos, buffer, img_info, start_process, end_process) to self.q_out
+        thread = ThreadedDownloader(self.q_in, self.q_out)
+        thread.start()
+        threads.append(thread)
+
+      # Wait for all tasks to be marked as done
+      if self.q_in.qsize() > 0:
+        self.q_in.join()
+
+    # Get images data and infos
+    dict_imgs = dict()
+    while not self.q_out.empty():
+      url, obj_pos, img_buffer, img_info, start_process, end_process, inst = self.q_out.get()
+
+      if img_buffer is not None and img_info is not None:
+        sha1, img_type, width, height = img_info
+        dict_imgs[url] = {'obj_pos': obj_pos, 'img_buffer': img_buffer, 'sha1': sha1,
+                      'img_info': {'format': img_type, 'width': width, 'height': height}}
+        self.toc_process_ok(start_process, end_process)
+      else:
+        self.toc_process_failed(start_process, end_process)
+        if inst is not None:
+          if self.verbose > 0:
+            print_msg = "[{}.process_one: error] Could not download image from: {} ({})"
+            print print_msg.format(self.pp, url, inst)
+            sys.stdout.flush()
+        else:
+          if self.verbose > 1:
+            print_msg = "[{}.process_one: info] Could not download image from: {}"
+            print print_msg.format(self.pp, url)
+            sys.stdout.flush()
+
+    # Push to cdr_out_topic
+    self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
+
+    # Push to images_out_topic
+    for img_out_msg in self.build_image_msg(dict_imgs):
+      self.producer.send(self.images_out_topic, img_out_msg)
+
+    # # Threads are still alive here, is that OK?
+    # for th in threads:
+    #   if th.isAlive():
+    #     print "[{}.process_one: info] Thread {} is still alive.".format(self.pp, th.name)
+
+
 class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
   # To push list of images to be processed from a pickle file containing a dictionary
   # {'update_ids': update['update_ids'], 'update_images': out_update_images}
@@ -211,4 +329,26 @@ class DaemonKafkaImageDownloader(multiprocessing.Process):
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print "KafkaImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
+      time.sleep(10)
+
+
+class DaemonKafkaThreadedImageDownloader(multiprocessing.Process):
+  daemon = True
+
+  def __init__(self, conf, prefix=default_prefix):
+    super(DaemonKafkaThreadedImageDownloader, self).__init__()
+    self.conf = conf
+    self.prefix = prefix
+
+  def run(self):
+    while True:
+      try:
+        print "Starting worker KafkaThreadedImageDownloader.{}".format(self.pid)
+        kp = KafkaThreadedImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
+        for msg in kp.consumer:
+          kp.process_one(msg)
+      except Exception as inst:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print "KafkaThreadedImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
       time.sleep(10)

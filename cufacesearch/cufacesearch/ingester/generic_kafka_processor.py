@@ -28,6 +28,7 @@ class GenericKafkaProcessor(ConfReader):
     self.process_time = 0
     self.start_time = time.time()
     self.display_count = 100
+    self.last_display = 0
 
     # Initialize everything
     self.init_consumer()
@@ -65,27 +66,32 @@ class GenericKafkaProcessor(ConfReader):
           dict_args[str(sec_key)] = str(security[sec_key])
     return dict_args
 
-  def toc_process_ok(self, start_process):
+  def toc_process_ok(self, start_process, end_time=time.time()):
     self.process_count += 1
-    self.process_time += time.time() - start_process
+    #self.process_time += time.time() - start_process
+    self.process_time += end_time - start_process
 
-  def toc_process_skip(self, start_process):
+  def toc_process_skip(self, start_process, end_time=time.time()):
     self.process_skip += 1
-    self.process_time += time.time() - start_process
+    #self.process_time += time.time() - start_process
+    self.process_time += end_time - start_process
 
-  def toc_process_failed(self, start_process):
+  def toc_process_failed(self, start_process, end_time=time.time()):
     self.process_failed += 1
-    self.process_time += time.time() - start_process
+    #self.process_time += time.time() - start_process
+    self.process_time += end_time - start_process
 
   def print_stats(self, msg):
     tot = self.process_count + self.process_failed + self.process_skip
-    if tot % self.display_count == 0:
+    if tot - self.last_display > self.display_count:
       # also use os.times() https://stackoverflow.com/questions/276281/cpu-usage-per-process-in-python
       display_time = datetime.today().strftime('%Y/%m/%d-%H:%M.%S')
       avg_process_time = self.process_time / max(1, tot)
-      print_msg = "[%s] (%s:%d:%d) process count: %d, skipped: %d, failed: %d, time: %f"
-      print print_msg % (self.pp, msg.topic, msg.partition, msg.offset, self.process_count, self.process_skip, self.process_failed, avg_process_time)
+      print_msg = "[%s:%s] (%s:%d:%d) process count: %d, skipped: %d, failed: %d, time: %f"
+      print print_msg % (self.pp, display_time, msg.topic, msg.partition, msg.offset, self.process_count,
+                         self.process_skip, self.process_failed, avg_process_time)
       sys.stdout.flush()
+      self.last_display = tot
       # Should we commit manually offsets here?
       try:
         self.consumer.commit()

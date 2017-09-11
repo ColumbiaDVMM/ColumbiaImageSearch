@@ -6,6 +6,18 @@ ImageMIMETypes['GIF'] = "image/gif"
 ImageMIMETypes['PNG'] = "image/png"
 ImageMIMETypes['JPEG'] = "image/jpeg"
 
+import requests
+from requests.packages.urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
+
+default_retries = 10
+default_bof = 0.2
+default_fl = [500, 502, 503, 504]
+s = requests.Session()
+retries_settings = Retry(total=default_retries, backoff_factor=default_bof, status_forcelist=default_fl)
+s.mount('http://', HTTPAdapter(max_retries=retries_settings))
+s.mount('https://', HTTPAdapter(max_retries=retries_settings))
+
 def get_SHA1_from_data(data):
   sha1hash = None
   import hashlib
@@ -109,12 +121,21 @@ def get_buffer_from_B64(base64str):
   return StringIO(base64.b64decode(base64str))
 
 
-def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4):
+def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=default_retries):
+  # TODO: sometime fails with a timeout, consider using retries
+  #   see: https://stackoverflow.com/questions/15431044/can-i-set-max-retries-for-requests-request
   import requests
   from cStringIO import StringIO
   if verbose > 0:
     print "Downloading image from {}".format(img_url)
-  r = requests.get(img_url, timeout=image_dl_timeout)
+  if retries !=0:
+    if retries != default_retries:
+      retries_settings = Retry(total=retries, backoff_factor=default_bof, status_forcelist=default_fl)
+      s.mount('http://', HTTPAdapter(max_retries=retries_settings))
+      s.mount('https://', HTTPAdapter(max_retries=retries_settings))
+    r = s.get(img_url, timeout=image_dl_timeout)
+  else:
+    r = requests.get(img_url, timeout=image_dl_timeout)
   if r.status_code == 200:
     if int(r.headers['content-length']) == 0:
       del r
