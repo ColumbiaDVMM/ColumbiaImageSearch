@@ -1,6 +1,6 @@
 sentibank_file = "caffe_sentibank_train_iter_250000"
-#sentibank_prototxt = "pycaffe_sentibank.prototxt"
-sentibank_prototxt = "pycaffemem_sentibank.prototxt"
+sentibank_prototxt = "pycaffe_sentibank.prototxt"
+#sentibank_prototxt = "pycaffemem_sentibank.prototxt"
 sentibank_file_sha1 = "TOBECOMPUTED"
 sentibank_url = "https://www.dropbox.com/s/lv3p67m21kr3mrg/caffe_sentibank_train_iter_250000?dl=1"
 imagenet_mean_npy_urldlpath = "https://www.dropbox.com/s/s5oqp801tgiktra/imagenet_mean.npy?dl=1"
@@ -29,8 +29,10 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
     self.reorder_dim = [2, 1, 0]
     #interp : str, optional
     #Interpolation to use for re-sizing ('nearest', 'lanczos', 'bilinear', 'bicubic' or 'cubic').
-    #self.resize_type = 'bicubic'
-    self.resize_type = 'bilinear'
+    self.resize_type = 'lanczos' #[lowest error 0.169]
+    #self.resize_type = 'bilinear' #[error 0.22]
+    #self.resize_type = 'bicubic' #[error 0.181]
+    #self.resize_type = 'cubic' #[error 0.181]
 
     self.net = None
     #self.transformer = None
@@ -78,16 +80,17 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
 
   def init_transformer(self):
     mu = np.load(os.path.join(self.dir_path, 'data', 'imagenet_mean.npy'))
-    print mu.shape
+    #print mu.shape
     self.imgmean = np.swapaxes(mu, 0, 2)
-    print self.imgmean.shape
+    #print self.imgmean.shape
     ## Should we average?
     #mu = mu.mean(1).mean(1)  # average over pixels to obtain the mean (BGR) pixel values
     #print 'mean-subtracted values:', zip('BGR', mu)
     # Or should we crop?
-    #mu = mu[:,14:241,14:241]
-    mu = mu[:, 15:242, 15:242]
-    print mu.shape
+    #mu = mu[:, 13:240, 13:240]
+    mu = mu[:, 14:241, 14:241]
+    #mu = mu[:, 15:242, 15:242]
+    #print mu.shape
 
     # Transformer should reproduce what happens when running command line caffe with a test.txt file containing an image
     # type: IMAGE_DATA
@@ -110,10 +113,26 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
     # Which transformation are needed?
     self.transformer.set_transpose('data', (2, 0, 1))  # move image channels to outermost dimension
     self.transformer.set_mean('data', mu)  # subtract the dataset-mean value in each channel
-    self.transformer.set_raw_scale('data', 255)  # rescale from [0, 1] to [0, 255]
+    #self.transformer.set_raw_scale('data', 255)  # rescale from [0, 1] to [0, 255]
     self.transformer.set_channel_swap('data', (2, 1, 0))
     print "[{}:info] Initialized transformer.".format(self.pp)
     sys.stdout.flush()
+
+  def transformer_preprocess(self, img_buffer):
+    image = caffe.io.load_image(img_buffer)
+    print "image.shape", image.shape
+    img_resize = misc.imresize(image, self.target_size, interp=self.resize_type)
+    
+    # Take a central crop of 227x227.
+    # The model was trained with random crops of this dimension
+    # and existing features were extracted with a central crop like this
+    w_off = int((img_resize.shape[0] - self.crop_size[0]) / 2.0)
+    h_off = int((img_resize.shape[1] - self.crop_size[1]) / 2.0)
+    #print "w_off, h_off:", w_off, h_off
+    img_out = img_resize[w_off:w_off + self.crop_size[0], h_off:h_off + self.crop_size[1], :]
+    #img_out = img_resize[14:241, 14:241, :]
+    #img_out = img_resize[13:240, 13:240, :]
+    return self.transformer.preprocess('data', img_out)
 
   def preprocess_img(self, img_buffer):
     # This works OK for tensorflow...
@@ -164,19 +183,13 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
     #transformed_image = self.preprocess_img(img)
     #self.net.blobs['data'].data[...] = transformed_image
 
-    # With memory layer, running but giving not working either
-    image = misc.imread(img)
-    img_resize = misc.imresize(image, self.target_size, interp=self.resize_type)
-    #img_resize = misc.imresize(image, self.crop_size, interp=self.resize_type)
-    # print "img_resize", img_resize.shape
-    # We need to reorder RGB -> BGR as model was initially trained with Caffe
-    img_reorder = img_resize[:, :, self.reorder_dim]
-    image_in = np.rollaxis(img_reorder, 2, 0)
-    print image_in.shape
-    self.net.set_input_arrays(image_in[np.newaxis, :, :, :].astype(np.float32, copy=False), np.asarray([0]).astype(np.float32, copy=False))
-    # seems to give the same results
-    _ = self.net.forward(blobs=self.output_blobs, end='fc7')
+    transformed_image = self.transformer_preprocess(img)
+    print transformed_image.shape, self.net.blobs['data'].data.shape
+    self.net.blobs['data'].data[...] = transformed_image
+
+    #_ = self.net.forward(blobs=self.output_blobs, end='fc7')
     #_ = self.net.forward(blobs=self.output_blobs, start='conv1', end='fc7')
+    _ = self.net.forward(blobs=self.output_blobs)
     return self.net.blobs['fc7'].data
     #print output.keys()
 
