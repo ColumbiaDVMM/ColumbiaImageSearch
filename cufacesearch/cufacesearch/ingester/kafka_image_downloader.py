@@ -16,7 +16,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     # when running as deamon
     self.pid = pid
     # call GenericKafkaProcessor init (and others potentially)
-    super(KafkaImageDownloader, self).__init__(global_conf_filename, prefix)
+    super(KafkaImageDownloader, self).__init__(global_conf_filename, prefix, pid)
     # any additional initialization needed, like producer specific output logic
     self.cdr_out_topic = self.get_required_param('producer_cdr_out_topic')
     self.images_out_topic = self.get_required_param('producer_images_out_topic')
@@ -239,9 +239,9 @@ class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
   # {'update_ids': update['update_ids'], 'update_images': out_update_images}
   # with 'out_update_images' being a list of tuples (sha1, url)
 
-  def __init__(self, global_conf_filename, prefix=default_prefix_frompkl):
+  def __init__(self, global_conf_filename, prefix=default_prefix_frompkl, pid=None):
     # call GenericKafkaProcessor init (and others potentially)
-    super(KafkaImageDownloaderFromPkl, self).__init__(global_conf_filename, prefix)
+    super(KafkaImageDownloaderFromPkl, self).__init__(global_conf_filename, prefix, pid)
     # any additional initialization needed, like producer specific output logic
     self.images_out_topic = self.get_required_param('producer_cdr_out_topic')
     self.pkl_path = self.get_required_param('pkl_path')
