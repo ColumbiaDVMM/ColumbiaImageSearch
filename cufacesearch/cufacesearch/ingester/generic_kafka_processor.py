@@ -27,7 +27,7 @@ class GenericKafkaProcessor(ConfReader):
     # Should we have separate timings for each cases?
     self.process_time = 0
     self.start_time = time.time()
-    self.display_count = 100
+    self.display_count = 1000
     self.last_display = 0
 
     # Initialize everything
