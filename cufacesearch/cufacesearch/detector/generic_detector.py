@@ -10,8 +10,15 @@ def get_detector(detector_type):
   if detector_type == "dlib":
     import dlib_detector
     return dlib_detector.DLibFaceDetector()
+  elif detector_type == "full":
+    return None
   else:
     raise ValueError("[{}: error] unknown 'detector' {}.".format("get_detector", detector_type))
+
+def get_bbox_str(bbox):
+  # Build bbox string as left_top_right_bottom_score
+  return "_".join(["{}"]*5).format(bbox["left"], bbox["top"], bbox["right"], bbox["bottom"], bbox["score"])
+
 
 class GenericFaceDetector(object):
 

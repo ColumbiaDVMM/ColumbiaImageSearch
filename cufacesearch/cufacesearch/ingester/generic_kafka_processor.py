@@ -158,7 +158,11 @@ class GenericKafkaProcessor(ConfReader):
     dict_args = self.get_servers(dict_args, 'producer_servers')
     dict_args = self.get_security(dict_args, 'producer_security')
     # Instantiate producer
-    self.producer = KafkaProducer(**dict_args)
+    try:
+      self.producer = KafkaProducer(**dict_args)
+    except Exception as inst:
+      print "[{}: warning] Could not initialize producer: {}".format(self.pp, inst)
+
 
 
 

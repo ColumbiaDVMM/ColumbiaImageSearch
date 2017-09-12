@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from argparse import ArgumentParser
 from cufacesearch.imgio.imgio import get_buffer_from_URL
@@ -27,13 +28,15 @@ if __name__ == "__main__":
 
   for row in rows:
     feat_hbase_b64 = featB64decode(row[1]["info:featnorm_cu"])
-    print feat_hbase_b64.shape
+    #print feat_hbase_b64.shape
     img_url = row[1]["info:s3_url"]
+    start_dl = time.time()
     img_buffer = get_buffer_from_URL(img_url)
+    dl_time = time.time() - start_dl
+    start_extr = time.time()
     feat = sbpcif.featurize(img_buffer)
-    print feat.shape
     norm_feat = np.linalg.norm(feat)
     normed_feat = feat/norm_feat
-    print np.linalg.norm(feat_hbase_b64-normed_feat)
-    # print np.linalg.norm(feat_hbase_b64)
-    # print np.linalg.norm(normed_feat)
+    proc_time = time.time() - start_extr
+    print "diff: {} (downloaded in {}s, processed in {}s.)".format(np.linalg.norm(feat_hbase_b64-normed_feat),
+                                                                   dl_time, proc_time)

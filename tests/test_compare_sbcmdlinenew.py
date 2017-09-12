@@ -52,7 +52,7 @@ if __name__ == "__main__":
     img_buffer = get_buffer_from_URL(img_url)
     feat, data = sbclif.featurize(img_buffer, sha1=row[0])
     img_buffer.seek(0)
-    pydata = sbpcif.transformer_preprocess(img_buffer)
+    pydata = sbpcif.preprocess_img(img_buffer)
     fpydata = pydata.flatten()
     idata = data.reshape((3, 227, 227))
     print img_url
