@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from cufacesearch.ingester.generic_kafka_processor import KafkaPrinter, default_printer_prefix
+from cufacesearch.ingester.kafka_printer import KafkaPrinter, default_printer_prefix
 
 if __name__ == "__main__":
 

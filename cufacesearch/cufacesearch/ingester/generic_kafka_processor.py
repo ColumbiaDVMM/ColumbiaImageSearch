@@ -1,5 +1,6 @@
 import sys
 import time
+import socket
 from datetime import datetime
 from kafka import KafkaConsumer, KafkaProducer
 from ..common.conf_reader import ConfReader
@@ -10,7 +11,6 @@ from ..common.conf_reader import ConfReader
 
 # Should we consider using Kafka Streams ?
 base_path_keys = "../../data/keys/hg-kafka-"
-default_printer_prefix = "KPRINT_"
 
 class GenericKafkaProcessor(ConfReader):
 
@@ -19,6 +19,10 @@ class GenericKafkaProcessor(ConfReader):
     self.pid = pid
 
     super(GenericKafkaProcessor, self).__init__(global_conf_filename, prefix)
+
+    # Set print prefix
+    self.set_pp()
+    self.client_id = socket.gethostname() + '-' + self.pp
 
     # Initialize attributes
     self.consumer = None
@@ -37,9 +41,6 @@ class GenericKafkaProcessor(ConfReader):
     # Initialize everything
     self.init_consumer()
     self.init_producer()
-
-    # Set print prefix
-    self.set_pp()
 
   def get_param_type(self, param_key):
     spk = str(param_key)
@@ -96,23 +97,31 @@ class GenericKafkaProcessor(ConfReader):
                          self.process_skip, self.process_failed, avg_process_time)
       sys.stdout.flush()
       self.last_display = tot
-      # Should we commit manually offsets here?
+      # Commit manually offsets here to improve offsets saving...
       try:
         self.consumer.commit()
       except Exception as inst:
-        # Could get
-        # CommitFailedError: Commit cannot be completed since the group has already rebalanced and assigned the partitions to another member. This means that the time between subsequent calls to poll() was longer than the configured session.timeout.ms, which typically implies that the poll loop is spending too much time message processing. You can address this either by increasing the session timeout or by reducing the maximum size of batches returned in poll() with max.poll.records.
+        # Could get the following error if processing time is too long.
+        # Adjust "max_poll_records", "session_timeout_ms" and "request_timeout_ms" in "consumer_options" field in conf
+        # CommitFailedError: Commit cannot be completed since the group has already rebalanced and assigned the
+        # partitions to another member. This means that the time between subsequent calls to poll() was longer
+        # than the configured session.timeout.ms, which typically implies that the poll loop is spending too much
+        # time message processing. You can address this either by increasing the session timeout or by reducing the
+        # maximum size of batches returned in poll() with max.poll.records.
         print "[{}: warning] commit failed, with error {}".format(self.pp, inst)
 
   def set_pp(self):
     self.pp = "GenericKafkaProcessor"
 
   def init_consumer(self):
+
     ## Required parameters
-    topic = str(self.get_required_param('consumer_topics'))
-    # NB: topic could be a list?
+    topic = self.get_required_param('consumer_topics')
+    # NB: topic could be a list
     if type(topic) == list:
       topic = [str(t) for t in topic]
+    else:
+      topic = str(topic)
 
     ## Optional parameters
     dict_args = dict()
@@ -133,8 +142,7 @@ class GenericKafkaProcessor(ConfReader):
 
     # Also set client_id, using hostname and self.pp
     # Beware: issue if 'client_id' has ':' in it?
-    import socket
-    dict_args['client_id'] = socket.gethostname() + '-' + self.pp
+    dict_args['client_id'] = self.client_id
 
     # Instantiate consumer
     if self.verbose > 0:
@@ -153,49 +161,4 @@ class GenericKafkaProcessor(ConfReader):
     self.producer = KafkaProducer(**dict_args)
 
 
-class KafkaPrinter(GenericKafkaProcessor):
-  def __init__(self, global_conf_filename, prefix=default_printer_prefix, pid=None):
-    # call GenericKafkaProcessor init (and others potentially)
-    super(KafkaPrinter, self).__init__(global_conf_filename, prefix, pid)
 
-    self.max_print = 10
-    param_max_print = self.get_param('max_print')
-    if param_max_print:
-      self.max_print = param_max_print
-
-    self.print_fields = None
-    print_fields = self.get_param('print_fields')
-    if print_fields:
-      self.print_fields = print_fields
-
-    self.count_print = 0
-
-    # Set print prefix
-    self.set_pp()
-
-  def set_pp(self):
-    self.pp = "KafkaPrinter"
-    if self.pid:
-      self.pp += "." + str(self.pid)
-
-  def process_one(self, msg):
-    if self.count_print >= self.max_print:
-      print "[{}] Reached maximum number of print out. Leaving.".format(self.pp)
-      exit(0)
-    import json
-    msg_value = json.loads(msg.value)
-    msg_print = []
-    if self.print_fields is not None:
-      for field in self.print_fields:
-        if field in msg_value:
-          msg_print.append(msg_value[field])
-      #print msg_print
-    else:
-      msg_print = [json.dumps(msg_value)]
-    print "[{}: msg] keys: {}, data: {}".format(self.pp, msg_value.keys(), msg_print)
-    sys.stdout.flush()
-    self.count_print += 1
-
-  def init_producer(self):
-    # No results for printer
-    pass
