@@ -46,8 +46,8 @@ class GenericExtractor(object):
     self.global_conf = global_conf
     self.detector = get_detector(self.detector_type)
     self.featurizer = get_featurizer(self.featurizer_type, self.global_conf, prefix=extr_prefix)
-    self.extr_str = self.extr_column+":"+build_extr_str(self.detector_type, self.featurizer_type, self.input_type)
-    self.extr_str_processed = self.extr_column+":"+build_extr_str_processed(self.detector_type, self.featurizer_type, self.input_type)
+    self.extr_str = str(self.extr_column+":"+build_extr_str(self.detector_type, self.featurizer_type, self.input_type))
+    self.extr_str_processed = str(self.extr_column+":"+build_extr_str_processed(self.detector_type, self.featurizer_type, self.input_type))
 
 
   def init_out_dict(self, sha1):
