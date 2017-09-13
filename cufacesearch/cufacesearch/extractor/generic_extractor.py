@@ -39,18 +39,25 @@ class DaemonBatchExtractor(multiprocessing.Process):
 
       if self.verbose > 1:
         print "[DaemonBatchExtractor.{}] Got batch of {} images to process.".format(self.pid, len(batch))
-      sys.stdout.flush()
+        sys.stdout.flush()
+
       out_batch = []
 
       for sha1, img_buffer_b64 in batch:
-        out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
-        out_batch.append((sha1, out_dict))
+        try:
+          out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
+          out_batch.append((sha1, out_dict))
+        except Exception as inst:
+          err_msg = "[DaemonBatchExtractor.{}: warning] Extraction failed for img {} with error: {}."
+          print err_msg.format(self.pid, sha1, inst)
+          sys.stdout.flush()
 
       # Push
       if self.verbose > 0:
-        print "[DaemonBatchExtractor.{}] Computed {} extractions in {}s.".format(self.pid, len(out_batch),
-                                                                               time.time() - start_process)
-      sys.stdout.flush()
+        print_msg = "[DaemonBatchExtractor.{}] Computed {} extractions in {}s."
+        print print_msg.format(self.pid, len(out_batch), time.time() - start_process)
+        sys.stdout.flush()
+
       self.q_out.put(out_batch)
 
       # Mark as done
@@ -79,6 +86,7 @@ class GenericExtractor(object):
 
   def process_buffer(self, img_buffer):
     dict_out = self.init_out_dict()
+
     # If extraction needs detection first
     if self.detector is not None:
       img, dets = self.detector.detect_from_buffer_noinfos(img_buffer, up_sample=1)

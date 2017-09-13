@@ -103,6 +103,8 @@ class ExtractionProcessor(ConfReader):
 
   def process_batch(self):
     # Get a new batch from update table
+    # TODO: would be better to have a kafka topic for batches to be processed to allow safe parallelization
+    #       on different machines
     for rows_batch, update_id in self.get_batch():
       start_update = time.time()
       print("[{}.process_batch: log] Processing update: {}".format(self.pp, update_id))

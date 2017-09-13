@@ -7,7 +7,6 @@ from ..common.error import full_trace_error
 from ..common import update_prefix, column_list_sha1s
 
 
-
 TTransportException = happybase._thriftpy.transport.TTransportException
 TException = happybase._thriftpy.thrift.TException
 max_errors = 3
@@ -78,23 +77,30 @@ class HBaseIndexerMinimal(ConfReader):
 
   def refresh_hbase_conn(self, calling_function, sleep_time=0):
     # this can take up to 4 seconds...
-    start_refresh = time.time()
-    dt_iso = datetime.utcnow().isoformat()
-    print_msg = "[{}.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool."
-    print print_msg.format(self.pp, calling_function, dt_iso)
-    sys.stdout.flush()
-    time.sleep(sleep_time)
-    # This can hang for a long time?
-    # Should we add timeout (in ms: http://happybase.readthedocs.io/en/latest/api.html#connection)?
-    #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
-    self.pool = happybase.ConnectionPool(timeout=60000, size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
-    print_msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
-    print print_msg.format(self.pp, time.time()-start_refresh)
-    sys.stdout.flush()
+    try:
+      start_refresh = time.time()
+      dt_iso = datetime.utcnow().isoformat()
+      print_msg = "[{}.{}: {}] caught timeout error or TTransportException. Trying to refresh connection pool."
+      print print_msg.format(self.pp, calling_function, dt_iso)
+      sys.stdout.flush()
+      time.sleep(sleep_time)
+      # This can hang for a long time?
+      # Should we add timeout (in ms: http://happybase.readthedocs.io/en/latest/api.html#connection)?
+      #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
+      self.pool = happybase.ConnectionPool(timeout=60000, size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
+      print_msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
+      print print_msg.format(self.pp, time.time()-start_refresh)
+      sys.stdout.flush()
+    except TTransportException as inst:
+      print_msg = "[{}.read_conf: error] Could not initalize connection to HBase ({}). Are you connected to the VPN?"
+      print print_msg.format(self.pp, inst)
+      sys.stdout.flush()
+      raise inst
 
   def check_errors(self, previous_err, function_name, inst=None):
     if previous_err >= max_errors:
-      raise Exception("[HBaseIndexerMinimal: error] function {} reached maximum number of error {}. Error was: {}".format(function_name, max_errors, inst))
+      err_msg = "[HBaseIndexerMinimal: error] function {} reached maximum number of error {}. Error {} was: {}"
+      raise Exception(err_msg.format(function_name, max_errors, type(inst), inst))
     return None
 
   def get_check_column(self, extraction):
@@ -118,7 +124,7 @@ class HBaseIndexerMinimal(ConfReader):
         if type(inst) == TTransportException:
           raise inst
         else:
-          print "[get_create_table: info] table {} does not exist (yet): {}".format(table_name, inst)
+          print "[get_create_table: info] table {} does not exist (yet): {}{}".format(table_name, type(inst), inst)
           conn.create_table(table_name, families)
           table = conn.table(table_name)
           print "[get_create_table: info] created table {}".format(table_name)
@@ -144,10 +150,11 @@ class HBaseIndexerMinimal(ConfReader):
             sys.stdout.flush()
         return rows
     except Exception as inst:
-      print inst
+      print "scan_from_row", inst
       # try to force longer sleep time...
-      self.refresh_hbase_conn("scan_from_row", sleep_time=4)
-      return self.scan_from_row(table_name, row_start, columns, previous_err + 1, inst)
+      self.refresh_hbase_conn("scan_from_row", sleep_time=4*previous_err)
+      return self.scan_from_row(table_name, row_start=row_start, columns=columns, maxrows=maxrows,
+                                previous_err=previous_err + 1, inst=inst)
 
   def get_updates_from_date(self, start_date, extr_type="", maxrows=10, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
@@ -174,7 +181,8 @@ class HBaseIndexerMinimal(ConfReader):
     #print row_start
     last_row = row_start
     try:
-      tmp_rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
+      tmp_rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, columns=None,
+                                    maxrows=maxrows, previous_err=0, inst=None)
       if tmp_rows:
         for row_id, row_val in tmp_rows:
           last_row = row_id
@@ -195,7 +203,7 @@ class HBaseIndexerMinimal(ConfReader):
           return self.get_unprocessed_updates_from_date(next_start_date, extr_type=extr_type, maxrows=10*maxrows)
     except Exception as inst: # try to catch any exception
       full_trace_error("[get_unprocessed_updates_from_date: error] {}".format(inst))
-      self.refresh_hbase_conn("get_unprocessed_updates_from_date")
+      self.refresh_hbase_conn("get_unprocessed_updates_from_date", sleep_time=4*previous_err)
       return self.get_unprocessed_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
                                                     previous_err=previous_err+1, inst=inst)
     return rows
@@ -287,7 +295,7 @@ class HBaseIndexerMinimal(ConfReader):
       # b.send()
     except Exception as inst: # try to catch any exception
       print "[push_dict_rows: error] {}".format(inst)
-      self.refresh_hbase_conn("push_dict_rows")
+      self.refresh_hbase_conn("push_dict_rows", sleep_time=4*previous_err)
       return self.push_dict_rows(dict_rows, table_name, families=families, previous_err=previous_err+1, inst=inst)
 
   def get_rows_by_batch(self, list_queries, table_name, families=None, columns=None, previous_err=0, inst=None):
