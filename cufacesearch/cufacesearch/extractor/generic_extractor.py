@@ -79,5 +79,6 @@ class GenericExtractor(object):
       dict_out[sha1][self.extr_str] = featB64encode(one_feat)
       dict_out[sha1][self.extr_str_processed] = True
 
+    dict_out[sha1][self.extr_str_processed] = str(dict_out[sha1][self.extr_str_processed])
     # Return dict ready to be pushed to DB
     return dict_out
