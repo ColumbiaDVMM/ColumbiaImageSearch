@@ -73,9 +73,6 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
     tmp_dict_out['featurizer_type'] = self.featurizer_type
     return tmp_dict_out
 
-  def get_bbox_str(self, bbox):
-    # Build bbox string as left_top_right_bottom_score
-    return "_".join(["{}"]*5).format(bbox["left"], bbox["top"], bbox["right"], bbox["bottom"], bbox["score"])
 
   # This could also be done in a separate process with a single consumer from self.face_out_topic
   # Similarly to the full_image_updater...

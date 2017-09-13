@@ -3,13 +3,19 @@ import time
 import happybase
 from datetime import datetime
 from ..common.conf_reader import ConfReader
+from ..common.error import full_trace_error
+from ..common import update_prefix, column_list_sha1s
+
+
 
 TTransportException = happybase._thriftpy.transport.TTransportException
 TException = happybase._thriftpy.thrift.TException
 max_errors = 2
 # reading a lot of data from HBase at once can be unstable
 batch_size = 100
-str_processed = "processed"
+extr_str_processed = "processed"
+update_str_processed = "processed"
+update_str_started = "started"
 
 # Is the connection pool causing some issue? Could we use a single connection?
 
@@ -24,7 +30,7 @@ class HBaseIndexerMinimal(ConfReader):
     self.dict_up = dict()
     self.batch_update_size = 1000
     # could be set in parameters
-    self.column_list_sha1s = "info:list_sha1s"
+    self.column_list_sha1s = column_list_sha1s
     super(HBaseIndexerMinimal, self).__init__(global_conf_in, prefix)
 
   def set_pp(self):
@@ -80,7 +86,7 @@ class HBaseIndexerMinimal(ConfReader):
     # This can hang for a long time?
     # Should we add timeout (in ms: http://happybase.readthedocs.io/en/latest/api.html#connection)?
     #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
-    self.pool = happybase.ConnectionPool(timeout=1000, size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
+    self.pool = happybase.ConnectionPool(timeout=10, size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
     print_msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
     print print_msg.format(self.pp, time.time()-start_refresh)
 
@@ -90,7 +96,8 @@ class HBaseIndexerMinimal(ConfReader):
     return None
 
   def get_check_column(self, extraction):
-    return "ext:"+"_".join([extraction, str_processed])
+    return "ext:"+"_".join([extraction, extr_str_processed])
+
 
   def get_create_table(self, table_name, conn=None, families={'info': dict()}):
     try:
@@ -114,7 +121,7 @@ class HBaseIndexerMinimal(ConfReader):
       # may fail if families in dictionary do not match those of an existing table
       print inst
 
-  def scan_from_row(self, table_name, row_start=None, columns=None, previous_err=0, inst=None):
+  def scan_from_row(self, table_name, row_start=None, columns=None, maxrows=10, previous_err=0, inst=None):
     self.check_errors(previous_err, "scan_from_row", inst)
     try:
       with self.pool.connection(timeout=self.timeout) as connection:
@@ -122,7 +129,10 @@ class HBaseIndexerMinimal(ConfReader):
         # scan table from row_start, and accumulate in rows the information of the columns that are needed
         rows = []
         for one_row in hbase_table.scan(row_start=row_start, columns=columns, batch_size=2):
-          rows.extend(one_row)
+          #print "one_row:",one_row
+          rows.extend((one_row,))
+          if len(rows) >= maxrows:
+            return rows
           if self.verbose:
             print("[scan_from_row: log] got {} rows.".format(len(rows)))
             sys.stdout.flush()
@@ -133,26 +143,56 @@ class HBaseIndexerMinimal(ConfReader):
       self.refresh_hbase_conn("scan_from_row", sleep_time=4)
       return self.scan_from_row(table_name, row_start, columns, previous_err + 1, inst)
 
-  def get_updates_from_date(self, start_date, previous_err=0, inst=None):
-    # start_date should be in format YYYY-MM-DD
+  def get_updates_from_date(self, start_date, extr_type="", maxrows=10, previous_err=0, inst=None):
+    # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
     self.check_errors(previous_err, "get_updates_from_date", inst)
     # build row_start as index_update_YYYY-MM-DD
-    row_start = "index_update_"+start_date
+    row_start = update_prefix + extr_type + "_" + start_date
     print row_start
-    columns = [self.column_list_sha1s]
     try:
-      rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, columns=columns)
+      rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
     except Exception as inst: # try to catch any exception
       print "[get_updates_from_date: error] {}".format(inst)
       self.refresh_hbase_conn("get_updates_from_date")
-      return self.get_updates_from_date(start_date, previous_err+1, inst)
+      return self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
+                                        inst=inst)
+    return rows
+
+  def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=10, previous_err=0, inst=None):
+    # start_date should be in format YYYY-MM-DD(_XX)
+    rows = None
+    self.check_errors(previous_err, "get_unprocessed_updates_from_date", inst)
+    # build row_start as index_update_YYYY-MM-DD
+    row_start = update_prefix + extr_type + "_" + start_date
+    #print row_start
+    last_row = row_start
+    try:
+      tmp_rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
+      if tmp_rows:
+        for row_id, row_val in tmp_rows:
+          print "row:",row_id
+          last_row = row_id
+          if "info:"+update_str_processed not in row_val and "info:"+update_str_started not in row_val:
+            if rows is None:
+              rows = [(row_id, row_val)]
+            else:
+              rows.append((row_id, row_val))
+        if not rows:
+          next_start_date = '_'.join(last_row.split('_')[-2:])
+          return self.get_unprocessed_updates_from_date(next_start_date, extr_type=extr_type, maxrows=maxrows,
+                                                    previous_err=previous_err+1, inst=inst)
+    except Exception as inst: # try to catch any exception
+      full_trace_error("[get_unprocessed_updates_from_date: error] {}".format(inst))
+      self.refresh_hbase_conn("get_unprocessed_updates_from_date")
+      return self.get_unprocessed_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
+                                                    previous_err=previous_err+1, inst=inst)
     return rows
 
   def get_today_string(self):
     return datetime.today().strftime('%Y-%m-%d')
 
-  def get_next_update_id(self, today=None):
+  def get_next_update_id(self, today=None, extr_type=""):
     # get today's date as in format YYYY-MM-DD
     if today is None:
       today = self.get_today_string()
@@ -161,34 +201,57 @@ class HBaseIndexerMinimal(ConfReader):
       self.dict_up[today] = 0
     else:
       self.dict_up[today] += 1
-    # we could add the extraction type here...
-    update_id = "index_update_" + today + "_" + str(self.dict_up[today])
+    # add the extraction type, as different extraction may build different batches depending
+    # when they started to process the images
+    update_id = update_prefix + extr_type + "_" + today + "_" + str(self.dict_up[today])
     return update_id, today
 
-  def get_batch_update(self, list_sha1s):
-    l = len(list_sha1s)
-    for ndx in range(0, l, self.batch_update_size):
-      yield list_sha1s[ndx:min(ndx + self.batch_update_size, l)]
+  # deprecated
+  # def get_batch_update(self, list_sha1s):
+  #   l = len(list_sha1s)
+  #   for ndx in range(0, l, self.batch_update_size):
+  #     yield list_sha1s[ndx:min(ndx + self.batch_update_size, l)]
 
-  def push_list_updates(self, list_sha1s, previous_err=0, inst=None):
-    self.check_errors(previous_err, "push_list_updates", inst)
-    today = None
+  # deprecated
+  # def push_list_updates(self, list_sha1s, previous_err=0, inst=None):
+  #   self.check_errors(previous_err, "push_list_updates", inst)
+  #   today = None
+  #   dict_updates = dict()
+  #   # Build batches of self.batch_update_size of images updates
+  #   # NB: this batching is redundant with what is done in 'full_image_updater_kafka_to_hbase'
+  #   # but ensures batches have the right size even if called from somewhere else...
+  #   for batch_list_sha1s in self.get_batch_update(list_sha1s):
+  #     update_id, today = self.get_next_update_id(today)
+  #     dict_updates[update_id] = {self.column_list_sha1s: ','.join(batch_list_sha1s)}
+  #   # Push them
+  #   self.push_dict_rows(dict_updates, self.table_updateinfos_name)
+
+  def push_list_updates(self, list_sha1s, update_id):
+    # Build update dictionary
     dict_updates = dict()
-    # Build batches of self.batch_update_size of images updates
-    # NB: this batching is redundant with what is done in 'full_image_updater_kafka_to_hbase'
-    # but ensures batches have the right size even if called from somewhere else...
-    for batch_list_sha1s in self.get_batch_update(list_sha1s):
-      update_id, today = self.get_next_update_id(today)
-      dict_updates[update_id] = {self.column_list_sha1s: ','.join(batch_list_sha1s)}
-    # Push them
+    dict_updates[update_id] = {self.column_list_sha1s: ','.join(list_sha1s)}
+    # Push it
     self.push_dict_rows(dict_updates, self.table_updateinfos_name)
 
-  def push_dict_rows(self, dict_rows, table_name, previous_err=0, inst=None):
+  def push_dict_rows(self, dict_rows, table_name, families=None, previous_err=0, inst=None):
+    """ Push a dictionary to the HBase 'table_name' assuming keys are the row keys and each entry is a valid dictionary
+    containing the column names and values.
+
+    :param dict_rows: input dictionary to be pushed.
+    :param table_name: name of the HBase table where to push the data.
+    :param families: all families of the table (if we need to create the table)
+    :param previous_err: number of previous errors caught
+    :param inst: previous error instance caught
+    :return: None
+    """
     self.check_errors(previous_err, "push_dict_rows", inst)
     try:
       with self.pool.connection(timeout=self.timeout) as connection:
-        table = self.get_create_table(table_name, conn=connection)
-        b = table.batch(batch_size=10)
+        if families:
+          hbase_table = self.get_create_table(table_name, families=families, conn=connection)
+        else:
+          hbase_table = self.get_create_table(table_name, conn=connection)
+        b = hbase_table.batch(batch_size=10) # should we have a bigger batch size?
         # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
         for k in dict_rows:
           b.put(k, dict_rows[k])
@@ -196,7 +259,7 @@ class HBaseIndexerMinimal(ConfReader):
     except Exception as inst: # try to catch any exception
       print "[push_dict_rows: error] {}".format(inst)
       self.refresh_hbase_conn("push_dict_rows")
-      return self.push_dict_rows(dict_rows, table_name, previous_err+1, inst)
+      return self.push_dict_rows(dict_rows, table_name, families=families, previous_err=previous_err+1, inst=inst)
 
   def get_rows_by_batch(self, list_queries, table_name, families=None, columns=None, previous_err=0, inst=None):
     self.check_errors(previous_err, "get_rows_by_batch", inst)
@@ -204,9 +267,9 @@ class HBaseIndexerMinimal(ConfReader):
       with self.pool.connection(timeout=self.timeout) as connection:
         #hbase_table = connection.table(table_name)
         if families:
-          hbase_table = self.get_create_table(table_name, families=families)
+          hbase_table = self.get_create_table(table_name, families=families, conn=connection)
         else:
-          hbase_table = self.get_create_table(table_name)
+          hbase_table = self.get_create_table(table_name, conn=connection)
         # slice list_queries in batches of batch_size to query
         rows = []
         nb_batch = 0

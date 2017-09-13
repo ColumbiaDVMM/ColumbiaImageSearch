@@ -31,7 +31,6 @@ def get_dict_push(dict_sha1_infos, list_get_sha1s):
   dict_push = dict()
   for sha1 in list_get_sha1s:
     dict_push[str(sha1)] = dict()
-    # TODO: this may fail with a key error after first batch
     tmp_dict = dict_sha1_infos[str(sha1)]
     # build column names properly i.e. appending 'info:'
     for k in tmp_dict:

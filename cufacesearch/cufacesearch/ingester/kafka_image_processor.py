@@ -37,43 +37,6 @@ class KafkaImageProcessor(GenericKafkaProcessor):
       self.pp += ":"+str(self.pid)
 
 
-  def get_images_urls(self, msg_value):
-    # Filter 'objects' array based on 'content_type' to get only images urls
-    list_urls = []
-    if 'objects' in msg_value:
-      for obj_pos, obj_val in enumerate(msg_value['objects']):
-        if 'content_type' in obj_val and obj_val['content_type'].startswith("image"):
-          # prepend prefix so images URLs are actually valid
-          image_url = self.url_prefix + obj_val['obj_stored_url']
-          # need to keep obj_pos for alignment
-          list_urls.append((image_url, obj_pos))
-    else:
-      print "[{}.get_images_urls: info] Message had not 'objects' fields.".format(self.pp)
-
-    return list_urls
-  
-  def build_cdr_msg(self, msg_value, dict_imgs):
-    # Edit 'objects' array to add 'img_info', and 'img_sha1' for images
-    for url in dict_imgs:
-      img = dict_imgs[url]
-      tmp_obj = msg_value['objects'][img['obj_pos']]
-      tmp_obj['img_info'] = img['img_info']
-      tmp_obj['img_sha1'] = img['sha1']
-      msg_value['objects'][img['obj_pos']] = tmp_obj
-    return json.dumps(msg_value).encode('utf-8')
-
-  def build_image_msg(self, dict_imgs):
-    # Build dict ouput for each image with fields 's3_url', 'sha1', 'img_info' and 'img_buffer'
-    img_out_msgs = []
-    for url in dict_imgs:
-      tmp_dict_out = dict()
-      tmp_dict_out['s3_url'] = url
-      tmp_dict_out['sha1'] = dict_imgs[url]['sha1']
-      tmp_dict_out['img_info'] = dict_imgs[url]['img_info']
-      # encode buffer in B64?
-      tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
-      img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
-    return img_out_msgs
 
   def process_one(self, msg):
     from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
