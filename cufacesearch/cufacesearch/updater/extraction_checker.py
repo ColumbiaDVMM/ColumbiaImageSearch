@@ -1,4 +1,8 @@
+import os
+import sys
 import json
+import time
+import multiprocessing
 from datetime import datetime
 from argparse import ArgumentParser
 from cufacesearch.common.conf_reader import ConfReader
@@ -13,8 +17,9 @@ default_extr_check_prefix = "EXTR_"
 
 class ExtractionChecker(ConfReader):
 
-  def __init__(self, global_conf, prefix=default_extr_check_prefix):
+  def __init__(self, global_conf, prefix=default_extr_check_prefix, pid=None):
     self.list_extr_prefix = []
+    self.pid = pid
     self.dict_sha1_infos = dict()
 
     super(ExtractionChecker, self).__init__(global_conf, prefix)
@@ -29,6 +34,14 @@ class ExtractionChecker(ConfReader):
     tmp_extr_family_column = self.get_param("extr_family_column")
     if tmp_extr_family_column:
       self.extr_family_column = tmp_extr_family_column
+
+    # Max delay
+    self.max_delay = 3600
+    max_delay = self.get_param("max_delay")
+    if max_delay:
+      self.max_delay = int(max_delay)
+    self.last_push = time.time()
+
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
     self.tablesha1_col_families = {'info': dict(), self.extr_family_column: dict()}
     self.list_extr_prefix = [self.featurizer_type, "feat", self.detector_type, self.input_type]
@@ -44,11 +57,16 @@ class ExtractionChecker(ConfReader):
     # Initialize indexer and ingester
     self.indexer = HBaseIndexerMinimal(self.global_conf, prefix=self.get_required_param("indexer_prefix"))
     self.ingester = GenericKafkaProcessor(self.global_conf, prefix=self.get_required_param("ingester_prefix"))
+    self.ingester.pp = "ec"
+    if self.pid:
+      self.ingester.pp += "ec"+str(self.pid)
 
 
   def set_pp(self):
     self.pp = "ExtractionChecker"
-    self.pp += "_".join(self.list_extr_prefix)
+    self.pp += "-".join(self.list_extr_prefix)
+    if self.pid:
+      self.pp += "-"+str(self.pid)
 
   def store_img_infos(self, msg):
     strk = str(msg['sha1'])
@@ -74,7 +92,11 @@ class ExtractionChecker(ConfReader):
 
   def get_dict_push(self, list_get_sha1s):
     dict_push = dict()
-    update_id, _ = self.indexer.get_next_update_id(today=None, extr_type='_'+self.extr_prefix)
+    # append unique processid to 'update_id' to make it safe to use with multiple consumers...
+    # /!\ beware, it should not contain underscores
+    # use self.ingester.pp
+    tmp_update_id, _ = self.indexer.get_next_update_id(today=None, extr_type='_'+self.extr_prefix)
+    update_id = tmp_update_id+'-'+self.ingester.pp
     for sha1 in list_get_sha1s:
       dict_push[str(sha1)] = dict()
       tmp_dict = self.dict_sha1_infos[str(sha1)]
@@ -122,30 +144,56 @@ class ExtractionChecker(ConfReader):
       # Remove potential duplicates
       list_sha1s_to_process = list(set(list_sha1s_to_process))
 
-      # Push them to HBase by batch of 'batch_update_size'
-      # TODO: maybe have also a maximum delay between two pushes?
-      # Seems to get stuck with a lag of 1868 total on backpage-test...
-      # Then got some HBase errors. No lag anymore but have all images been pushed?
-      if len(list_sha1s_to_process) >= self.indexer.batch_update_size:
-        print "[{}] Pushing batch of {} images.".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S'),
-                                                        self.indexer.batch_update_size)
-        # Trim here to push exactly a batch of 'batch_update_size'
-        list_push = list_sha1s_to_process[:self.indexer.batch_update_size]
-        # Gather corresponding sha1 infos
-        dict_push, update_id = self.get_dict_push(list_push)
-        # Push them
-        self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name, families=self.tablesha1_col_families)
-        # Push update
-        self.indexer.push_list_updates(list_push, update_id)
-        # Gather any remaining sha1s and clean up infos
-        if len(list_sha1s_to_process) > self.indexer.batch_update_size:
-          list_sha1s_to_process = list_sha1s_to_process[self.indexer.batch_update_size:]
-        else:
-          list_sha1s_to_process = []
-        # if duplicates wrt list_push, remove them. Can this still happen?
-        list_sha1s_to_process = [sha1 for sha1 in list_sha1s_to_process if sha1 not in list_push]
-        self.cleanup_dict_infos(list_push)
+      if list_sha1s_to_process:
+        # Push them to HBase by batch of 'batch_update_size'
+        # Seems to get stuck with a lag of 1868 total on backpage-test...
+        # Then got some HBase errors. No lag anymore but have all images been pushed?
+        if len(list_sha1s_to_process) >= self.indexer.batch_update_size or (time.time() - self.last_push) > self.max_delay:
+          # Trim here to push exactly a batch of 'batch_update_size'
+          list_push = list_sha1s_to_process[:min(self.indexer.batch_update_size, len(list_sha1s_to_process))]
+          # Gather corresponding sha1 infos
+          dict_push, update_id = self.get_dict_push(list_push)
+          print "[{}: at {}] Pushing update {} of {} images.".format(self.pp,
+                                                                     datetime.now().strftime('%Y-%m-%d:%H.%M.%S'),
+                                                                     update_id,
+                                                                     len(dict_push.keys()))
 
+          # Push them
+          self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name, families=self.tablesha1_col_families)
+          # Push update
+          self.indexer.push_list_updates(list_push, update_id)
+          # Gather any remaining sha1s and clean up infos
+          if len(list_sha1s_to_process) > self.indexer.batch_update_size:
+            list_sha1s_to_process = list_sha1s_to_process[self.indexer.batch_update_size:]
+          else:
+            list_sha1s_to_process = []
+          # if duplicates wrt list_push, remove them. Can this still happen?
+          list_sha1s_to_process = [sha1 for sha1 in list_sha1s_to_process if sha1 not in list_push]
+          self.cleanup_dict_infos(list_push)
+          self.last_push = time.time()
+
+
+class DaemonExtractionChecker(multiprocessing.Process):
+  daemon = True
+
+  def __init__(self, conf, prefix=default_extr_check_prefix):
+    super(DaemonExtractionChecker, self).__init__()
+    self.conf = conf
+    self.prefix = prefix
+
+  def run(self):
+    nb_death = 0
+    while True:
+      try:
+        print "Starting worker ExtractionChecker.{}".format(self.pid)
+        ec = ExtractionChecker(self.conf, prefix=self.prefix, pid=self.pid)
+        ec.run()
+      except Exception as inst:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print "ExtractionChecker.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
+      time.sleep(10*nb_death)
+      nb_death += 1
 
 
 if __name__ == "__main__":
@@ -153,13 +201,23 @@ if __name__ == "__main__":
   # Get conf file
   parser = ArgumentParser()
   parser.add_argument("-c", "--conf", dest="conf_file", required=True)
+  parser.add_argument("-p", "--prefix", dest="prefix", default=default_extr_check_prefix)
+  parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
+  parser.add_argument("-w", "--workers", dest="workers", type=int, default=15)
   options = parser.parse_args()
 
-  # Initialize extraction checker
-  ec = ExtractionChecker(options.conf_file)
-
-  while True:
-    try:
-      ec.run()
-    except Exception as inst:
-      print "Extraction checker failed {}".format(inst)
+  if options.deamon:  # use daemon
+    for w in range(options.workers):
+      dec = DaemonExtractionChecker(options.conf_file, prefix=options.prefix)
+      dec.start()
+  else:
+    # Initialize extraction checker
+    ec = ExtractionChecker(options.conf_file)
+    nb_death = 0
+    while True:
+      try:
+        ec.run()
+      except Exception as inst:
+        print "Extraction checker failed {}".format(inst)
+        time.sleep(10 * nb_death)
+        nb_death += 1
