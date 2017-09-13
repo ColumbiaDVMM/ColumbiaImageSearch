@@ -97,7 +97,7 @@ class ExtractionProcessor(ConfReader):
       threads = []
 
       # Mark batch as started to be process
-      update_started_dict = {'update_id': {'info:' + update_str_started: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
+      update_started_dict = {update_id: {'info:' + update_str_started: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
       self.indexer.push_dict_rows(dict_rows=update_started_dict, table_name=self.indexer.table_updateinfos_name)
 
       # Push images to queue
@@ -125,7 +125,7 @@ class ExtractionProcessor(ConfReader):
       while not self.q_out.empty():
         sha1, dict_out = self.q_out.get()
         self.q_out.task_done()
-        dict_imgs[sha1] = json.dumps(dict_out)
+        dict_imgs[sha1] = dict_out
 
       print_msg = "[{}.process_batch: log] Processed update {}. Got features for {} images in {}s."
       print(print_msg.format(self.pp, update_id, len(dict_imgs.keys()), time.time() - start_process))
@@ -134,8 +134,7 @@ class ExtractionProcessor(ConfReader):
       self.indexer.push_dict_rows(dict_rows=dict_imgs, table_name=self.indexer.table_sha1infos_name)
 
       # Mark batch as processed
-      update_processed_dict = {
-        'update_id': {'info:' + update_str_processed: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
+      update_processed_dict = {update_id: {'info:' + update_str_processed: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
       self.indexer.push_dict_rows(dict_rows=update_processed_dict, table_name=self.indexer.table_updateinfos_name)
 
       # Cleanup

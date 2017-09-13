@@ -57,7 +57,8 @@ class GenericExtractor(object):
     tmp_dict_out[sha1][self.extr_str_processed] = False
     return tmp_dict_out
 
-  def process_buffer(self, sha1, img_buffer):
+  def process_buffer(self, in_sha1, img_buffer):
+    sha1 = str(in_sha1)
     dict_out = self.init_out_dict(sha1)
     # If extraction needs detection first
     if self.detector is not None:
