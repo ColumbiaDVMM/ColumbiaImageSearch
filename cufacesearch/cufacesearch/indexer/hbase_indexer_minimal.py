@@ -10,7 +10,7 @@ from ..common import update_prefix, column_list_sha1s
 
 TTransportException = happybase._thriftpy.transport.TTransportException
 TException = happybase._thriftpy.thrift.TException
-max_errors = 2
+max_errors = 3
 # reading a lot of data from HBase at once can be unstable
 batch_size = 100
 extr_str_processed = "processed"
@@ -62,8 +62,9 @@ class HBaseIndexerMinimal(ConfReader):
     from thriftpy.transport import TTransportException
     try:
       # The timeout as parameter seems to cause issues?...
-      #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, timeout=10)
-      self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
+      self.pool = happybase.ConnectionPool(timeout=1000, size=self.nb_threads, host=self.hbase_host,
+                                           transport=self.transport_type)
+      #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
     except TTransportException as inst:
       print_msg = "[{}.read_conf: error] Could not initalize connection to HBase. Are you connected to the VPN?"
       print print_msg.format(self.pp)
@@ -86,9 +87,10 @@ class HBaseIndexerMinimal(ConfReader):
     # This can hang for a long time?
     # Should we add timeout (in ms: http://happybase.readthedocs.io/en/latest/api.html#connection)?
     #self.pool = happybase.ConnectionPool(size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
-    self.pool = happybase.ConnectionPool(timeout=10, size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
+    self.pool = happybase.ConnectionPool(timeout=1000, size=self.nb_threads, host=self.hbase_host, transport=self.transport_type)
     print_msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
     print print_msg.format(self.pp, time.time()-start_refresh)
+    sys.stdout.flush()
 
   def check_errors(self, previous_err, function_name, inst=None):
     if previous_err >= max_errors:
@@ -112,14 +114,18 @@ class HBaseIndexerMinimal(ConfReader):
         _ = table.families()
         return table
       except Exception as inst:
-        print "[get_create_table: info] table {} does not exist (yet)".format(table_name)
-        conn.create_table(table_name, families)
-        table = conn.table(table_name)
-        print "[get_create_table: info] created table {}".format(table_name)
-        return table
+        # TODO: act differently based on error type (connection issue or actually table missing)
+        if type(inst) == TTransportException:
+          raise inst
+        else:
+          print "[get_create_table: info] table {} does not exist (yet): {}".format(table_name, inst)
+          conn.create_table(table_name, families)
+          table = conn.table(table_name)
+          print "[get_create_table: info] created table {}".format(table_name)
+          return table
     except Exception as inst:
       # may fail if families in dictionary do not match those of an existing table, or because of connection issues?
-      print inst
+      pass
 
   def scan_from_row(self, table_name, row_start=None, columns=None, maxrows=10, previous_err=0, inst=None):
     self.check_errors(previous_err, "scan_from_row", inst)
@@ -159,7 +165,7 @@ class HBaseIndexerMinimal(ConfReader):
                                         inst=inst)
     return rows
 
-  def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=10, previous_err=0, inst=None):
+  def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=5, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
     self.check_errors(previous_err, "get_unprocessed_updates_from_date", inst)
@@ -171,17 +177,22 @@ class HBaseIndexerMinimal(ConfReader):
       tmp_rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
       if tmp_rows:
         for row_id, row_val in tmp_rows:
-          print "row:",row_id
           last_row = row_id
           if "info:"+update_str_processed not in row_val and "info:"+update_str_started not in row_val:
+            print "row:",row_id
             if rows is None:
               rows = [(row_id, row_val)]
             else:
               rows.append((row_id, row_val))
-        if not rows:
+      if rows is None:
+        if tmp_rows is None or len(tmp_rows) < maxrows:
+          # Looks like we really have nothing to process...
+          return rows
+        else:
+          # Explore further
           next_start_date = '_'.join(last_row.split('_')[-2:])
-          return self.get_unprocessed_updates_from_date(next_start_date, extr_type=extr_type, maxrows=maxrows,
-                                                    previous_err=previous_err+1, inst=inst)
+          # Multiply maxrows to avoid maximum recursion depth issue...
+          return self.get_unprocessed_updates_from_date(next_start_date, extr_type=extr_type, maxrows=10*maxrows)
     except Exception as inst: # try to catch any exception
       full_trace_error("[get_unprocessed_updates_from_date: error] {}".format(inst))
       self.refresh_hbase_conn("get_unprocessed_updates_from_date")
@@ -245,28 +256,35 @@ class HBaseIndexerMinimal(ConfReader):
     :return: None
     """
     self.check_errors(previous_err, "push_dict_rows", inst)
+    hbase_table = None
+    retries = 0
     try:
-      # Let get_create_table set up the connection
-      if families:
-        hbase_table = self.get_create_table(table_name, families=families)
-      else:
-       hbase_table = self.get_create_table(table_name)
-      b = hbase_table.batch(batch_size=10) # should we have a bigger batch size?
-      # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
-      for k in dict_rows:
-        b.put(k, dict_rows[k])
-      b.send()
       # Use connection pool. Seems to fail when pool was initialized a long time ago...
-      # with self.pool.connection(timeout=self.timeout) as connection:
-      #   if families:
-      #     hbase_table = self.get_create_table(table_name, families=families, conn=connection)
-      #   else:
-      #     hbase_table = self.get_create_table(table_name, conn=connection)
-      #   b = hbase_table.batch(batch_size=10) # should we have a bigger batch size?
-      #   # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
-      #   for k in dict_rows:
-      #     b.put(k, dict_rows[k])
-      #   b.send()
+      with self.pool.connection(timeout=self.timeout) as connection:
+        if families:
+          hbase_table = self.get_create_table(table_name, families=families, conn=connection)
+        else:
+          hbase_table = self.get_create_table(table_name, conn=connection)
+
+        if hbase_table is None:
+          raise ValueError("Could not initialize hbase_table")
+
+        b = hbase_table.batch(batch_size=10) # should we have a bigger batch size?
+        # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
+        for k in dict_rows:
+          b.put(k, dict_rows[k])
+        b.send()
+
+      # # Let get_create_table set up the connection, seems to fail too
+      # if families:
+      #   hbase_table = self.get_create_table(table_name, families=families)
+      # else:
+      #  hbase_table = self.get_create_table(table_name)
+      # b = hbase_table.batch(batch_size=10) # should we have a bigger batch size?
+      # # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
+      # for k in dict_rows:
+      #   b.put(k, dict_rows[k])
+      # b.send()
     except Exception as inst: # try to catch any exception
       print "[push_dict_rows: error] {}".format(inst)
       self.refresh_hbase_conn("push_dict_rows")
