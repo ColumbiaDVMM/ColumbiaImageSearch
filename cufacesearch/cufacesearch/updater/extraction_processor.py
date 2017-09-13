@@ -1,3 +1,4 @@
+from __future__ import print_function
 from copy import deepcopy
 import time
 from datetime import datetime
@@ -91,6 +92,7 @@ class ExtractionProcessor(ConfReader):
   def process_batch(self):
     # Get a new batch from update table
     for rows_batch, update_id in self.get_batch():
+      start_process = time.time()
       print("[{}.process_batch: log] Processing update: {}".format(self.pp, update_id))
       threads = []
 
@@ -125,7 +127,8 @@ class ExtractionProcessor(ConfReader):
         self.q_out.task_done()
         dict_imgs[sha1] = dict_out
 
-      print "[{}.process_batch: log] Processed update {}. Got features for {} images.".format(self.pp, update_id, len(dict_imgs.keys()))
+      print_msg = "[{}.process_batch: log] Processed update {}. Got features for {} images in {}s."
+      print print_msg.format(self.pp, update_id, len(dict_imgs.keys()), time.time() - start_process)
 
       # Push them
       self.indexer.push_dict_rows(dict_rows=dict_imgs, table_name=self.indexer.table_sha1infos_name)

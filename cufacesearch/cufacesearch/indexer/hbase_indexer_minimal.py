@@ -118,7 +118,7 @@ class HBaseIndexerMinimal(ConfReader):
         print "[get_create_table: info] created table {}".format(table_name)
         return table
     except Exception as inst:
-      # may fail if families in dictionary do not match those of an existing table
+      # may fail if families in dictionary do not match those of an existing table, or because of connection issues?
       print inst
 
   def scan_from_row(self, table_name, row_start=None, columns=None, maxrows=10, previous_err=0, inst=None):
@@ -246,16 +246,27 @@ class HBaseIndexerMinimal(ConfReader):
     """
     self.check_errors(previous_err, "push_dict_rows", inst)
     try:
-      with self.pool.connection(timeout=self.timeout) as connection:
-        if families:
-          hbase_table = self.get_create_table(table_name, families=families, conn=connection)
-        else:
-          hbase_table = self.get_create_table(table_name, conn=connection)
-        b = hbase_table.batch(batch_size=10) # should we have a bigger batch size?
-        # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
-        for k in dict_rows:
-          b.put(k, dict_rows[k])
-        b.send()
+      # Let get_create_table set up the connection
+      if families:
+        hbase_table = self.get_create_table(table_name, families=families)
+      else:
+       hbase_table = self.get_create_table(table_name)
+      b = hbase_table.batch(batch_size=10) # should we have a bigger batch size?
+      # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
+      for k in dict_rows:
+        b.put(k, dict_rows[k])
+      b.send()
+      # Use connection pool. Seems to fail when pool was initialized a long time ago...
+      # with self.pool.connection(timeout=self.timeout) as connection:
+      #   if families:
+      #     hbase_table = self.get_create_table(table_name, families=families, conn=connection)
+      #   else:
+      #     hbase_table = self.get_create_table(table_name, conn=connection)
+      #   b = hbase_table.batch(batch_size=10) # should we have a bigger batch size?
+      #   # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
+      #   for k in dict_rows:
+      #     b.put(k, dict_rows[k])
+      #   b.send()
     except Exception as inst: # try to catch any exception
       print "[push_dict_rows: error] {}".format(inst)
       self.refresh_hbase_conn("push_dict_rows")
