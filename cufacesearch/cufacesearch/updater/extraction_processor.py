@@ -73,7 +73,7 @@ class ExtractionProcessor(ConfReader):
         for update_id, update_cols in list_updates:
           str_list_sha1s = update_cols[column_list_sha1s]
           list_sha1s = str_list_sha1s.split(',')
-          print("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
+          print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
           # also get 'ext:' to check if extraction was already processed?
           rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
           #print "rows_batch", rows_batch
@@ -83,9 +83,9 @@ class ExtractionProcessor(ConfReader):
             print("[{}.get_batch: log] After yielding for update: {}".format(self.pp, update_id))
             self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
           else:
-            print("[{}.get_batch: log] Did not get any image buffers for the update: {}".format(update_id))
+            print("[{}.get_batch: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
       else:
-        print "[{}.get_batch: log] Nothing to update!".format(self.pp)
+        print("[{}.get_batch: log] Nothing to update!".format(self.pp))
     except Exception as inst:
       full_trace_error("[{}.get_batch: error] {}".format(self.pp, inst))
 
@@ -128,7 +128,7 @@ class ExtractionProcessor(ConfReader):
         dict_imgs[sha1] = dict_out
 
       print_msg = "[{}.process_batch: log] Processed update {}. Got features for {} images in {}s."
-      print print_msg.format(self.pp, update_id, len(dict_imgs.keys()), time.time() - start_process)
+      print(print_msg.format(self.pp, update_id, len(dict_imgs.keys()), time.time() - start_process))
 
       # Push them
       self.indexer.push_dict_rows(dict_rows=dict_imgs, table_name=self.indexer.table_sha1infos_name)
@@ -158,7 +158,7 @@ if __name__ == "__main__":
   # Initialize extraction processor
   ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
 
-  print "Starting extraction {}".format(ep.extr_prefix)
+  print("Starting extraction {}".format(ep.extr_prefix))
   while True:
     try:
       ep.run()
