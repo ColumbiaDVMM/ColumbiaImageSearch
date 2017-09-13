@@ -8,7 +8,7 @@ from cufacesearch.common import column_list_sha1s
 from cufacesearch.common.error import full_trace_error
 from cufacesearch.common.conf_reader import ConfReader
 from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_started, update_str_processed
-from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, BatchThreadedExtractor, ThreadedExtractor, GenericExtractor, build_extr_str
+from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, GenericExtractor, build_extr_str
 
 default_extr_proc_prefix = "EXTR_"
 
@@ -49,16 +49,12 @@ class ExtractionProcessor(ConfReader):
     self.extr_prefix = build_extr_str(self.featurizer_type, self.detector_type, self.input_type)
 
     # Initialize queues
-    #from Queue import Queue
     from multiprocessing import JoinableQueue as Queue
     self.q_in = []
     self.q_out = []
     for i in range(self.nb_threads):
       self.q_in.append(Queue(0))
       self.q_out.append(Queue(0))
-
-    # self.extractor = GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
-    #                                         self.extr_family_column, self.featurizer_prefix, self.global_conf)
 
     self.extractors = []
     for i in range(self.nb_threads):

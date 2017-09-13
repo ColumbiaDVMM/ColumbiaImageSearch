@@ -1,6 +1,5 @@
 import sys
 import time
-import threading
 import multiprocessing
 from cufacesearch.detector.generic_detector import get_detector, get_bbox_str
 from cufacesearch.featurizer.generic_featurizer import get_featurizer
@@ -15,64 +14,6 @@ def build_extr_str(featurizer_type, detector_type, input_type):
 
 def build_extr_str_processed(featurizer_type, dectector_type, input_type):
   return build_extr_str(featurizer_type, dectector_type, input_type)+"_"+extr_str_processed
-
-
-class ThreadedExtractor(threading.Thread):
-  def __init__(self, extractor, q_in, q_out):
-    threading.Thread.__init__(self)
-    self.extractor = extractor
-    self.q_in = q_in
-    self.q_out = q_out
-
-  def run(self):
-    while self.q_in.empty() == False:
-      try:
-        # The queue should already have items, no need to block
-        sha1, img_buffer = self.q_in.get(False)
-      except:
-        continue
-
-      out_dict = self.extractor.process_buffer(img_buffer)
-
-      # Push
-      self.q_out.put((sha1, out_dict))
-
-      # Mark as done
-      self.q_in.task_done()
-
-
-class BatchThreadedExtractor(threading.Thread):
-  def __init__(self, extractor, q_in, q_out):
-    threading.Thread.__init__(self)
-    self.extractor = extractor
-    self.q_in = q_in
-    self.q_out = q_out
-
-  def run(self):
-    while self.q_in.empty() == False:
-      try:
-        # The queue should already have items, no need to block
-        batch = self.q_in.get(False)
-      except:
-        continue
-
-      start_process = time.time()
-
-      print "[BatchThreadedExtractor] Got batch of {} images to process.".format(len(batch))
-      sys.stdout.flush()
-      out_batch = []
-
-      for sha1, img_buffer in batch:
-        out_dict = self.extractor.process_buffer(img_buffer)
-        out_batch.append((sha1, out_dict))
-
-      # Push
-      print "[BatchThreadedExtractor] Computed {} extractions in {}s.".format(len(out_batch), time.time() - start_process)
-      sys.stdout.flush()
-      self.q_out.put(out_batch)
-
-      # Mark as done
-      self.q_in.task_done()
 
 
 class DaemonBatchExtractor(multiprocessing.Process):
