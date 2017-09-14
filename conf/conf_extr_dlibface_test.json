@@ -1,0 +1,54 @@
+{
+  "EXTR_indexer_prefix": "HBI_",
+  "EXTR_check_ingester_prefix": "KIcheck_",
+  "EXTR_proc_ingester_prefix": "KIproc_",
+  "EXTR_featurizer_prefix": "DLIB_",
+  "EXTR_featurizer_type": "dlib",
+  "EXTR_detector_type": "dlib",
+  "EXTR_input_type": "face",
+  "EXTR_max_delay": 600,
+  "EXTR_nb_threads": 8,
+  "HBI_host": "10.1.94.57",
+  "HBI_table_sha1infos": "backpage_test_images_sha1_infos",
+  "HBI_table_updateinfos": "backpage_test_images_update_infos",
+  "HBI_batch_update_size": 1000,
+  "HBI_pool_thread": 1,
+  "KIcheck_verbose": 1,
+  "KIcheck_consumer_topics": "backpage-test-images",
+  "KIcheck_consumer_group": "backpage-test-images-dlibface-extrchecker1",
+  "KIcheck_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KIcheck_consumer_security": {
+    "security_protocol":"SSL",
+    "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
+    "ssl_certfile":"../../data/keys/hg-kafka-client-cert.pem",
+    "ssl_keyfile":"../../data/keys/hg-kafka-client-key.pem",
+    "ssl_check_hostname":false
+  },
+  "KIcheck_consumer_options": {
+    "auto_offset_reset": "earliest",
+    "max_poll_records": 10,
+    "session_timeout_ms": 300000,
+    "request_timeout_ms": 600000
+  },
+  "KIcheck_producer_updates_out_topic": "backpage-test-images-dlibface-updates",
+  "KIproc_verbose": 1,
+  "KIproc_consumer_topics":  "backpage-test-images-dlibface-updates",
+  "KIproc_consumer_group": "backpage-test-images-dlibface-extrproc1",
+  "KIproc_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KIproc_consumer_security": {
+    "security_protocol":"SSL",
+    "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
+    "ssl_certfile":"../../data/keys/hg-kafka-client-cert.pem",
+    "ssl_keyfile":"../../data/keys/hg-kafka-client-key.pem",
+    "ssl_check_hostname":false
+  },
+  "KIproc_consumer_options": {
+    "auto_offset_reset": "earliest",
+    "max_poll_records": 1,
+    "session_timeout_ms": 300000,
+    "request_timeout_ms": 600000
+  },
+  "DLIB_pred_path": "../../data/shape_predictor_68_face_landmarks.dat",
+  "DLIB_rec_path": "../../data/dlib_face_recognition_resnet_model_v1.dat"
+}
+
