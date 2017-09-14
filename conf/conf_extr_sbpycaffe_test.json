@@ -15,7 +15,7 @@
   "HBI_pool_thread": 1,
   "KIcheck_verbose": 1,
   "KIcheck_consumer_topics": "backpage-test-images",
-  "KIcheck_consumer_group": "backpage-test-images-sbpycaffe-extrchecker5",
+  "KIcheck_consumer_group": "backpage-test-images-sbpycaffe-extrchecker6",
   "KIcheck_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
   "KIcheck_consumer_security": {
     "security_protocol":"SSL",
