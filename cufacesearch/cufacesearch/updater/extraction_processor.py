@@ -121,7 +121,7 @@ class ExtractionProcessor(ConfReader):
       for msg in self.ingester.consumer:
           msg_dict = json.loads(msg.value)
           update_id = msg_dict.keys()[0]
-          str_list_sha1s = msg_dict[update_id]
+          str_list_sha1s = msg_dict[update_id][self.indexer.column_list_sha1s]
           list_sha1s = str_list_sha1s.split(',')
           print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
           # also get 'ext:' to check if extraction was already processed?
