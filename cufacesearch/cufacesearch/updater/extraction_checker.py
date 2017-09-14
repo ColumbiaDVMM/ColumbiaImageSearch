@@ -103,7 +103,6 @@ class ExtractionChecker(ConfReader):
     update_id = tmp_update_id+'-'+self.ingester.pp
     for sha1 in list_get_sha1s:
       dict_push[str(sha1)] = dict()
-      # why do we get exceptions.KeyError here?
       try:
         tmp_dict = self.dict_sha1_infos[str(sha1)]
       except:
