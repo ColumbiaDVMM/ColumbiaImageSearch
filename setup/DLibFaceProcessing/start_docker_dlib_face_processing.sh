@@ -16,7 +16,7 @@ docker_image="dlibface_processing"
 
 docker_image_tag="1.0"
 docker_image_build_tag="0.9"
-docker_name="sb_dlibface_proc"
+docker_name="dlibface_proc"
 docker_file=${repo_path}"/setup/DLibFaceProcessing/DockerFileDLibFaceProcessing"
 setup_script=${indocker_repo_path}"/setup/DLibFaceProcessing/setup_dlib_face_processing.sh"
 start_script=${indocker_repo_path}"/setup/DLibFaceProcessing/run_dlib_face_processing.sh"
