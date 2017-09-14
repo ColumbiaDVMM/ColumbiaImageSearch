@@ -90,7 +90,8 @@ class ExtractionChecker(ConfReader):
     for sha1 in list_del_sha1s:
       try:
         del self.dict_sha1_infos[str(sha1)]
-      except: # could happen when cleaning up duplicates...
+      except:
+        # could happen when cleaning up duplicates or image processed by another process
         pass
 
   def get_dict_push(self, list_get_sha1s):
@@ -105,9 +106,11 @@ class ExtractionChecker(ConfReader):
       # why do we get exceptions.KeyError here?
       try:
         tmp_dict = self.dict_sha1_infos[str(sha1)]
-      except Exception as inst:
-        print "Was looking for {} in dict with keys: {}".format(str(sha1), self.dict_sha1_infos.keys())
-        raise inst
+      except:
+        # This would mean the image has been marked as part of another batch by another process,
+        # and thus deleted in a previous 'get_unprocessed_rows' call
+        del dict_push[str(sha1)]
+        continue
       # build column names properly i.e. appending 'info:'
       for k in tmp_dict:
         dict_push[str(sha1)]['info:' + k] = tmp_dict[k]
@@ -121,6 +124,7 @@ class ExtractionChecker(ConfReader):
                                                          families=self.tablesha1_col_families)
     found_sha1_rows = set([str(row[0]) for row in sha1s_rows])
     # Clean up 'dict_sha1_infos' deleting found_sha1_rows
+    # Beware, this can be dangerous in multiprocess setting...
     self.cleanup_dict_infos(found_sha1_rows)
     set_list_sha1s_to_check = set(list_sha1s_to_check)
     unprocessed_rows = set_list_sha1s_to_check - found_sha1_rows
@@ -144,7 +148,7 @@ class ExtractionChecker(ConfReader):
           if len(list_sha1s_to_check) >= self.indexer.batch_update_size:
             break
 
-        # Check which images have not been processed yet
+        # Check which images have not been processed (or pushed in an update) yet
         unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)
 
         # Push sha1s to be processed
@@ -166,14 +170,16 @@ class ExtractionChecker(ConfReader):
             dict_push, update_id = self.get_dict_push(list_push)
             push_msg = "[{}: at {}] Pushing update {} of {} images."
             print push_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id, len(dict_push.keys()))
+            sys.stdout.flush()
 
             # Push them
             self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name, families=self.tablesha1_col_families)
             # Push update
-            self.indexer.push_list_updates(list_push, update_id)
+            #self.indexer.push_list_updates(list_push, update_id)
+            self.indexer.push_list_updates(dict_push.keys(), update_id)
             # We also push update_id and list_push to a kafka topic to allow better parallelized extraction
             dict_updates = dict()
-            dict_updates[update_id] = {self.indexer.column_list_sha1s: ','.join(list_push)}
+            dict_updates[update_id] = {self.indexer.column_list_sha1s: ','.join(dict_push.keys())}
             self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates))
 
             # Gather any remaining sha1s and clean up infos
