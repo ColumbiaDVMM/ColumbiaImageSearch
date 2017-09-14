@@ -1,5 +1,8 @@
 #!/bin/bash
+# TODO: set this, test or release?
+suffix="_test"
+#suffix="_release"
 
-python ../../scripts/ingestion/run_image_ingestion.py -t -d -c ../../conf/global_conf_facesearch_kafka_hg_release.json &> log_image_ingestion_$(date +%Y-%m-%d).txt
+python ../../scripts/ingestion/run_image_ingestion.py -t -d -c ../../conf/conf_kafka_image_downloader${suffix}.json &> log_image_ingestion${suffix}_$(date +%Y-%m-%d).txt
 
 

@@ -37,6 +37,7 @@ class ExtractionChecker(ConfReader):
 
     # Max delay
     self.max_delay = 3600
+    #self.max_delay = 600
     max_delay = self.get_param("max_delay")
     if max_delay:
       self.max_delay = int(max_delay)
@@ -56,7 +57,8 @@ class ExtractionChecker(ConfReader):
 
     # Initialize indexer and ingester
     self.indexer = HBaseIndexerMinimal(self.global_conf, prefix=self.get_required_param("indexer_prefix"))
-    self.ingester = GenericKafkaProcessor(self.global_conf, prefix=self.get_required_param("ingester_prefix"))
+    self.ingester = GenericKafkaProcessor(self.global_conf, prefix=self.get_required_param("check_ingester_prefix"))
+    self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
     self.ingester.pp = "ec"
     if self.pid:
       self.ingester.pp += "ec"+str(self.pid)
@@ -162,6 +164,11 @@ class ExtractionChecker(ConfReader):
           self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name, families=self.tablesha1_col_families)
           # Push update
           self.indexer.push_list_updates(list_push, update_id)
+          # We also push update_id and list_push to a kafka topic to allow better parallelized extraction
+          dict_updates = dict()
+          dict_updates[update_id] = {self.column_list_sha1s: ','.join(list_push)}
+          self.producer.send(self.updates_out_topic, json.dumps(dict_updates))
+
           # Gather any remaining sha1s and clean up infos
           if len(list_sha1s_to_process) > self.indexer.batch_update_size:
             list_sha1s_to_process = list_sha1s_to_process[self.indexer.batch_update_size:]

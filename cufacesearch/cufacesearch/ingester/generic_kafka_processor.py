@@ -161,8 +161,5 @@ class GenericKafkaProcessor(ConfReader):
     try:
       self.producer = KafkaProducer(**dict_args)
     except Exception as inst:
+      # Would be OK for ingester that do not output to kafka...
       print "[{}: warning] Could not initialize producer: {}".format(self.pp, inst)
-
-
-
-

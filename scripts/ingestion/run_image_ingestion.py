@@ -4,6 +4,8 @@ from cufacesearch.ingester.kafka_image_downloader import DaemonKafkaImageDownloa
 from cufacesearch.ingester.kafka_image_downloader import default_prefix
 import time
 
+# Should this sccript just be as the main in 'kafka_image_downloader'?
+
 if __name__ == "__main__":
 
   # Get conf file
@@ -13,7 +15,7 @@ if __name__ == "__main__":
   parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
   parser.add_argument("-t", "--threaded", dest="threaded", action="store_true", default=False)
   parser.add_argument("-w", "--workers", dest="workers", type=int, default=15)
-  parser.add_argument("-m", "--max_message", dest="max_message", type=int, default=0)
+  parser.add_argument("-m", "--max_message", dest="max_message", type=int, default=0) # only for non daemon version
   options = parser.parse_args()
 
   print options
@@ -22,13 +24,11 @@ if __name__ == "__main__":
 
   if options.deamon:  # use daemon
     for w in range(options.workers):
-      # How to pass 'max_message' ?
       if options.threaded:
         dkip = DaemonKafkaThreadedImageDownloader(options.conf_file, prefix=options.prefix)
       else:
         dkip = DaemonKafkaImageDownloader(options.conf_file, prefix=options.prefix)
       dkip.start()
-    # How should we exit properly?
   else:
     # Initialize
     if options.threaded:

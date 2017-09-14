@@ -1,6 +1,7 @@
 from __future__ import print_function
 import sys
 import time
+import json
 import math
 from datetime import datetime
 from argparse import ArgumentParser
@@ -9,6 +10,7 @@ from cufacesearch.common.error import full_trace_error
 from cufacesearch.common.conf_reader import ConfReader
 from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_started, update_str_processed
 from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, GenericExtractor, build_extr_str
+from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
 default_extr_proc_prefix = "EXTR_"
 
@@ -24,16 +26,19 @@ class ExtractionProcessor(ConfReader):
 
   def __init__(self, global_conf, prefix=default_extr_proc_prefix):
     self.extractor = None
+    self.nb_empt = 0
 
     super(ExtractionProcessor, self).__init__(global_conf, prefix)
 
+    self.input_type = self.get_required_param("input_type")
+    self.nb_threads = self.get_required_param("nb_threads")
     self.featurizer_type = self.get_required_param("featurizer_type")
     self.featurizer_prefix = self.get_required_param("featurizer_prefix")
     self.detector_type = self.get_required_param("detector_type")
+
+    # Means we extract feature from the whole image
     if self.detector_type == "full":
       self.detector = None
-    self.input_type = self.get_required_param("input_type")
-    self.nb_threads = self.get_required_param("nb_threads")
 
     self.verbose = 0
     verbose = self.get_param("verbose")
@@ -47,6 +52,7 @@ class ExtractionProcessor(ConfReader):
       self.extr_family_column = tmp_extr_family_column
 
     self.extr_prefix = build_extr_str(self.featurizer_type, self.detector_type, self.input_type)
+    self.set_pp()
 
     # Initialize queues
     from multiprocessing import JoinableQueue as Queue
@@ -56,6 +62,7 @@ class ExtractionProcessor(ConfReader):
       self.q_in.append(Queue(0))
       self.q_out.append(Queue(0))
 
+    # Initialize extractors only once
     self.extractors = []
     for i in range(self.nb_threads):
       self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
@@ -64,12 +71,13 @@ class ExtractionProcessor(ConfReader):
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
     self.tablesha1_col_families = {'info': dict(), self.extr_family_column: dict()}
 
-    self.set_pp()
-
     # Initialize indexer
     self.indexer = HBaseIndexerMinimal(self.global_conf, prefix=self.get_required_param("indexer_prefix"))
     self.last_update_date_id = ''
 
+    # Initialize ingester
+    self.ingester = GenericKafkaProcessor(self.global_conf, prefix=self.get_required_param("proc_ingester_prefix"))
+    self.ingester.pp = "ep"
 
 
   def set_pp(self):
@@ -77,13 +85,43 @@ class ExtractionProcessor(ConfReader):
     if self.extractor:
       self.pp += "_"+self.extr_prefix
 
-  def get_batch(self):
+  # Deprecated
+  # def get_batch_hbase(self):
+  #   # legacy implementation: better to have a kafka topic for batches to be processed to allow
+  #   #       safe parallelization on different machines
+  #   # NB: something similar to this, with a modification to get_unprocessed_updates_from_date to get updates that were
+  #   # started a long time ago but never finisher could serve to pick up failed updates...
+  #   try:
+  #     # needs to read update table rows starting with 'index_update_'+extr and not marked as indexed.
+  #     list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id, extr_type="_"+self.extr_prefix)
+  #     if list_updates:
+  #       for update_id, update_cols in list_updates:
+  #         str_list_sha1s = update_cols[column_list_sha1s]
+  #         list_sha1s = str_list_sha1s.split(',')
+  #         print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
+  #         # also get 'ext:' to check if extraction was already processed?
+  #         rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
+  #         #print "rows_batch", rows_batch
+  #         if rows_batch:
+  #           print("[{}.get_batch: log] Yielding for update: {}".format(self.pp, update_id))
+  #           yield rows_batch, update_id
+  #           print("[{}.get_batch: log] After yielding for update: {}".format(self.pp, update_id))
+  #           self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+  #         else:
+  #           print("[{}.get_batch: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
+  #     else:
+  #       print("[{}.get_batch: log] Nothing to update!".format(self.pp))
+  #   except Exception as inst:
+  #     full_trace_error("[{}.get_batch: error] {}".format(self.pp, inst))
+
+  def get_batch_kafka(self):
+    # Read from a kafka topic to allow safer parallelization on different machines
     try:
-      # needs to read update table rows starting with 'index_update_'+extr and not marked as indexed.
-      list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id, extr_type="_"+self.extr_prefix)
-      if list_updates:
-        for update_id, update_cols in list_updates:
-          str_list_sha1s = update_cols[column_list_sha1s]
+      # Needs to read topic to get update_id and list of sha1s
+      for msg in self.ingester.consumer:
+          msg_dict = json.loads(msg)
+          update_id = msg_dict.keys()[0]
+          str_list_sha1s = msg_dict[update_id]
           list_sha1s = str_list_sha1s.split(',')
           print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
           # also get 'ext:' to check if extraction was already processed?
@@ -101,12 +139,13 @@ class ExtractionProcessor(ConfReader):
     except Exception as inst:
       full_trace_error("[{}.get_batch: error] {}".format(self.pp, inst))
 
+
   def process_batch(self):
-    # Get a new batch from update table
-    # TODO: would be better to have a kafka topic for batches to be processed to allow safe parallelization
-    #       on different machines
-    for rows_batch, update_id in self.get_batch():
+    # Get a new update batch
+    #for rows_batch, update_id in self.get_batch_hbase():
+    for rows_batch, update_id in self.get_batch_kafka():
       start_update = time.time()
+      self.nb_empt = 0
       print("[{}.process_batch: log] Processing update: {}".format(self.pp, update_id))
       sys.stdout.flush()
 
@@ -188,13 +227,13 @@ class ExtractionProcessor(ConfReader):
       sys.stdout.flush()
 
   def run(self):
-    nb_empt = 0
+    self.nb_empt = 0
     while True:
       self.process_batch()
       print("[ExtractionProcessor: log] Nothing to process at: {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
       sys.stdout.flush()
-      time.sleep(10*nb_empt)
-      nb_empt += 1
+      time.sleep(10*self.nb_empt)
+      self.nb_empt += 1
 
 
 if __name__ == "__main__":
@@ -213,6 +252,7 @@ if __name__ == "__main__":
   while True:
     try:
       ep.run()
+      nb_err = 0
     except Exception as inst:
       full_trace_error("Extraction processor failed: {}".format(inst))
       time.sleep(10*nb_err)

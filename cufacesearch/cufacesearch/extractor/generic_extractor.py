@@ -3,7 +3,7 @@ import time
 import multiprocessing
 from cufacesearch.detector.generic_detector import get_detector, get_bbox_str
 from cufacesearch.featurizer.generic_featurizer import get_featurizer
-from cufacesearch.featurizer.featsio import featB64encode
+from cufacesearch.featurizer.featsio import normfeatB64encode
 from cufacesearch.imgio.imgio import get_buffer_from_B64
 from cufacesearch.indexer.hbase_indexer_minimal import extr_str_processed
 
@@ -99,11 +99,11 @@ class GenericExtractor(object):
           dict_out[self.extr_str_processed] = 1
           bbox_str = get_bbox_str(one_det)
           # Encode the feature with base64
-          dict_out[self.extr_str + "_" + bbox_str] = featB64encode(one_feat)
+          dict_out[self.extr_str + "_" + bbox_str] = normfeatB64encode(one_feat)
     # Just featurize full image
     else:
       one_feat = self.featurizer.featurize(img_buffer)
-      dict_out[self.extr_str] = featB64encode(one_feat)
+      dict_out[self.extr_str] = normfeatB64encode(one_feat)
       dict_out[self.extr_str_processed] = 1
 
     dict_out[self.extr_str_processed] = str(dict_out[self.extr_str_processed])

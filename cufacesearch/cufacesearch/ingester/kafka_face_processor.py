@@ -5,7 +5,7 @@ import json
 import multiprocessing
 from .generic_kafka_processor import GenericKafkaProcessor
 from ..imgio.imgio import get_buffer_from_B64
-from ..featurizer.featsio import featB64encode
+from ..featurizer.featsio import normfeatB64encode
 from ..indexer.hbase_indexer_minimal import str_processed
 
 default_prefix = "KFP_"
@@ -119,7 +119,7 @@ class KafkaFaceProcessor(GenericKafkaProcessor):
           tmp_dict_out[str_processed] = True
           tmp_dict_out[face_bbox_str] = one_face
           # base64 encode the feature to be dumped
-          tmp_dict_out[face_feat_str] = featB64encode(one_feat)
+          tmp_dict_out[face_feat_str] = normfeatB64encode(one_feat)
           # Dump as JSON
           list_faces_msg.append(json.dumps(tmp_dict_out).encode('utf-8'))
       else:

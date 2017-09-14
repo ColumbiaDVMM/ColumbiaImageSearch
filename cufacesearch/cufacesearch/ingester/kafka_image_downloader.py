@@ -352,3 +352,4 @@ class DaemonKafkaThreadedImageDownloader(multiprocessing.Process):
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print "KafkaThreadedImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
       time.sleep(10)
+

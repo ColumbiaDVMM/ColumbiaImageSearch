@@ -101,11 +101,11 @@ def featurize_faces(data, conf):
 def build_face_feat_disk_output(data):
   #print "[build_face_feat_disk_output.log] data: {}".format(data)
   # Format of input data should be: sha1, img_type, width, height, img, d, fvec
-  from cufacesearch.featurizer.featsio import featB64encode
+  from cufacesearch.featurizer.featsio import normfeatB64encode
   sha1, img_type, width, height, d, fvec = data
   faceout_dict = fill_face_out_dict(sha1, img_type, width, height)
   faceout_dict['face'] = d
-  faceout_dict['feat'] = featB64encode(fvec)
+  faceout_dict['feat'] = normfeatB64encode(fvec)
   return json.dumps(faceout_dict)
 
 

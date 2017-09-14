@@ -1,0 +1,32 @@
+{
+  "KID_verbose": 1,
+  "KID_consumer_topics": "backpage-test",
+  "KID_consumer_group": "backpage-test-images-downloaders9",
+  "KID_nb_threads": 8,
+  "KID_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KID_consumer_security": {
+    "security_protocol":"SSL",
+    "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
+    "ssl_certfile":"../../data/keys/hg-kafka-client-cert.pem",
+    "ssl_keyfile":"../../data/keys/hg-kafka-client-key.pem",
+    "ssl_check_hostname":false
+  },
+  "KID_consumer_options": {
+    "auto_offset_reset": "earliest",
+    "max_poll_records": 10,
+    "session_timeout_ms": 300000,
+    "request_timeout_ms": 600000
+  },
+  "KID_producer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KID_producer_security": {
+    "security_protocol": "SSL",
+    "ssl_cafile": "../../data/keys/hg-kafka-ca-cert.pem",
+    "ssl_certfile": "../../data/keys/hg-kafka-client-cert.pem",
+    "ssl_keyfile": "../../data/keys/hg-kafka-client-key.pem",
+    "ssl_check_hostname":false
+  },
+  "KID_producer_cdr_out_topic": "backpage-test-ext",
+  "KID_producer_images_out_topic": "backpage-test-images",
+  "KID_obj_stored_prefix": "https://teamhg-crawl-results.s3.amazonaws.com/"
+}
+

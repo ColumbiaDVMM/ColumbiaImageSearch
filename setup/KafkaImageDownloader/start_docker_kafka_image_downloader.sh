@@ -1,12 +1,13 @@
 #!/bin/bash
 
 ## Adjust that to the actual host values
+# TODO: adjust 'base_path to the actual value'
 base_path=~
-repo_path=${base_path}/columbiafacesearch/
-PORT=5000
 
 # You should not need to change that,
 # and if you do, make sure that the config file reflects these changes
+repo_path=${base_path}/columbiafacesearch/
+PORT=5000
 indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
 
 ## Variables that could be changed
@@ -17,7 +18,7 @@ docker_image_build_tag="0.9"
 docker_name="kafka_img_dl"
 docker_file=${repo_path}"/setup/KafkaImageDownloader/DockerFileKafkaImageDownloader"
 setup_script=${indocker_repo_path}"/setup/KafkaImageDownloader/setup_kafka_image_downloader.sh"
-start_script=${indocker_repo_path}"/setup/KafkaImageDownloader/run_sentibank_pycaffe_image_processing.sh"
+start_script=${indocker_repo_path}"/setup/KafkaImageDownloader/run_kafka_image_downloader.sh"
 
 SUDO='sudo'
 
