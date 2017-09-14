@@ -61,7 +61,7 @@ class ExtractionChecker(ConfReader):
     self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
     self.ingester.pp = "ec"
     if self.pid:
-      self.ingester.pp += "ec"+str(self.pid)
+      self.ingester.pp += str(self.pid)
 
 
   def set_pp(self):
@@ -166,8 +166,8 @@ class ExtractionChecker(ConfReader):
           self.indexer.push_list_updates(list_push, update_id)
           # We also push update_id and list_push to a kafka topic to allow better parallelized extraction
           dict_updates = dict()
-          dict_updates[update_id] = {self.column_list_sha1s: ','.join(list_push)}
-          self.producer.send(self.updates_out_topic, json.dumps(dict_updates))
+          dict_updates[update_id] = {self.indexer.column_list_sha1s: ','.join(list_push)}
+          self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates))
 
           # Gather any remaining sha1s and clean up infos
           if len(list_sha1s_to_process) > self.indexer.batch_update_size:
