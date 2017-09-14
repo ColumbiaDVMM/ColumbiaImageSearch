@@ -216,7 +216,7 @@ if __name__ == "__main__":
   parser.add_argument("-c", "--conf", dest="conf_file", required=True)
   parser.add_argument("-p", "--prefix", dest="prefix", default=default_extr_check_prefix)
   parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
-  parser.add_argument("-w", "--workers", dest="workers", type=int, default=15)
+  parser.add_argument("-w", "--workers", dest="workers", type=int, default=4)
   options = parser.parse_args()
 
   if options.deamon:  # use daemon
