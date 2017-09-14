@@ -121,64 +121,68 @@ class ExtractionChecker(ConfReader):
     return unprocessed_rows
 
   def run(self):
-    list_sha1s_to_process = []
+    try:
+      list_sha1s_to_process = []
 
-    while True:
-      list_sha1s_to_check = []
+      while True:
+        list_sha1s_to_check = []
 
-      # Accumulate images infos
-      for msg_json in self.ingester.consumer:
-        msg = json.loads(msg_json.value)
-        list_sha1s_to_check.append(str(msg['sha1']))
+        # Accumulate images infos
+        for msg_json in self.ingester.consumer:
+          msg = json.loads(msg_json.value)
+          list_sha1s_to_check.append(str(msg['sha1']))
 
-        # Store other fields to be able to push them too
-        self.store_img_infos(msg)
-        if len(list_sha1s_to_check) >= self.indexer.batch_update_size:
-          break
+          # Store other fields to be able to push them too
+          self.store_img_infos(msg)
+          if len(list_sha1s_to_check) >= self.indexer.batch_update_size:
+            break
 
-      # Check which images have not been processed yet
-      unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)
+        # Check which images have not been processed yet
+        unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)
 
-      # Push sha1s to be processed
-      for sha1 in unprocessed_rows:
-        list_sha1s_to_process.append(sha1)
+        # Push sha1s to be processed
+        for sha1 in unprocessed_rows:
+          list_sha1s_to_process.append(sha1)
 
-      # Remove potential duplicates
-      list_sha1s_to_process = list(set(list_sha1s_to_process))
+        # Remove potential duplicates
+        list_sha1s_to_process = list(set(list_sha1s_to_process))
 
-      if list_sha1s_to_process:
-        # Push them to HBase by batch of 'batch_update_size'
-        # Seems to get stuck with a lag of 1868 total on backpage-test...
-        # Then got some HBase errors. No lag anymore but have all images been pushed?
-        if len(list_sha1s_to_process) >= self.indexer.batch_update_size or (time.time() - self.last_push) > self.max_delay:
-          # Trim here to push exactly a batch of 'batch_update_size'
-          list_push = list_sha1s_to_process[:min(self.indexer.batch_update_size, len(list_sha1s_to_process))]
-          # Gather corresponding sha1 infos
-          dict_push, update_id = self.get_dict_push(list_push)
-          print "[{}: at {}] Pushing update {} of {} images.".format(self.pp,
-                                                                     datetime.now().strftime('%Y-%m-%d:%H.%M.%S'),
-                                                                     update_id,
-                                                                     len(dict_push.keys()))
+        if list_sha1s_to_process:
+          # Push them to HBase by batch of 'batch_update_size'
+          # Seems to get stuck with a lag of 1868 total on backpage-test...
+          # Then got some HBase errors. No lag anymore but have all images been pushed?
+          if len(list_sha1s_to_process) >= self.indexer.batch_update_size or (time.time() - self.last_push) > self.max_delay:
+            # Trim here to push exactly a batch of 'batch_update_size'
+            list_push = list_sha1s_to_process[:min(self.indexer.batch_update_size, len(list_sha1s_to_process))]
+            # Gather corresponding sha1 infos
+            dict_push, update_id = self.get_dict_push(list_push)
+            print "[{}: at {}] Pushing update {} of {} images.".format(self.pp,
+                                                                       datetime.now().strftime('%Y-%m-%d:%H.%M.%S'),
+                                                                       update_id,
+                                                                       len(dict_push.keys()))
 
-          # Push them
-          self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name, families=self.tablesha1_col_families)
-          # Push update
-          self.indexer.push_list_updates(list_push, update_id)
-          # We also push update_id and list_push to a kafka topic to allow better parallelized extraction
-          dict_updates = dict()
-          dict_updates[update_id] = {self.indexer.column_list_sha1s: ','.join(list_push)}
-          self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates))
+            # Push them
+            self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name, families=self.tablesha1_col_families)
+            # Push update
+            self.indexer.push_list_updates(list_push, update_id)
+            # We also push update_id and list_push to a kafka topic to allow better parallelized extraction
+            dict_updates = dict()
+            dict_updates[update_id] = {self.indexer.column_list_sha1s: ','.join(list_push)}
+            self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates))
 
-          # Gather any remaining sha1s and clean up infos
-          if len(list_sha1s_to_process) > self.indexer.batch_update_size:
-            list_sha1s_to_process = list_sha1s_to_process[self.indexer.batch_update_size:]
-          else:
-            list_sha1s_to_process = []
-          # if duplicates wrt list_push, remove them. Can this still happen?
-          list_sha1s_to_process = [sha1 for sha1 in list_sha1s_to_process if sha1 not in list_push]
-          self.cleanup_dict_infos(list_push)
-          self.last_push = time.time()
-
+            # Gather any remaining sha1s and clean up infos
+            if len(list_sha1s_to_process) > self.indexer.batch_update_size:
+              list_sha1s_to_process = list_sha1s_to_process[self.indexer.batch_update_size:]
+            else:
+              list_sha1s_to_process = []
+            # if duplicates wrt list_push, remove them. Can this still happen?
+            list_sha1s_to_process = [sha1 for sha1 in list_sha1s_to_process if sha1 not in list_push]
+            self.cleanup_dict_infos(list_push)
+            self.last_push = time.time()
+    except Exception as inst:
+      exc_type, exc_obj, exc_tb = sys.exc_info()
+      fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+      raise type(inst)(" In {}.{}: {}".format(self.pid, fname, exc_tb.tb_lineno, inst))
 
 class DaemonExtractionChecker(multiprocessing.Process):
   daemon = True
@@ -196,9 +200,9 @@ class DaemonExtractionChecker(multiprocessing.Process):
         ec = ExtractionChecker(self.conf, prefix=self.prefix, pid=self.pid)
         ec.run()
       except Exception as inst:
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print "ExtractionChecker.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
+        #exc_type, exc_obj, exc_tb = sys.exc_info()
+        #fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print "ExtractionChecker.{} died {}{}".format(self.pid, type(inst), inst)
       time.sleep(10*nb_death)
       nb_death += 1
 
