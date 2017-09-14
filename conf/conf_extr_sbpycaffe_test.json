@@ -53,8 +53,8 @@
   "KIproc_consumer_options": {
     "auto_offset_reset": "earliest",
     "max_poll_records": 1,
-    "session_timeout_ms": 600000,
-    "request_timeout_ms": 1200000
+    "session_timeout_ms": 300000,
+    "request_timeout_ms": 600000
   },
   "SBPY_sbcaffe_path": "../../data/caffe_sentibank_train_iter_250000",
   "SBPY_imgmean_path": "../../data/imagenet_mean.npy"
