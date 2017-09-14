@@ -178,7 +178,7 @@ class ExtractionChecker(ConfReader):
             self.indexer.push_list_updates(dict_push.keys(), update_id)
             # We also push update_id and list_push to a kafka topic to allow better parallelized extraction
             dict_updates = dict()
-            dict_updates[update_id] = {self.indexer.column_list_sha1s: ','.join(dict_push.keys())}
+            dict_updates[update_id] = ','.join(dict_push.keys())
             self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates))
 
             # Gather any remaining sha1s and clean up infos
