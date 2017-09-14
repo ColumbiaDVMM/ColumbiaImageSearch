@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import traceback
 import multiprocessing
 from datetime import datetime
 from argparse import ArgumentParser
@@ -154,12 +155,11 @@ class ExtractionChecker(ConfReader):
           if len(list_sha1s_to_process) >= self.indexer.batch_update_size or (time.time() - self.last_push) > self.max_delay:
             # Trim here to push exactly a batch of 'batch_update_size'
             list_push = list_sha1s_to_process[:min(self.indexer.batch_update_size, len(list_sha1s_to_process))]
+
             # Gather corresponding sha1 infos
             dict_push, update_id = self.get_dict_push(list_push)
-            print "[{}: at {}] Pushing update {} of {} images.".format(self.pp,
-                                                                       datetime.now().strftime('%Y-%m-%d:%H.%M.%S'),
-                                                                       update_id,
-                                                                       len(dict_push.keys()))
+            push_msg = "[{}: at {}] Pushing update {} of {} images."
+            print push_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id, len(dict_push.keys()))
 
             # Push them
             self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name, families=self.tablesha1_col_families)
@@ -181,8 +181,9 @@ class ExtractionChecker(ConfReader):
             self.last_push = time.time()
     except Exception as inst:
       exc_type, exc_obj, exc_tb = sys.exc_info()
+      fulltb = traceback.format_tb(exc_tb)
       fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-      raise type(inst)(" In {}.{}: {}".format(self.pid, fname, exc_tb.tb_lineno, inst))
+      raise type(inst)(" In {}.{}: {} ({})".format(fname, exc_tb.tb_lineno, inst, fulltb))
 
 class DaemonExtractionChecker(multiprocessing.Process):
   daemon = True
