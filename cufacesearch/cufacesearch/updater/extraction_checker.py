@@ -179,6 +179,7 @@ class ExtractionChecker(ConfReader):
             list_sha1s_to_process = [sha1 for sha1 in list_sha1s_to_process if sha1 not in list_push]
             self.cleanup_dict_infos(list_push)
             self.last_push = time.time()
+
     except Exception as inst:
       exc_type, exc_obj, exc_tb = sys.exc_info()
       fulltb = traceback.format_tb(exc_tb)
