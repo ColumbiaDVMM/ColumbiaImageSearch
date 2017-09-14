@@ -102,7 +102,12 @@ class ExtractionChecker(ConfReader):
     update_id = tmp_update_id+'-'+self.ingester.pp
     for sha1 in list_get_sha1s:
       dict_push[str(sha1)] = dict()
-      tmp_dict = self.dict_sha1_infos[str(sha1)]
+      # why do we get exceptions.KeyError here?
+      try:
+        tmp_dict = self.dict_sha1_infos[str(sha1)]
+      except Exception as inst:
+        print "Was looking for {} in dict with keys: {}".format(str(sha1), self.dict_sha1_infos.keys())
+        raise inst
       # build column names properly i.e. appending 'info:'
       for k in tmp_dict:
         dict_push[str(sha1)]['info:' + k] = tmp_dict[k]
@@ -135,6 +140,7 @@ class ExtractionChecker(ConfReader):
 
           # Store other fields to be able to push them too
           self.store_img_infos(msg)
+
           if len(list_sha1s_to_check) >= self.indexer.batch_update_size:
             break
 
