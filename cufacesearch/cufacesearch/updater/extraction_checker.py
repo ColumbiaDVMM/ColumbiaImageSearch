@@ -183,8 +183,7 @@ class ExtractionChecker(ConfReader):
     except Exception as inst:
       exc_type, exc_obj, exc_tb = sys.exc_info()
       fulltb = traceback.format_tb(exc_tb)
-      fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-      raise type(inst)(" In {}.{}: {} ({})".format(fname, exc_tb.tb_lineno, inst, fulltb))
+      raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
 class DaemonExtractionChecker(multiprocessing.Process):
   daemon = True
