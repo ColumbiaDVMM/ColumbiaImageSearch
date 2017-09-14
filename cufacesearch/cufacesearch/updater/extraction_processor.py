@@ -119,7 +119,7 @@ class ExtractionProcessor(ConfReader):
     try:
       # Needs to read topic to get update_id and list of sha1s
       for msg in self.ingester.consumer:
-          msg_dict = json.loads(msg)
+          msg_dict = json.loads(msg.value)
           update_id = msg_dict.keys()[0]
           str_list_sha1s = msg_dict[update_id]
           list_sha1s = str_list_sha1s.split(',')
