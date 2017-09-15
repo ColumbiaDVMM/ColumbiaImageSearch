@@ -3,9 +3,9 @@ import sys
 import time
 import json
 import math
+import traceback
 from datetime import datetime
 from argparse import ArgumentParser
-from cufacesearch.common import column_list_sha1s
 from cufacesearch.common.error import full_trace_error
 from cufacesearch.common.conf_reader import ConfReader
 from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_started, update_str_processed
@@ -27,6 +27,7 @@ class ExtractionProcessor(ConfReader):
   def __init__(self, global_conf, prefix=default_extr_proc_prefix):
     self.extractor = None
     self.nb_empt = 0
+    self.nb_err = 0
 
     super(ExtractionProcessor, self).__init__(global_conf, prefix)
 
@@ -144,96 +145,111 @@ class ExtractionProcessor(ConfReader):
     # Get a new update batch
     #for rows_batch, update_id in self.get_batch_hbase():
     for rows_batch, update_id in self.get_batch_kafka():
-      start_update = time.time()
-      self.nb_empt = 0
-      print("[{}.process_batch: log] Processing update: {}".format(self.pp, update_id))
-      sys.stdout.flush()
-
-      threads = []
-
-      # Mark batch as started to be process
-      update_started_dict = {update_id: {'info:' + update_str_started: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
-      self.indexer.push_dict_rows(dict_rows=update_started_dict, table_name=self.indexer.table_updateinfos_name)
-
-      # Push images to queue
-
-      list_in = []
-      for img in rows_batch:
-        # should decode base64
-        tup = (img[0], img[1]["info:img_buffer"])
-        list_in.append(tup)
-      q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
-      for i, q_batch in enumerate(build_batch(list_in, q_batch_size)):
-        self.q_in[i].put(q_batch)
-
-      q_in_size = []
-      q_in_size_tot = 0
-      for i in range(self.nb_threads):
-        q_in_size.append(self.q_in[i].qsize())
-        q_in_size_tot += q_in_size[i]
-      if self.verbose > 1:
-        print("[{}.process_batch: log] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
-
-      # Start daemons...
-      for i in range(self.nb_threads):
-        # one per non empty input queue
-        if q_in_size[i] > 0:
-          thread = DaemonBatchExtractor(self.extractors[i], self.q_in[i], self.q_out[i], verbose=self.verbose)
-          thread.start()
-          threads.append(thread)
-
-      start_process = time.time()
-      # Wait for all tasks to be marked as done
-      for i in range(self.nb_threads):
-        if q_in_size[i] > 0:
-          self.q_in[i].join()
-
-      # Gather results
-      q_out_size = []
-      q_out_size_tot = 0
-      for i in range(self.nb_threads):
-        q_out_size.append(self.q_out[i].qsize())
-        q_out_size_tot += q_out_size[i]
-
-      if self.verbose > 1:
-        print("[{}.process_batch: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
-
-      dict_imgs = dict()
-      for i in range(self.nb_threads):
-        while not self.q_out[i].empty():
-          batch_out = self.q_out[i].get()
-          for sha1, dict_out in batch_out:
-            dict_imgs[sha1] = dict_out
-          self.q_out[i].task_done()
-
-      if self.verbose > 1:
-        print_msg = "[{}.process_batch: log] Got features for {} images in {}s."
-        print(print_msg.format(self.pp, len(dict_imgs.keys()), time.time() - start_process))
+      try:
+        start_update = time.time()
+        self.nb_empt = 0
+        print("[{}.process_batch: log] Processing update: {}".format(self.pp, update_id))
         sys.stdout.flush()
 
-      # Push them
-      self.indexer.push_dict_rows(dict_rows=dict_imgs, table_name=self.indexer.table_sha1infos_name)
+        threads = []
 
-      # Mark batch as processed
-      update_processed_dict = {update_id: {'info:' + update_str_processed: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
-      self.indexer.push_dict_rows(dict_rows=update_processed_dict, table_name=self.indexer.table_updateinfos_name)
+        # Mark batch as started to be process
+        update_started_dict = {update_id: {'info:' + update_str_started: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
+        self.indexer.push_dict_rows(dict_rows=update_started_dict, table_name=self.indexer.table_updateinfos_name)
 
-      # Cleanup
-      for th in threads:
-        del th
+        # Push images to queue
 
-      print_msg = "[{}.process_batch: log] Completed update {} in {}s."
-      print(print_msg.format(self.pp, update_id, time.time() - start_update))
-      sys.stdout.flush()
+        list_in = []
+        for img in rows_batch:
+          # should decode base64
+          tup = (img[0], img[1]["info:img_buffer"])
+          list_in.append(tup)
+        q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
+        for i, q_batch in enumerate(build_batch(list_in, q_batch_size)):
+          self.q_in[i].put(q_batch)
+
+        q_in_size = []
+        q_in_size_tot = 0
+        for i in range(self.nb_threads):
+          q_in_size.append(self.q_in[i].qsize())
+          q_in_size_tot += q_in_size[i]
+        if self.verbose > 1:
+          print("[{}.process_batch: log] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
+
+        # Start daemons...
+        for i in range(self.nb_threads):
+          # one per non empty input queue
+          if q_in_size[i] > 0:
+            thread = DaemonBatchExtractor(self.extractors[i], self.q_in[i], self.q_out[i], verbose=self.verbose)
+            thread.start()
+            threads.append(thread)
+
+        start_process = time.time()
+        # Wait for all tasks to be marked as done
+        for i in range(self.nb_threads):
+          if q_in_size[i] > 0:
+            # This would block forever if subprocess crashed?...
+            self.q_in[i].join()
+
+        # Gather results
+        q_out_size = []
+        q_out_size_tot = 0
+        for i in range(self.nb_threads):
+          q_out_size.append(self.q_out[i].qsize())
+          q_out_size_tot += q_out_size[i]
+
+        if self.verbose > 1:
+          print("[{}.process_batch: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
+
+        dict_imgs = dict()
+        for i in range(self.nb_threads):
+          while not self.q_out[i].empty():
+            batch_out = self.q_out[i].get()
+            for sha1, dict_out in batch_out:
+              dict_imgs[sha1] = dict_out
+            self.q_out[i].task_done()
+
+        if self.verbose > 1:
+          print_msg = "[{}.process_batch: log] Got features for {} images in {}s."
+          print(print_msg.format(self.pp, len(dict_imgs.keys()), time.time() - start_process))
+          sys.stdout.flush()
+
+        # Push them
+        self.indexer.push_dict_rows(dict_rows=dict_imgs, table_name=self.indexer.table_sha1infos_name)
+
+        # Mark batch as processed
+        update_processed_dict = {update_id: {'info:' + update_str_processed: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
+        self.indexer.push_dict_rows(dict_rows=update_processed_dict, table_name=self.indexer.table_updateinfos_name)
+
+        # Cleanup
+        for th in threads:
+          del th
+
+        print_msg = "[{}.process_batch: log] Completed update {} in {}s."
+        print(print_msg.format(self.pp, update_id, time.time() - start_update))
+        sys.stdout.flush()
+        self.nb_err = 0
+
+      except Exception as inst:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fulltb = traceback.format_tb(exc_tb)
+        raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
     self.nb_empt = 0
+    self.nb_err = 0
     while True:
-      self.process_batch()
-      print("[ExtractionProcessor: log] Nothing to process at: {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
-      sys.stdout.flush()
-      time.sleep(10*self.nb_empt)
-      self.nb_empt += 1
+      try:
+        self.process_batch()
+        print("[ExtractionProcessor: log] Nothing to process at: {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
+        sys.stdout.flush()
+        time.sleep(10*self.nb_empt)
+        self.nb_empt += 1
+      except Exception as inst:
+        print("ExtractionProcessor died: {} {}".format(type(inst), inst))
+        sys.stdout.flush()
+        time.sleep(10 * self.nb_err)
+        self.nb_err += 1
 
 
 if __name__ == "__main__":

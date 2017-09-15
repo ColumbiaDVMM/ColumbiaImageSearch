@@ -1,5 +1,6 @@
 import sys
 import time
+import traceback
 import multiprocessing
 from cufacesearch.detector.generic_detector import get_detector, get_bbox_str
 from cufacesearch.featurizer.generic_featurizer import get_featurizer
@@ -35,33 +36,39 @@ class DaemonBatchExtractor(multiprocessing.Process):
       except:
         continue
 
-      start_process = time.time()
+      try:
 
-      if self.verbose > 1:
-        print "[DaemonBatchExtractor.{}] Got batch of {} images to process.".format(self.pid, len(batch))
-        sys.stdout.flush()
-
-      out_batch = []
-
-      for sha1, img_buffer_b64 in batch:
-        try:
-          out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
-          out_batch.append((sha1, out_dict))
-        except Exception as inst:
-          err_msg = "[DaemonBatchExtractor.{}: warning] Extraction failed for img {} with error: {}."
-          print err_msg.format(self.pid, sha1, inst)
+        start_process = time.time()
+        if self.verbose > 1:
+          print "[DaemonBatchExtractor.{}] Got batch of {} images to process.".format(self.pid, len(batch))
           sys.stdout.flush()
 
-      # Push
-      if self.verbose > 0:
-        print_msg = "[DaemonBatchExtractor.{}] Computed {} extractions in {}s."
-        print print_msg.format(self.pid, len(out_batch), time.time() - start_process)
+        # Process each image
+        out_batch = []
+        for sha1, img_buffer_b64 in batch:
+          try:
+            out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
+            out_batch.append((sha1, out_dict))
+          except Exception as inst:
+            err_msg = "[DaemonBatchExtractor.{}: warning] Extraction failed for img {} with error: {}"
+            print err_msg.format(self.pid, sha1, inst)
+            sys.stdout.flush()
+
+        # Push batch out
+        if self.verbose > 0:
+          print_msg = "[DaemonBatchExtractor.{}] Computed {} extractions in {}s."
+          print print_msg.format(self.pid, len(out_batch), time.time() - start_process)
+          sys.stdout.flush()
+        self.q_out.put(out_batch)
+
+        # Mark as done
+        self.q_in.task_done()
+
+      except Exception as inst:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fulltb = traceback.format_tb(exc_tb)
+        print "[DaemonBatchExtractor.{}: {}] {} ({})".format(self.pid, type(inst), inst, ''.join(fulltb))
         sys.stdout.flush()
-
-      self.q_out.put(out_batch)
-
-      # Mark as done
-      self.q_in.task_done()
 
 
 class GenericExtractor(object):
