@@ -30,6 +30,14 @@
     "session_timeout_ms": 300000,
     "request_timeout_ms": 600000
   },
+  "KIcheck_producer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KIcheck_producer_security": {
+    "security_protocol":"SSL",
+    "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
+    "ssl_certfile":"../../data/keys/hg-kafka-client-cert.pem",
+    "ssl_keyfile":"../../data/keys/hg-kafka-client-key.pem",
+    "ssl_check_hostname":false
+  },
   "KIcheck_producer_updates_out_topic": "backpage-test-images-dlibface-updates",
   "KIproc_verbose": 1,
   "KIproc_consumer_topics":  "backpage-test-images-dlibface-updates",

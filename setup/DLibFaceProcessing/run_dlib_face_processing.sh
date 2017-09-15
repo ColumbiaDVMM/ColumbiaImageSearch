@@ -20,7 +20,7 @@ else
   exit -1
 fi
 
-cd ${repo_path}/setup/SentibankPyCaffeImageProcessing
+cd ${repo_path}/setup/DLibFaceProcessing
 
 package_name="cufacesearch"
 extr_type="dlibface"
