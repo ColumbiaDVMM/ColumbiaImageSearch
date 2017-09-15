@@ -136,16 +136,21 @@ class ExtractionChecker(ConfReader):
       while True:
         list_sha1s_to_check = []
 
-        # Accumulate images infos
-        for msg_json in self.ingester.consumer:
-          msg = json.loads(msg_json.value)
-          list_sha1s_to_check.append(str(msg['sha1']))
+        try:
+          # Accumulate images infos
+          for msg_json in self.ingester.consumer:
+            msg = json.loads(msg_json.value)
+            list_sha1s_to_check.append(str(msg['sha1']))
 
-          # Store other fields to be able to push them too
-          self.store_img_infos(msg)
+            # Store other fields to be able to push them too
+            self.store_img_infos(msg)
 
-          if len(list_sha1s_to_check) >= self.indexer.batch_update_size:
-            break
+            if len(list_sha1s_to_check) >= self.indexer.batch_update_size:
+              break
+        except Exception as inst:
+          # trying to use 'consumer_timeout_ms' to raise timeout and get last samples
+          warn_msg = "[{}: warning] At {}, caught {} {} in consumer loop"
+          print warn_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), type(inst), inst)
 
         # Check which images have not been processed (or pushed in an update) yet
         unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)
