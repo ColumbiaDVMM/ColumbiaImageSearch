@@ -117,16 +117,21 @@ class ExtractionChecker(ConfReader):
     return dict_push, update_id
 
   def get_unprocessed_rows(self, list_sha1s_to_check):
-    # Check if the selected sha1 rows in HBase table 'sha1infos' have those check_column
-    # This call will only return rows that DO have those check_column
-    sha1s_rows = self.indexer.get_columns_from_sha1_rows(list_sha1s_to_check, self.check_columns,
-                                                         families=self.tablesha1_col_families)
-    found_sha1_rows = set([str(row[0]) for row in sha1s_rows])
-    # Clean up 'dict_sha1_infos' deleting found_sha1_rows
-    # Beware, this can be dangerous in multiprocess setting...
-    self.cleanup_dict_infos(found_sha1_rows)
-    set_list_sha1s_to_check = set(list_sha1s_to_check)
-    unprocessed_rows = set_list_sha1s_to_check - found_sha1_rows
+    unprocessed_rows = set(list_sha1s_to_check)
+
+    if list_sha1s_to_check:
+      # Check if the selected sha1 rows in HBase table 'sha1infos' have those check_column
+      # This call will only return rows that DO have those check_column
+      sha1s_rows = self.indexer.get_columns_from_sha1_rows(list_sha1s_to_check, self.check_columns,
+                                                           families=self.tablesha1_col_families)
+      if sha1s_rows:
+        found_sha1_rows = set([str(row[0]) for row in sha1s_rows])
+        # Clean up 'dict_sha1_infos' deleting found_sha1_rows
+        # Beware, this can be dangerous in multiprocess setting...
+        self.cleanup_dict_infos(found_sha1_rows)
+        set_list_sha1s_to_check = set(list_sha1s_to_check)
+        unprocessed_rows = set_list_sha1s_to_check - found_sha1_rows
+
     return unprocessed_rows
 
   def run(self):
