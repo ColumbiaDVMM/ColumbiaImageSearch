@@ -120,21 +120,21 @@ class ExtractionProcessor(ConfReader):
     try:
       # Needs to read topic to get update_id and list of sha1s
       for msg in self.ingester.consumer:
-          msg_dict = json.loads(msg.value)
-          update_id = msg_dict.keys()[0]
-          str_list_sha1s = msg_dict[update_id]
-          list_sha1s = str_list_sha1s.split(',')
-          print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
-          # also get 'ext:' to check if extraction was already processed?
-          rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
-          #print "rows_batch", rows_batch
-          if rows_batch:
-            print("[{}.get_batch: log] Yielding for update: {}".format(self.pp, update_id))
-            yield rows_batch, update_id
-            print("[{}.get_batch: log] After yielding for update: {}".format(self.pp, update_id))
-            self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
-          else:
-            print("[{}.get_batch: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
+        msg_dict = json.loads(msg.value)
+        update_id = msg_dict.keys()[0]
+        str_list_sha1s = msg_dict[update_id]
+        list_sha1s = str_list_sha1s.split(',')
+        print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
+        # also get 'ext:' to check if extraction was already processed?
+        rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
+        #print "rows_batch", rows_batch
+        if rows_batch:
+          print("[{}.get_batch: log] Yielding for update: {}".format(self.pp, update_id))
+          yield rows_batch, update_id
+          print("[{}.get_batch: log] After yielding for update: {}".format(self.pp, update_id))
+          self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+        else:
+          print("[{}.get_batch: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
       else:
         print("[{}.get_batch: log] Nothing to update!".format(self.pp))
     except Exception as inst:

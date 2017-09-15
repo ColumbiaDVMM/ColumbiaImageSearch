@@ -156,6 +156,7 @@ class ExtractionChecker(ConfReader):
           # trying to use 'consumer_timeout_ms' to raise timeout and get last samples
           warn_msg = "[{}: warning] At {}, caught {} {} in consumer loop"
           print warn_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), type(inst), inst)
+          sys.stdout.flush()
 
         # Check which images have not been processed (or pushed in an update) yet
         unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)

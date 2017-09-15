@@ -28,7 +28,8 @@
     "auto_offset_reset": "earliest",
     "max_poll_records": 10,
     "session_timeout_ms": 300000,
-    "request_timeout_ms": 600000
+    "request_timeout_ms": 600000,
+    "consumer_timeout_ms": 600000
   },
   "KIcheck_producer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
   "KIcheck_producer_security": {
@@ -52,9 +53,10 @@
   },
   "KIproc_consumer_options": {
     "auto_offset_reset": "earliest",
-    "max_poll_records": 1,
+    "max_poll_records": 2,
     "session_timeout_ms": 300000,
-    "request_timeout_ms": 600000
+    "request_timeout_ms": 600000,
+    "consumer_timeout_ms": 600000
   },
   "SBPY_sbcaffe_path": "../../data/caffe_sentibank_train_iter_250000",
   "SBPY_imgmean_path": "../../data/imagenet_mean.npy"

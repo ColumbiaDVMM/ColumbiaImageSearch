@@ -53,9 +53,10 @@
   },
   "KIproc_consumer_options": {
     "auto_offset_reset": "earliest",
-    "max_poll_records": 1,
+    "max_poll_records": 2,
     "session_timeout_ms": 300000,
-    "request_timeout_ms": 600000
+    "request_timeout_ms": 600000,
+    "consumer_timeout_ms": 600000
   },
   "DLIB_pred_path": "../../data/shape_predictor_68_face_landmarks.dat",
   "DLIB_rec_path": "../../data/dlib_face_recognition_resnet_model_v1.dat"
