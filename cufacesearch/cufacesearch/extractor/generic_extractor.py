@@ -6,7 +6,7 @@ from cufacesearch.detector.generic_detector import get_detector, get_bbox_str
 from cufacesearch.featurizer.generic_featurizer import get_featurizer
 from cufacesearch.featurizer.featsio import normfeatB64encode
 from cufacesearch.imgio.imgio import get_buffer_from_B64
-from cufacesearch.indexer.hbase_indexer_minimal import extr_str_processed
+from cufacesearch.indexer.hbase_indexer_minimal import extr_str_processed, buffer_column
 
 
 def build_extr_str(featurizer_type, detector_type, input_type):
@@ -45,9 +45,12 @@ class DaemonBatchExtractor(multiprocessing.Process):
 
         # Process each image
         out_batch = []
-        for sha1, img_buffer_b64 in batch:
+        for sha1, img_buffer_b64, push_buffer in batch:
           try:
             out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
+            # We have downloaded the image and need to push the buffer to HBase
+            if push_buffer:
+              out_dict[buffer_column] = img_buffer_b64
             out_batch.append((sha1, out_dict))
           except Exception as inst:
             err_msg = "[DaemonBatchExtractor.{}: warning] Extraction failed for img {} with error: {}"

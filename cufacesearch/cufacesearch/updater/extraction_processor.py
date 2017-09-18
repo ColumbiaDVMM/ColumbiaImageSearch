@@ -8,7 +8,8 @@ from datetime import datetime
 from argparse import ArgumentParser
 from cufacesearch.common.error import full_trace_error
 from cufacesearch.common.conf_reader import ConfReader
-from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_started, update_str_processed
+from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_started, update_str_processed, \
+                                                       img_buffer_column, img_URL_column
 from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, GenericExtractor, build_extr_str
 from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
@@ -70,6 +71,7 @@ class ExtractionProcessor(ConfReader):
                                       self.extr_family_column, self.featurizer_prefix, self.global_conf))
 
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
+    # What if the table has some other column families?...
     self.tablesha1_col_families = {'info': dict(), self.extr_family_column: dict()}
 
     # Initialize indexer
@@ -125,8 +127,9 @@ class ExtractionProcessor(ConfReader):
         str_list_sha1s = msg_dict[update_id]
         list_sha1s = str_list_sha1s.split(',')
         print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
-        # also get 'ext:' to check if extraction was already processed?
-        rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
+        # also get 'ext:' to double check if extraction was already processed?
+        #rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
+        rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
         #print "rows_batch", rows_batch
         if rows_batch:
           print("[{}.get_batch: log] Yielding for update: {}".format(self.pp, update_id))
@@ -158,11 +161,21 @@ class ExtractionProcessor(ConfReader):
         self.indexer.push_dict_rows(dict_rows=update_started_dict, table_name=self.indexer.table_updateinfos_name)
 
         # Push images to queue
-
         list_in = []
         for img in rows_batch:
           # should decode base64
-          tup = (img[0], img[1]["info:img_buffer"])
+          if img_buffer_column in img[1]:
+            tup = (img[0], img[1][img_buffer_column], False)
+          else:
+            # need to re-download
+            if img_URL_column in img[1]:
+              # download image
+              from ..imgio.imgio import get_buffer_from_URL, buffer_to_B64
+              img_buffer_b64 = buffer_to_B64(get_buffer_from_URL(img[1][img_URL_column]))
+              tup = (img[0], img_buffer_b64, True)
+            else:
+              print("[{}.process_batch: warning] No buffer and no URL for image {} !".format(self.pp, img[0]))
+              continue
           list_in.append(tup)
         q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
         for i, q_batch in enumerate(build_batch(list_in, q_batch_size)):

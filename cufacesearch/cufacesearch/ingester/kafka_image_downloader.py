@@ -67,8 +67,10 @@ class KafkaImageDownloader(GenericKafkaProcessor):
       tmp_dict_out['s3_url'] = url
       tmp_dict_out['sha1'] = dict_imgs[url]['sha1']
       tmp_dict_out['img_info'] = dict_imgs[url]['img_info']
-      # encode buffer in B64 for JSON dumping
-      tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
+      # This produces too much data to be pushed to the Kafka topic.
+      # Just push image info and let extractors re-download the image.
+      # # encode buffer in B64 for JSON dumping
+      # tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
       img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
     return img_out_msgs
 
@@ -112,7 +114,10 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     # Push to cdr_out_topic
     self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
 
-    # TODO: we could have all extraction registered here, and not pushing an image if it has been processed by all extractions. But that violates the consumer design of Kafka...
+    # NB: we could have all extraction registered here,
+    # and not pushing an image if it has been processed by all extractions.
+    # But that violates the consumer design of Kafka...
+
     # Push to images_out_topic
     for img_out_msg in self.build_image_msg(dict_imgs):
       self.producer.send(self.images_out_topic, img_out_msg)
@@ -267,7 +272,9 @@ class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
       tmp_dict_out['sha1'] = dict_imgs[url]['sha1']
       tmp_dict_out['img_info'] = dict_imgs[url]['img_info']
       # encode buffer in B64?
-      tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
+      # TODO: should we discard buffer and let extractors redownload the image
+      #   to avoid filling up the kafka topic.
+      #tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
       img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
     return img_out_msgs
 
@@ -307,6 +314,7 @@ class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
           print print_msg.format(self.pp, url, inst)
 
       # Push to images_out_topic
+      # Beware, this pushes a LOT of data to the Kafka topic self.images_out_topic...
       for img_out_msg in self.build_image_msg(dict_imgs):
         self.producer.send(self.images_out_topic, img_out_msg)
 

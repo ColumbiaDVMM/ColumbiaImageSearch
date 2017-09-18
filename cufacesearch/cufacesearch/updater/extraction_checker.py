@@ -79,9 +79,9 @@ class ExtractionChecker(ConfReader):
       if k == "img_info":
         self.dict_sha1_infos[strk][k] = json.dumps(msg[k])
       else:
-        # discard 'img_buffer', and 'sha1'
+        # discard 'img_buffer' (if it exists?...), and 'sha1'
         #if k != "img_buffer" and k != "sha1":
-        #  dict_sha1_infos[strk][k] = msg[k]
+        #  self.dict_sha1_infos[strk][k] = msg[k]
         # discard 'sha1'
         if k != "sha1":
           self.dict_sha1_infos[strk][k] = msg[k]
