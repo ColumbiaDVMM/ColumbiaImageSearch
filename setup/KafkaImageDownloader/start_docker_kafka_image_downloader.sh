@@ -72,4 +72,4 @@ ${SUDO} docker rm ${docker_name}
 ## Start API
 ${SUDO} docker run -tid -v ${repo_path}:${indocker_repo_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag}
 echo "Starting Kafka Image Downloading"
-${SUDO} docker exec -itd ${docker_name} bash ${start_script}
+${SUDO} docker exec -itd ${docker_name} bash ${start_script}  -r ${indocker_repo_path}
