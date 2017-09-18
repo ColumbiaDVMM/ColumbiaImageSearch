@@ -1,7 +1,7 @@
 #!/bin/bash
 # TODO: set this, test or release?
-suffix="_test"
-#suffix="_release"
+#suffix="_test"
+suffix="_release"
 
 while getopts r: option
 do
