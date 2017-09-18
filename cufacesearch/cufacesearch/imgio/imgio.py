@@ -122,7 +122,7 @@ def get_buffer_from_B64(base64str):
 
 
 def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=default_retries):
-  # TODO: sometime fails with a timeout, consider using retries
+  # Sometime fails with a timeout, now using retries
   #   see: https://stackoverflow.com/questions/15431044/can-i-set-max-retries-for-requests-request
   import requests
   from cStringIO import StringIO

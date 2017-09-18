@@ -89,12 +89,24 @@ class GenericSearcher(ConfReader):
       print log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed))
 
   def search_image_list(self, image_list, options_dict=dict()):
-    return self._search_from_any_list(image_list, self.detector.detect_from_url, options_dict)
+    # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_URL' function
+    if self.detector is None:
+      from ..imgio.imgio import get_buffer_from_URL
+      detect_load_fn = get_buffer_from_URL
+    else:
+      detect_load_fn = self.detector.detect_from_url
+    return self._search_from_any_list(image_list, detect_load_fn, options_dict)
 
   def search_imageB64_list(self, imageB64_list, options_dict=dict()):
-    return self._search_from_any_list(imageB64_list, self.detector.detect_from_b64, options_dict)
+    # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_B64' function
+    if self.detector is None:
+      from ..imgio.imgio import get_buffer_from_B64
+      detect_load_fn = get_buffer_from_B64
+    else:
+      detect_load_fn = self.detector.detect_from_b64
+    return self._search_from_any_list(imageB64_list, detect_load_fn, options_dict)
 
-  def _search_from_any_list(self, image_list, detect_fn, options_dict):
+  def _search_from_any_list(self, image_list, detect_load_fn, options_dict):
     dets = []
     feats = []
     import time
@@ -102,29 +114,36 @@ class GenericSearcher(ConfReader):
     total_featurize = 0.0
     # For each image
     for image in image_list:
-      # First detect faces
-      start_detect = time.time()
-      sha1, img_type, width, height, img, faces = detect_fn(image)
-      detect_time = time.time() - start_detect
-      print 'Detect in one image in {:0.3}s.'.format(detect_time)
-      total_detect += detect_time
-      if image.startswith('http'):
-        dets.append((sha1, faces, image, img_type, width, height))
+
+      if self.detector is not None:
+        # First detect
+        start_detect = time.time()
+        sha1, img_type, width, height, img, faces = detect_load_fn(image)
+        detect_time = time.time() - start_detect
+        print 'Detect in one image in {:0.3}s.'.format(detect_time)
+        total_detect += detect_time
+        if image.startswith('http'):
+          dets.append((sha1, faces, image, img_type, width, height))
+        else:
+          dets.append((sha1, faces, None, img_type, width, height))
+        # If we found faces, get features for each face
+        faces_feats = []
+        # Check if we were asked only to perform detection
+        if "detect_only" not in options_dict or not options_dict["detect_only"]:
+          for one_face in faces:
+            print one_face
+            start_featurize = time.time()
+            one_feat = self.featurizer.featurize(img, one_face)
+            featurize_time = time.time() - start_featurize
+            print 'Featurized one face in {:0.3}s.'.format(featurize_time)
+            total_featurize += featurize_time
+            faces_feats.append(one_feat)
+        feats.append(faces_feats)
       else:
-        dets.append((sha1, faces, None, img_type, width, height))
-      # If we found faces, get features for each face
-      faces_feats = []
-      # Check if we were asked only to perform detection
-      if "detect_only" not in options_dict or not options_dict["detect_only"]:
-        for one_face in faces:
-          print one_face
-          start_featurize = time.time()
-          one_feat = self.featurizer.featurize(img, one_face)
-          featurize_time = time.time() - start_featurize
-          print 'Featurized one face in {:0.3}s.'.format(featurize_time)
-          total_featurize += featurize_time
-          faces_feats.append(one_feat)
-      feats.append(faces_feats)
+        # load image first (it could be either URL or B64...)
+        img = detect_load_fn(image)
+        img_feat = self.featurizer.featurize(img)
+        feats.append(img_feat)
 
     # Search from all faces features
     return self.search_from_feats(dets, feats, options_dict)

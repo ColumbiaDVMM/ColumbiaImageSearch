@@ -4,6 +4,7 @@ import json
 import time
 import threading
 import multiprocessing
+from datetime import datetime
 from .generic_kafka_processor import GenericKafkaProcessor
 from ..imgio.imgio import buffer_to_B64
 
@@ -345,8 +346,11 @@ class DaemonKafkaThreadedImageDownloader(multiprocessing.Process):
       try:
         print "Starting worker KafkaThreadedImageDownloader.{}".format(self.pid)
         kp = KafkaThreadedImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
-        for msg in kp.consumer:
-          kp.process_one(msg)
+        while True:
+          for msg in kp.consumer:
+            kp.process_one(msg)
+          display_time = datetime.today().strftime('%Y/%m/%d-%H:%M.%S')
+          print "[{}] Consumer for worker KafkaThreadedImageDownloader.{} timed out.".format(display_time, self.pid)
       except Exception as inst:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
