@@ -127,7 +127,7 @@ class ExtractionProcessor(ConfReader):
         str_list_sha1s = msg_dict[update_id]
         list_sha1s = str_list_sha1s.split(',')
         print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
-        # also get 'ext:' to double check if extraction was already processed?
+        # NB: we could also get 'ext:' to double check if extraction was already processed
         #rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
         rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
         #print "rows_batch", rows_batch

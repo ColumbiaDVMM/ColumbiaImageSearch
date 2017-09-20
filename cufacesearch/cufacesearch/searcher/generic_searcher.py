@@ -10,9 +10,14 @@ class GenericSearcher(ConfReader):
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
 
     # Initialize attributes
+    # TODO: rename model_type in searcher type?
+    self.model_type = None
     self.searcher = None
+    self.detector_type = None
     self.detector = None
+    self.featurizer_type = None
     self.featurizer = None
+    self.indexer_type = None
     self.indexer = None
     self.verbose = 1
     self.top_feature = 0
@@ -20,7 +25,6 @@ class GenericSearcher(ConfReader):
     # Read conf
     self.read_conf()
 
-    self.codes_path = self.get_param('codes_path')
     self.dict_output_type = self.get_param('dict_output_type')
 
     # Initialize everything
@@ -28,6 +32,7 @@ class GenericSearcher(ConfReader):
     self.init_featurizer()
     self.init_indexer()
     self.init_searcher()
+    self.init_storer()
 
     # Initialize dict output for formatting
     if self.dict_output_type:
@@ -37,10 +42,12 @@ class GenericSearcher(ConfReader):
 
     self.url_field = 'info:s3_url'
     self.do.url_field = self.url_field
+    # TODO: Also add feature column for re-ranking (can we use prefix filter?)
     self.needed_output_columns = [self.url_field]
 
     # should codes path be a list to deal with updates?
     # should we store that list in HBase?
+    # TODO: load pickled codes files from s3 bucket
     self.load_codes()
 
   def read_conf(self):
@@ -58,28 +65,40 @@ class GenericSearcher(ConfReader):
     """ Initialize HBase Indexer from `global_conf` value.
     """
     # Get indexed type from conf file
-    indexer_type = self.get_param('indexer')
-    if not indexer_type:
-      raise ValueError("[{}: error] 'indexer' is not defined in configuration file.".format(self.pp))
-    elif indexer_type == "hbase_indexer_minimal":
+    self.indexer_type = self.get_required_param('indexer')
+    if self.indexer_type == "hbase_indexer_minimal":
       from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal
       self.indexer = HBaseIndexerMinimal(self.global_conf)
     else:
-      raise ValueError("[{}: error] unknown 'indexer' {}.".format(self.pp, indexer_type))
+      raise ValueError("[{}: error] unknown 'indexer' {}.".format(self.pp, self.indexer_type))
 
   def init_detector(self):
-    """ Initialize Face Detector from `global_conf` value.
+    """ Initialize detector based on 'detector' in 'global_conf' value.
     """
-    detector_type = self.get_param('detector')
-    from ..detector.generic_detector import get_detector
-    self.detector = get_detector(detector_type)
+    # A detector is not required
+    self.detector_type = self.get_param('detector')
+    if self.detector_type:
+      from ..detector.generic_detector import get_detector
+      self.detector = get_detector(self.detector_type)
 
   def init_featurizer(self):
     """ Initialize Feature Extractor from `global_conf` value.
     """
-    featurizer_type = self.get_param('featurizer')
+    self.featurizer_type = self.get_required_param('featurizer')
     from ..featurizer.generic_featurizer import get_featurizer
-    self.featurizer = get_featurizer(featurizer_type, self.global_conf)
+    self.featurizer = get_featurizer(self.featurizer_type, self.global_conf)
+
+  def init_storer(self):
+    """ Initialize storer from `global_conf` value.
+    """
+    from ..storer.generic_storer import get_storer
+    storer_type = self.get_required_param("storer_type")
+    # try to get prefix from conf
+    prefix = default_prefix
+    tmp_prefix = self.get_param("storer_prefix")
+    if tmp_prefix:
+      prefix = tmp_prefix
+    self.storer = get_storer(storer_type, self.global_conf, prefix=prefix)
 
   def check_ratio(self):
     '''Check if we need to set the ratio based on top_feature.'''
@@ -141,19 +160,32 @@ class GenericSearcher(ConfReader):
         feats.append(faces_feats)
       else:
         # load image first (it could be either URL or B64...)
+        start_featurize = time.time()
         img = detect_load_fn(image)
         img_feat = self.featurizer.featurize(img)
+        featurize_time = time.time() - start_featurize
+        print 'Featurized one image in {:0.3}s.'.format(featurize_time)
+        total_featurize += featurize_time
         feats.append(img_feat)
 
     # Search from all faces features
     return self.search_from_feats(dets, feats, options_dict)
 
-  # These are the 3 methods you should override for a new searcher
+  # These are the methods you should override for a new searcher
   def init_searcher(self):
     raise NotImplementedError('init_searcher')
 
-  def load_codes(self):
-    raise NotImplementedError('load_codes')
+  def add_features(self, feats, ids=None):
+    raise NotImplementedError('add_features')
+
+  def train_index(self):
+    raise NotImplementedError('train_index')
+
+  def save_index(self):
+    raise NotImplementedError('save_index')
+
+  def load_index(self):
+    raise NotImplementedError('load_index')
 
   def search_from_feats(self, dets, feats, options_dict=dict()):
     raise NotImplementedError('search_from_feats')

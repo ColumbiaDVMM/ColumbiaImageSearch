@@ -7,6 +7,8 @@ from ..featurizer.featsio import load_face_features
 
 START_HDFS = '/user/'
 
+# Legacy face searcher with LOPQ
+
 class SearcherLOPQHBase(GenericSearcher):
 
   def __init__(self, global_conf_in, prefix=default_prefix):
@@ -14,17 +16,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # number of processors to use for parallel computation of codes
     self.num_procs = 6
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
-    # We should store list (or last) update_index added?
-    # Need a parameter for number of samples to use for training (1-5M?)
-    #   (for now, corresponding to min and max i.e. only training once we reach that number of samples and no retraining)
-    #   could require a lot of RAM, more than what will be used when serving the search service using the codes
-    # Need to store value of samples used for training too.
-    # Test the performance of the trained model?
-    # To try to set max_returned to achieve some target performance
-    # Do re-ranking reading features from HBase? How many features should be read? 1000?
-    self.reranking = False
-    self.bucket_name = ""
-
+    self.codes_path = self.get_param('codes_path')
 
   def set_pp(self):
     self.pp = "SearcherLOPQHBase"
@@ -33,7 +25,6 @@ class SearcherLOPQHBase(GenericSearcher):
     """ Initialize LOPQ model and searcher from `global_conf` value.
     """
     import pickle
-    # TODO: should try to load latest model from a save_path folder
     # Get model type from conf file
     lopq_model_type = self.get_required_param('lopq')
     lopq_model = None
@@ -61,19 +52,13 @@ class SearcherLOPQHBase(GenericSearcher):
             lopq_model = pickle.load(open(lopq_model_path, "rb"))
           else:
             print "[{}: error] Could not find lopq model at: {}".format(self.pp, lopq_model_path)
-            # # Train and save model at lopq_model_path
-            # lopq_model = self.train_model(lopq_model_path)
-            # Train and save model in save_path folder
-            lopq_model = self.train_index()
+            # Train and save model at lopq_model_path
+            lopq_model = self.train_model(lopq_model_path)
       else:
         print "[{}: info] Emtpy lopq model path".format(self.pp)
 
     else:
       raise ValueError("[{}: error] Unknown 'lopq' type {}.".format(self.pp, lopq_model_type))
-
-    # Check for new features?
-    # Should we save each update codes as a separate file?
-
 
     # Setup searcher with LOPQ model
     if lopq_model:
@@ -81,13 +66,7 @@ class SearcherLOPQHBase(GenericSearcher):
       self.searcher = LOPQSearcher(lopq_model)
       # NB: an empty lopq_model would make sense only if we just want to detect...
 
-  def train_index(self):
-    # TODO: build 'lopq_model_path' from save_path current date and model type?...
-    # we should read features from HBase
-    # how many?
-    # We should save to s3.
-    # Should we build a unique model identifier. sha1/md5 of model parameters? of its pickled file?
-    lopq_model_path = 'tmp'
+  def train_model(self, lopq_model_path):
     train_features_path = self.get_param('train_features_path')
     lopq_params = self.get_param('lopq_params')
     if train_features_path and lopq_params and os.path.exists(train_features_path):
@@ -112,7 +91,6 @@ class SearcherLOPQHBase(GenericSearcher):
           os.makedirs(out_dir)
         except:
           pass
-        # TODO: use storer to save to remote
         pickle.dump(lopq_model, open(lopq_model_path, 'wb'))
         print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
         return lopq_model
@@ -127,9 +105,7 @@ class SearcherLOPQHBase(GenericSearcher):
       print msg.format(self.pp)
       #print train_features_path, os.path.exists(train_features_path), lopq_params
 
-  # TODO: should this be the 'add_features' method?...
   def compute_codes(self, face_ids, data, codes_path, model=None):
-    # TODO: we should compute codes for each update batch and save them so S3 (in a binary format? pickled?).
     from lopq.utils import compute_codes_parallel
     msg = "[{}.compute_codes: info] Computing codes for {} faces."
     print msg.format(self.pp, len(face_ids))
@@ -202,9 +178,6 @@ class SearcherLOPQHBase(GenericSearcher):
     max_returned = self.sim_limit
     if "max_returned" in options_dict:
       max_returned = options_dict["max_returned"]
-    # this should be set with a parameter either in conf or options_dict too.
-    # should we use self.quota here? and potentially overwrite from options_dict
-    quota = 2 * max_returned
 
     #print dets
 
@@ -228,28 +201,21 @@ class SearcherLOPQHBase(GenericSearcher):
             # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
             # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
             #results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
-            results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
+            results, visited = self.searcher.search(normed_feat, quota=2 * max_returned, limit=max_returned, with_dists=True)
             #print "[{}.search_from_feats: log] got {} results, first one is: {}".format(self.pp, len(results), results[0])
-
-        # TODO: If reranking, get features from hbase for detections using res.id
-        #   we could also already get 's3_url' to avoid a second call to HBase later...
-
         tmp_img_sim = []
         tmp_face_sim_ids = []
         tmp_face_sim_score = []
         for ires,res in enumerate(results):
-          dist = res.dist
-          # TODO: if reranking compute actual distance
-          if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
+          if (filter_near_dup and res.dist <= near_dup_th) or not filter_near_dup:
             if not max_returned or (max_returned and ires < max_returned ):
               tmp_face_sim_ids.append(res.id)
               # here id would be face_id that we could build as sha1_facebbox?
               tmp_img_sim.append(str(res.id).split('_')[0])
-              tmp_face_sim_score.append(dist)
-          # TODO: rerank using tmp_face_sim_score
+              tmp_face_sim_score.append(res.dist)
 
         #print tmp_img_sim
-        # If
+
         if tmp_img_sim:
           rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
           # rows should contain id, s3_url of images
