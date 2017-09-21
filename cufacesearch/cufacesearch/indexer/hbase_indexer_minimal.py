@@ -362,7 +362,7 @@ class HBaseIndexerMinimal(ConfReader):
             sid = str(row[0])
           else:
             # parse to get id, sha1 + detection_box
-            sid = str(row[0])+"_".join(k.split("_")[3:8])
+            sid = str(row[0])+"_"+"_".join(k.split("_")[4:8])
           # Get feature
           feat = featB64decode(row[1][k])
           # Add sample id and feature

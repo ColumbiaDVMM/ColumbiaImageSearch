@@ -259,7 +259,7 @@ class SearcherLOPQHBase(GenericSearcher):
         tmp_img_sim = []
         tmp_face_sim_ids = []
         tmp_face_sim_score = []
-        for ires,res in enumerate(results):
+        for ires, res in enumerate(results):
           dist = res.dist
           # TODO: if reranking compute actual distance
           if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
@@ -292,4 +292,7 @@ class SearcherLOPQHBase(GenericSearcher):
     print 'Search performed in {:0.3}s.'.format(search_time)
 
     # format output
-    return self.do.format_output(dets, all_sim_images, all_sim_faces, all_sim_score, options_dict)
+    print all_sim_images
+    print all_sim_faces
+    print all_sim_score
+    return self.do.format_output(dets, all_sim_images, all_sim_faces, all_sim_score, options_dict, self.input_type)
