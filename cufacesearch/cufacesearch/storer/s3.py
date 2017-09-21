@@ -34,12 +34,16 @@ class S3Storer(GenericStorer):
       full_trace_error(err_msg.format(self.pp, self.bucket_name, self.aws_profile))
       raise e
     self.bucket = self.s3.Bucket(self.bucket_name)
-    print "[{}: log] Initialized with bucket '{}' and profile '{}'.".format(self.pp, self.bucket_name, self.aws_profile)
+    if self.verbose > 0:
+      print "[{}: log] Initialized with bucket '{}' and profile '{}'.".format(self.pp, self.bucket_name, self.aws_profile)
 
   def save(self, key, obj):
     # Pickle and save to s3 bucket
     buffer = sio.StringIO(pickle.dumps(obj))
     self.bucket.upload_fileobj(buffer, key)
+    if self.verbose > 1:
+      print "[{}: log] Saved file: {}".format(self.pp, key)
+
 
   def load(self, key):
     # Load a pickle object from s3 bucket
@@ -47,6 +51,8 @@ class S3Storer(GenericStorer):
       buffer = sio.StringIO()
       self.bucket.download_fileobj(key, buffer)
       obj = pickle.load(buffer)
+      if self.verbose > 1:
+        print "[{}: log] Loaded file: {}".format(self.pp, key)
       return obj
     except Exception as e:
       err_msg = "[{}: error ({}: {})] Could not load object with key: {}"

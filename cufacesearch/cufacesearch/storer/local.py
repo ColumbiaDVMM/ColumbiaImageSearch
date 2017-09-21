@@ -1,8 +1,8 @@
 import os
 import glob
 import cPickle as pickle
-from .generic_storer import GenericStorer
-from ..common.dl import mkpath
+from cufacesearch.storer.generic_storer import GenericStorer
+from cufacesearch.common.dl import mkpath
 from cufacesearch.common.error import full_trace_error
 
 default_prefix = "LO_"
@@ -23,7 +23,8 @@ class LocalStorer(GenericStorer):
   def setup(self):
     # create base path dir
     mkpath(self.base_path)
-    print "[{}: log] Initialized with base_path '{}'".format(self.pp, self.base_path)
+    if self.verbose > 0:
+      print "[{}: log] Initialized with base_path '{}'".format(self.pp, self.base_path)
 
   def get_full_path(self, key):
     return os.path.join(self.base_path, key)
@@ -33,12 +34,16 @@ class LocalStorer(GenericStorer):
     full_path = self.get_full_path(key)
     mkpath(full_path)
     pickle.dump(obj, open(full_path, 'wb'))
+    if self.verbose > 1:
+      print "[{}: log] Saved file: {}".format(self.pp, full_path)
 
   def load(self, key):
     # Load a pickle object from disk
     try:
       full_path = self.get_full_path(key)
       obj = pickle.load(open(full_path, 'rb'))
+      if self.verbose > 1:
+        print "[{}: log] Loaded file: {}".format(self.pp, full_path)
       return obj
     except Exception as e:
       err_msg = "[{}: error ({}: {})] Could not load object from path: {}"
@@ -57,5 +62,5 @@ class LocalStorer(GenericStorer):
         yield obj
 
 if __name__ == "__main__":
-  local_conf = {"base_path": "./store/"}
+  local_conf = {"base_path": "./store/", "verbose": 2}
   lst = LocalStorer(local_conf, prefix="")
