@@ -1,29 +1,23 @@
 import os
+import time
 import numpy as np
 
-from generic_searcher import GenericSearcher, default_prefix
+from generic_searcher import GenericSearcher
 # Beware: the loading function to use could depend on the featurizer type...
 from ..featurizer.featsio import load_face_features
+from ..indexer.hbase_indexer_minimal import column_list_sha1s
+from ..common.error import full_trace_error
 
 START_HDFS = '/user/'
+
+default_prefix = "SEARCHLOPQ_"
 
 class SearcherLOPQHBase(GenericSearcher):
 
   def __init__(self, global_conf_in, prefix=default_prefix):
-    self.model_type = "lopq"
     # number of processors to use for parallel computation of codes
-    self.num_procs = 6
+    self.num_procs = 6 # could be read from configuration
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
-    # We should store list (or last) update_index added?
-    # Need a parameter for number of samples to use for training (1-5M?)
-    #   (for now, corresponding to min and max i.e. only training once we reach that number of samples and no retraining)
-    #   could require a lot of RAM, more than what will be used when serving the search service using the codes
-    # Need to store value of samples used for training too.
-    # Test the performance of the trained model?
-    # To try to set max_returned to achieve some target performance
-    # Do re-ranking reading features from HBase? How many features should be read? 1000?
-    self.reranking = False
-    self.bucket_name = ""
 
 
   def set_pp(self):
@@ -32,47 +26,26 @@ class SearcherLOPQHBase(GenericSearcher):
   def init_searcher(self):
     """ Initialize LOPQ model and searcher from `global_conf` value.
     """
-    import pickle
-    # TODO: should try to load latest model from a save_path folder
-    # Get model type from conf file
-    lopq_model_type = self.get_required_param('lopq')
-    lopq_model = None
-    if lopq_model_type == "lopq" or lopq_model_type == "lopq_pca":
-      self.model_type = lopq_model_type
-      # this is from our modified LOPQ package...
-      # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq/python
-      # 'LOPQModelPCA' could be the type of the model loaded from pickle file
-      from lopq.model import LOPQModel, LOPQModelPCA
-      lopq_model_path = self.get_param('lopqmodel')
-      if lopq_model_path:
-        # deal with HDFS path
-        if lopq_model_path.startswith(START_HDFS):
-          from lopq.utils import copy_from_hdfs
-          import shutil
-          filename = copy_from_hdfs(lopq_model_path)
-          lopq_model = pickle.load(filename)
-          try:
-            shutil.rmtree(os.path.dirname(filename))
-          except:
-            pass
-        else:
-          if os.path.exists(lopq_model_path):
-            # local path in config
-            lopq_model = pickle.load(open(lopq_model_path, "rb"))
-          else:
-            print "[{}: error] Could not find lopq model at: {}".format(self.pp, lopq_model_path)
-            # # Train and save model at lopq_model_path
-            # lopq_model = self.train_model(lopq_model_path)
-            # Train and save model in save_path folder
-            lopq_model = self.train_index()
-      else:
-        print "[{}: info] Emtpy lopq model path".format(self.pp)
+    try:
+      # Try to load pretrained model from storer
+      lopq_model = self.storer.load(self.build_model_str())
+      if lopq_model is None:
+        raise ValueError("Could not load model from storer.")
+    except Exception as inst:
+      if type(inst) != ValueError:
+        full_trace_error(inst)
+      print "[{}: log] Looks like model was not trained yet ({})".format(self.pp, inst)
 
-    else:
-      raise ValueError("[{}: error] Unknown 'lopq' type {}.".format(self.pp, lopq_model_type))
+      # # this is from our modified LOPQ package...
+      # # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq/python
+      # # 'LOPQModelPCA' could be the type of the model loaded from pickle file
+      # from lopq.model import LOPQModel, LOPQModelPCA
 
-    # Check for new features?
-    # Should we save each update codes as a separate file?
+      # Train and save model in save_path folder
+      lopq_model = self.train_index()
+      # TODO: we could build a more unique model identifier (using sha1/md5 of model parameters? using date of training?)
+      #  that would also mean we should list from the storer and guess (based on date of creation) the correct model above...
+      self.storer.save(self.build_model_str(), lopq_model)
 
 
     # Setup searcher with LOPQ model
@@ -81,108 +54,157 @@ class SearcherLOPQHBase(GenericSearcher):
       self.searcher = LOPQSearcher(lopq_model)
       # NB: an empty lopq_model would make sense only if we just want to detect...
 
+  def get_train_features(self):
+    print "[{}: log] Gathering {} training samples...".format(self.pp, self.nb_train)
+    # TODO: test that...
+    train_features = []
+    start_date = "1970-01-01"
+    while len(train_features) < self.nb_train:
+      updates = self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str())
+      # Accumulate until we have enough features
+      for update in updates:
+        try:
+          update_id = update[0]
+          print "[{}: log] Getting features from update {}".format(self.pp, update_id)
+          start_date = update_id.split("_")[-2:-1]
+          list_sha1s = update[1][column_list_sha1s]
+          _, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+          train_features.extend(features)
+          if len(train_features) >= self.nb_train:
+            break
+        except Exception as inst:
+          print "[{}: error] Failed to get features from update {}: {}".format(self.pp, update_id, inst)
+      else:
+        print "[{}: log] Got {} training samples so far...".format(self.pp, len(train_features))
+        # Wait for new updates...
+        time.sleep(600)
+    return train_features
+
   def train_index(self):
-    # TODO: build 'lopq_model_path' from save_path current date and model type?...
-    # we should read features from HBase
-    # how many?
-    # We should save to s3.
-    # Should we build a unique model identifier. sha1/md5 of model parameters? of its pickled file?
-    lopq_model_path = 'tmp'
-    train_features_path = self.get_param('train_features_path')
-    lopq_params = self.get_param('lopq_params')
-    if train_features_path and lopq_params and os.path.exists(train_features_path):
+    # TODO: test training
+    train_features = self.get_train_features()
+    train_np = np.asarray(train_features)
+    self.storer.save("train_features", train_np)
+    #print train_np.shape
+    if len(train_features) >= self.nb_train:
       if self.model_type == "lopq":
-        import json
-        import time
-        import pickle
         from lopq.model import LOPQModel
-        jlp = json.loads(lopq_params)
+        # should get that from config file actually,
+        # and we could use that for a more fine grained model naming...
+        V = self.get_required_param('lopq_V')
+        M = self.get_required_param('lopq_M')
+        subq = self.get_required_param('lopq_subq')
+        jlp = {'V': V, 'M': M, 'subq':subq}
         # we could have default values for those parameters and/or heuristic to estimate them based on data count...
         lopq_model = LOPQModel(V=jlp['V'], M=jlp['M'], subquantizer_clusters=jlp['subq'])
         # we could have separate training/indexing features
-        face_ids, data = load_face_features(train_features_path, verbose=True)
-        msg = "[{}.train_model: info] Starting local training of 'lopq' model with parameters {} using features from {}."
-        print msg.format(self.pp, lopq_params, train_features_path)
+        msg = "[{}.train_model: info] Starting local training of 'lopq' model with parameters {} using {} features."
+        print msg.format(self.pp, jlp, len(train_features))
         start_train = time.time()
-        # specify a n_init<10 (default value) to speed-up training?
-        lopq_model.fit(data, verbose=True)
+        # specify a n_init < 10 (default value) to speed-up training?
+        lopq_model.fit(train_np, verbose=True)
         # save model
-        out_dir = os.path.dirname(lopq_model_path)
-        try:
-          os.makedirs(out_dir)
-        except:
-          pass
-        # TODO: use storer to save to remote
-        pickle.dump(lopq_model, open(lopq_model_path, 'wb'))
+        self.storer.save(self.build_model_str(), lopq_model)
         print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
         return lopq_model
       elif self.model_type == "lopq_pca":
+        # TODO: implement lopq_pca training.
         err_msg = "[{}.train_model: error] Local training of 'lopq_pca' model not yet implemented."
         raise NotImplementedError(err_msg.format(self.pp))
       else:
         raise ValueError("[{}.train_model: error] Unknown 'lopq' type {}.".format(self.pp, self.model_type))
     else:
-      msg = "[{}.train_model: error] Could not train 'lopq' model. "
-      msg += "Have you specified 'train_features_path' (and path exists?) and 'lopq_params' in config?"
+      msg = "[{}.train_model: error] Could not train model, not enough training samples."
       print msg.format(self.pp)
       #print train_features_path, os.path.exists(train_features_path), lopq_params
+    # TODO: should we try to evaluate index by pushing train_features to a temporary searcher
+    #    - compute exhaustive search for some randomly selected samples
+    #    - analyze retrieval performance of approximate search?
+    # technically we could even explore different configurations...
 
-  # TODO: should this be the 'add_features' method?...
-  def compute_codes(self, face_ids, data, codes_path, model=None):
-    # TODO: we should compute codes for each update batch and save them so S3 (in a binary format? pickled?).
+
+  def compute_codes(self, det_ids, data, codes_path=None, model=None):
+    # Compute codes for each update batch and save them
     from lopq.utils import compute_codes_parallel
-    msg = "[{}.compute_codes: info] Computing codes for {} faces."
-    print msg.format(self.pp, len(face_ids))
+    msg = "[{}.compute_codes: info] Computing codes for {} {}s."
+    print msg.format(self.pp, len(det_ids), self.input_type)
+
     if model is None:
       model = self.searcher.model
-    # that keeps the ordering intact, but output is a chain
+
+    # That keeps the ordering intact, but output is a chain
     codes = compute_codes_parallel(data, model, self.num_procs)
-    out_dir = os.path.dirname(codes_path)
-    try:
-      os.makedirs(out_dir)
-    except:
-      pass
-    # to be saved as tsv, e.g. each line is face_id\tcode
-    # allow for appending, beware to start from empty file...
-    with open(codes_path, 'at') as outf:
-      for i, code in enumerate(codes):
-        outf.write("{}\t{}\n".format(face_ids[i], [code.coarse, code.fine]))
+
+    # Build dict output
+    codes_dict = dict()
+    for i, code in enumerate(codes):
+      codes_dict[det_ids[i]] = [code.coarse, code.fine]
+
+    # Save
+    if codes_path:
+      self.storer.save(codes_path, codes_dict)
+
+    return codes_dict
+
+    # Deprecated direct save to disk as tsv
+    # out_dir = os.path.dirname(codes_path)
+    # try:
+    #   os.makedirs(out_dir)
+    # except:
+    #   pass
+    # # to be saved as tsv, e.g. each line is face_id\tcode
+    # # allow for appending, beware to start from empty file...
+    # with open(codes_path, 'at') as outf:
+    #   for i, code in enumerate(codes):
+    #     outf.write("{}\t{}\n".format(face_ids[i], [code.coarse, code.fine]))
+
+
 
   def load_codes(self):
-    # TODO: how to deal with updates?
-    # this takes 10 minutes...
-    if self.codes_path:
-      if not self.searcher:
-        print "[{}.load_codes: info] Not loading codes as searcher is not initialized.".format(self.pp)
-        return
-      import time
-      start_load = time.time()
-      if self.codes_path.startswith(START_HDFS):
-        self.searcher.add_codes_from_hdfs(self.codes_path)
-        print "[{}.load_codes: info] Loaded codes in {}s.".format(self.pp, time.time() - start_load)
-      else:
-        if os.path.exists(self.codes_path):
-          self.searcher.add_codes_from_local(self.codes_path)
-          print "[{}.load_codes: info] Loaded codes in {}s.".format(self.pp, time.time() - start_load)
-        else:
-          # Try to compute codes from features files?
-          index_features_path = self.get_param('index_features_path')
-          import glob
-          if glob.glob(index_features_path):
-            print "[{}.load_codes: info] Computing codes from 'features_path': {}".format(self.pp, index_features_path)
-            for ifn in glob.glob(index_features_path):
-              for root, dirs, files in os.walk(ifn):
-                for basename in files:
-                  # TODO: allow features files not starting with 'part-'
-                  if basename.startswith('part-'):
-                    face_ids, data = load_face_features(os.path.join(root, basename), verbose=True)
-                    self.compute_codes(face_ids, data, self.codes_path)
-            self.searcher.add_codes_from_local(self.codes_path)
-            print "[{}.load_codes: info] Loaded codes in {}s.".format(self.pp, time.time() - start_load)
-          else:
-            print "[{}.load_codes: info] 'codes_path' and 'index_features_path' do no exists on disk. Nothing to index!".format(self.pp)
-    else:
-      print "[{}.load_codes: info] 'codes_path' is not defined or empty in configuration file.".format(self.pp)
+    # Calling this method can also perfom an update of the index
+    if not self.searcher:
+      print "[{}.load_codes: info] Not loading codes as searcher is not initialized.".format(self.pp)
+      return
+
+    start_load = time.time()
+    total_compute_time = 0
+    # Get all updates ids for the extraction type
+    updates = self.indexer.get_updates_from_date(start_date="1970-01-01", extr_type=self.build_extr_str())
+    for update in updates:
+      update_id = update[0]
+      if update_id not in self.indexed_updates:
+
+        # Get this update codes
+        codes_string = self.build_codes_string(update_id)
+        try:
+          # Check for precomputed codes
+          codes_dict = self.storer.load(codes_string)
+          if codes_dict is None:
+            raise ValueError('Could not load codes: {}'.format(codes_string))
+        except Exception as inst:
+          # Compute codes for update not yet processed and save them
+          start_compute = time.time()
+          # Update codes not available
+          if self.verbose > 1:
+            print "[{}: log] Update {} codes could not be loaded: {}".format(self.pp, update_id, inst)
+          # Get detections (if any) and features...
+          list_sha1s = update[1][column_list_sha1s]
+          samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+          codes_dict = self.compute_codes(samples_ids, features, codes_string)
+          update_compute_time = time.time() - start_compute
+          total_compute_time += update_compute_time
+          if self.verbose > 0:
+            print "[{}: log] Update {} codes computation done in {}s".format(self.pp, update_id, update_compute_time)
+
+        # Use new method add_codes_from_dict of searcher
+        self.searcher.add_codes_from_dict(codes_dict)
+        self.indexed_updates.add(update_id)
+
+    total_load = time.time() - start_load
+    if self.verbose > 0:
+      print "[{}: log] Total udpates computation time is: {}s".format(self.pp, total_compute_time)
+      print "[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load)
+
 
   def search_from_feats(self, dets, feats, options_dict=dict()):
     import time

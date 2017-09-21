@@ -99,7 +99,8 @@ class ExtractionChecker(ConfReader):
     # append unique processid to 'update_id' to make it safe to use with multiple consumers...
     # /!\ beware, it should not contain underscores
     # use self.ingester.pp
-    tmp_update_id, _ = self.indexer.get_next_update_id(today=None, extr_type='_'+self.extr_prefix)
+    #tmp_update_id, _ = self.indexer.get_next_update_id(today=None, extr_type='_'+self.extr_prefix)
+    tmp_update_id, _ = self.indexer.get_next_update_id(today=None, extr_type=self.extr_prefix)
     update_id = tmp_update_id+'-'+self.ingester.pp
     for sha1 in list_get_sha1s:
       dict_push[str(sha1)] = dict()
@@ -172,7 +173,7 @@ class ExtractionChecker(ConfReader):
           # Push them to HBase by batch of 'batch_update_size'
           # Seems to get stuck with a lag of 1868 total on backpage-test...
           # Then got some HBase errors. No lag anymore but have all images been pushed?
-          if len(list_sha1s_to_process) >= self.indexer.batch_update_size or (time.time() - self.last_push) > self.max_delay:
+          if len(list_sha1s_to_process) >= self.indexer.batch_update_size or ((time.time() - self.last_push) > self.max_delay and len(list_sha1s_to_process) > 0):
             # Trim here to push exactly a batch of 'batch_update_size'
             list_push = list_sha1s_to_process[:min(self.indexer.batch_update_size, len(list_sha1s_to_process))]
 

@@ -14,6 +14,7 @@ class S3Storer(GenericStorer):
   def __init__(self, global_conf_in, prefix=default_prefix):
     super(S3Storer, self).__init__(global_conf_in, prefix)
 
+    # This assumes you have the corresponding profile in ~/.aws/credentials
     self.aws_profile = self.get_param('aws_profile')
     self.bucket_name = self.get_required_param('bucket_name')
 

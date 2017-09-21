@@ -46,8 +46,9 @@ class LocalStorer(GenericStorer):
         print "[{}: log] Loaded file: {}".format(self.pp, full_path)
       return obj
     except Exception as e:
-      err_msg = "[{}: error ({}: {})] Could not load object from path: {}"
-      print err_msg.format(self.pp, type(e), e, full_path)
+      if self.verbose > 0:
+        err_msg = "[{}: error ({}: {})] Could not load object from path: {}"
+        print err_msg.format(self.pp, type(e), e, full_path)
 
 
   def list_prefix(self, prefix_path):

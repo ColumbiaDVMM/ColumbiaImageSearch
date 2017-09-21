@@ -1,7 +1,7 @@
 from output_mapping import DictOutput
 from ..common.conf_reader import ConfReader
 
-default_prefix = "FSE_"
+default_prefix = "GESEARCH_"
 
 
 class GenericSearcher(ConfReader):
@@ -11,28 +11,43 @@ class GenericSearcher(ConfReader):
 
     # Initialize attributes
     # TODO: rename model_type in searcher type?
-    self.model_type = None
+    self.model_type = self.get_required_param('model_type')
+    self.input_type = "image"
     self.searcher = None
-    self.detector_type = None
+    self.detector_type = "full"
     self.detector = None
     self.featurizer_type = None
     self.featurizer = None
     self.indexer_type = None
     self.indexer = None
+    self.model_str = None
+    self.extr_str = None
     self.verbose = 1
     self.top_feature = 0
+    self.nb_train = 1000000
+    # Do re-ranking reading features from HBase? How many features should be read? 1000?
+    self.reranking = False
+
+    # Have some parameters to discard images of dimensions lower than some values?...
+    # Have some parameters to discard detections with scores lower than some values?...
 
     # Read conf
     self.read_conf()
 
+    # We should store set of updates currently indexed
+    self.indexed_updates = set()
     self.dict_output_type = self.get_param('dict_output_type')
 
     # Initialize everything
     self.init_detector()
     self.init_featurizer()
+    self.init_storer()
     self.init_indexer()
     self.init_searcher()
-    self.init_storer()
+
+    # Test the performance of the trained model?
+    # To try to set max_returned to achieve some target performance
+
 
     # Initialize dict output for formatting
     if self.dict_output_type:
@@ -53,22 +68,60 @@ class GenericSearcher(ConfReader):
   def read_conf(self):
     # these parameters may be overwritten by web call
     self.sim_limit = self.get_param('sim_limit')
-    self.quota = self.sim_limit * 2
+    if self.sim_limit is None:
+      self.sim_limit = 100
+    tmp_quota = self.get_param('quota')
+    if tmp_quota:
+      if tmp_quota < self.sim_limit:
+        raise ValueError("'quota' cannot be less than 'sim_limit'")
+      self.quota = tmp_quota
+    else:
+      self.quota = self.sim_limit * 10
     self.near_dup = bool(self.get_param('near_dup'))
     self.near_dup_th = self.get_param('near_dup_th')
     self.ratio = self.get_param('ratio')
     tmp_top_feature = self.get_param('top_feature')
     if tmp_top_feature:
       self.top_feature = int(tmp_top_feature)
+    tmp_input_type = self.get_param('input_type')
+    if tmp_input_type:
+      self.input_type = tmp_input_type
+    tmp_nb_train = self.get_param('nb_train')
+    if tmp_nb_train:
+      self.nb_train = tmp_nb_train
+    # Add any new parameters, e.g. reranking
+
+  def build_extr_str(self):
+    if self.extr_str is None:
+      # use generic extractor 'build_extr_str'
+      from cufacesearch.extractor.generic_extractor import build_extr_str
+      # featurizer_type, detector_type, input_type):
+      self.extr_str = build_extr_str(self.featurizer_type, self.detector_type, self.input_type)
+    return self.extr_str
+
+
+  def build_model_str(self):
+    if self.model_str is None:
+      # We could add some additional info, like model parameters, number of samples used for training...
+      self.model_str = self.build_extr_str() + "_" + self.model_type
+    return self.model_str
+
+  def build_codes_string(self, update_id):
+    model_string = self.build_model_str()
+    return model_string+"_codes/"+update_id
 
   def init_indexer(self):
     """ Initialize HBase Indexer from `global_conf` value.
     """
     # Get indexed type from conf file
-    self.indexer_type = self.get_required_param('indexer')
+    self.indexer_type = self.get_required_param('indexer_type')
+    tmp_prefix = self.get_param("indexer_prefix")
     if self.indexer_type == "hbase_indexer_minimal":
-      from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal
-      self.indexer = HBaseIndexerMinimal(self.global_conf)
+      from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal, default_prefix as hbi_default_prefix
+      prefix = hbi_default_prefix
+      if tmp_prefix:
+        prefix = tmp_prefix
+      self.indexer = HBaseIndexerMinimal(self.global_conf, prefix=prefix)
     else:
       raise ValueError("[{}: error] unknown 'indexer' {}.".format(self.pp, self.indexer_type))
 
@@ -76,25 +129,28 @@ class GenericSearcher(ConfReader):
     """ Initialize detector based on 'detector' in 'global_conf' value.
     """
     # A detector is not required
-    self.detector_type = self.get_param('detector')
-    if self.detector_type:
-      from ..detector.generic_detector import get_detector
-      self.detector = get_detector(self.detector_type)
+    detector_type = self.get_param('detector_type')
+    if detector_type:
+      self.detector_type = detector_type
+      if self.detector_type != "full":
+        from ..detector.generic_detector import get_detector
+        self.detector = get_detector(self.detector_type)
 
   def init_featurizer(self):
     """ Initialize Feature Extractor from `global_conf` value.
     """
-    self.featurizer_type = self.get_required_param('featurizer')
+    self.featurizer_type = self.get_required_param('featurizer_type')
+    tmp_prefix = self.get_param("featurizer_prefix")
     from ..featurizer.generic_featurizer import get_featurizer
-    self.featurizer = get_featurizer(self.featurizer_type, self.global_conf)
+    self.featurizer = get_featurizer(self.featurizer_type, self.global_conf, tmp_prefix)
 
   def init_storer(self):
     """ Initialize storer from `global_conf` value.
     """
-    from ..storer.generic_storer import get_storer
+    from ..storer.generic_storer import get_storer, default_prefix as storer_default_prefix
     storer_type = self.get_required_param("storer_type")
     # try to get prefix from conf
-    prefix = default_prefix
+    prefix = storer_default_prefix
     tmp_prefix = self.get_param("storer_prefix")
     if tmp_prefix:
       prefix = tmp_prefix

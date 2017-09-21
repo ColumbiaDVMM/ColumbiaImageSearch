@@ -17,12 +17,14 @@ update_str_processed = "processed"
 update_str_started = "started"
 img_buffer_column = "info:img_buffer"
 img_URL_column = "info:s3_url"
+extraction_column_family = "ext"
+default_prefix = "HBI_"
 
 # Is the connection pool causing some issue? Could we use a single connection?
 
 class HBaseIndexerMinimal(ConfReader):
 
-  def __init__(self, global_conf_in, prefix="HBFI_"):
+  def __init__(self, global_conf_in, prefix=default_prefix):
     self.last_refresh = datetime.now()
     self.transport_type = 'buffered'  # this is happybase default
     # self.transport_type = 'framed'
@@ -47,7 +49,6 @@ class HBaseIndexerMinimal(ConfReader):
     # HBase conf
     self.hbase_host = self.get_required_param('host')
     self.table_sha1infos_name = self.get_required_param('table_sha1infos')
-    # TODO: would be deprecated for Kafka ingestion?
     self.table_updateinfos_name = self.get_param('table_updateinfos')
     if self.verbose > 0:
       print_msg = "[{}.read_conf: info] HBase tables name: {} (sha1infos), {} (updateinfos)"
@@ -106,7 +107,7 @@ class HBaseIndexerMinimal(ConfReader):
     return None
 
   def get_check_column(self, extraction):
-    return "ext:"+"_".join([extraction, extr_str_processed])
+    return extraction_column_family+":"+"_".join([extraction, extr_str_processed])
 
 
   def get_create_table(self, table_name, conn=None, families={'info': dict()}):
@@ -164,7 +165,6 @@ class HBaseIndexerMinimal(ConfReader):
     self.check_errors(previous_err, "get_updates_from_date", inst)
     # build row_start as index_update_YYYY-MM-DD
     row_start = update_prefix + extr_type + "_" + start_date
-    print row_start
     try:
       rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
     except Exception as inst: # try to catch any exception
@@ -330,12 +330,49 @@ class HBaseIndexerMinimal(ConfReader):
     self.check_errors(previous_err, "get_columns_from_sha1_rows", inst)
     if list_sha1s:
       try:
+        #print self.table_sha1infos_name
         rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name, families=families, columns=columns)
       except Exception as inst: # try to catch any exception
         print "[get_columns_from_sha1_rows: error] {}".format(inst)
         self.refresh_hbase_conn("get_columns_from_sha1_rows")
         return self.get_columns_from_sha1_rows(list_sha1s, columns, families=families, previous_err=previous_err+1, inst=inst)
     return rows
+
+
+  def get_features_from_sha1s(self, list_sha1s, extr_type):
+    from ..featurizer.featsio import featB64decode
+
+    # Cannot use column filters here...
+    has_detection = False
+    if "_".join(extr_type.split("_")[-2]) != "full_image":
+      has_detection = True
+    # We need to get all extractions and parse them for matches with extr_type...
+    # We could also read image infos if we need to filter things out
+    # TODO: should we batch list_sha1s?
+    #print list_sha1s
+    rows = self.get_columns_from_sha1_rows(list_sha1s, columns=[extraction_column_family])
+    samples_id = []
+    feats = []
+    for row in rows:
+      for k in row[1]:
+        #print k
+        if k.startswith(extraction_column_family+":"+extr_type) and not k.endswith("_updateid") and not k.endswith(extr_str_processed):
+          # Get sample id
+          if not has_detection:
+            sid = str(row[0])
+          else:
+            # parse to get id, sha1 + detection_box
+            sid = str(row[0])+"_".join(k.split("_")[3:8])
+          # Get feature
+          feat = featB64decode(row[1][k])
+          # Add sample id and feature
+          #print sid, feat.shape
+          samples_id.append(sid)
+          feats.append(feat)
+    if self.verbose > 0:
+      print "[{}: info] Got {} rows and {} features.".format(self.pp, len(rows), len(samples_id))
+    return samples_id, feats
+
 
 
     # # Something like this could be used to get precomputed face features

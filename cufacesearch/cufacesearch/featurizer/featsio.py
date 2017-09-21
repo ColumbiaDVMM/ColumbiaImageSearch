@@ -9,8 +9,12 @@ def normfeatB64encode(feat):
   out_feat = feat / norm_feat
   return featB64encode(out_feat)
 
-def featB64decode(feat_B64):
-  return np.frombuffer(base64.b64decode(feat_B64), dtype=np.float32)
+def featB64decode(feat_B64, dtype=None):
+  # do we need to provide dtype
+  if dtype:
+    return np.frombuffer(base64.b64decode(feat_B64), dtype=dtype)
+  else:
+    return np.frombuffer(base64.b64decode(feat_B64))
 
 
 def parse_feat_line(line):

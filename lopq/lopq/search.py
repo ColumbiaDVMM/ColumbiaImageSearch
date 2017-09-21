@@ -261,6 +261,10 @@ class LOPQSearcherBase(object):
         except:
             pass
 
+    def add_codes_from_dict(self, codes_dict):
+        for k in codes_dict:
+            self.add_codes([codes_dict[k]], [k])
+
 
     def add_codes(self, codes, ids=None):
         """
@@ -317,7 +321,7 @@ class LOPQSearcher(LOPQSearcherBase):
         for item_id, code in zip(ids, codes):
             try:
                 cell = code[0]
-                # TODO: should we use a dictionary for 'code' too?
+                # TODO: should we use a dictionary for 'code' too? If we have many collisions that could be beneficial
                 self.index[cell].append((item_id, code))
                 self.nb_indexed += 1
             except Exception as inst:

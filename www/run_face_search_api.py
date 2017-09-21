@@ -5,7 +5,7 @@ from datetime import datetime
 from argparse import ArgumentParser
 
 from cufacesearch.api import face_api_lopq
-from cufacesearch.searcher import searcher_lopqhbase
+from cufacesearch.searcher import face_searcher_lopqhbase
 
 app = Flask(__name__)
 app.secret_key = "secret_key"
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     global_conf_file = options.conf_file
 
   # Initialize searcher object only once
-  face_api_lopq.global_searcher = searcher_lopqhbase.SearcherLOPQHBase(global_conf_file)
+  face_api_lopq.global_searcher = face_searcher_lopqhbase.SearcherLOPQHBase(global_conf_file)
   face_api_lopq.global_start_time = datetime.now()
   sys.stdout.flush()
 
