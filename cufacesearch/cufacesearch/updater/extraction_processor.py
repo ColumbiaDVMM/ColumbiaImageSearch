@@ -203,6 +203,7 @@ class ExtractionProcessor(ConfReader):
           # should decode base64
           if img_buffer_column in img[1]:
             tup = (img[0], img[1][img_buffer_column], False)
+            list_in.append(tup)
           else:
             # need to re-download
             # TODO: paralellize that, accumulate a list of URLs to download
@@ -216,11 +217,9 @@ class ExtractionProcessor(ConfReader):
             else:
               print("[{}.process_batch: warning] No buffer and no URL for image {} !".format(self.pp, img[0]))
               continue
-          list_in.append(tup)
 
         # Download missing images
-        q_in_dl_size = q_in_dl.size()
-        if q_in_dl_size > 0:
+        if nb_imgs_dl > 0:
           threads_dl = []
           for i in range(min(self.nb_threads, nb_imgs_dl)):
             # should read (url, obj_pos) from self.q_in
@@ -229,7 +228,7 @@ class ExtractionProcessor(ConfReader):
             thread.start()
             threads_dl.append(thread)
 
-          q_in_dl_size.join()
+          q_in_dl.join()
 
           # Push them too
           while not q_out_dl.empty():
