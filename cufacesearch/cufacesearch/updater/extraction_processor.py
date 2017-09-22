@@ -262,6 +262,7 @@ class ExtractionProcessor(ConfReader):
         for i in range(self.nb_threads):
           if q_in_size[i] > 0:
             # This would block forever if subprocess crashed?...
+            # We could set a max processing time?
             self.q_in[i].join()
 
         # Gather results

@@ -78,6 +78,7 @@ class SearcherLOPQHBase(GenericSearcher):
           sys.stdout.flush()
       else:
         print "[{}: log] Got {} training samples so far...".format(self.pp, len(train_features))
+        sys.stdout.flush()
         # Wait for new updates...
         time.sleep(600)
     return train_features
