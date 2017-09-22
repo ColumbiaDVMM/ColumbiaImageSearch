@@ -5,7 +5,7 @@ import numpy as np
 from generic_searcher import GenericSearcher
 # Beware: the loading function to use could depend on the featurizer type...
 from ..featurizer.featsio import load_face_features
-from ..indexer.hbase_indexer_minimal import column_list_sha1s
+from ..indexer.hbase_indexer_minimal import column_list_sha1s, update_str_processed
 from ..common.error import full_trace_error
 
 START_HDFS = '/user/'
@@ -64,6 +64,7 @@ class SearcherLOPQHBase(GenericSearcher):
       # Accumulate until we have enough features
       for update in updates:
         try:
+          # Need to check that update has been processed...
           update_id = update[0]
           print "[{}: log] Getting features from update {}".format(self.pp, update_id)
           start_date = "_".join(update_id.split("_")[-2:-1])
@@ -86,7 +87,8 @@ class SearcherLOPQHBase(GenericSearcher):
     train_features = self.get_train_features()
     train_np = np.asarray(train_features)
     self.storer.save("train_features", train_np)
-    #print train_np.shape
+    print "Got train features array with shape: {}".format(train_np.shape)
+
     if len(train_features) >= self.nb_train:
       if self.model_type == "lopq":
         from lopq.model import LOPQModel
@@ -173,7 +175,7 @@ class SearcherLOPQHBase(GenericSearcher):
     updates = self.indexer.get_updates_from_date(start_date="1970-01-01", extr_type=self.build_extr_str())
     for update in updates:
       update_id = update[0]
-      if update_id not in self.indexed_updates:
+      if update_id not in self.indexed_updates and "info:"+update_str_processed in update[1]:
 
         # Get this update codes
         codes_string = self.build_codes_string(update_id)

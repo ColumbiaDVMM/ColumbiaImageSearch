@@ -8,7 +8,6 @@ base_path=~
 # You should not need to change that,
 # and if you do, make sure that the config file reflects these changes
 repo_path=${base_path}/columbiafacesearch/
-PORT=5000
 indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
 
 ## Variables that could be changed
@@ -71,6 +70,6 @@ ${SUDO} docker stop ${docker_name}
 ${SUDO} docker rm ${docker_name}
 
 ## Start API
-${SUDO} docker run -tid -v ${repo_path}:${indocker_repo_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag}
+${SUDO} docker run ${ports_mapping} -tid -v ${repo_path}:${indocker_repo_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag}
 echo "Starting DLib Face Processing"
 ${SUDO} docker exec -itd ${docker_name} bash ${start_script} -r ${indocker_repo_path}

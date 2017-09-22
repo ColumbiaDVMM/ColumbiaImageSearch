@@ -346,9 +346,11 @@ class HBaseIndexerMinimal(ConfReader):
     has_detection = False
     if "_".join(extr_type.split("_")[-2]) != "full_image":
       has_detection = True
+    # sbpycaffe is saved as np.float32 while dlib face features are np.float64
+    feat_type_decode = extr_type.split("_")[0]
     # We need to get all extractions and parse them for matches with extr_type...
     # We could also read image infos if we need to filter things out
-    # TODO: should we batch list_sha1s?
+
     #print list_sha1s
     rows = self.get_columns_from_sha1_rows(list_sha1s, columns=[extraction_column_family])
     samples_id = []
@@ -364,7 +366,7 @@ class HBaseIndexerMinimal(ConfReader):
             # parse to get id, sha1 + detection_box
             sid = str(row[0])+"_"+"_".join(k.split("_")[4:8])
           # Get feature
-          feat = featB64decode(row[1][k])
+          feat = featB64decode(row[1][k], feat_type_decode)
           # Add sample id and feature
           #print sid, feat.shape
           samples_id.append(sid)
