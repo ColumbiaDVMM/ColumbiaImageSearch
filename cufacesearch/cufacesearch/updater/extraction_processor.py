@@ -170,7 +170,7 @@ class ExtractionProcessor(ConfReader):
             # need to re-download
             if img_URL_column in img[1]:
               # download image
-              from ..imgio.imgio import get_buffer_from_URL, buffer_to_B64
+              from cufacesearch.imgio.imgio import get_buffer_from_URL, buffer_to_B64
               img_buffer_b64 = buffer_to_B64(get_buffer_from_URL(img[1][img_URL_column]))
               tup = (img[0], img_buffer_b64, True)
             else:
