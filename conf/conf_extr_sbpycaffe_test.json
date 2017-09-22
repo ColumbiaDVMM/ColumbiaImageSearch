@@ -7,7 +7,7 @@
   "EXTR_detector_type": "full",
   "EXTR_input_type": "image",
   "EXTR_max_delay": 600,
-  "EXTR_nb_threads": 8,
+  "EXTR_nb_threads": 16,
   "HBI_host": "10.1.94.57",
   "HBI_table_sha1infos": "backpage_test_images_sha1_infos2",
   "HBI_table_updateinfos": "backpage_test_images_update_infos2",
