@@ -66,10 +66,10 @@ class ExtractionChecker(ConfReader):
 
 
   def set_pp(self):
-    self.pp = "ExtractionChecker"
+    self.pp = "ExtractionChecker."
     self.pp += "-".join(self.list_extr_prefix)
     if self.pid:
-      self.pp += "-"+str(self.pid)
+      self.pp += "."+str(self.pid)
 
   def store_img_infos(self, msg):
     strk = str(msg['sha1'])
@@ -224,11 +224,13 @@ class DaemonExtractionChecker(multiprocessing.Process):
         ec = ExtractionChecker(self.conf, prefix=self.prefix, pid=self.pid)
         ec.run()
       except Exception as inst:
+        nb_death += 1
         #exc_type, exc_obj, exc_tb = sys.exc_info()
         #fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print "ExtractionChecker.{} died {}{}".format(self.pid, type(inst), inst)
-      time.sleep(10*nb_death)
-      nb_death += 1
+        time.sleep(10*nb_death)
+
+
 
 
 if __name__ == "__main__":
@@ -238,7 +240,7 @@ if __name__ == "__main__":
   parser.add_argument("-c", "--conf", dest="conf_file", required=True)
   parser.add_argument("-p", "--prefix", dest="prefix", default=default_extr_check_prefix)
   parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
-  parser.add_argument("-w", "--workers", dest="workers", type=int, default=4)
+  parser.add_argument("-w", "--workers", dest="workers", type=int, default=8)
   options = parser.parse_args()
 
   if options.deamon:  # use daemon

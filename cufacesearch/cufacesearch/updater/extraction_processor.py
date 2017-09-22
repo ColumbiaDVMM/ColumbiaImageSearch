@@ -3,6 +3,7 @@ import sys
 import time
 import json
 import math
+import threading
 import traceback
 from datetime import datetime
 from argparse import ArgumentParser
@@ -22,6 +23,36 @@ def build_batch(list_in, batch_size):
   ibs = int(batch_size)
   for ndx in range(0, l, ibs):
     yield list_in[ndx:min(ndx + ibs, l)]
+
+class ThreadedDownloaderBufferOnly(threading.Thread):
+
+  def __init__(self, q_in, q_out):
+    threading.Thread.__init__(self)
+    self.q_in = q_in
+    self.q_out = q_out
+
+  def run(self):
+    from cufacesearch.imgio.imgio import get_buffer_from_URL, buffer_to_B64
+
+    while self.q_in.empty() == False:
+      try:
+        # The queue should already have items, no need to block
+        (sha1, url, push_back) = self.q_in.get(False)
+      except:
+        continue
+
+      img_buffer = None
+      inst = None
+      try:
+        img_buffer = get_buffer_from_URL(url)
+        if img_buffer:
+          # Push
+          self.q_out.put((sha1, buffer_to_B64(img_buffer), push_back))
+      except Exception as inst:
+        pass
+
+      # Mark as done
+      self.q_in.task_done()
 
 class ExtractionProcessor(ConfReader):
 
@@ -57,12 +88,12 @@ class ExtractionProcessor(ConfReader):
     self.set_pp()
 
     # Initialize queues
-    from multiprocessing import JoinableQueue as Queue
+    from multiprocessing import JoinableQueue
     self.q_in = []
     self.q_out = []
     for i in range(self.nb_threads):
-      self.q_in.append(Queue(0))
-      self.q_out.append(Queue(0))
+      self.q_in.append(JoinableQueue(0))
+      self.q_out.append(JoinableQueue(0))
 
     # Initialize extractors only once
     self.extractors = []
@@ -151,7 +182,7 @@ class ExtractionProcessor(ConfReader):
       try:
         start_update = time.time()
         self.nb_empt = 0
-        print("[{}.process_batch: log] Processing update: {}".format(self.pp, update_id))
+        print("[{}.process_batch: log] Processing update {} of {} rows.".format(self.pp, update_id, len(rows_batch)))
         sys.stdout.flush()
 
         threads = []
@@ -162,21 +193,51 @@ class ExtractionProcessor(ConfReader):
 
         # Push images to queue
         list_in = []
+        # For parallelized downloading...
+        from Queue import Queue
+        nb_imgs_dl = 0
+        q_in_dl = Queue(0)
+        q_out_dl = Queue(0)
+
         for img in rows_batch:
           # should decode base64
           if img_buffer_column in img[1]:
             tup = (img[0], img[1][img_buffer_column], False)
           else:
             # need to re-download
+            # TODO: paralellize that, accumulate a list of URLs to download
             if img_URL_column in img[1]:
               # download image
-              from cufacesearch.imgio.imgio import get_buffer_from_URL, buffer_to_B64
-              img_buffer_b64 = buffer_to_B64(get_buffer_from_URL(img[1][img_URL_column]))
-              tup = (img[0], img_buffer_b64, True)
+              #from cufacesearch.imgio.imgio import get_buffer_from_URL, buffer_to_B64
+              #img_buffer_b64 = buffer_to_B64(get_buffer_from_URL(img[1][img_URL_column]))
+              #tup = (img[0], img_buffer_b64, True)
+              q_in_dl.put((img[0], img[1][img_URL_column], True))
+              nb_imgs_dl += 1
             else:
               print("[{}.process_batch: warning] No buffer and no URL for image {} !".format(self.pp, img[0]))
               continue
           list_in.append(tup)
+
+        # Download missing images
+        q_in_dl_size = q_in_dl.size()
+        if q_in_dl_size > 0:
+          threads_dl = []
+          for i in range(min(self.nb_threads, nb_imgs_dl)):
+            # should read (url, obj_pos) from self.q_in
+            # and push (url, obj_pos, buffer, img_info, start_process, end_process) to self.q_out
+            thread = ThreadedDownloaderBufferOnly(q_in_dl, q_out_dl)
+            thread.start()
+            threads_dl.append(thread)
+
+          q_in_dl_size.join()
+
+          # Push them too
+          while not q_out_dl.empty():
+            list_in.append(q_out_dl.get())
+
+        print("[{}.process_batch: log] Got {} image buffers for update {}.".format(self.pp, len(list_in), update_id))
+        sys.stdout.flush()
+
         q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
         for i, q_batch in enumerate(build_batch(list_in, q_batch_size)):
           self.q_in[i].put(q_batch)
