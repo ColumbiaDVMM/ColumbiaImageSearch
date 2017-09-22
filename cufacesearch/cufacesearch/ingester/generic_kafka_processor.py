@@ -97,7 +97,8 @@ class GenericKafkaProcessor(ConfReader):
                          self.process_skip, self.process_failed, avg_process_time)
       sys.stdout.flush()
       self.last_display = tot
-      # Commit manually offsets here to improve offsets saving...
+      # Commit manually offsets here to improve offsets saving?
+      # Is this causing some wrong offset sums?
       try:
         self.consumer.commit()
       except Exception as inst:
@@ -108,7 +109,7 @@ class GenericKafkaProcessor(ConfReader):
         # than the configured session.timeout.ms, which typically implies that the poll loop is spending too much
         # time message processing. You can address this either by increasing the session timeout or by reducing the
         # maximum size of batches returned in poll() with max.poll.records.
-        print "[{}: warning] commit failed, with error {}".format(self.pp, inst)
+        print "[{}: warning] Commit failed, with error {}".format(self.pp, inst)
 
   def set_pp(self):
     self.pp = "GenericKafkaProcessor"

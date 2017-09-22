@@ -18,6 +18,7 @@ retries_settings = Retry(total=default_retries, backoff_factor=default_bof, stat
 s.mount('http://', HTTPAdapter(max_retries=retries_settings))
 s.mount('https://', HTTPAdapter(max_retries=retries_settings))
 
+
 def get_SHA1_from_data(data):
   sha1hash = None
   import hashlib
@@ -143,3 +144,10 @@ def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=default_
     else:
       img_buffer = StringIO(r.content)
       return img_buffer
+
+# Should we use boto3 to download from s3?
+# http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Bucket.download_fileobj
+# TODO: write a get_buffer_from_S3(key) or get_buffer_from_S3(bucket, key) ?
+# should the bucket be initialized only once, where?
+# to be thread each thread should use it's own session...
+# see: https://boto3.readthedocs.io/en/latest/guide/resources.html#multithreading-multiprocessing

@@ -5,7 +5,7 @@ from cufacesearch.storer.generic_storer import GenericStorer
 from cufacesearch.common.dl import mkpath
 from cufacesearch.common.error import full_trace_error
 
-default_prefix = "LO_"
+default_prefix = "LOCALST_"
 
 class LocalStorer(GenericStorer):
 

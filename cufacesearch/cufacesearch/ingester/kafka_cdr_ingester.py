@@ -1,3 +1,5 @@
+# Deprecated. Was used when crawled data was stored in an ElasticSearch instance.
+
 import time
 import json
 import datetime

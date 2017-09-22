@@ -1,18 +1,17 @@
 # Docker installation
 
-## Start script
+This folder contains the Docker files and setup scripts for each of the components of the system:
 
-The script [start_docker_face_search.sh](start_docker_face_search.sh) will build the docker image from the docker file, 
-setup all dependencies (using the script [setup_face_search.sh](setup_face_search.sh)) and start the face search API.  
-You can later on use this script to restart the face search API.
+- [Image downloading](KafkaImageDownloader)
+- [Full image processing](SentibankPyCaffeImageProcessing)
+- [Face processing](DLibFaceProcessing)
+- [Full image search](SentibankPyCaffeImageSearch)
+- [Face search](DLibFaceSearch)
 
-You should edit the following parameters in the script:
+Each component should be run in a separate machine and you might need to adjust 
+some parameters (number of workers, number of threads etc.) to the hardware you use,
+to optimize the computation or avoid overloading the machines you are using. 
+Default parameters are somewhat optimized to the expected hardware and computation load required 
+for each component for the MEMEX transition.
 
-- repo_path: absolute path to the root of this repository. 
-- data_path: absolute path to the folder containing the face data.
-- PORT: the port on which the API is listening (default: 5000)
-
-For now, this script assumes you have some precomputed face data in the 'data_path' save in text files with the format
-accept by the function 'parse_feat_line' in [cufacesearch/featurizer/featsio.py](../cufacesearch/cufacesearch/featurizer/featsio.py), that is:
-
-- sha1\ts3_url\t./local_path_to_be_ignored.jpg\tface_top\tface_bottom\tface_left\tface_right\tfeat_val1\t...\n
+More details are available in each folder's readme. 

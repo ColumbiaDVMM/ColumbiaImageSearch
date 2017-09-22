@@ -7,7 +7,7 @@ import cPickle as pickle
 from .generic_storer import GenericStorer
 from cufacesearch.common.error import full_trace_error
 
-default_prefix = "S3_"
+default_prefix = "S3ST_"
 
 class S3Storer(GenericStorer):
 
