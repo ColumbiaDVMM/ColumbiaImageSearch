@@ -1,4 +1,4 @@
-import os
+import sys
 import time
 import numpy as np
 
@@ -66,14 +66,15 @@ class SearcherLOPQHBase(GenericSearcher):
         try:
           update_id = update[0]
           print "[{}: log] Getting features from update {}".format(self.pp, update_id)
-          start_date = update_id.split("_")[-2:-1]
+          start_date = "_".join(update_id.split("_")[-2:-1])
           list_sha1s = update[1][column_list_sha1s]
           _, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
           train_features.extend(features)
           if len(train_features) >= self.nb_train:
             break
         except Exception as inst:
-          print "[{}: error] Failed to get features from update {}: {}".format(self.pp, update_id, inst)
+          print "[{}: error] Failed to get features from update {}: {} {}".format(self.pp, update_id, type(inst), inst)
+          sys.stdout.flush()
       else:
         print "[{}: log] Got {} training samples so far...".format(self.pp, len(train_features))
         # Wait for new updates...

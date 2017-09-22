@@ -328,16 +328,24 @@ class DaemonKafkaImageDownloader(multiprocessing.Process):
     self.prefix = prefix
 
   def run(self):
+    print "Starting worker KafkaImageDownloader.{}".format(self.pid)
+    kp = KafkaImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
+
     while True:
+
       try:
-        print "Starting worker KafkaImageDownloader.{}".format(self.pid)
-        kp = KafkaImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
         for msg in kp.consumer:
           kp.process_one(msg)
+
       except Exception as inst:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print "KafkaImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
+        time.sleep(60)
+
+        print "Re-starting worker KafkaImageDownloader.{}".format(self.pid)
+        kp = KafkaImageDownloader(self.conf, prefix=self.prefix, pid=self.pid)
+
       time.sleep(10)
 
 
