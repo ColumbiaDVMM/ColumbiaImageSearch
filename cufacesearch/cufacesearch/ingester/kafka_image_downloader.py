@@ -367,6 +367,7 @@ class DaemonKafkaThreadedImageDownloader(multiprocessing.Process):
             kp.process_one(msg)
           display_time = datetime.today().strftime('%Y/%m/%d-%H:%M.%S')
           print "[{}] Consumer for worker KafkaThreadedImageDownloader.{} timed out.".format(display_time, self.pid)
+          sys.stdout.flush()
       except Exception as inst:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
