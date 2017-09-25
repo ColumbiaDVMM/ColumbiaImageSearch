@@ -184,7 +184,8 @@ class ExtractionProcessor(ConfReader):
       else:
         print("[{}.get_batch_kafka: log] Nothing to update!".format(self.pp))
         # Fall back to checking HBase for unstarted/unfinished updates
-        yield self.get_batch_hbase()
+        for rows_batch, update_id in self.get_batch_hbase():
+          yield rows_batch, update_id
     except Exception as inst:
       full_trace_error("[{}.get_batch: error] {}".format(self.pp, inst))
 
@@ -334,7 +335,9 @@ class ExtractionProcessor(ConfReader):
         time.sleep(10*self.nb_empt)
         self.nb_empt += 1
       except Exception as inst:
-        print("ExtractionProcessor died: {} {}".format(type(inst), inst))
+
+        err_msg = "ExtractionProcessor died: {} {}".format(type(inst), inst)
+        full_trace_error(err_msg)
         sys.stdout.flush()
         time.sleep(10 * self.nb_err)
         self.nb_err += 1
