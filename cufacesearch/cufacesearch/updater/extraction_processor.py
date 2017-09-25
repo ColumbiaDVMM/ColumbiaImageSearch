@@ -130,19 +130,22 @@ class ExtractionProcessor(ConfReader):
       list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id, extr_type="_"+self.extr_prefix)
       if list_updates:
         for update_id, update_cols in list_updates:
-          str_list_sha1s = update_cols[column_list_sha1s]
-          list_sha1s = str_list_sha1s.split(',')
-          print ("[{}.get_batch_hbase: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
-          # also get 'ext:' to check if extraction was already processed?
-          rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
-          #print "rows_batch", rows_batch
-          if rows_batch:
-            print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
-            yield rows_batch, update_id
-            print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
-            self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+          if self.extr_prefix in update_id:
+            str_list_sha1s = update_cols[column_list_sha1s]
+            list_sha1s = str_list_sha1s.split(',')
+            print ("[{}.get_batch_hbase: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
+            # also get 'ext:' to check if extraction was already processed?
+            rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
+            #print "rows_batch", rows_batch
+            if rows_batch:
+              print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
+              yield rows_batch, update_id
+              print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
+              self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+            else:
+              print("[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
           else:
-            print("[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
+            print("[{}.get_batch_hbase: log] Skipping update {} from another extraction type.".format(self.pp, update_id))
       else:
         print("[{}.get_batch_hbase: log] Nothing to update!".format(self.pp))
     except Exception as inst:
