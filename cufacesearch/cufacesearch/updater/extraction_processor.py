@@ -290,11 +290,18 @@ class ExtractionProcessor(ConfReader):
             if not self.q_in[i]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
               time.sleep(1)
             else:
+              if self.q_in[i]._unfinished_tasks._semlock._is_zero():
+                print("Thread {} marked as finished because processing seems finished".format(i))
+              else:
+                timeout_msg = "Thread {} marked as finished because max_proc_time ({}) has passed ({} > {})"
+                print(timeout_msg.format(i, self.max_proc_time, time.time(), stop))
               threads_finished[i] = 1
           else:
             # We actually never gave something to process...
+            print("Thread {} marked as finished because no data was passed to it".format(i))
             threads_finished[i] = 1
           if sum(threads_finished) == self.nb_threads:
+            sys.stdout.flush()
             break
 
         # Gather results
