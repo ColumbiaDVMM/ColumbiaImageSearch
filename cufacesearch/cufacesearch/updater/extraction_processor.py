@@ -183,7 +183,8 @@ class ExtractionProcessor(ConfReader):
           print("[{}.get_batch_kafka: log] Skipping already processed update: {}".format(self.pp, update_id))
       else:
         print("[{}.get_batch_kafka: log] Nothing to update!".format(self.pp))
-        # Fall back to checking HBase for unstarted/unfinished updates?
+        # Fall back to checking HBase for unstarted/unfinished updates
+        yield self.get_batch_hbase()
     except Exception as inst:
       full_trace_error("[{}.get_batch: error] {}".format(self.pp, inst))
 
