@@ -283,6 +283,11 @@ class ExtractionProcessor(ConfReader):
         threads_finished = [0]*self.nb_threads
         while sum(threads_finished) < self.nb_threads:
           for i in range(self.nb_threads):
+            if sum(threads_finished) == self.nb_threads:
+              sys.stdout.flush()
+              break
+            if threads_finished[i] == 1:
+              continue
             if q_in_size[i] > 0:
               # This seems to block forever sometimes, if subprocess crashed?...
               #self.q_in[i].join()
@@ -301,9 +306,7 @@ class ExtractionProcessor(ConfReader):
               # We actually never gave something to process...
               print("Thread {} marked as finished because no data was passed to it".format(i))
               threads_finished[i] = 1
-            if sum(threads_finished) == self.nb_threads:
-              sys.stdout.flush()
-              break
+
 
         # Gather results
         q_out_size = []
