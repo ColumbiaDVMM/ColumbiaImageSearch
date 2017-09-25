@@ -281,28 +281,29 @@ class ExtractionProcessor(ConfReader):
         stop = time.time() + self.max_proc_time
         # Wait for all tasks to be marked as done
         threads_finished = [0]*self.nb_threads
-        for i in range(self.nb_threads):
-          if q_in_size[i] > 0:
-            # This seems to block forever sometimes, if subprocess crashed?...
-            #self.q_in[i].join()
-            # Manual join with timeout...
-            # https://github.com/python/cpython/blob/3.6/Lib/multiprocessing/queues.py
-            if not self.q_in[i]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
-              time.sleep(1)
-            else:
-              if self.q_in[i]._unfinished_tasks._semlock._is_zero():
-                print("Thread {} marked as finished because processing seems finished".format(i))
+        while sum(threads_finished) < self.nb_threads:
+          for i in range(self.nb_threads):
+            if q_in_size[i] > 0:
+              # This seems to block forever sometimes, if subprocess crashed?...
+              #self.q_in[i].join()
+              # Manual join with timeout...
+              # https://github.com/python/cpython/blob/3.6/Lib/multiprocessing/queues.py
+              if not self.q_in[i]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
+                time.sleep(1)
               else:
-                timeout_msg = "Thread {} marked as finished because max_proc_time ({}) has passed ({} > {})"
-                print(timeout_msg.format(i, self.max_proc_time, time.time(), stop))
+                if self.q_in[i]._unfinished_tasks._semlock._is_zero():
+                  print("Thread {} marked as finished because processing seems finished".format(i))
+                else:
+                  timeout_msg = "Thread {} marked as finished because max_proc_time ({}) has passed ({} > {})"
+                  print(timeout_msg.format(i, self.max_proc_time, time.time(), stop))
+                threads_finished[i] = 1
+            else:
+              # We actually never gave something to process...
+              print("Thread {} marked as finished because no data was passed to it".format(i))
               threads_finished[i] = 1
-          else:
-            # We actually never gave something to process...
-            print("Thread {} marked as finished because no data was passed to it".format(i))
-            threads_finished[i] = 1
-          if sum(threads_finished) == self.nb_threads:
-            sys.stdout.flush()
-            break
+            if sum(threads_finished) == self.nb_threads:
+              sys.stdout.flush()
+              break
 
         # Gather results
         q_out_size = []
