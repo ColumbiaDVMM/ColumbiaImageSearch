@@ -273,6 +273,7 @@ class ExtractionProcessor(ConfReader):
           # one per non empty input queue
           if q_in_size[i] > 0:
             thread = DaemonBatchExtractor(self.extractors[i], self.q_in[i], self.q_out[i], verbose=self.verbose)
+            # Could get a 'Cannot allocate memory' if we are using too many threads...
             thread.start()
             threads.append(thread)
 
@@ -286,7 +287,7 @@ class ExtractionProcessor(ConfReader):
             #self.q_in[i].join()
             # Manual join with timeout...
             # https://github.com/python/cpython/blob/3.6/Lib/multiprocessing/queues.py
-            if self.q_in[i]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
+            if not self.q_in[i]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
               time.sleep(1)
             else:
               threads_finished[i] = 1
@@ -338,6 +339,7 @@ class ExtractionProcessor(ConfReader):
       except Exception as inst:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fulltb = traceback.format_tb(exc_tb)
+
         raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):

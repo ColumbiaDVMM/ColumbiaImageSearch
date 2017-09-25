@@ -136,6 +136,30 @@ class HBaseIndexerMinimal(ConfReader):
       # may fail if families in dictionary do not match those of an existing table, or because of connection issues?
       pass
 
+  # use 'row_prefix' http://happybase.readthedocs.io/en/latest/api.html?highlight=scan#happybase.Table.scan?
+  def scan_with_prefix(self, table_name, row_prefix=None, columns=None, maxrows=10, previous_err=0, inst=None):
+    self.check_errors(previous_err, "scan_with_prefix", inst)
+    try:
+      with self.pool.connection(timeout=self.timeout) as connection:
+        hbase_table = connection.table(table_name)
+        # scan table for rows with row_prefix, and accumulate in rows the information of the columns that are needed
+        rows = []
+        for one_row in hbase_table.scan(row_prefix=row_prefix, columns=columns, batch_size=10):
+          # print "one_row:",one_row
+          rows.extend((one_row,))
+          if len(rows) >= maxrows:
+            return rows
+          if self.verbose:
+            print("[scan_with_prefix: log] got {} rows.".format(len(rows)))
+            sys.stdout.flush()
+        return rows
+    except Exception as inst:
+      print "scan_with_prefix", inst
+      # try to force longer sleep time...
+      self.refresh_hbase_conn("scan_with_prefix", sleep_time=4 * previous_err)
+      return self.scan_with_prefix(table_name, row_prefix=row_prefix, columns=columns, maxrows=maxrows,
+                                previous_err=previous_err + 1, inst=inst)
+
   def scan_from_row(self, table_name, row_start=None, columns=None, maxrows=10, previous_err=0, inst=None):
     self.check_errors(previous_err, "scan_from_row", inst)
     try:
