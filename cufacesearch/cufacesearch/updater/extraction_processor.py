@@ -61,6 +61,7 @@ class ExtractionProcessor(ConfReader):
     self.extractor = None
     self.nb_empt = 0
     self.nb_err = 0
+    self.max_proc_time = 600 # in seconds?
 
     super(ExtractionProcessor, self).__init__(global_conf, prefix)
 
@@ -273,12 +274,24 @@ class ExtractionProcessor(ConfReader):
             threads.append(thread)
 
         start_process = time.time()
+        stop = time.time() + self.max_proc_time
         # Wait for all tasks to be marked as done
+        threads_finished = [0]*self.nb_threads
         for i in range(self.nb_threads):
           if q_in_size[i] > 0:
-            # This would block forever if subprocess crashed?...
-            # We could set a max processing time?
-            self.q_in[i].join()
+            # This seems to block forever sometimes, if subprocess crashed?...
+            #self.q_in[i].join()
+            # Manual join with timeout...
+            # https://github.com/python/cpython/blob/3.6/Lib/multiprocessing/queues.py
+            if self.q_in._unfinished_tasks._semlock._is_zero() and time.time() < stop:
+              time.sleep(1)
+            else:
+              threads_finished[i] = 1
+          else:
+            # We actually never gave something to process...
+            threads_finished[i] = 1
+          if sum(threads_finished) == self.nb_threads:
+            break
 
         # Gather results
         q_out_size = []

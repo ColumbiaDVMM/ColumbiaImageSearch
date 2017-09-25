@@ -35,6 +35,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
         # The queue should already have items, no need to block
         batch = self.q_in.get(False)
       except:
+        self.q_in.task_done()
         continue
 
       try:
@@ -74,8 +75,13 @@ class DaemonBatchExtractor(multiprocessing.Process):
         print "[DaemonBatchExtractor.{}: {}] {} ({})".format(self.pid, type(inst), inst, ''.join(fulltb))
         sys.stdout.flush()
 
+        # Try to push whatever we have so far?
+        if out_batch:
+          self.q_out.put(out_batch)
+
         # Try to mark as done anyway?
         self.q_in.task_done()
+
 
 
 class GenericExtractor(object):
