@@ -7,6 +7,7 @@ import threading
 import traceback
 from datetime import datetime
 from argparse import ArgumentParser
+from cufacesearch.common import column_list_sha1s
 from cufacesearch.common.error import full_trace_error
 from cufacesearch.common.conf_reader import ConfReader
 from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_started, update_str_processed, \
@@ -119,34 +120,40 @@ class ExtractionProcessor(ConfReader):
     if self.extractor:
       self.pp += "_"+self.extr_prefix
 
-  # Deprecated
-  # def get_batch_hbase(self):
-  #   # legacy implementation: better to have a kafka topic for batches to be processed to allow
-  #   #       safe parallelization on different machines
-  #   # NB: something similar to this, with a modification to get_unprocessed_updates_from_date to get updates that were
-  #   # started a long time ago but never finisher could serve to pick up failed updates...
-  #   try:
-  #     # needs to read update table rows starting with 'index_update_'+extr and not marked as indexed.
-  #     list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id, extr_type="_"+self.extr_prefix)
-  #     if list_updates:
-  #       for update_id, update_cols in list_updates:
-  #         str_list_sha1s = update_cols[column_list_sha1s]
-  #         list_sha1s = str_list_sha1s.split(',')
-  #         print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
-  #         # also get 'ext:' to check if extraction was already processed?
-  #         rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
-  #         #print "rows_batch", rows_batch
-  #         if rows_batch:
-  #           print("[{}.get_batch: log] Yielding for update: {}".format(self.pp, update_id))
-  #           yield rows_batch, update_id
-  #           print("[{}.get_batch: log] After yielding for update: {}".format(self.pp, update_id))
-  #           self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
-  #         else:
-  #           print("[{}.get_batch: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
-  #     else:
-  #       print("[{}.get_batch: log] Nothing to update!".format(self.pp))
-  #   except Exception as inst:
-  #     full_trace_error("[{}.get_batch: error] {}".format(self.pp, inst))
+  def get_batch_hbase(self):
+    # legacy implementation: better to have a kafka topic for batches to be processed to allow
+    #       safe parallelization on different machines
+    # modified get_unprocessed_updates_from_date to get updates that were started but never finished
+    try:
+      # needs to read update table rows starting with 'index_update_'+extr and not marked as indexed.
+      list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id, extr_type="_"+self.extr_prefix)
+      if list_updates:
+        for update_id, update_cols in list_updates:
+          str_list_sha1s = update_cols[column_list_sha1s]
+          list_sha1s = str_list_sha1s.split(',')
+          print ("[{}.get_batch_hbase: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
+          # also get 'ext:' to check if extraction was already processed?
+          rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
+          #print "rows_batch", rows_batch
+          if rows_batch:
+            print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
+            yield rows_batch, update_id
+            print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
+            self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+          else:
+            print("[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
+      else:
+        print("[{}.get_batch_hbase: log] Nothing to update!".format(self.pp))
+    except Exception as inst:
+      full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
+
+  def is_udpate_unprocessd(self, update_id):
+    update_rows = self.indexer.get_rows_by_batch([update_id], table_name=self.indexer.table_updateinfos_name)
+    if update_rows:
+      for row in update_rows:
+        if "info:"+update_str_processed in row[1]:
+          return False
+    return True
 
   def get_batch_kafka(self):
     # Read from a kafka topic to allow safer parallelization on different machines
@@ -155,22 +162,28 @@ class ExtractionProcessor(ConfReader):
       for msg in self.ingester.consumer:
         msg_dict = json.loads(msg.value)
         update_id = msg_dict.keys()[0]
-        str_list_sha1s = msg_dict[update_id]
-        list_sha1s = str_list_sha1s.split(',')
-        print ("[{}.get_batch: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
-        # NB: we could also get 'ext:' to double check if extraction was already processed
-        #rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
-        rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
-        #print "rows_batch", rows_batch
-        if rows_batch:
-          print("[{}.get_batch: log] Yielding for update: {}".format(self.pp, update_id))
-          yield rows_batch, update_id
-          print("[{}.get_batch: log] After yielding for update: {}".format(self.pp, update_id))
-          self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+        # NB: Try to get update info and check it was really not processed yet.
+        if self.is_udpate_unprocessd(update_id):
+          str_list_sha1s = msg_dict[update_id]
+          list_sha1s = str_list_sha1s.split(',')
+          print("[{}.get_batch_kafka: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
+          # NB: we could also get 'ext:' of images to double check if extraction was already processed
+          #rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
+          rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
+          #print "rows_batch", rows_batch
+          if rows_batch:
+            print("[{}.get_batch_kafka: log] Yielding for update: {}".format(self.pp, update_id))
+            yield rows_batch, update_id
+            print("[{}.get_batch_kafka: log] After yielding for update: {}".format(self.pp, update_id))
+            self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+          # Should we try to commit offset only at this point?
+          else:
+            print("[{}.get_batch_kafka: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
         else:
-          print("[{}.get_batch: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
+          print("[{}.get_batch_kafka: log] Skipping already processed update: {}".format(self.pp, update_id))
       else:
-        print("[{}.get_batch: log] Nothing to update!".format(self.pp))
+        print("[{}.get_batch_kafka: log] Nothing to update!".format(self.pp))
+        # Fall back to checking HBase for unstarted/unfinished updates?
     except Exception as inst:
       full_trace_error("[{}.get_batch: error] {}".format(self.pp, inst))
 

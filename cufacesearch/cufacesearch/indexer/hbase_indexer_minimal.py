@@ -188,8 +188,9 @@ class HBaseIndexerMinimal(ConfReader):
       if tmp_rows:
         for row_id, row_val in tmp_rows:
           last_row = row_id
-          if "info:"+update_str_processed not in row_val and "info:"+update_str_started not in row_val:
-            print "row:",row_id
+          #if "info:"+update_str_processed not in row_val and "info:"+update_str_started not in row_val:
+          if "info:" + update_str_processed not in row_val:
+            #print "row:",row_id
             if rows is None:
               rows = [(row_id, row_val)]
             else:
