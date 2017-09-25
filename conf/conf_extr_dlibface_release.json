@@ -11,7 +11,7 @@
   "HBI_host": "10.1.94.57",
   "HBI_table_sha1infos": "htcdr31_images_sha1_infos",
   "HBI_table_updateinfos": "htcdr31_images_update_infos",
-  "HBI_batch_update_size": 10000,
+  "HBI_batch_update_size": 2048,
   "HBI_pool_thread": 1,
   "KIcheck_verbose": 1,
   "KIcheck_consumer_topics": "ht-cdr31-images",
