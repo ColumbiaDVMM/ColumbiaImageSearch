@@ -286,7 +286,7 @@ class ExtractionProcessor(ConfReader):
             #self.q_in[i].join()
             # Manual join with timeout...
             # https://github.com/python/cpython/blob/3.6/Lib/multiprocessing/queues.py
-            if self.q_in._unfinished_tasks._semlock._is_zero() and time.time() < stop:
+            if self.q_in[i]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
               time.sleep(1)
             else:
               threads_finished[i] = 1
