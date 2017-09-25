@@ -30,7 +30,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
 
   def run(self):
     while self.q_in.empty() == False:
-      
+
       try:
         # The queue should already have items, no need to block
         batch = self.q_in.get(False)

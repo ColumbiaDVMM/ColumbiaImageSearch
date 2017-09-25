@@ -4,8 +4,6 @@
 suffix="_test"
 #suffix="_release"
 
-source ~/.bashrc
-
 while getopts r: option
 do
   case "${option}"

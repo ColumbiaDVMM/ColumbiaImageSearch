@@ -14,7 +14,9 @@ default_extr_check_prefix = "EXTR_"
 
 # This class simulates the way updates were generated from the spark workflows but reading from a kafka topic
 # Should be run as a single process to ensure data integrity
-# Could work with multiple process if update names contains ExtractionChecker id?
+
+# We could have a process that looks for updates that were created (or even started) a long time ago but not finished
+# and repush them to the updates topic...
 
 class ExtractionChecker(ConfReader):
 
