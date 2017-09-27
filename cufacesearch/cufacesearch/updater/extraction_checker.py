@@ -101,9 +101,11 @@ class ExtractionChecker(ConfReader):
     # append unique processid to 'update_id' to make it safe to use with multiple consumers...
     # /!\ beware, it should not contain underscores
     # use self.ingester.pp
-    #tmp_update_id, _ = self.indexer.get_next_update_id(today=None, extr_type='_'+self.extr_prefix)
     tmp_update_id, _ = self.indexer.get_next_update_id(today=None, extr_type=self.extr_prefix)
-    update_id = tmp_update_id+'-'+self.ingester.pp
+    # Beware: after a restart forming update_id like this may make it not unique i.e same as one before restart...
+    #update_id = tmp_update_id+'-'+self.ingester.pp
+    # Add time
+    update_id = tmp_update_id+'-'+self.ingester.pp+'-'+str(time.time())
     for sha1 in list_get_sha1s:
       dict_push[str(sha1)] = dict()
       try:

@@ -196,6 +196,7 @@ class LOPQSearcherBase(object):
         results = self.compute_distances(x, retrieved)
 
         # Sort by distance
+        # NB: could be a partial up to limit, interesting if limit << quota
         results = sorted(results, key=lambda d: d[0])
 
         # Limit number returned
@@ -321,7 +322,8 @@ class LOPQSearcher(LOPQSearcherBase):
         for item_id, code in zip(ids, codes):
             try:
                 cell = code[0]
-                # TODO: should we use a dictionary for 'code' too? If we have many collisions that could be beneficial
+                # NB: should we use a dictionary for 'code' too?
+                #    If we have many collisions that could be beneficial
                 self.index[cell].append((item_id, code))
                 self.nb_indexed += 1
             except Exception as inst:
