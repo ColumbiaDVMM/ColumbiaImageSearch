@@ -14,7 +14,8 @@ if __name__ == "__main__":
   parser.add_argument("-p", "--prefix", dest="prefix", default=default_prefix)
   parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
   parser.add_argument("-t", "--threaded", dest="threaded", action="store_true", default=False)
-  parser.add_argument("-w", "--workers", dest="workers", type=int, default=15)
+  #parser.add_argument("-w", "--workers", dest="workers", type=int, default=15)
+  parser.add_argument("-w", "--workers", dest="workers", type=int, default=50) # change following repartition
   parser.add_argument("-m", "--max_message", dest="max_message", type=int, default=0) # only for non daemon version
   options = parser.parse_args()
 
