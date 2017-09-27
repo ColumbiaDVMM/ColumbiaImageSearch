@@ -18,7 +18,7 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 def eigenvalue_allocation(num_buckets, eigenvalues):
     """
-    Compute a permutation of eigenvalues to balance variance accross buckets
+    Compute a permutation of eigenvalues to balance variance across buckets
     of dimensions.
 
     Described in section 3.2.4 in http://research.microsoft.com/pubs/187499/cvpr13opq.pdf
@@ -239,6 +239,55 @@ def compute_residuals(data, C):
     residuals = data - C[assignments]
     return residuals, assignments
 
+def train_pca(data, pca_dims=256, pca_subsample=None):
+    """
+    Train the pca model
+
+    :param data: input data to train model
+    :param pca_subsample: number of samples to use to train
+    :return:
+    """
+
+    # TODO: or should we just use http://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
+
+    if pca_subsample:
+        data = data[:min(pca_subsample, data.shape[0]), :]
+    count = data.shape[0]
+
+    # Get features and projections dimension
+    D = data.shape[1]
+    pca_dims = min(pca_dims, D)
+
+    summed_covar = np.zeros((D, D))  # accumulator for covariance estimator cluster
+    mu = np.mean(data, axis=0)  # mean
+
+    # Iterate data points, accumulate estimators
+    for i in xrange(count):
+        d = data[i]
+
+        # Accumulate estimators for covariance matrix
+        summed_covar += np.outer(d, d)
+
+    A = summed_covar / (count - 1) - np.outer(mu, mu)
+    E, P = np.linalg.eigh(A)
+
+    # Reduce dimension - eigenvalues assumed in ascending order
+    E = E[-pca_dims:]
+    P = P[:, -pca_dims:]
+
+    # Balance variance across halves
+    permuted_inds = eigenvalue_allocation(2, E)
+    P = P[:, permuted_inds]
+
+    params = {
+        'mu': mu,  # mean
+        'P': P,  # PCA matrix
+        'E': E,  # eigenvalues
+        'A': A,  # covariance matrix
+        'c': count  # sample size
+    }
+    return params
+
 
 def train_coarse(data, V=8, kmeans_coarse_iters=10, n_init=10, random_state=None):
     """
@@ -335,7 +384,6 @@ def train(data, V=8, M=4, subquantizer_clusters=256, parameters=None,
         Rs = mus = None
 
     # Split vectors
-    # TODO: permute dims here if this hasn't already been done
     first_half, second_half = np.split(data, 2, axis=1)
 
     # Cluster coarse splits
@@ -770,7 +818,7 @@ class LOPQModel(object):
 
 
 class LOPQModelPCA(LOPQModel):
-    # TODO: remove methods that are not override
+    # TODO: remove methods that are not overriden
 
     def __init__(self, V=8, M=4, subquantizer_clusters=256, parameters=None):
         """
@@ -820,11 +868,13 @@ class LOPQModelPCA(LOPQModel):
             self.M = M
             self.subquantizer_clusters = subquantizer_clusters
 
-    def fit(self, data, kmeans_coarse_iters=10, kmeans_local_iters=20, n_init=10, subquantizer_sample_ratio=1.0, random_state=None, verbose=False):
+    def fit(self, data, pca_dims=256, kmeans_coarse_iters=10, kmeans_local_iters=20, n_init=10, subquantizer_sample_ratio=1.0, random_state=None, verbose=False, pca_subsample=None):
         """
         Fit a model with the current model parameters. This method will use existing parameters and only
         train missing parameters.
 
+        :param int pca_dims:
+            the number of dimensions to keep after PCA
         :param int kmeans_coarse_iters:
             the number of kmeans iterations for coarse quantizer training
         :param int kmeans_local_iters:
@@ -841,13 +891,29 @@ class LOPQModelPCA(LOPQModel):
         """
         existing_parameters = (self.Cs, self.Rs, self.mus, self.subquantizers)
 
+        # See spark version in:
+        # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/blob/5ee477943e2240585de160b86ceb64eea17a3545/workflows/build-lopq-index/lopq/spark/train_pca.py
+        # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/blob/5ee477943e2240585de160b86ceb64eea17a3545/workflows/build-lopq-index/lopq/spark/pca_preparation.py
+        # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/blob/e1d334f7820d27f36535cafaaa489d142aba8e8c/workflows/build-lopq-index/lopq/spark/train_model_wpca.py
 
-        # TODO: we should train PCA first
-        parameters = train(data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
+        # Train PCA
+        pca_params = train_pca(data, pca_dims, pca_subsample)
+        # set: self.pca_P, self.pca_mu
+        self.pca_P = pca_params['P']
+        self.pca_mu = pca_params['mu']
+
+        print "pca_P {}: {}".format(self.pca_P.shape, self.pca_P)
+        print "pca_mu {}: {}".format(self.pca_mu.shape, self.pca_mu)
+
+        # TODO: does this work or we need to apply sample by sample?
+        pca_data = self.apply_PCA(data)
+
+        parameters = train(pca_data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
                            kmeans_coarse_iters, kmeans_local_iters, n_init, subquantizer_sample_ratio,
                            random_state, verbose)
 
         self.Cs, self.Rs, self.mus, self.subquantizers = parameters
+
 
     def get_split_parameters(self, split):
         """

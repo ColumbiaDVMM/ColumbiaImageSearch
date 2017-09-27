@@ -56,6 +56,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
   def get_train_features(self):
     print "[{}: log] Gathering {} training samples...".format(self.pp, self.nb_train)
+    sys.stdout.flush()
     # TODO: test that...
     train_features = []
     start_date = "1970-01-01"
@@ -91,14 +92,15 @@ class SearcherLOPQHBase(GenericSearcher):
     print "Got train features array with shape: {}".format(train_np.shape)
 
     if len(train_features) >= self.nb_train:
+
+      V = self.get_required_param('lopq_V')
+      M = self.get_required_param('lopq_M')
+      subq = self.get_required_param('lopq_subq')
+      # we could use that for a more fine grained model naming...
+      jlp = {'V': V, 'M': M, 'subq': subq}
+
       if self.model_type == "lopq":
         from lopq.model import LOPQModel
-        # should get that from config file actually,
-        # and we could use that for a more fine grained model naming...
-        V = self.get_required_param('lopq_V')
-        M = self.get_required_param('lopq_M')
-        subq = self.get_required_param('lopq_subq')
-        jlp = {'V': V, 'M': M, 'subq':subq}
         # we could have default values for those parameters and/or heuristic to estimate them based on data count...
         lopq_model = LOPQModel(V=jlp['V'], M=jlp['M'], subquantizer_clusters=jlp['subq'])
         # we could have separate training/indexing features
@@ -112,9 +114,22 @@ class SearcherLOPQHBase(GenericSearcher):
         print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
         return lopq_model
       elif self.model_type == "lopq_pca":
-        # TODO: implement lopq_pca training.
-        err_msg = "[{}.train_model: error] Local training of 'lopq_pca' model not yet implemented."
-        raise NotImplementedError(err_msg.format(self.pp))
+        # TODO: test lopq_pca training.
+        from lopq.model import LOPQModelPCA
+        # we could have default values for those parameters and/or heuristic to estimate them based on data count...
+        lopq_model = LOPQModelPCA(V=jlp['V'], M=jlp['M'], subquantizer_clusters=jlp['subq'])
+        # we could have separate training/indexing features
+        msg = "[{}.train_model: info] Starting local training of 'lopq_pca' model with parameters {} using {} features."
+        print msg.format(self.pp, jlp, len(train_features))
+        start_train = time.time()
+        # specify a n_init < 10 (default value) to speed-up training?
+        lopq_model.fit(train_np, verbose=True)
+        # save model
+        self.storer.save(self.build_model_str(), lopq_model)
+        print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
+        return lopq_model
+        #err_msg = "[{}.train_model: error] Local training of 'lopq_pca' model not yet implemented."
+        #raise NotImplementedError(err_msg.format(self.pp))
       else:
         raise ValueError("[{}.train_model: error] Unknown 'lopq' type {}.".format(self.pp, self.model_type))
     else:

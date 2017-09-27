@@ -382,6 +382,8 @@ if __name__ == "__main__":
   parser.add_argument("-p", "--prefix", dest="prefix", default=default_extr_proc_prefix)
   options = parser.parse_args()
 
+  # TODO: should we daemonize that too?
+
   # Initialize extraction processor
   ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
   nb_err = 0

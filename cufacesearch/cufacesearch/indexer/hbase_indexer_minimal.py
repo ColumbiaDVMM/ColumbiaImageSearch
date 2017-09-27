@@ -369,7 +369,7 @@ class HBaseIndexerMinimal(ConfReader):
 
     # Cannot use column filters here...
     has_detection = False
-    if "_".join(extr_type.split("_")[-2]) != "full_image":
+    if "_".join(extr_type.split("_")[-2:]) != "full_image":
       has_detection = True
     # sbpycaffe is saved as np.float32 while dlib face features are np.float64
     feat_type_decode = extr_type.split("_")[0]
