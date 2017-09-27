@@ -12,6 +12,7 @@ class GenericSearcher(ConfReader):
     # Initialize attributes
     # TODO: rename model_type in searcher type?
     self.model_type = self.get_required_param('model_type')
+    self.model_params = dict()
     self.input_type = "image"
     self.searcher = None
     self.detector_type = "full"
@@ -90,6 +91,17 @@ class GenericSearcher(ConfReader):
     if tmp_nb_train:
       self.nb_train = tmp_nb_train
     # Add any new parameters, e.g. reranking
+    self.get_model_params()
+
+  def get_model_params(self):
+    raise NotImplementedError("[{}] get_model_params is not implemented".format(self.pp))
+
+  def get_model_params_str(self):
+    model_params_str = ''
+    for p in self.model_params:
+      model_params_str += "-"+str(p)+str(self.model_params[p])
+    return model_params_str
+
 
   def build_extr_str(self):
     if self.extr_str is None:
@@ -101,9 +113,10 @@ class GenericSearcher(ConfReader):
 
 
   def build_model_str(self):
+    model_params_str = self.get_model_params_str()
     if self.model_str is None:
       # We could add some additional info, like model parameters, number of samples used for training...
-      self.model_str = self.build_extr_str() + "_" + self.model_type
+      self.model_str = self.build_extr_str() + "_" + self.model_type + model_params_str
     return self.model_str
 
   def build_codes_string(self, update_id):

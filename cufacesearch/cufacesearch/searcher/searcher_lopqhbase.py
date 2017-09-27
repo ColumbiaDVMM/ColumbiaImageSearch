@@ -17,8 +17,15 @@ class SearcherLOPQHBase(GenericSearcher):
   def __init__(self, global_conf_in, prefix=default_prefix):
     # number of processors to use for parallel computation of codes
     self.num_procs = 6 # could be read from configuration
+    self.model_params = None
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
 
+  def set_model_params(self):
+    V = self.get_required_param('lopq_V')
+    M = self.get_required_param('lopq_M')
+    subq = self.get_required_param('lopq_subq')
+    # we could use that for a more fine grained model naming...
+    self.model_params = {'V': V, 'M': M, 'subq': subq}
 
   def set_pp(self):
     self.pp = "SearcherLOPQHBase"
@@ -93,19 +100,14 @@ class SearcherLOPQHBase(GenericSearcher):
 
     if len(train_features) >= self.nb_train:
 
-      V = self.get_required_param('lopq_V')
-      M = self.get_required_param('lopq_M')
-      subq = self.get_required_param('lopq_subq')
-      # we could use that for a more fine grained model naming...
-      jlp = {'V': V, 'M': M, 'subq': subq}
-
       if self.model_type == "lopq":
         from lopq.model import LOPQModel
         # we could have default values for those parameters and/or heuristic to estimate them based on data count...
-        lopq_model = LOPQModel(V=jlp['V'], M=jlp['M'], subquantizer_clusters=jlp['subq'])
+        lopq_model = LOPQModel(V=self.model_params['V'], M=self.model_params['M'],
+                               subquantizer_clusters=self.model_params['subq'])
         # we could have separate training/indexing features
         msg = "[{}.train_model: info] Starting local training of 'lopq' model with parameters {} using {} features."
-        print msg.format(self.pp, jlp, len(train_features))
+        print msg.format(self.pp, self.model_params, len(train_features))
         start_train = time.time()
         # specify a n_init < 10 (default value) to speed-up training?
         lopq_model.fit(train_np, verbose=True)
@@ -117,10 +119,11 @@ class SearcherLOPQHBase(GenericSearcher):
         # TODO: test lopq_pca training.
         from lopq.model import LOPQModelPCA
         # we could have default values for those parameters and/or heuristic to estimate them based on data count...
-        lopq_model = LOPQModelPCA(V=jlp['V'], M=jlp['M'], subquantizer_clusters=jlp['subq'])
+        lopq_model = LOPQModelPCA(V=self.model_params['V'], M=self.model_params['M'],
+                                  subquantizer_clusters=self.model_params['subq'])
         # we could have separate training/indexing features
         msg = "[{}.train_model: info] Starting local training of 'lopq_pca' model with parameters {} using {} features."
-        print msg.format(self.pp, jlp, len(train_features))
+        print msg.format(self.pp, self.model_params, len(train_features))
         start_train = time.time()
         # specify a n_init < 10 (default value) to speed-up training?
         lopq_model.fit(train_np, verbose=True)
