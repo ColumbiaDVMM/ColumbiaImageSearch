@@ -905,8 +905,11 @@ class LOPQModelPCA(LOPQModel):
         print "pca_P {}: {}".format(self.pca_P.shape, self.pca_P)
         print "pca_mu {}: {}".format(self.pca_mu.shape, self.pca_mu)
 
-        # TODO: does this work or we need to apply sample by sample?
+        # This seems to work
+        print "data {}: {}".format(data.shape, np.linalg.norm(data[0, :]))
         pca_data = self.apply_PCA(data)
+        print "pca_data {}: {}".format(pca_data.shape, np.linalg.norm(pca_data[0, :]))
+        # Should we re-normalize pca_data?
 
         parameters = train(pca_data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
                            kmeans_coarse_iters, kmeans_local_iters, n_init, subquantizer_sample_ratio,
@@ -957,6 +960,8 @@ class LOPQModelPCA(LOPQModel):
         """
         # First apply PCA
         x_pca = self.apply_PCA(x)
+
+        # Re-normalize?
 
         # Compute coarse quantizer codes
         coarse_codes = self.predict_coarse(x_pca)

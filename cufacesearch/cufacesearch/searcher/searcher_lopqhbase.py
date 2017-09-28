@@ -232,8 +232,9 @@ class SearcherLOPQHBase(GenericSearcher):
     import time
     start_search = time.time()
     all_sim_images = []
-    all_sim_faces = []
+    all_sim_dets = []
     all_sim_score = []
+    
     # check what is the near duplicate config
     filter_near_dup = False
     if (self.near_dup and "near_dup" not in options_dict) or ("near_dup" in options_dict and options_dict["near_dup"]):
@@ -250,71 +251,125 @@ class SearcherLOPQHBase(GenericSearcher):
     # should we use self.quota here? and potentially overwrite from options_dict
     quota = 2 * max_returned
 
+    sim_images = []
+    sim_dets = []
+    sim_score = []
+
     #print dets
+    if self.detector is not None:
+      # query for each feature
+      for i in range(len(dets)):
 
-    # query for each feature
-    for i in range(len(dets)):
+        sim_images = []
+        sim_dets = []
+        sim_score = []
 
-      sim_images = []
-      sim_faces = []
-      sim_score = []
+        for j in range(len(dets[i][1])):
+          results = []
+          if "detect_only" not in options_dict or not options_dict["detect_only"]:
+            if self.searcher:
+              if self.model_type == "lopq_pca":
+                normed_feat = np.squeeze(self.searcher.model.apply_PCA(feats[i][j]))
+                # Should we still apply normalization after PCA?
+              else:
+                feat = np.squeeze(feats[i][j])
+                norm_feat = np.linalg.norm(feat)
+                normed_feat = feat / norm_feat
+              # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
+              # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
+              #results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
+              results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
+              #print "[{}.search_from_feats: log] got {} results, first one is: {}".format(self.pp, len(results), results[0])
 
-      for j in range(len(dets[i][1])):
-        results = []
-        if "detect_only" not in options_dict or not options_dict["detect_only"]:
-          if self.searcher:
-            if self.model_type == "lopq_pca":
-              feat = np.squeeze(self.searcher.model.apply_PCA(feats[i][j]))
-            else:
-              feat = np.squeeze(feats[i][j])
+          # TODO: If reranking, get features from hbase for detections using res.id
+          #   we could also already get 's3_url' to avoid a second call to HBase later...
+
+          tmp_img_sim = []
+          tmp_dets_sim_ids = []
+          tmp_dets_sim_score = []
+          for ires, res in enumerate(results):
+            dist = res.dist
+            # TODO: if reranking compute actual distance
+            if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
+              if not max_returned or (max_returned and ires < max_returned ):
+                tmp_dets_sim_ids.append(res.id)
+                # here id would be face_id that we could build as sha1_facebbox?
+                tmp_img_sim.append(str(res.id).split('_')[0])
+                tmp_dets_sim_score.append(dist)
+            # TODO: rerank using tmp_face_sim_score
+
+          #print tmp_img_sim
+          # If
+          if tmp_img_sim:
+            rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
+            # rows should contain id, s3_url of images
+            #print rows
+            sim_images.append(rows)
+            sim_dets.append(tmp_dets_sim_ids)
+            sim_score.append(tmp_dets_sim_score)
+          else:
+            sim_images.append([])
+            sim_dets.append([])
+            sim_score.append([])
+
+        all_sim_images.append(sim_images)
+        all_sim_dets.append(sim_dets)
+        all_sim_score.append(sim_score)
+    else:
+      # No detection
+      results = []
+
+      for i in range(len(feats)):
+        if self.searcher:
+          if self.model_type == "lopq_pca":
+            normed_feat = np.squeeze(self.searcher.model.apply_PCA(feats[i]))
+            # Should we still apply normalization after PCA?
+          else:
+            feat = np.squeeze(feats[i])
             norm_feat = np.linalg.norm(feat)
             normed_feat = feat / norm_feat
-            # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
-            # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
-            #results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
-            results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
-            #print "[{}.search_from_feats: log] got {} results, first one is: {}".format(self.pp, len(results), results[0])
+          # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
+          # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
+          # results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
+          results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
+          # print "[{}.search_from_feats: log] got {} results, first one is: {}".format(self.pp, len(results), results[0])
 
         # TODO: If reranking, get features from hbase for detections using res.id
         #   we could also already get 's3_url' to avoid a second call to HBase later...
 
         tmp_img_sim = []
-        tmp_face_sim_ids = []
-        tmp_face_sim_score = []
+        tmp_sim_score = []
         for ires, res in enumerate(results):
           dist = res.dist
           # TODO: if reranking compute actual distance
           if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
-            if not max_returned or (max_returned and ires < max_returned ):
-              tmp_face_sim_ids.append(res.id)
-              # here id would be face_id that we could build as sha1_facebbox?
-              tmp_img_sim.append(str(res.id).split('_')[0])
-              tmp_face_sim_score.append(dist)
-          # TODO: rerank using tmp_face_sim_score
+            if not max_returned or (max_returned and ires < max_returned):
 
-        #print tmp_img_sim
+              tmp_img_sim.append(str(res.id))
+              tmp_sim_score.append(dist)
+              # TODO: rerank using tmp_face_sim_score
+
+        # print tmp_img_sim
         # If
         if tmp_img_sim:
           rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
           # rows should contain id, s3_url of images
-          #print rows
+          # print rows
           sim_images.append(rows)
-          sim_faces.append(tmp_face_sim_ids)
-          sim_score.append(tmp_face_sim_score)
+          sim_score.append(tmp_sim_score)
         else:
           sim_images.append([])
-          sim_faces.append([])
           sim_score.append([])
 
       all_sim_images.append(sim_images)
-      all_sim_faces.append(sim_faces)
+      all_sim_dets.append([])
       all_sim_score.append(sim_score)
 
     search_time = time.time() - start_search
     print 'Search performed in {:0.3}s.'.format(search_time)
 
     # format output
-    print all_sim_images
-    print all_sim_faces
-    print all_sim_score
-    return self.do.format_output(dets, all_sim_images, all_sim_faces, all_sim_score, options_dict, self.input_type)
+    print "all_sim_images",all_sim_images
+    print "all_sim_dets",all_sim_dets
+    print "all_sim_score",all_sim_score
+    return self.do.format_output(dets, all_sim_images, all_sim_dets, all_sim_score, options_dict, self.input_type)
