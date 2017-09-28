@@ -2,20 +2,27 @@
 
 This module implements training and testing of LOPQ models along with a variety of other utilities useful for evaluation and data management. It includes a simple implementation of approximate nearest neighbor search with an LOPQ index.
 
+This folder contains a slightly modified version by Svebor Karaman (svebor.karaman@columbia.edu) to include 
+the PCA training and pre-processing in a new model LOPQModelPCA. 
+
 ## Installation
 
 ```python
-pip install lopq
+pip install -e ../lopq
 ```
 
 ## Usage
 
 ```python
-from lopq import LOPQModel, LOPQSearcher
+from lopq import LOPQModel, LOPQModelPCA, LOPQSearcher
 
 # Define a model and fit it to data
 model = LOPQModel(V=8, M=4)
 model.fit(data)
+
+# Define a model with PCA and fit it to data
+model = LOPQModelPCA(V=8, M=4)
+model.fit(data, pca_dims=128)
 
 # Compute the LOPQ codes for a vector
 code = model.predict(x)
@@ -54,8 +61,8 @@ There are a handful of submodules, here is a brief description of each.
 
 | Submodule      | Description |
 | -------------- | ----------- |
-| model          | Core training algorithm and the `LOPQModel` class that encapsulates model parameters.
+| model          | Core training algorithm and the `LOPQModel` and  the `LOPQModelPCA` class that encapsulates model parameters.
 | search         | An implementation of the multisequence algorithm for retrieval on a multi-index as well as the `LOPQSearcher` class, a simple Python implementation of an LOPQ search index and LOPQ ranking. |
 | eval           | Functions to aid in evaluating and benchmarking trained LOPQ models. |
 | utils          | Miscellaneous utility functions. |
-| lopq_model_pb2 | Protobuf generated module. |
+| lopq_model_pb2 | Protobuf generated module. (This it not yet compatible with `LOPQModelPCA`) |

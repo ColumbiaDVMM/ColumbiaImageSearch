@@ -111,6 +111,9 @@ class GenericSearcher(ConfReader):
       self.extr_str = build_extr_str(self.featurizer_type, self.detector_type, self.input_type)
     return self.extr_str
 
+  def get_train_features_str(self):
+    extr_str = self.build_extr_str()
+    return "train_features_{}_{}.pkl".format(extr_str, self.nb_train)
 
   def build_model_str(self):
     model_params_str = self.get_model_params_str()

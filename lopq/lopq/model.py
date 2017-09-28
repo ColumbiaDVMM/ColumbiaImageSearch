@@ -909,7 +909,7 @@ class LOPQModelPCA(LOPQModel):
         print "data {}: {}".format(data.shape, np.linalg.norm(data[0, :]))
         pca_data = self.apply_PCA(data)
         print "pca_data {}: {}".format(pca_data.shape, np.linalg.norm(pca_data[0, :]))
-        # Should we re-normalize pca_data?
+        # Re-normalize pca_data to have meaningful euclidean distances
         norm_pca_data = np.linalg.norm(pca_data, axis=1)
         print "norm_pca_data {}: {}".format(norm_pca_data.shape, norm_pca_data)
         normed_pca_data = pca_data/np.tile(norm_pca_data[:, np.newaxis], (1, pca_dims))

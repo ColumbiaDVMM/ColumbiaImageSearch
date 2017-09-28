@@ -26,6 +26,10 @@ class SearcherLOPQHBase(GenericSearcher):
     subq = self.get_required_param('lopq_subq')
     # we could use that for a more fine grained model naming...
     self.model_params = {'V': V, 'M': M, 'subq': subq}
+    if self.model_type == "lopq_pca":
+      # Number of dimensions to keep after PCA
+      pca = self.get_required_param('lopq_pca')
+      self.model_params['pca'] = pca
 
   def set_pp(self):
     self.pp = "SearcherLOPQHBase"
@@ -62,43 +66,51 @@ class SearcherLOPQHBase(GenericSearcher):
       # NB: an empty lopq_model would make sense only if we just want to detect...
 
   def get_train_features(self):
-    print "[{}: log] Gathering {} training samples...".format(self.pp, self.nb_train)
-    sys.stdout.flush()
-    # TODO: test that...
-    train_features = []
-    start_date = "1970-01-01"
-    while len(train_features) < self.nb_train:
-      updates = self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str())
-      # Accumulate until we have enough features
-      for update in updates:
-        try:
-          # Need to check that update has been processed...
-          update_id = update[0]
-          print "[{}: log] Getting features from update {}".format(self.pp, update_id)
-          start_date = "_".join(update_id.split("_")[-2:-1])
-          list_sha1s = update[1][column_list_sha1s]
-          _, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
-          train_features.extend(features)
-          if len(train_features) >= self.nb_train:
-            break
-        except Exception as inst:
-          print "[{}: error] Failed to get features from update {}: {} {}".format(self.pp, update_id, type(inst), inst)
+    # Save training features to disk, if we ever want to train with different model configurations as
+    # gathering features can take a while
+    train_feat_fn = self.get_train_features_str()
+    try:
+      train_np = self.storer.load(train_feat_fn)
+    except:
+      print "[{}: log] Gathering {} training samples...".format(self.pp, self.nb_train)
+      sys.stdout.flush()
+      train_features = []
+      start_date = "1970-01-01"
+      while len(train_features) < self.nb_train:
+        updates = self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str())
+        # Accumulate until we have enough features
+        for update in updates:
+          try:
+            # We should check that update has been processed...
+            update_id = update[0]
+            print "[{}: log] Getting features from update {}".format(self.pp, update_id)
+            start_date = "_".join(update_id.split("_")[-2:-1])
+            list_sha1s = update[1][column_list_sha1s]
+            _, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+            train_features.extend(features)
+            if len(train_features) >= self.nb_train:
+              break
+          except Exception as inst:
+            print "[{}: error] Failed to get features from update {}: {} {}".format(self.pp, update_id, type(inst), inst)
+            sys.stdout.flush()
+        else:
+          print "[{}: log] Got {} training samples so far...".format(self.pp, len(train_features))
           sys.stdout.flush()
-      else:
-        print "[{}: log] Got {} training samples so far...".format(self.pp, len(train_features))
-        sys.stdout.flush()
-        # Wait for new updates...
-        time.sleep(600)
-    return train_features
+          # Wait for new updates...
+          time.sleep(600)
+
+      train_np = np.asarray(train_features)
+      self.storer.save(train_feat_fn, train_np)
+
+    return train_np
 
   def train_index(self):
-    # TODO: test training
-    train_features = self.get_train_features()
-    train_np = np.asarray(train_features)
-    self.storer.save("train_features", train_np)
+    train_np = self.get_train_features()
     print "Got train features array with shape: {}".format(train_np.shape)
+    nb_train_feats = train_np.shape[0]
+    sys.stdout.flush()
 
-    if len(train_features) >= self.nb_train:
+    if nb_train_feats >= self.nb_train:
 
       if self.model_type == "lopq":
         from lopq.model import LOPQModel
@@ -107,7 +119,7 @@ class SearcherLOPQHBase(GenericSearcher):
                                subquantizer_clusters=self.model_params['subq'])
         # we could have separate training/indexing features
         msg = "[{}.train_model: info] Starting local training of 'lopq' model with parameters {} using {} features."
-        print msg.format(self.pp, self.model_params, len(train_features))
+        print msg.format(self.pp, self.model_params, nb_train_feats)
         start_train = time.time()
         # specify a n_init < 10 (default value) to speed-up training?
         lopq_model.fit(train_np, verbose=True)
@@ -116,20 +128,22 @@ class SearcherLOPQHBase(GenericSearcher):
         print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
         return lopq_model
       elif self.model_type == "lopq_pca":
-        # TODO: test lopq_pca training.
+        # lopq_pca training.
         from lopq.model import LOPQModelPCA
         # we could have default values for those parameters and/or heuristic to estimate them based on data count...
         lopq_model = LOPQModelPCA(V=self.model_params['V'], M=self.model_params['M'],
                                   subquantizer_clusters=self.model_params['subq'])
         # we could have separate training/indexing features
         msg = "[{}.train_model: info] Starting local training of 'lopq_pca' model with parameters {} using {} features."
-        print msg.format(self.pp, self.model_params, len(train_features))
+        sys.stdout.flush()
+        print msg.format(self.pp, self.model_params, nb_train_feats)
         start_train = time.time()
         # specify a n_init < 10 (default value) to speed-up training?
-        lopq_model.fit(train_np, verbose=True)
+        lopq_model.fit(train_np, pca_dims=self.model_params['pca'], verbose=True)
         # save model
         self.storer.save(self.build_model_str(), lopq_model)
         print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
+        sys.stdout.flush()
         return lopq_model
         #err_msg = "[{}.train_model: error] Local training of 'lopq_pca' model not yet implemented."
         #raise NotImplementedError(err_msg.format(self.pp))
@@ -139,6 +153,7 @@ class SearcherLOPQHBase(GenericSearcher):
       msg = "[{}.train_model: error] Could not train model, not enough training samples."
       print msg.format(self.pp)
       #print train_features_path, os.path.exists(train_features_path), lopq_params
+
     # TODO: should we try to evaluate index by pushing train_features to a temporary searcher
     #    - compute exhaustive search for some randomly selected samples
     #    - analyze retrieval performance of approximate search?

@@ -1,5 +1,6 @@
 import boto3
-import botocore # TODO: to properly catch exceptions...
+import botocore
+# TODO: use botocore to properly catch exceptions as below...
 # except botocore.exceptions.ClientError as e:
 # error_code = int(e.response['Error']['Code'])
 import cStringIO as sio
@@ -15,6 +16,8 @@ class S3Storer(GenericStorer):
     super(S3Storer, self).__init__(global_conf_in, prefix)
 
     # This assumes you have the corresponding profile in ~/.aws/credentials
+    # We could first look for the file ~/.aws/credentials
+    #  and if not try to copy from conf/aws_credentials.sample assuming it was filled with the proper values?
     self.aws_profile = self.get_param('aws_profile')
     self.bucket_name = self.get_required_param('bucket_name')
 

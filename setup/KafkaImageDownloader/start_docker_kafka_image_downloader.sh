@@ -2,11 +2,13 @@
 
 ## Adjust that to the actual host values
 # TODO: adjust 'base_path to the actual value'
-base_path=~
+base_path=/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/
+#base_path=~
 
 # You should not need to change that,
 # and if you do, make sure that the config file reflects these changes
-repo_path=${base_path}/columbiafacesearch/
+#repo_path=${base_path}/columbiafacesearch/
+repo_path=${base_path}/columbiaFaceSearch/
 PORT=5000
 indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
 
@@ -16,7 +18,8 @@ docker_image="kafka_image_downloader"
 docker_image_tag="1.0"
 docker_image_build_tag="0.9"
 docker_name="kafka_img_dl"
-docker_file=${repo_path}"/setup/KafkaImageDownloader/DockerFileKafkaImageDownloader"
+setup_dir=${repo_path}"/setup/KafkaImageDownloader/"
+docker_file=${setup_dir}"DockerFileKafkaImageDownloader"
 setup_script=${indocker_repo_path}"/setup/KafkaImageDownloader/setup_kafka_image_downloader.sh"
 start_script=${indocker_repo_path}"/setup/KafkaImageDownloader/run_kafka_image_downloader.sh"
 
@@ -36,7 +39,7 @@ buildDocker() {
     run_dir=$(pwd)
     docker_dir=$(dirname ${docker_file})
     cd ${docker_dir}
-    ${SUDO} docker build -t ${docker_image}:${docker_image_build_tag} -f ${docker_file} .
+    ${SUDO} docker build -t ${docker_image}:${docker_image_build_tag} -f ${docker_file} ${setup_dir}
     # go back to run dir
     cd ${run_dir}
 }

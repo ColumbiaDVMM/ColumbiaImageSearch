@@ -45,7 +45,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
           # need to keep obj_pos for alignment
           list_urls.append((image_url, obj_pos))
     else:
-      print "[{}.get_images_urls: info] Message had not 'objects' fields.".format(self.pp)
+      print "[{}.get_images_urls: info] Message had no 'objects' field.".format(self.pp)
 
     return list_urls
 
@@ -82,6 +82,9 @@ class KafkaImageDownloader(GenericKafkaProcessor):
 
     # From msg value get list_urls for image objects only
     list_urls = self.get_images_urls(msg_value)
+    if self.verbose > 1:
+      print_msg = "[{}.process_one: info] Got {} image urls from ad id {}"
+      print print_msg.format(self.pp, len(list_urls), msg_value['id'])
 
     # Get images data and infos
     dict_imgs = dict()

@@ -1,8 +1,9 @@
 #!/bin/bash
 # TODO: set this, test or release?
-#  should this suffix be set from a parameter?
-#suffix="_test"
-suffix="_release"
+#  should this suffix be set from a parameter?#
+suffix="_test"
+#suffix="_release"
+nb_workers=2
 
 while getopts r: option
 do
@@ -21,6 +22,7 @@ fi
 
 cd ${repo_path}/setup/KafkaImageDownloader
 
-python ../../scripts/ingestion/run_image_ingestion.py -t -d -c ../../conf/conf_kafka_image_downloader${suffix}.json &> log_image_ingestion${suffix}_$(date +%Y-%m-%d).txt
+python ../../scripts/ingestion/run_image_ingestion.py -t -d -w ${nb_workers} -c ../../conf/conf_kafka_image_downloader${suffix}.json &> log_image_ingestion${suffix}_$(date +%Y-%m-%d).txt
+#python ../../scripts/ingestion/run_image_ingestion.py -t -d -c ../../conf/conf_kafka_image_downloader${suffix}.json &> log_image_ingestion${suffix}_$(date +%Y-%m-%d).txt
 
 
