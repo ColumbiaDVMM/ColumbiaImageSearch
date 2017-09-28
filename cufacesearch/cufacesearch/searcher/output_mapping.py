@@ -155,7 +155,7 @@ class DictOutput():
 
         # Explore list of similar faces
         for j in range(nb_images):
-          print "sim_images[i][j]",sim_images[i][0][j]
+          #print "sim_images[i][j]",sim_images[i][0][j]
           nb_images_similar += 1
           output[out_i][self.map['similar_images']][self.map['image_sha1s']].append(sim_images[i][0][j][0].strip())
           output[out_i][self.map['similar_images']][self.map['cached_image_urls']].append(sim_images[i][0][j][1][self.url_field].strip())
