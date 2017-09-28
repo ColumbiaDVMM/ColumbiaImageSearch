@@ -234,7 +234,7 @@ class SearcherLOPQHBase(GenericSearcher):
     all_sim_images = []
     all_sim_dets = []
     all_sim_score = []
-    
+
     # check what is the near duplicate config
     filter_near_dup = False
     if (self.near_dup and "near_dup" not in options_dict) or ("near_dup" in options_dict and options_dict["near_dup"]):

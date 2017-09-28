@@ -99,6 +99,9 @@ def get_SHA1_img_type_from_B64(base64str):
   sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
   return sha1, img_type
 
+def get_SHA1_from_buffer(img_buffer):
+  img_buffer.seek(0)
+  return get_SHA1_from_data(img_buffer.read())
 
 def get_SHA1_img_info_from_buffer(img_buffer):
   width, height, img_type = get_image_size_and_format(img_buffer)
