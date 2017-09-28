@@ -179,8 +179,8 @@ class GenericSearcher(ConfReader):
   def search_image_list(self, image_list, options_dict=dict()):
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_URL' function
     if self.detector is None:
-      from ..imgio.imgio import get_buffer_from_URL, get_SHA1_from_buffer
-      detect_load_fn = lambda x: (get_SHA1_from_buffer(x), get_buffer_from_URL(x))
+      from ..imgio.imgio import get_buffer_from_URL
+      detect_load_fn = lambda x: get_buffer_from_URL(x)
     else:
       detect_load_fn = self.detector.detect_from_url
     return self._search_from_any_list(image_list, detect_load_fn, options_dict)
@@ -229,8 +229,10 @@ class GenericSearcher(ConfReader):
         feats.append(faces_feats)
       else:
         # load image first (it could be either URL or B64...)
+        from ..imgio.imgio import get_SHA1_from_buffer
         start_featurize = time.time()
-        sha1, img = detect_load_fn(image)
+        img = detect_load_fn(image)
+        sha1 = get_SHA1_from_buffer(img)
         # Still fill a dets list with the image sha1 to propagate down for the search results...
         if image.startswith('http'):
           dets.append((sha1, image))
