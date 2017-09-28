@@ -20,7 +20,7 @@ class SearcherLOPQHBase(GenericSearcher):
     self.model_params = None
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
 
-  def set_model_params(self):
+  def get_model_params(self):
     V = self.get_required_param('lopq_V')
     M = self.get_required_param('lopq_M')
     subq = self.get_required_param('lopq_subq')
