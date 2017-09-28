@@ -1,0 +1,24 @@
+{
+  "SEARCHLOPQ_indexer_prefix": "HBI_",
+  "SEARCHLOPQ_indexer_type": "hbase_indexer_minimal",
+  "SEARCHLOPQ_storer_type": "local",
+  "SEARCHLOPQ_storer_prefix": "ST_",
+  "SEARCHLOPQ_featurizer_prefix": "SBPYCAFFE_",
+  "SEARCHLOPQ_featurizer_type": "sbpycaffe",
+  "SEARCHLOPQ_input_type": "image",
+  "SEARCHLOPQ_nb_train": 1000,
+  "SEARCHLOPQ_model_type": "lopq_pca",
+  "SEARCHLOPQ_lopq_V": 8,
+  "SEARCHLOPQ_lopq_M": 4,
+  "SEARCHLOPQ_lopq_subq": 32,
+  "ST_base_path": "../data/index/",
+  "ST_verbose": 0,
+  "HBI_host": "10.1.94.57",
+  "HBI_table_sha1infos": "backpage_test_images_sha1_infos2",
+  "HBI_table_updateinfos": "backpage_test_images_update_infos2",
+  "HBI_batch_update_size": 1000,
+  "HBI_pool_thread": 1,
+  "SBPYCAFFE_sbcaffe_path": "../data/models/caffe_sentibank_train_iter_250000",
+  "SBPYCAFFE_imgmean_path": "../data/models/imagenet_mean.npy"
+}
+
