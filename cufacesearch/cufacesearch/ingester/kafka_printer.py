@@ -1,4 +1,5 @@
 import sys
+import json
 from .generic_kafka_processor import GenericKafkaProcessor
 
 default_printer_prefix = "KPRINT_"
@@ -32,7 +33,6 @@ class KafkaPrinter(GenericKafkaProcessor):
     if self.count_print >= self.max_print:
       print "[{}] Reached maximum number of print out. Leaving.".format(self.pp)
       exit(0)
-    import json
     msg_value = json.loads(msg.value)
     msg_print = []
     if self.print_fields is not None:

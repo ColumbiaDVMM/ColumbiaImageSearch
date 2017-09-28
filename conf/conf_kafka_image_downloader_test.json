@@ -1,7 +1,7 @@
 {
   "KID_verbose": 10,
   "KID_consumer_topics": "backpage-test",
-  "KID_consumer_group": "backpage-test-images-downloaders11",
+  "KID_consumer_group": "backpage-test-images-downloaders12",
   "KID_nb_threads": 8,
   "KID_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
   "KID_consumer_security": {
