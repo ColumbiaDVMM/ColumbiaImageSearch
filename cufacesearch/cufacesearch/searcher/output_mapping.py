@@ -145,8 +145,8 @@ class DictOutput():
         if dets[i][1]:
           output[out_i][self.map['query_url']] = dets[i][1]
 
-        if sim_images[i]:
-          nb_images = len(sim_images[i])
+        if sim_images[i][0]:
+          nb_images = len(sim_images[i][0])
 
         output[out_i][self.map['similar_images']] = OrderedDict([[self.map['number_images'], nb_images],
                                                               [self.map['image_sha1s'], []],
@@ -155,11 +155,11 @@ class DictOutput():
 
         # Explore list of similar faces
         for j in range(nb_images):
-          print "sim_images[i][j]",sim_images[i][j]
+          print "sim_images[i][j]",sim_images[i][0][j]
           nb_images_similar += 1
-          output[out_i][self.map['similar_images']][self.map['image_sha1s']].append(sim_images[i][j][0][0].strip())
-          output[out_i][self.map['similar_images']][self.map['cached_image_urls']].append(sim_images[i][j][0][1][self.url_field].strip())
-          output[out_i][self.map['similar_images']][self.map['distances']].append(sim_score[i][j][0])
+          output[out_i][self.map['similar_images']][self.map['image_sha1s']].append(sim_images[i][0][j][0].strip())
+          output[out_i][self.map['similar_images']][self.map['cached_image_urls']].append(sim_images[i][0][j][1][self.url_field].strip())
+          output[out_i][self.map['similar_images']][self.map['distances']].append(sim_score[i][0][j])
 
       outp = OrderedDict([[self.map['number_images'], len(dets)],
                           [self.map['number_similar_images'], nb_images_similar],
