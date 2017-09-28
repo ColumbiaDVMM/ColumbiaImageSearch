@@ -6,7 +6,7 @@
   "SEARCHLOPQ_featurizer_prefix": "SBPYCAFFE_",
   "SEARCHLOPQ_featurizer_type": "sbpycaffe",
   "SEARCHLOPQ_input_type": "image",
-  "SEARCHLOPQ_nb_train": 1000,
+  "SEARCHLOPQ_nb_train": 5000,
   "SEARCHLOPQ_model_type": "lopq_pca",
   "SEARCHLOPQ_lopq_V": 8,
   "SEARCHLOPQ_lopq_M": 4,
