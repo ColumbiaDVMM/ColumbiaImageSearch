@@ -286,7 +286,7 @@ def train_pca(data, pca_dims=256, pca_subsample=None):
         'A': A,  # covariance matrix
         'c': count  # sample size
     }
-    return params
+    return params, pca_dims
 
 
 def train_coarse(data, V=8, kmeans_coarse_iters=10, n_init=10, random_state=None):
@@ -897,7 +897,7 @@ class LOPQModelPCA(LOPQModel):
         # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/blob/e1d334f7820d27f36535cafaaa489d142aba8e8c/workflows/build-lopq-index/lopq/spark/train_model_wpca.py
 
         # Train PCA
-        pca_params = train_pca(data, pca_dims, pca_subsample)
+        pca_params, pca_dims = train_pca(data, pca_dims, pca_subsample)
         # set: self.pca_P, self.pca_mu
         self.pca_P = pca_params['P']
         self.pca_mu = pca_params['mu']
@@ -910,8 +910,11 @@ class LOPQModelPCA(LOPQModel):
         pca_data = self.apply_PCA(data)
         print "pca_data {}: {}".format(pca_data.shape, np.linalg.norm(pca_data[0, :]))
         # Should we re-normalize pca_data?
+        norm_pca_data = np.linalg.norm(pca_data)
+        normed_pca_data = pca_data/np.tile(norm_pca_data[:, np.newaxis], (1, pca_dims))
+        print "normed_pca_data {}: {}".format(normed_pca_data.shape, np.linalg.norm(normed_pca_data[0, :]))
 
-        parameters = train(pca_data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
+        parameters = train(normed_pca_data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
                            kmeans_coarse_iters, kmeans_local_iters, n_init, subquantizer_sample_ratio,
                            random_state, verbose)
 
