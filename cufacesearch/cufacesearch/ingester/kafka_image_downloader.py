@@ -53,7 +53,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     # Edit 'objects' array to add 'img_info', and 'img_sha1' for images
     for url in dict_imgs:
       img = dict_imgs[url]
-      if img['format'] in skip_formats:  # BMP OK?
+      if img['img_info']['format'] in skip_formats:  # BMP OK?
         continue
       tmp_obj = msg_value['objects'][img['obj_pos']]
       tmp_obj['img_info'] = img['img_info']
