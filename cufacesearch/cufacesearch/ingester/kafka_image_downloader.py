@@ -188,9 +188,10 @@ class KafkaThreadedImageDownloader(KafkaImageDownloader):
 
     # From msg value get list_urls for image objects only
     list_urls = self.get_images_urls(msg_value)
+    nb_img = len(list_urls)
     if self.verbose > 1:
       print_msg = "[{}.process_one: info] Got {} image urls from ad id {}"
-      print print_msg.format(self.pp, len(list_urls), msg_value['_id'])
+      print print_msg.format(self.pp, nb_img, msg_value['_id'])
 
     # Initialize queues
     from Queue import Queue
@@ -217,13 +218,18 @@ class KafkaThreadedImageDownloader(KafkaImageDownloader):
 
     # Get images data and infos
     dict_imgs = dict()
-    while not self.q_out.empty():
+    nb_dl_img = 0
+    nb_valid_dl_img = 0
+    while nb_dl_img < nb_img:
       url, obj_pos, img_buffer, img_info, start_process, end_process, inst = self.q_out.get()
+      nb_dl_img += 1
 
       if img_buffer is not None and img_info is not None:
+        # TODO: should we just discard buffer here?...
         sha1, img_type, width, height = img_info
         dict_imgs[url] = {'obj_pos': obj_pos, 'img_buffer': img_buffer, 'sha1': sha1,
                       'img_info': {'format': img_type, 'width': width, 'height': height}}
+        nb_valid_dl_img += 1
         self.toc_process_ok(start_process, end_process)
       else:
         self.toc_process_failed(start_process, end_process)
@@ -237,6 +243,10 @@ class KafkaThreadedImageDownloader(KafkaImageDownloader):
             print_msg = "[{}.process_one: info] Could not download image from: {} (tried downloading for {}s)"
             print print_msg.format(self.pp, url, end_process - start_process)
             sys.stdout.flush()
+
+    if self.verbose > 1:
+      print_msg = "[{}.process_one: info] Found {} valid images out of {} downloaded from ad id {}"
+      print print_msg.format(self.pp, nb_valid_dl_img, nb_dl_img, msg_value['_id'])
 
     # Push to cdr_out_topic
     self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
