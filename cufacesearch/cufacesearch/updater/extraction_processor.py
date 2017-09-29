@@ -269,13 +269,20 @@ class ExtractionProcessor(ConfReader):
           print("[{}.process_batch: log] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
 
         # Start daemons...
+        thread_creation_failed = 0
         for i in range(self.nb_threads):
           # one per non empty input queue
           if q_in_size[i] > 0:
-            thread = DaemonBatchExtractor(self.extractors[i], self.q_in[i], self.q_out[i], verbose=self.verbose)
-            # Could get a 'Cannot allocate memory' if we are using too many threads...
-            thread.start()
-            threads.append(thread)
+            try:
+              thread = DaemonBatchExtractor(self.extractors[i], self.q_in[i], self.q_out[i], verbose=self.verbose)
+              # Could get a 'Cannot allocate memory' if we are using too many threads...
+              thread.start()
+              threads.append(thread)
+            except OSError as inst:
+              print("[{}.process_batch: error] Could not start thread #{}: {}".format(self.pp, i, inst))
+              i -= 1
+              thread_creation_failed += 1
+              time.sleep(10*thread_creation_failed)
 
         start_process = time.time()
         stop = time.time() + self.max_proc_time
