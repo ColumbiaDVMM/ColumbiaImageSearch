@@ -53,6 +53,8 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     # Edit 'objects' array to add 'img_info', and 'img_sha1' for images
     for url in dict_imgs:
       img = dict_imgs[url]
+      if img['format'] in skip_formats:  # BMP OK?
+        continue
       tmp_obj = msg_value['objects'][img['obj_pos']]
       tmp_obj['img_info'] = img['img_info']
       tmp_obj['img_sha1'] = img['sha1']
@@ -64,7 +66,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     img_out_msgs = []
     for url in dict_imgs:
       img_info = dict_imgs[url]['img_info']
-      if img_info['format'] == 'SVG': # BMP OK?
+      if img_info['format'] in skip_formats: # BMP OK?
         continue
       tmp_dict_out = dict()
       tmp_dict_out['s3_url'] = url
@@ -87,7 +89,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     list_urls = self.get_images_urls(msg_value)
     if self.verbose > 0:
       print_msg = "[{}.process_one: info] Got {} image urls from ad id {}"
-      print print_msg.format(self.pp, len(list_urls), msg_value['id'])
+      print print_msg.format(self.pp, len(list_urls), msg_value['_id'])
 
     # Get images data and infos
     dict_imgs = dict()

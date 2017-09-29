@@ -90,7 +90,8 @@ def get_image_size_and_format(input):
       raise UnknownImageFormat(e.__class__.__name__ + msg)
   elif data.startswith('<?xml'):
     format = 'SVG'
-    # We coudl try to use viewbox or width and height in tag svg to estimate width and height?
+    # We could try to use viewbox or width and height in tag svg to estimate width and height?
+  # We could also try to support BMP, RIFF...
   else:
     raise UnknownImageFormat("Sorry, don't know how to get information from this file.")
 
