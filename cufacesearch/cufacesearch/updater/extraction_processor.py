@@ -351,6 +351,9 @@ class ExtractionProcessor(ConfReader):
         for th in threads:
           del th
 
+        if thread_creation_failed > 0:
+          self.nb_threads -= 1
+
         print_msg = "[{}.process_batch: log] Completed update {} in {}s."
         print(print_msg.format(self.pp, update_id, time.time() - start_update))
         sys.stdout.flush()
