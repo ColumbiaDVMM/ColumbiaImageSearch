@@ -226,8 +226,8 @@ class KafkaThreadedImageDownloader(KafkaImageDownloader):
             sys.stdout.flush()
         else:
           if self.verbose > 1:
-            print_msg = "[{}.process_one: info] Could not download image from: {}"
-            print print_msg.format(self.pp, url)
+            print_msg = "[{}.process_one: info] Could not download image from: {} (tried downloading for {}s)"
+            print print_msg.format(self.pp, url, end_process - start_process)
             sys.stdout.flush()
 
     # Push to cdr_out_topic
