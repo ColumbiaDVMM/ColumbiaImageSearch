@@ -1,9 +1,11 @@
 #!/bin/bash
 # TODO: set this, test or release?
-#  should this suffix be set from a parameter?#
+#  should this suffix be set from a parameter?
 suffix="_test"
-#suffix="_release"
 nb_workers=2
+
+#suffix="_release"
+#nb_workers=50
 
 while getopts r: option
 do

@@ -147,6 +147,8 @@ def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=default_
     else:
       img_buffer = StringIO(r.content)
       return img_buffer
+  else:
+    raise ValueError("Incorrect status code: {}".format(r.status_code))
 
 # Should we use boto3 to download from s3?
 # http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Bucket.download_fileobj
