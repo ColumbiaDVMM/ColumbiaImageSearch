@@ -87,7 +87,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
 
     # From msg value get list_urls for image objects only
     list_urls = self.get_images_urls(msg_value)
-    if self.verbose > 0:
+    if self.verbose > 3:
       print_msg = "[{}.process_one: info] Got {} image urls from ad id {}"
       print print_msg.format(self.pp, len(list_urls), msg_value['_id'])
 
@@ -189,7 +189,7 @@ class KafkaThreadedImageDownloader(KafkaImageDownloader):
     # From msg value get list_urls for image objects only
     list_urls = self.get_images_urls(msg_value)
     nb_img = len(list_urls)
-    if self.verbose > 1:
+    if self.verbose > 2:
       print_msg = "[{}.process_one: info] Got {} image urls from ad id {}"
       print print_msg.format(self.pp, nb_img, msg_value['_id'])
 
@@ -244,9 +244,11 @@ class KafkaThreadedImageDownloader(KafkaImageDownloader):
             print print_msg.format(self.pp, url, end_process - start_process)
             sys.stdout.flush()
 
-    if self.verbose > 1:
-      print_msg = "[{}.process_one: info] Found {} valid images out of {} downloaded from ad id {}"
-      print print_msg.format(self.pp, nb_valid_dl_img, nb_dl_img, msg_value['_id'])
+    if self.verbose > 0:
+      if nb_valid_dl_img < nb_dl_img:
+        print_msg = "[{}.process_one: info] Found only {} valid images out of {} for ad id {}"
+        print print_msg.format(self.pp, nb_valid_dl_img, nb_dl_img, msg_value['_id'])
+        sys.stdout.flush()
 
     # Push to cdr_out_topic
     self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
