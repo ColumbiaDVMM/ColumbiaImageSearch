@@ -2,7 +2,7 @@
 # TODO: set this, test or release?
 #  should this suffix be set from a parameter?
 suffix="_test"
-nb_workers=2
+nb_workers=25
 
 #suffix="_release"
 #nb_workers=50

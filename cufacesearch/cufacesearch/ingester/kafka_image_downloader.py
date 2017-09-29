@@ -10,7 +10,7 @@ from ..imgio.imgio import buffer_to_B64
 
 default_prefix = "KID_"
 default_prefix_frompkl = "KIDFP_"
-
+skip_formats = ['SVG', 'RIFF']
 
 class KafkaImageDownloader(GenericKafkaProcessor):
   def __init__(self, global_conf_filename, prefix=default_prefix, pid=None):
@@ -63,6 +63,9 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     # Build dict output for each image with fields 's3_url', 'sha1', 'img_info' and 'img_buffer'
     img_out_msgs = []
     for url in dict_imgs:
+      img_info = dict_imgs[url]['img_info']
+      if img_info['format'] == 'SVG': # BMP OK?
+        continue
       tmp_dict_out = dict()
       tmp_dict_out['s3_url'] = url
       tmp_dict_out['sha1'] = dict_imgs[url]['sha1']
@@ -82,7 +85,7 @@ class KafkaImageDownloader(GenericKafkaProcessor):
 
     # From msg value get list_urls for image objects only
     list_urls = self.get_images_urls(msg_value)
-    if self.verbose > 1:
+    if self.verbose > 0:
       print_msg = "[{}.process_one: info] Got {} image urls from ad id {}"
       print print_msg.format(self.pp, len(list_urls), msg_value['id'])
 
@@ -183,6 +186,9 @@ class KafkaThreadedImageDownloader(KafkaImageDownloader):
 
     # From msg value get list_urls for image objects only
     list_urls = self.get_images_urls(msg_value)
+    if self.verbose > 1:
+      print_msg = "[{}.process_one: info] Got {} image urls from ad id {}"
+      print print_msg.format(self.pp, len(list_urls), msg_value['id'])
 
     # Initialize queues
     from Queue import Queue

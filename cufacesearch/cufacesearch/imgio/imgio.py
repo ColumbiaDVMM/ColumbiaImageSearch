@@ -88,6 +88,9 @@ def get_image_size_and_format(input):
       raise UnknownImageFormat("ValueError" + msg)
     except Exception as e:
       raise UnknownImageFormat(e.__class__.__name__ + msg)
+  elif data.startswith('<?xml'):
+    format = 'SVG'
+    # We coudl try to use viewbox or width and height in tag svg to estimate width and height?
   else:
     raise UnknownImageFormat("Sorry, don't know how to get information from this file.")
 
@@ -137,7 +140,8 @@ def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=default_
       retries_settings = Retry(total=retries, backoff_factor=default_bof, status_forcelist=default_fl)
       s.mount('http://', HTTPAdapter(max_retries=retries_settings))
       s.mount('https://', HTTPAdapter(max_retries=retries_settings))
-    r = s.get(img_url, timeout=60)
+    #r = s.get(img_url, timeout=60)
+    r = s.get(img_url, timeout=image_dl_timeout)
   else:
     r = requests.get(img_url, timeout=image_dl_timeout)
   if r.status_code == 200:
