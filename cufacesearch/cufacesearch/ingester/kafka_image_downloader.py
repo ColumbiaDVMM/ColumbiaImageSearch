@@ -190,7 +190,7 @@ class KafkaThreadedImageDownloader(KafkaImageDownloader):
     list_urls = self.get_images_urls(msg_value)
     if self.verbose > 1:
       print_msg = "[{}.process_one: info] Got {} image urls from ad id {}"
-      print print_msg.format(self.pp, len(list_urls), msg_value['id'])
+      print print_msg.format(self.pp, len(list_urls), msg_value['_id'])
 
     # Initialize queues
     from Queue import Queue
