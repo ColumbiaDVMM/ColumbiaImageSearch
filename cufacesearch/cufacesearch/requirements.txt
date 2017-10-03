@@ -1,5 +1,5 @@
 numpy
-scikit-image
+scikit-image>=0.13
 dlib
 happybase
 flask
