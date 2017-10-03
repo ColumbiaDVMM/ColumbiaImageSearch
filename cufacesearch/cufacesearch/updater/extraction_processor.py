@@ -42,15 +42,13 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
       except:
         continue
 
-      img_buffer = None
-      inst = None
       try:
         img_buffer = get_buffer_from_URL(url)
         if img_buffer:
           # Push
-          self.q_out.put((sha1, buffer_to_B64(img_buffer), push_back))
+          self.q_out.put((sha1, buffer_to_B64(img_buffer), push_back, None))
       except Exception as inst:
-        pass
+        self.q_out.put((sha1, None, push_back, inst))
 
       # Mark as done
       self.q_in.task_done()
@@ -250,8 +248,20 @@ class ExtractionProcessor(ConfReader):
           q_in_dl.join()
 
           # Push them too
-          while not q_out_dl.empty():
-            list_in.append(q_out_dl.get())
+          nb_dl = 0
+          while nb_dl < nb_imgs_dl:
+            sha1, buffer, push_back, inst = q_out_dl.get()
+            nb_dl += 1
+            if inst:
+              if self.verbose > 0:
+                print("[{}.process_batch: log] Could not download image {}, error was: {}".format(self.pp, sha1, inst))
+            else:
+              if buffer:
+                list_in.append((sha1, buffer, push_back))
+              else:
+                print("[{}.process_batch: error] No error but no buffer either for image {}".format(self.pp, sha1))
+
+
 
         print("[{}.process_batch: log] Got {} image buffers for update {}.".format(self.pp, len(list_in), update_id))
         sys.stdout.flush()
@@ -303,7 +313,7 @@ class ExtractionProcessor(ConfReader):
               if not self.q_in[i]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
                 time.sleep(1)
               else:
-                if self.q_in[i]._unfinished_tasks._semlock._is_zero() and self.verbose > 0:
+                if self.q_in[i]._unfinished_tasks._semlock._is_zero() and self.verbose > 1:
                   print("Thread {} marked as finished because processing seems finished".format(i))
                 else:
                   if self.verbose > 0:
@@ -311,7 +321,7 @@ class ExtractionProcessor(ConfReader):
                     print(timeout_msg.format(i, self.max_proc_time, time.time(), stop))
                 threads_finished[i] = 1
             else:
-              if self.verbose > 0:
+              if self.verbose > 2:
                 # We actually never gave something to process...
                 print("Thread {} marked as finished because no data was passed to it".format(i))
               threads_finished[i] = 1

@@ -40,7 +40,7 @@
     "ssl_check_hostname":false
   },
   "KIcheck_producer_updates_out_topic": "backpage-test-images-sbpycaffe-updates2",
-  "KIproc_verbose": 1,
+  "KIproc_verbose": 2,
   "KIproc_consumer_topics":  "backpage-test-images-sbpycaffe-updates2",
   "KIproc_consumer_group": "backpage-test-images-sbpycaffe-extrproc1",
   "KIproc_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],

@@ -62,8 +62,8 @@ class DaemonBatchExtractor(multiprocessing.Process):
 
         # Push batch out
         if self.verbose > 0:
-          print_msg = "[DaemonBatchExtractor.{}] Computed {} extractions in {}s."
-          print print_msg.format(self.pid, len(out_batch), time.time() - start_process)
+          print_msg = "[DaemonBatchExtractor.{}] Computed {}/{} extractions in {}s."
+          print print_msg.format(self.pid, len(out_batch), len(batch), time.time() - start_process)
           sys.stdout.flush()
         self.q_out.put(out_batch)
 
