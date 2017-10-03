@@ -4,8 +4,6 @@
 suffix="_test"
 #suffix="_release"
 
-echo "In run sentibank pycaffe image search" > ~/tmp.txt
-
 while getopts r: option
 do
   case "${option}"
@@ -15,9 +13,9 @@ do
 done
 
 if [ ${repo_path+x} ]; then
-  echo "repo_path: "${repo_path} >> ~/tmp.txt
+  echo "repo_path: "${repo_path}
 else
-  echo "repo_path not set. Use -r to set repo_path please." >> ~/tmp.txt
+  echo "repo_path not set. Use -r to set repo_path please."
   exit -1
 fi
 
@@ -29,7 +27,7 @@ extr_type="sbpycaffe"
 conf="conf_search_"${extr_type}${suffix}".json"
 # Should these two script be run on different machines?
 # extraction_checker could be run on the same machine as the search API? or as the image downloader one?
-echo "python ../../www/run_search_api.py -c ../../conf/${conf} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d).txt" >> ~/tmp.txt
+#echo "python ../../www/run_search_api.py -c ../../conf/${conf} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d).txt" >> ~/tmp.txt
 
 python ../../www/run_search_api.py -c ../../conf/${conf} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d).txt
 
