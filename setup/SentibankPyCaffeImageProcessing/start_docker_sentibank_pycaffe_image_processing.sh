@@ -8,7 +8,6 @@ base_path=~
 # You should not need to change that,
 # and if you do, make sure that the config file reflects these changes
 repo_path=${base_path}/columbiafacesearch/
-#PORT=5000
 indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
 
 ## Variables that could be changed
