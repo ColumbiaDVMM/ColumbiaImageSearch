@@ -16,7 +16,7 @@
   "KIcheck_verbose": 1,
   "KIcheck_consumer_topics": "ht-cdr31-images",
   "KIcheck_consumer_group": "ht-cdr31-images-sbpycaffe-extrchecker1",
-  "KIcheck_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KIcheck_consumer_servers":  ["kafka0.team-hg-memex.com:9093", "kafka1.team-hg-memex.com:9093", "kafka2.team-hg-memex.com:9093", "kafka3.team-hg-memex.com:9093", "kafka4.team-hg-memex.com:9093", "kafka5.team-hg-memex.com:9093", "kafka6.team-hg-memex.com:9093", "kafka7.team-hg-memex.com:9093", "kafka8.team-hg-memex.com:9093", "kafka9.team-hg-memex.com:9093"],
   "KIcheck_consumer_security": {
     "security_protocol":"SSL",
     "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
@@ -31,7 +31,7 @@
     "request_timeout_ms": 600000,
     "consumer_timeout_ms": 600000
   },
-  "KIcheck_producer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KIcheck_producer_servers":  ["kafka0.team-hg-memex.com:9093", "kafka1.team-hg-memex.com:9093", "kafka2.team-hg-memex.com:9093", "kafka3.team-hg-memex.com:9093", "kafka4.team-hg-memex.com:9093", "kafka5.team-hg-memex.com:9093", "kafka6.team-hg-memex.com:9093", "kafka7.team-hg-memex.com:9093", "kafka8.team-hg-memex.com:9093", "kafka9.team-hg-memex.com:9093"],
   "KIcheck_producer_security": {
     "security_protocol":"SSL",
     "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
@@ -43,7 +43,7 @@
   "KIproc_verbose": 2,
   "KIproc_consumer_topics":  "ht-cdr31-images-sbpycaffe-updates",
   "KIproc_consumer_group": "ht-cdr31-images-sbpycaffe-extrproc1",
-  "KIproc_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KIproc_consumer_servers":  ["kafka0.team-hg-memex.com:9093", "kafka1.team-hg-memex.com:9093", "kafka2.team-hg-memex.com:9093", "kafka3.team-hg-memex.com:9093", "kafka4.team-hg-memex.com:9093", "kafka5.team-hg-memex.com:9093", "kafka6.team-hg-memex.com:9093", "kafka7.team-hg-memex.com:9093", "kafka8.team-hg-memex.com:9093", "kafka9.team-hg-memex.com:9093"],
   "KIproc_consumer_security": {
     "security_protocol":"SSL",
     "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
