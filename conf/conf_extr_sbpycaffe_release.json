@@ -40,7 +40,7 @@
     "ssl_check_hostname":false
   },
   "KIcheck_producer_updates_out_topic": "ht-cdr31-images-sbpycaffe-updates",
-  "KIproc_verbose": 2,
+  "KIproc_verbose": 3,
   "KIproc_consumer_topics":  "ht-cdr31-images-sbpycaffe-updates",
   "KIproc_consumer_group": "ht-cdr31-images-sbpycaffe-extrproc1",
   "KIproc_consumer_servers":  ["kafka0.team-hg-memex.com:9093", "kafka1.team-hg-memex.com:9093", "kafka2.team-hg-memex.com:9093", "kafka3.team-hg-memex.com:9093", "kafka4.team-hg-memex.com:9093", "kafka5.team-hg-memex.com:9093", "kafka6.team-hg-memex.com:9093", "kafka7.team-hg-memex.com:9093", "kafka8.team-hg-memex.com:9093", "kafka9.team-hg-memex.com:9093"],
