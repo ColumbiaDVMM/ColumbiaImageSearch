@@ -314,16 +314,17 @@ class ExtractionProcessor(ConfReader):
                 time.sleep(1)
               else:
                 if self.q_in[i]._unfinished_tasks._semlock._is_zero() and self.verbose > 1:
-                  print("Thread {} marked as finished because processing seems finished".format(i))
+                  print("Thread {} (pid: {}) marked as finished because processing seems finished".format(i, threads[i].pid))
                 else:
                   if self.verbose > 0:
-                    timeout_msg = "Thread {} marked as finished because max_proc_time ({}) has passed ({} > {})"
-                    print(timeout_msg.format(i, self.max_proc_time, time.time(), stop))
+                    timeout_msg = "Thread {} (pid: {}) marked as finished because max_proc_time ({}) has passed ({} > {})"
+                    print(timeout_msg.format(i, threads[i].pid, self.max_proc_time, time.time(), stop))
+                    sys.stdout.flush()
                 threads_finished[i] = 1
             else:
               if self.verbose > 2:
                 # We actually never gave something to process...
-                print("Thread {} marked as finished because no data was passed to it".format(i))
+                print("Thread {} (pid: {}) marked as finished because no data was passed to it".format(i, threads[i].pid))
               threads_finished[i] = 1
 
 
@@ -336,11 +337,12 @@ class ExtractionProcessor(ConfReader):
 
         if self.verbose > 1:
           print("[{}.process_batch: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
+          sys.stdout.flush()
 
         dict_imgs = dict()
         for i in range(self.nb_threads):
           while not self.q_out[i].empty():
-            batch_out = self.q_out[i].get()
+            batch_out = self.q_out[i].get(False)
             for sha1, dict_out in batch_out:
               dict_imgs[sha1] = dict_out
             self.q_out[i].task_done()
