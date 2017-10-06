@@ -320,12 +320,12 @@ class ExtractionProcessor(ConfReader):
               else:
                 if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and self.verbose > 1:
                   end_msg = "Thread {}/{} (pid: {}) marked as finished because processing seems finished"
-                  print(end_msg.format(i, nb_threads_running, threads[i].pid))
+                  print(end_msg.format(i, nb_threads_running-1, threads[i].pid))
                 else:
                   if self.verbose > 0:
                     timeout_msg = "Thread {}/{} (pid: {}) force marked task as done because max_proc_time ({}) has passed."
                     self.q_in[i_q_in].task_done()
-                    print(timeout_msg.format(i, nb_threads_running, threads[i].pid, self.max_proc_time))
+                    print(timeout_msg.format(i, nb_threads_running-1, threads[i].pid, self.max_proc_time))
                     sys.stdout.flush()
                     # Try to delete and recreate corresponding extractor?
                     if deleted_extr[i] == 0:
@@ -374,7 +374,7 @@ class ExtractionProcessor(ConfReader):
         # Cleanup
         del threads
 
-        if thread_creation_failed > 0:
+        if sum(thread_creation_failed) > 0:
           self.nb_threads -= 1
 
         print_msg = "[{}.process_batch: log] Completed update {} in {}s."
