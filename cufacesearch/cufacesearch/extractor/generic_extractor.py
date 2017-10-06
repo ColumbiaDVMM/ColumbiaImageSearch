@@ -50,6 +50,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
         out_batch = []
         for sha1, img_buffer_b64, push_buffer in batch:
           try:
+            # Could this block???
             out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
             # We have downloaded the image and need to push the buffer to HBase
             if push_buffer:
