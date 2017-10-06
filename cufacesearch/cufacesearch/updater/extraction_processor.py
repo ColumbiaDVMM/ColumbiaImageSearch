@@ -193,6 +193,12 @@ class ExtractionProcessor(ConfReader):
 
 
   def process_batch(self):
+    # If we deleted an extractor at some point
+    while len(self.extractors) < self.nb_threads:
+      self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
+                                              self.extr_family_column, self.featurizer_prefix,
+                                              self.global_conf))
+
     # Get a new update batch
     #for rows_batch, update_id in self.get_batch_hbase():
     for rows_batch, update_id in self.get_batch_kafka():
@@ -222,13 +228,8 @@ class ExtractionProcessor(ConfReader):
             tup = (img[0], img[1][img_buffer_column], False)
             list_in.append(tup)
           else:
-            # need to re-download
-            # TODO: paralellize that, accumulate a list of URLs to download
+            # need to re-download, accumulate a list of URLs to download
             if img_URL_column in img[1]:
-              # download image
-              #from cufacesearch.imgio.imgio import get_buffer_from_URL, buffer_to_B64
-              #img_buffer_b64 = buffer_to_B64(get_buffer_from_URL(img[1][img_URL_column]))
-              #tup = (img[0], img_buffer_b64, True)
               q_in_dl.put((img[0], img[1][img_URL_column], True))
               nb_imgs_dl += 1
             else:
@@ -247,7 +248,7 @@ class ExtractionProcessor(ConfReader):
 
           q_in_dl.join()
 
-          # Push them too
+          # Push downloaded images to list_in too
           nb_dl = 0
           while nb_dl < nb_imgs_dl:
             sha1, buffer, push_back, inst = q_out_dl.get()
@@ -259,11 +260,12 @@ class ExtractionProcessor(ConfReader):
               if buffer:
                 list_in.append((sha1, buffer, push_back))
               else:
+                # Is that possible?
                 print("[{}.process_batch: error] No error but no buffer either for image {}".format(self.pp, sha1))
 
 
-
-        print("[{}.process_batch: log] Got {} image buffers for update {}.".format(self.pp, len(list_in), update_id))
+        buff_msg = "[{}.process_batch: log] Got {}/{} image buffers for update {}."
+        print(buff_msg.format(self.pp, len(list_in), len(rows_batch), update_id))
         sys.stdout.flush()
 
         q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
@@ -279,7 +281,7 @@ class ExtractionProcessor(ConfReader):
           print("[{}.process_batch: log] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
 
         # Start daemons...
-        thread_creation_failed = 0
+        thread_creation_failed = [0]*self.nb_threads
         for i in range(self.nb_threads):
           # one per non empty input queue
           if q_in_size[i] > 0:
@@ -289,43 +291,47 @@ class ExtractionProcessor(ConfReader):
               thread.start()
               threads.append(thread)
             except OSError as inst:
+              # Should we try to push self.q_in[i] data to some other thread?
               print("[{}.process_batch: error] Could not start thread #{}: {}".format(self.pp, i, inst))
-              i -= 1
-              thread_creation_failed += 1
-              time.sleep(10*thread_creation_failed)
+              thread_creation_failed[i] = 1
+              time.sleep(10*sum(thread_creation_failed))
 
+        nb_threads_running = len(threads)
         start_process = time.time()
         stop = time.time() + self.max_proc_time
         # Wait for all tasks to be marked as done
-        threads_finished = [0]*self.nb_threads
-        while sum(threads_finished) < self.nb_threads:
-          for i in range(self.nb_threads):
-            if sum(threads_finished) == self.nb_threads:
+        threads_finished = [0] * nb_threads_running
+        deleted_extr = [0] * nb_threads_running
+        while sum(threads_finished) < nb_threads_running:
+          for i in range(nb_threads_running):
+            if sum(threads_finished) == nb_threads_running:
               sys.stdout.flush()
               break
             if threads_finished[i] == 1:
               continue
-            if q_in_size[i] > 0:
+            i_q_in = i + sum(thread_creation_failed[:i + 1])
+            if q_in_size[i_q_in] > 0:
               # This seems to block forever sometimes, if subprocess crashed?...
               #self.q_in[i].join()
               # Manual join with timeout...
               # https://github.com/python/cpython/blob/3.6/Lib/multiprocessing/queues.py
-              if not self.q_in[i]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
+              if not self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
                 time.sleep(1)
               else:
-                if self.q_in[i]._unfinished_tasks._semlock._is_zero() and self.verbose > 1:
-                  print("Thread {} (pid: {}) marked as finished because processing seems finished".format(i, threads[i].pid))
+                if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and self.verbose > 1:
+                  end_msg = "Thread {}/{} (pid: {}) marked as finished because processing seems finished"
+                  print(end_msg.format(i, nb_threads_running, threads[i].pid))
                 else:
                   if self.verbose > 0:
-                    timeout_msg = "Thread {} (pid: {}) marked as finished because max_proc_time ({}) has passed ({} > {})"
-                    print(timeout_msg.format(i, threads[i].pid, self.max_proc_time, time.time(), stop))
+                    timeout_msg = "Thread {}/{} (pid: {}) force marked task as done because max_proc_time ({}) has passed."
+                    self.q_in[i_q_in].task_done()
+                    print(timeout_msg.format(i, nb_threads_running, threads[i].pid, self.max_proc_time))
                     sys.stdout.flush()
                     # Try to delete and recreate corresponding extractor?
-                    # How to make sure process will carry on at same speed...
-                    del self.extractors[i]
-                    self.extractors[i] = GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
-                                                          self.extr_family_column, self.featurizer_prefix,
-                                                          self.global_conf)
+                    if deleted_extr[i] == 0:
+                      # since we pushed the extractor as self.extractors[i] in a loop of self.nb_threads we use i_q_in
+                      del self.extractors[i_q_in]
+                      deleted_extr[i] = 1
                 threads_finished[i] = 1
             else:
               if self.verbose > 2:
@@ -353,9 +359,9 @@ class ExtractionProcessor(ConfReader):
               dict_imgs[sha1] = dict_out
             self.q_out[i].task_done()
 
-        if self.verbose > 1:
-          print_msg = "[{}.process_batch: log] Got features for {} images in {}s."
-          print(print_msg.format(self.pp, len(dict_imgs.keys()), time.time() - start_process))
+        if self.verbose > 0:
+          print_msg = "[{}.process_batch: log] Got features for {}/{} images in {}s."
+          print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), time.time() - start_process))
           sys.stdout.flush()
 
         # Push them
@@ -366,8 +372,7 @@ class ExtractionProcessor(ConfReader):
         self.indexer.push_dict_rows(dict_rows=update_processed_dict, table_name=self.indexer.table_updateinfos_name)
 
         # Cleanup
-        for th in threads:
-          del th
+        del threads
 
         if thread_creation_failed > 0:
           self.nb_threads -= 1
