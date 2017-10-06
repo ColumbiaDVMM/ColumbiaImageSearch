@@ -290,6 +290,8 @@ class HBaseIndexerMinimal(ConfReader):
     :param inst: previous error instance caught
     :return: None
     """
+
+    # Can get an IllegalArgument(message='java.lang.IllegalArgumentException: KeyValue size too large
     self.check_errors(previous_err, "push_dict_rows", inst)
     hbase_table = None
     retries = 0

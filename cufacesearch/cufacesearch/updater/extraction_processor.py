@@ -292,7 +292,7 @@ class ExtractionProcessor(ConfReader):
               threads.append(thread)
             except OSError as inst:
               # Should we try to push self.q_in[i] data to some other thread?
-              print("[{}.process_batch: error] Could not start thread #{}: {}".format(self.pp, i, inst))
+              print("[{}.process_batch: error] Could not start thread #{}: {}".format(self.pp, i+1, inst))
               thread_creation_failed[i] = 1
               time.sleep(10*sum(thread_creation_failed))
 
@@ -320,12 +320,12 @@ class ExtractionProcessor(ConfReader):
               else:
                 if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and self.verbose > 1:
                   end_msg = "Thread {}/{} (pid: {}) marked as finished because processing seems finished"
-                  print(end_msg.format(i, nb_threads_running-1, threads[i].pid))
+                  print(end_msg.format(i+1, nb_threads_running, threads[i].pid))
                 else:
                   if self.verbose > 0:
                     timeout_msg = "Thread {}/{} (pid: {}) force marked task as done because max_proc_time ({}) has passed."
                     self.q_in[i_q_in].task_done()
-                    print(timeout_msg.format(i, nb_threads_running-1, threads[i].pid, self.max_proc_time))
+                    print(timeout_msg.format(i+1, nb_threads_running, threads[i].pid, self.max_proc_time))
                     sys.stdout.flush()
                     # Try to delete and recreate corresponding extractor?
                     if deleted_extr[i] == 0:
@@ -336,7 +336,8 @@ class ExtractionProcessor(ConfReader):
             else:
               if self.verbose > 2:
                 # We actually never gave something to process...
-                print("Thread {} (pid: {}) marked as finished because no data was passed to it".format(i, threads[i].pid))
+                noproc_msg = "Thread {}/{} (pid: {}) marked as finished because no data was passed to it"
+                print(noproc_msg.format(i+1, nb_threads_running, threads[i].pid))
               threads_finished[i] = 1
 
 
