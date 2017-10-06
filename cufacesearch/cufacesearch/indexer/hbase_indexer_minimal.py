@@ -324,6 +324,8 @@ class HBaseIndexerMinimal(ConfReader):
       # b.send()
     except Exception as inst: # try to catch any exception
       print "[push_dict_rows: error] {}".format(inst)
+      if previous_err > 0:
+        print "[push_dict_rows: log] dict_rows is: {}".format(dict_rows)
       self.refresh_hbase_conn("push_dict_rows", sleep_time=4*previous_err)
       return self.push_dict_rows(dict_rows, table_name, families=families, previous_err=previous_err+1, inst=inst)
 
