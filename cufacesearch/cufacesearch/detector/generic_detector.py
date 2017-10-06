@@ -1,5 +1,6 @@
 from ..imgio.imgio import get_buffer_from_URL, get_buffer_from_B64, get_SHA1_img_info_from_buffer
 from skimage import io as skio
+import numpy as np
 
 default_upsampling = 1
 default_image_dl_timeout = 1
@@ -47,6 +48,13 @@ class GenericFaceDetector(object):
 
   def detect_from_buffer_noinfos(self, img_buffer, up_sample=default_upsampling):
     img = skio.imread(img_buffer)
+    # Deal with GIF
+    if len(img.shape) == 4:
+      # Get first 'frame' of GIF
+      img = np.squeeze(img[1, :, :, :])
+    # Deal with alpha channel in PNG
+    if img.shape[:-1]==4:
+      img = img[:, :, :3]
     return img, self.detect_from_img(img, up_sample)
 
   # You have to override this method in the child class.
