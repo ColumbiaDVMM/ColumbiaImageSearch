@@ -8,6 +8,7 @@
   "EXTR_input_type": "face",
   "EXTR_max_delay": 600,
   "EXTR_nb_threads": 16,
+  "EXTR_verbose": 3,
   "HBI_host": "10.1.94.57",
   "HBI_table_sha1infos": "htcdr31_images_sha1_infos",
   "HBI_table_updateinfos": "htcdr31_images_update_infos",

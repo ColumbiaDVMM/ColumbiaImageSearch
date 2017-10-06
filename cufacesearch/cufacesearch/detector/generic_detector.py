@@ -53,7 +53,7 @@ class GenericFaceDetector(object):
       # Get first 'frame' of GIF
       img = np.squeeze(img[1, :, :, :])
     # Deal with alpha channel in PNG
-    if img.shape[:-1]==4:
+    if img.shape[-1]==4:
       img = img[:, :, :3]
     return img, self.detect_from_img(img, up_sample)
 
