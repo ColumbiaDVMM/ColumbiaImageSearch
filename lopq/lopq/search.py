@@ -318,14 +318,27 @@ class LOPQSearcher(LOPQSearcherBase):
         # If a list of ids is not provided, assume it is the index of the data
         if ids is None:
             ids = count()
+            # Should we add the current number of indexed samples?
+
+        dict_ids = dict()
 
         for item_id, code in zip(ids, codes):
             try:
                 cell = code[0]
                 # NB: should we use a dictionary for 'code' too?
                 #    If we have many collisions that could be beneficial
-                self.index[cell].append((item_id, code))
-                self.nb_indexed += 1
+                # We need to avoid duplicate insertions,
+                # to deal with images that appear in both legacy/new data that could appear in two different updates...
+                if cell not in dict_ids and cell in self.index:
+                        dict_ids[cell] = set([item_id for item_id, code in self.index[cell]])
+                # should the cell maintain the set of item_id too?
+                # or just get it and memoize it in this method?
+                if item_id not in dict_ids[cell]:
+                    self.index[cell].append((item_id, code))
+                    dict_ids[cell].add(item_id)
+                    self.nb_indexed += 1
+                else:
+                    print 'Discarding duplicate sample: {}'.format(item_id)
             except Exception as inst:
                 print 'Could not push code {}. ({})'.format(code, inst)
 

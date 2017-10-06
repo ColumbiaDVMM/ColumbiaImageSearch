@@ -59,7 +59,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
               out_dict[img_buffer_column] = img_buffer_b64
             out_batch.append((sha1, out_dict))
           except Exception as inst:
-            err_msg = "[DaemonBatchExtractor.{}: warning] Extraction failed for img {} with error (): {}"
+            err_msg = "[DaemonBatchExtractor.{}: warning] Extraction failed for img {} with error ({}): {}"
             print err_msg.format(self.pid, sha1, type(inst), inst)
             sys.stdout.flush()
         #---
