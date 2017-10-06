@@ -97,6 +97,10 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
 
   def preprocess_img(self, img_buffer):
     image = caffe.io.load_image(img_buffer)
+    # Fix for GIF
+    if len(image.shape)==4:
+      # Get first 'frame' of GIF
+      image = np.squeeze(image[1,:,:,:])
     img_resize = misc.imresize(image, self.target_size, interp=self.resize_type)
     
     # Take a central crop of 227x227.
@@ -114,7 +118,7 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
     :return: sentibank image feature
     """
     # TODO: could use bbox to pre-crop the image...
-
+    # Could anything block here?
     preprocessed_img = self.preprocess_img(img)
     self.net.blobs['data'].data[...] = preprocessed_img
 

@@ -320,6 +320,12 @@ class ExtractionProcessor(ConfReader):
                     timeout_msg = "Thread {} (pid: {}) marked as finished because max_proc_time ({}) has passed ({} > {})"
                     print(timeout_msg.format(i, threads[i].pid, self.max_proc_time, time.time(), stop))
                     sys.stdout.flush()
+                    # Try to delete and recreate corresponding extractor?
+                    # How to make sure process will carry on at same speed...
+                    del self.extractors[i]
+                    self.extractors[i] = GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
+                                                          self.extr_family_column, self.featurizer_prefix,
+                                                          self.global_conf)
                 threads_finished[i] = 1
             else:
               if self.verbose > 2:

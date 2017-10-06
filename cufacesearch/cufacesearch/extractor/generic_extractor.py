@@ -47,6 +47,8 @@ class DaemonBatchExtractor(multiprocessing.Process):
           sys.stdout.flush()
 
         # Process each image
+        #---
+        # Something in this part seems to block with sbpycaffe but very rarely...
         out_batch = []
         for sha1, img_buffer_b64, push_buffer in batch:
           try:
@@ -57,9 +59,10 @@ class DaemonBatchExtractor(multiprocessing.Process):
               out_dict[img_buffer_column] = img_buffer_b64
             out_batch.append((sha1, out_dict))
           except Exception as inst:
-            err_msg = "[DaemonBatchExtractor.{}: warning] Extraction failed for img {} with error: {}"
-            print err_msg.format(self.pid, sha1, inst)
+            err_msg = "[DaemonBatchExtractor.{}: warning] Extraction failed for img {} with error (): {}"
+            print err_msg.format(self.pid, sha1, type(inst), inst)
             sys.stdout.flush()
+        #---
 
         # Push batch out
         if self.verbose > 0:
