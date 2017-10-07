@@ -333,7 +333,8 @@ class ExtractionProcessor(ConfReader):
                     self.q_in[i_q_in].task_done()
                     print(timeout_msg.format(i+1, nb_threads_running, threads[i].pid, self.max_proc_time))
                     sys.stdout.flush()
-                    # Try to delete and recreate corresponding extractor?
+                    # Try to delete corresponding extractor to free memory?
+                    # And reduce number of threads at the end of the loop
                     if deleted_extr[i] == 0:
                       # since we pushed the extractor as self.extractors[i] in a loop of self.nb_threads we use i_q_in
                       del self.extractors[i_q_in]
@@ -346,6 +347,8 @@ class ExtractionProcessor(ConfReader):
                 print(noproc_msg.format(i+1, nb_threads_running, threads[i].pid))
               threads_finished[i] = 1
 
+        # Cleanup threads to free memory before getting data back
+        del threads
 
         # Gather results
         q_out_size = []
@@ -398,12 +401,11 @@ class ExtractionProcessor(ConfReader):
         self.indexer.push_dict_rows(dict_rows=update_processed_dict, table_name=self.indexer.table_updateinfos_name)
 
         # Cleanup
-        del threads
         del self.q_in
         del self.q_out
 
-        # To adjust a too optimistic nb_threads setting
-        if sum(thread_creation_failed) > 0 and self.nb_threads>2:
+        # To try to adjust a too optimistic nb_threads setting
+        if (sum(thread_creation_failed) > 0 or sum(deleted_extr)) and self.nb_threads > 2:
           self.nb_threads -= 1
 
         print_msg = "[{}.process_batch: log] Completed update {} in {}s."
