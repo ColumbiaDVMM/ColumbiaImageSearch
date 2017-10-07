@@ -361,12 +361,18 @@ class ExtractionProcessor(ConfReader):
         # Can get stuck here?
         dict_imgs = dict()
         for i in range(self.nb_threads):
+          if self.verbose > 1:
+            print("Thread {} q_out_size: {}".format(i+1, q_out_size[i]))
+            sys.stdout.flush()
           while q_out_size[i]>0 and not self.q_out[i].empty():
             try:
               batch_out = self.q_out[i].get(True, 10)
               for sha1, dict_out in batch_out:
                 dict_imgs[sha1] = dict_out
             except:
+              if self.verbose > 0:
+                print("Thread {} failed to get from q_out: {}".format(i+1))
+                sys.stdout.flush()
               pass
             self.q_out[i].task_done()
 
