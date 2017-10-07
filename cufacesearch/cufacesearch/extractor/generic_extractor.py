@@ -69,7 +69,9 @@ class DaemonBatchExtractor(multiprocessing.Process):
           print_msg = "[DaemonBatchExtractor.{}] Computed {}/{} extractions in {}s."
           print print_msg.format(self.pid, len(out_batch), len(batch), time.time() - start_process)
           sys.stdout.flush()
-        self.q_out.put(out_batch)
+
+        # Put but allow timeout, to avoid blocking which seems to happen if not enough memory is available
+        self.q_out.put(out_batch, True, 10)
 
         # Mark as done
         self.q_in.task_done()
@@ -85,7 +87,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
         #  self.q_out.put(out_batch)
 
         # Try to mark as done anyway?
-        #self.q_in.task_done()
+        self.q_in.task_done()
 
 
 

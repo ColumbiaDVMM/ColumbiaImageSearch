@@ -324,7 +324,7 @@ class ExtractionProcessor(ConfReader):
               if not self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
                 time.sleep(1)
               else:
-                if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and self.verbose > 1:
+                if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and self.verbose > 2:
                   end_msg = "Thread {}/{} (pid: {}) marked as finished because processing seems finished"
                   print(end_msg.format(i+1, nb_threads_running, threads[i].pid))
                 else:
@@ -357,33 +357,33 @@ class ExtractionProcessor(ConfReader):
           q_out_size.append(self.q_out[i].qsize())
           q_out_size_tot += q_out_size[i]
 
-        if self.verbose > 1:
+        if self.verbose > 3:
           print("[{}.process_batch: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
           sys.stdout.flush()
 
         # Can get stuck here?
         dict_imgs = dict()
         for i in range(self.nb_threads):
-          if self.verbose > 1:
+          if self.verbose > 4:
             print("Thread {} q_out_size: {}".format(i+1, q_out_size[i]))
             sys.stdout.flush()
           while q_out_size[i]>0 and not self.q_out[i].empty():
-            if self.verbose > 1:
+            if self.verbose > 4:
               print("Thread {} q_out is not empty.".format(i + 1))
               sys.stdout.flush()
             try:
               batch_out = self.q_out[i].get(True, 10)
-              if self.verbose > 1:
+              if self.verbose > 2:
                 print("Got batch of {} features from thread {} q_out.".format(len(batch_out), i + 1))
                 sys.stdout.flush()
               for sha1, dict_out in batch_out:
                 dict_imgs[sha1] = dict_out
             except:
-              if self.verbose > 0:
+              if self.verbose > 1:
                 print("Thread {} failed to get from q_out: {}".format(i+1))
                 sys.stdout.flush()
               pass
-            if self.verbose > 1:
+            if self.verbose > 3:
               print("Marking task done in q_out of thread {}.".format(i + 1))
               sys.stdout.flush()
             self.q_out[i].task_done()
