@@ -88,12 +88,7 @@ class ExtractionProcessor(ConfReader):
     self.set_pp()
 
     # Initialize queues
-    from multiprocessing import JoinableQueue
-    self.q_in = []
-    self.q_out = []
-    for i in range(self.nb_threads):
-      self.q_in.append(JoinableQueue(0))
-      self.q_out.append(JoinableQueue(0))
+    self.init_queues()
 
     # Initialize extractors only once
     self.extractors = []
@@ -118,6 +113,14 @@ class ExtractionProcessor(ConfReader):
     self.pp = "ExtractionProcessor"
     if self.extractor:
       self.pp += "_"+self.extr_prefix
+
+  def init_queues(self):
+    from multiprocessing import JoinableQueue
+    self.q_in = []
+    self.q_out = []
+    for i in range(self.nb_threads):
+      self.q_in.append(JoinableQueue(0))
+      self.q_out.append(JoinableQueue(0))
 
   def get_batch_hbase(self):
     # legacy implementation: better to have a kafka topic for batches to be processed to allow
@@ -193,22 +196,25 @@ class ExtractionProcessor(ConfReader):
 
 
   def process_batch(self):
-    # If we deleted an extractor at some point
-    while len(self.extractors) < self.nb_threads:
-      self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
-                                              self.extr_family_column, self.featurizer_prefix,
-                                              self.global_conf))
-
     # Get a new update batch
     #for rows_batch, update_id in self.get_batch_hbase():
     for rows_batch, update_id in self.get_batch_kafka():
       try:
         start_update = time.time()
-        self.nb_empt = 0
         print("[{}.process_batch: log] Processing update {} of {} rows.".format(self.pp, update_id, len(rows_batch)))
         sys.stdout.flush()
 
+        # Initialize
+        self.nb_empt = 0
+        self.init_queues()
         threads = []
+
+        # If we deleted an extractor at some point
+        while len(self.extractors) < self.nb_threads:
+          self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
+                                                  self.extr_family_column, self.featurizer_prefix,
+                                                  self.global_conf))
+
 
         # Mark batch as started to be process
         update_started_dict = {update_id: {'info:' + update_str_started: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
@@ -352,12 +358,16 @@ class ExtractionProcessor(ConfReader):
           print("[{}.process_batch: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
           sys.stdout.flush()
 
+        # Can get stuck here?
         dict_imgs = dict()
         for i in range(self.nb_threads):
-          while not self.q_out[i].empty():
-            batch_out = self.q_out[i].get(False)
-            for sha1, dict_out in batch_out:
-              dict_imgs[sha1] = dict_out
+          while q_out_size[i]>0 and not self.q_out[i].empty():
+            try:
+              batch_out = self.q_out[i].get(True, 10)
+              for sha1, dict_out in batch_out:
+                dict_imgs[sha1] = dict_out
+            except:
+              pass
             self.q_out[i].task_done()
 
         if self.verbose > 0:
@@ -374,8 +384,11 @@ class ExtractionProcessor(ConfReader):
 
         # Cleanup
         del threads
+        del self.q_in
+        del self.q_out
 
-        if sum(thread_creation_failed) > 0:
+        # To adjust a too optimistic nb_threads setting
+        if sum(thread_creation_failed) > 0 and self.nb_threads>2:
           self.nb_threads -= 1
 
         print_msg = "[{}.process_batch: log] Completed update {} in {}s."
