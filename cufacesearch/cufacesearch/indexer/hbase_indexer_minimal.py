@@ -306,7 +306,7 @@ class HBaseIndexerMinimal(ConfReader):
         if hbase_table is None:
           raise ValueError("Could not initialize hbase_table")
 
-        b = hbase_table.batch(batch_size=10) # should we have a bigger batch size?
+        b = hbase_table.batch(batch_size=5) # should we have a bigger batch size?
         # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
         for k in dict_rows:
           b.put(k, dict_rows[k])
@@ -325,7 +325,7 @@ class HBaseIndexerMinimal(ConfReader):
     except Exception as inst: # try to catch any exception
       print "[push_dict_rows: error] {}".format(inst)
       if previous_err > 0:
-        print "[push_dict_rows: log] dict_rows is: {}".format(dict_rows)
+        print "[push_dict_rows: log] dict_rows keys: {}".format(dict_rows.keys())
       self.refresh_hbase_conn("push_dict_rows", sleep_time=4*previous_err)
       return self.push_dict_rows(dict_rows, table_name, families=families, previous_err=previous_err+1, inst=inst)
 
