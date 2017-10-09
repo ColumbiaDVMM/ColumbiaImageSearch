@@ -820,7 +820,7 @@ class LOPQModel(object):
 class LOPQModelPCA(LOPQModel):
     # TODO: remove methods that are not overriden
 
-    def __init__(self, V=8, M=4, subquantizer_clusters=256, parameters=None):
+    def __init__(self, V=8, M=4, subquantizer_clusters=256, renorm=False, parameters=None):
         """
         Create an LOPQModel instance that encapsulates a complete LOPQ model with parameters and hyperparameters.
 
@@ -847,10 +847,13 @@ class LOPQModelPCA(LOPQModel):
                 mu: VxD/2 ndarray of mean residuals for each coar cluster
                 subquantizer: length M/2 list of SxD/M ndarrays of cluster centroids for each subvector
                 P, mu: PCA parameters
+                renorm: Boolean for renormalization after PCA
         """
 
         # If learned parameters are passed in explicitly, derive the model params by inspection.
         self.Cs, self.Rs, self.mus, self.subquantizers, self.pca_P, self.pca_mu = parameters if parameters is not None else (None, None, None, None, None, None)
+
+        self.renorm = renorm
 
         if self.Cs is not None:
             self.V = self.Cs[0].shape[0]
@@ -867,6 +870,8 @@ class LOPQModelPCA(LOPQModel):
             self.num_fine_splits = M / 2
             self.M = M
             self.subquantizer_clusters = subquantizer_clusters
+
+
 
     def fit(self, data, pca_dims=256, kmeans_coarse_iters=10, kmeans_local_iters=20, n_init=10, subquantizer_sample_ratio=1.0, random_state=None, verbose=False, pca_subsample=None):
         """
@@ -909,13 +914,16 @@ class LOPQModelPCA(LOPQModel):
         print "data {}: {}".format(data.shape, np.linalg.norm(data[0, :]))
         pca_data = self.apply_PCA(data)
         print "pca_data {}: {}".format(pca_data.shape, np.linalg.norm(pca_data[0, :]))
-        # Re-normalize pca_data to have meaningful euclidean distances
-        norm_pca_data = np.linalg.norm(pca_data, axis=1)
-        print "norm_pca_data {}: {}".format(norm_pca_data.shape, norm_pca_data)
-        normed_pca_data = pca_data/np.tile(norm_pca_data[:, np.newaxis], (1, pca_dims))
-        print "normed_pca_data {}: {}".format(normed_pca_data.shape, np.linalg.norm(normed_pca_data[0, :]))
 
-        parameters = train(normed_pca_data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
+        # Re-normalize pca_data if renorm is set, to have meaningful euclidean distances
+        if self.renorm:
+            norm_pca_data = np.linalg.norm(pca_data, axis=1)
+            print "norm_pca_data {}: {}".format(norm_pca_data.shape, norm_pca_data)
+            normed_pca_data = pca_data/np.tile(norm_pca_data[:, np.newaxis], (1, pca_dims))
+            print "normed_pca_data {}: {}".format(normed_pca_data.shape, np.linalg.norm(normed_pca_data[0, :]))
+            pca_data = normed_pca_data
+
+        parameters = train(pca_data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
                            kmeans_coarse_iters, kmeans_local_iters, n_init, subquantizer_sample_ratio,
                            random_state, verbose)
 
@@ -965,7 +973,13 @@ class LOPQModelPCA(LOPQModel):
         # First apply PCA
         x_pca = self.apply_PCA(x)
 
-        # Re-normalize?
+        # Re-normalize if renorm param is set
+        # TODO: to be tested
+        if self.renorm:
+            norm_pca_data = np.linalg.norm(x_pca, axis=1)
+            print "norm_pca_data {}: {}".format(norm_pca_data.shape, norm_pca_data)
+            normed_pca_data = x_pca / np.tile(norm_pca_data[:, np.newaxis], (1, self.pca_P.shape[1]))
+            x_pca = normed_pca_data
 
         # Compute coarse quantizer codes
         coarse_codes = self.predict_coarse(x_pca)

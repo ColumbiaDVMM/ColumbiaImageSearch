@@ -195,6 +195,7 @@ class GenericSearcher(ConfReader):
       detect_load_fn = get_buffer_from_B64
     else:
       detect_load_fn = self.detector.detect_from_b64
+    # TODO: check if we have the "data:image/jpeg;base64," at the beggining of each B64 image?
     return self._search_from_any_list(imageB64_list, detect_load_fn, options_dict)
 
   def _search_from_any_list(self, image_list, detect_load_fn, options_dict):

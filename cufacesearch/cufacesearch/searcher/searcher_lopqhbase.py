@@ -132,7 +132,7 @@ class SearcherLOPQHBase(GenericSearcher):
         from lopq.model import LOPQModelPCA
         # we could have default values for those parameters and/or heuristic to estimate them based on data count...
         lopq_model = LOPQModelPCA(V=self.model_params['V'], M=self.model_params['M'],
-                                  subquantizer_clusters=self.model_params['subq'])
+                                  subquantizer_clusters=self.model_params['subq'], renorm=True)
         # we could have separate training/indexing features
         msg = "[{}.train_model: info] Starting local training of 'lopq_pca' model with parameters {} using {} features."
         sys.stdout.flush()
