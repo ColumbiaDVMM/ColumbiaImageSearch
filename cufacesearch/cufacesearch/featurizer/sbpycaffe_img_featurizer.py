@@ -14,6 +14,7 @@ from scipy import misc
 from .generic_featurizer import GenericFeaturizer
 from ..common.dl import download_file
 
+# Is there a memory leak somewhere in this featurizer? In caffe?
 
 class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
 
@@ -107,6 +108,7 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
     # The model was trained with random crops of this dimension
     # and existing features were extracted with a central crop like this
     img_out = img_resize[self.w_boff:self.w_eoff, self.h_boff:self.h_eoff, :]
+
     return self.transformer.preprocess('data', img_out)
 
 
