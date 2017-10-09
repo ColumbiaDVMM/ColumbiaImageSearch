@@ -306,10 +306,21 @@ class HBaseIndexerMinimal(ConfReader):
         if hbase_table is None:
           raise ValueError("Could not initialize hbase_table")
 
+        # Sometimes get KeyValue size too large when inserting Sentibank processed images...
         b = hbase_table.batch(batch_size=5) # should we have a bigger batch size?
         # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
         for k in dict_rows:
-          b.put(k, dict_rows[k])
+          if previous_err>0:
+            # Try to discard buffer to avoid 'KeyValue size too large'
+            if img_buffer_column in dict_rows[k]:
+              tmp_dict_row = dict()
+              for kk in dict_rows[k]:
+                tmp_dict_row[kk] = dict_rows[k][kk]
+              b.put(k, tmp_dict_row)
+            else:
+              b.put(k, dict_rows[k])
+          else:
+            b.put(k, dict_rows[k])
         b.send()
 
       # # Let get_create_table set up the connection, seems to fail too
