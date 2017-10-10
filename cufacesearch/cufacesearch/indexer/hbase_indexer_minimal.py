@@ -315,9 +315,11 @@ class HBaseIndexerMinimal(ConfReader):
         for k in dict_rows:
           if previous_err > 0:
             row_size = sys.getsizeof(dict_rows[k])
-            if row_size > 2097152: # print warning if size is bigger than 2MB?
-              print "[{}: warning] Row {} bigger than 2MB, Keys are: {}".format(self.pp, k, dict_rows[k].keys())
-              sys.stdout.flush()
+            print "[{}: warning] Row {} size seems to be: {}, Keys are: {}".format(self.pp, k, row_size, dict_rows[k].keys())
+            sys.stdout.flush()
+            # if row_size > 2097152: # print warning if size is bigger than 2MB?
+            #   print "[{}: warning] Row {} bigger than 2MB, Keys are: {}".format(self.pp, k, dict_rows[k].keys())
+            #   sys.stdout.flush()
             # Try to discard buffer to avoid 'KeyValue size too large'
             if img_buffer_column in dict_rows[k]:
               tmp_dict_row = dict()
