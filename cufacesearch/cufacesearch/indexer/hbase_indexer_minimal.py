@@ -313,8 +313,10 @@ class HBaseIndexerMinimal(ConfReader):
         b = hbase_table.batch(batch_size=batch_size) # should we have a bigger batch size?
         # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
         for k in dict_rows:
-          if previous_err > 0:
+          if previous_err > 1:
             row_size = sys.getsizeof(dict_rows[k])
+            for kk in dict_rows[k]:
+              row_size += sys.getsizeof(dict_rows[k][kk])
             print "[{}: warning] Row {} size seems to be: {}, Keys are: {}".format(self.pp, k, row_size, dict_rows[k].keys())
             sys.stdout.flush()
             # if row_size > 2097152: # print warning if size is bigger than 2MB?
