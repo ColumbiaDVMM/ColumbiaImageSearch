@@ -295,6 +295,9 @@ class HBaseIndexerMinimal(ConfReader):
     self.check_errors(previous_err, "push_dict_rows", inst)
     hbase_table = None
     retries = 0
+    batch_size = 5
+    if previous_err > 0:
+      batch_size = 1
     try:
       # Use connection pool. Seems to fail when pool was initialized a long time ago...
       with self.pool.connection(timeout=self.timeout) as connection:
@@ -306,11 +309,16 @@ class HBaseIndexerMinimal(ConfReader):
         if hbase_table is None:
           raise ValueError("Could not initialize hbase_table")
 
-        # Sometimes get KeyValue size too large when inserting Sentibank processed images...
-        b = hbase_table.batch(batch_size=5) # should we have a bigger batch size?
+        # Sometimes get KeyValue size too large when inserting processed images...
+        b = hbase_table.batch(batch_size=batch_size) # should we have a bigger batch size?
         # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
         for k in dict_rows:
-          if previous_err>0:
+          if previous_err > 0:
+            if self.verbose > 1:
+              row_size = sys.getsizeof(dict_rows[k])
+              if row_size > 2097152: # print warning if size is bigger than 2MB?
+                print "[{}: warning] row {} bigger than 2MB, Keys are: {}".format(self.pp, k, dict_rows[k].keys())
+                sys.stdout.flush()
             # Try to discard buffer to avoid 'KeyValue size too large'
             if img_buffer_column in dict_rows[k]:
               tmp_dict_row = dict()
