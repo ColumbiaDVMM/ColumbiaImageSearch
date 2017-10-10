@@ -1,4 +1,5 @@
 from __future__ import print_function
+import gc
 import sys
 import time
 import json
@@ -412,6 +413,9 @@ class ExtractionProcessor(ConfReader):
         print(print_msg.format(self.pp, update_id, time.time() - start_update))
         sys.stdout.flush()
         self.nb_err = 0
+
+        # Force garbage collection?
+        gc.collect()
 
       except Exception as inst:
         exc_type, exc_obj, exc_tb = sys.exc_info()
