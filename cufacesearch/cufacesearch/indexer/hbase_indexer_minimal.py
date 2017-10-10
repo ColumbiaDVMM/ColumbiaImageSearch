@@ -314,11 +314,10 @@ class HBaseIndexerMinimal(ConfReader):
         # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
         for k in dict_rows:
           if previous_err > 0:
-            if self.verbose > 1:
-              row_size = sys.getsizeof(dict_rows[k])
-              if row_size > 2097152: # print warning if size is bigger than 2MB?
-                print "[{}: warning] row {} bigger than 2MB, Keys are: {}".format(self.pp, k, dict_rows[k].keys())
-                sys.stdout.flush()
+            row_size = sys.getsizeof(dict_rows[k])
+            if row_size > 2097152: # print warning if size is bigger than 2MB?
+              print "[{}: warning] Row {} bigger than 2MB, Keys are: {}".format(self.pp, k, dict_rows[k].keys())
+              sys.stdout.flush()
             # Try to discard buffer to avoid 'KeyValue size too large'
             if img_buffer_column in dict_rows[k]:
               tmp_dict_row = dict()
