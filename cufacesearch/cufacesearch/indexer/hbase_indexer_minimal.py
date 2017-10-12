@@ -295,7 +295,7 @@ class HBaseIndexerMinimal(ConfReader):
     self.check_errors(previous_err, "push_dict_rows", inst)
     hbase_table = None
     retries = 0
-    batch_size = 5
+    batch_size = 10
     if previous_err > 0:
       batch_size = 1
     try:

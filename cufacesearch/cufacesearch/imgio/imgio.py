@@ -133,6 +133,8 @@ def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=default_
   # Sometime fails with a timeout, now using retries
   #   see: https://stackoverflow.com/questions/15431044/can-i-set-max-retries-for-requests-request
   import requests
+  # SSLError: [Errno 1] _ssl.c:510: error:14090086:SSL routines:SSL3_GET_SERVER_CERTIFICATE:certificate verify failed
+  # should we pass verify=False to make sure we will download the image...
   from cStringIO import StringIO
   if verbose > 0:
     print "Downloading image from {}".format(img_url)
