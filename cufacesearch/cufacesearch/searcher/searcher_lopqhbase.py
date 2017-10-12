@@ -28,7 +28,7 @@ class SearcherLOPQHBase(GenericSearcher):
     self.model_params = {'V': V, 'M': M, 'subq': subq}
     if self.model_type == "lopq_pca":
       # Number of dimensions to keep after PCA
-      pca = self.get_required_param('lopq_pca')
+      pca = self.get_required_param('lopq_pcadims')
       self.model_params['pca'] = pca
 
   def set_pp(self):

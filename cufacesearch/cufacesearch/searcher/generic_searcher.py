@@ -100,6 +100,7 @@ class GenericSearcher(ConfReader):
     model_params_str = ''
     for p in self.model_params:
       model_params_str += "-"+str(p)+str(self.model_params[p])
+    model_params_str += '_train{}'.format(self.nb_train)
     return model_params_str
 
 
