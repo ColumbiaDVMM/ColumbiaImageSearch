@@ -54,6 +54,8 @@ class S3Storer(GenericStorer):
     try:
       buffer = sio.StringIO()
       self.bucket.download_fileobj(key, buffer)
+      # buffer has been filled, offset is at the end, seek to beginning for unpickling
+      buffer.seek(0)
       obj = pickle.load(buffer)
       if self.verbose > 1:
         print "[{}: log] Loaded file: {}".format(self.pp, key)

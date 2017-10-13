@@ -329,8 +329,11 @@ class LOPQSearcher(LOPQSearcherBase):
                 #    If we have many collisions that could be beneficial
                 # We need to avoid duplicate insertions,
                 # to deal with images that appear in both legacy/new data that could appear in two different updates...
-                if cell not in dict_ids and cell in self.index:
-                        dict_ids[cell] = set([item_id for item_id, code in self.index[cell]])
+                if cell not in dict_ids:
+                    dict_ids[cell] = set()
+                    if cell in self.index:
+                        for iid, _ in self.index[cell]:
+                            dict_ids[cell].add(iid)
                 # should the cell maintain the set of item_id too?
                 # or just get it and memoize it in this method?
                 if item_id not in dict_ids[cell]:
@@ -340,7 +343,10 @@ class LOPQSearcher(LOPQSearcherBase):
                 else:
                     print 'Discarding duplicate sample: {}'.format(item_id)
             except Exception as inst:
-                print 'Could not push code {}. ({})'.format(code, inst)
+                err_msg = 'Could not push code {}. ({}: {})'.format(code, type(inst), inst)
+                from cufacesearch.common.error import full_trace_error
+                full_trace_error(err_msg)
+
 
     def get_cell(self, cell):
         """

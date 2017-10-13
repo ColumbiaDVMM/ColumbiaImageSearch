@@ -183,6 +183,22 @@ class HBaseIndexerMinimal(ConfReader):
       return self.scan_from_row(table_name, row_start=row_start, columns=columns, maxrows=maxrows,
                                 previous_err=previous_err + 1, inst=inst)
 
+  # def get_updates_from_date(self, start_date, extr_type="", maxrows=10, previous_err=0, inst=None):
+  #   # start_date should be in format YYYY-MM-DD(_XX)
+  #   rows = None
+  #   self.check_errors(previous_err, "get_updates_from_date", inst)
+  #   # build row_start as index_update_YYYY-MM-DD
+  #   row_start = update_prefix + extr_type + "_" + start_date
+  #   try:
+  #     # Should we add an option to exclude row_start?
+  #     rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
+  #   except Exception as inst: # try to catch any exception
+  #     print "[get_updates_from_date: error] {}".format(inst)
+  #     self.refresh_hbase_conn("get_updates_from_date")
+  #     return self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
+  #                                       inst=inst)
+  #   return rows
+
   def get_updates_from_date(self, start_date, extr_type="", maxrows=10, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
@@ -190,14 +206,19 @@ class HBaseIndexerMinimal(ConfReader):
     # build row_start as index_update_YYYY-MM-DD
     row_start = update_prefix + extr_type + "_" + start_date
     try:
-      # Should we add an option to exclude row_start?
-      rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
+      while True:
+        # Should we add an option to exclude row_start?
+        rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
+        if rows:
+          yield rows
+          row_start = rows[-1][0]+'~'
+        else:
+          break
     except Exception as inst: # try to catch any exception
       print "[get_updates_from_date: error] {}".format(inst)
       self.refresh_hbase_conn("get_updates_from_date")
-      return self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
+      yield self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
                                         inst=inst)
-    return rows
 
   def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=5, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)

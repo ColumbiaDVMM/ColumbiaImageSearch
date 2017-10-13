@@ -68,6 +68,7 @@ class SearcherLOPQHBase(GenericSearcher):
   def get_train_features(self):
     # Save training features to disk, if we ever want to train with different model configurations as
     # gathering features can take a while
+    # TODO: current pickle system likely to create out of memory error, need to stream saving/loading...
     if self.save_train_features:
       train_feat_fn = self.get_train_features_str()
       train_np = self.storer.load(train_feat_fn)
@@ -78,22 +79,24 @@ class SearcherLOPQHBase(GenericSearcher):
       sys.stdout.flush()
       train_features = []
       start_date = "1970-01-01"
-      while len(train_features) < self.nb_train:
-        print start_date
-        updates = self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str())
-        if updates:
-          # Accumulate until we have enough features
-          for update in updates:
+      done = False
+      # Accumulate until we have enough features
+      while not done:
+        # TODO: this has been changed to a generator, need to be tested
+        for batch_updates in self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str()):
+          for update in batch_updates:
             try:
-              # We should check that update has been processed...
+              # We could check that update has been processed... but if it haven't we won't get features anyway...
               update_id = update[0]
-              # Add '~' to avoid re-reading the last row...
-              start_date = "_".join(update_id.split("_")[-2:])+'~'
+              # No longer needed as get_updates_from_date is a generator
+              # # Add '~' to avoid re-reading the last row...
+              # start_date = "_".join(update_id.split("_")[-2:])+'~'
               list_sha1s = update[1][column_list_sha1s]
               _, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
               print "[{}: log] Got {} features from update {}".format(self.pp, len(features), update_id)
               train_features.extend(features)
               if len(train_features) >= self.nb_train:
+                done = True
                 break
             except Exception as inst:
               print "[{}: error] Failed to get features from update {}: {} {}".format(self.pp, update_id, type(inst), inst)
@@ -101,6 +104,8 @@ class SearcherLOPQHBase(GenericSearcher):
           else:
             print "[{}: log] Got {} training samples so far...".format(self.pp, len(train_features))
             sys.stdout.flush()
+          if done:
+            break
         else:
           # Wait for new updates...
           print "[{}: log] Waiting for new updates...".format(self.pp, len(train_features))
@@ -215,36 +220,37 @@ class SearcherLOPQHBase(GenericSearcher):
     start_load = time.time()
     total_compute_time = 0
     # Get all updates ids for the extraction type
-    updates = self.indexer.get_updates_from_date(start_date="1970-01-01", extr_type=self.build_extr_str())
-    for update in updates:
-      update_id = update[0]
-      if update_id not in self.indexed_updates and "info:"+update_str_processed in update[1]:
+    for batch_updates in self.indexer.get_updates_from_date(start_date="1970-01-01", extr_type=self.build_extr_str()):
+      for update in batch_updates:
+        update_id = update[0]
+        print "[{}: log] Looking for codes of update {}".format(self.pp, update_id)
+        if update_id not in self.indexed_updates and "info:"+update_str_processed in update[1]:
 
-        # Get this update codes
-        codes_string = self.build_codes_string(update_id)
-        try:
-          # Check for precomputed codes
-          codes_dict = self.storer.load(codes_string)
-          if codes_dict is None:
-            raise ValueError('Could not load codes: {}'.format(codes_string))
-        except Exception as inst:
-          # Compute codes for update not yet processed and save them
-          start_compute = time.time()
-          # Update codes not available
-          if self.verbose > 1:
-            print "[{}: log] Update {} codes could not be loaded: {}".format(self.pp, update_id, inst)
-          # Get detections (if any) and features...
-          list_sha1s = update[1][column_list_sha1s]
-          samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
-          codes_dict = self.compute_codes(samples_ids, features, codes_string)
-          update_compute_time = time.time() - start_compute
-          total_compute_time += update_compute_time
-          if self.verbose > 0:
-            print "[{}: log] Update {} codes computation done in {}s".format(self.pp, update_id, update_compute_time)
+          # Get this update codes
+          codes_string = self.build_codes_string(update_id)
+          try:
+            # Check for precomputed codes
+            codes_dict = self.storer.load(codes_string)
+            if codes_dict is None:
+              raise ValueError('Could not load codes: {}'.format(codes_string))
+          except Exception as inst:
+            # Compute codes for update not yet processed and save them
+            start_compute = time.time()
+            # Update codes not available
+            if self.verbose > 1:
+              print "[{}: log] Update {} codes could not be loaded: {}".format(self.pp, update_id, inst)
+            # Get detections (if any) and features...
+            list_sha1s = update[1][column_list_sha1s]
+            samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+            codes_dict = self.compute_codes(samples_ids, features, codes_string)
+            update_compute_time = time.time() - start_compute
+            total_compute_time += update_compute_time
+            if self.verbose > 0:
+              print "[{}: log] Update {} codes computation done in {}s".format(self.pp, update_id, update_compute_time)
 
-        # Use new method add_codes_from_dict of searcher
-        self.searcher.add_codes_from_dict(codes_dict)
-        self.indexed_updates.add(update_id)
+          # Use new method add_codes_from_dict of searcher
+          self.searcher.add_codes_from_dict(codes_dict)
+          self.indexed_updates.add(update_id)
 
     total_load = time.time() - start_load
     if self.verbose > 0:

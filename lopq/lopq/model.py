@@ -974,11 +974,14 @@ class LOPQModelPCA(LOPQModel):
         x_pca = self.apply_PCA(x)
 
         # Re-normalize if renorm param is set
-        # TODO: to be tested
         if self.renorm:
-            norm_pca_data = np.linalg.norm(x_pca, axis=1)
-            print "norm_pca_data {}: {}".format(norm_pca_data.shape, norm_pca_data)
-            normed_pca_data = x_pca / np.tile(norm_pca_data[:, np.newaxis], (1, self.pca_P.shape[1]))
+            if len(x_pca.shape) > 1:
+                # TODO: to be tested
+                norm_pca_data = np.linalg.norm(x_pca, axis=1)
+                normed_pca_data = x_pca / np.tile(norm_pca_data[:, np.newaxis], (1, self.pca_P.shape[1]))
+            else:
+                norm_pca_data = np.linalg.norm(x_pca)
+                normed_pca_data = x_pca / norm_pca_data
             x_pca = normed_pca_data
 
         # Compute coarse quantizer codes
