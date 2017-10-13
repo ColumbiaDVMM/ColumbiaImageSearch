@@ -7,8 +7,6 @@ default_prefix = "GESEARCH_"
 class GenericSearcher(ConfReader):
 
   def __init__(self, global_conf_in, prefix=default_prefix):
-    super(GenericSearcher, self).__init__(global_conf_in, prefix)
-
     # Initialize attributes default values
     self.model_params = dict()
     self.input_type = "image"
@@ -32,6 +30,8 @@ class GenericSearcher(ConfReader):
 
     # TODO: Also add feature column for re-ranking (can we use prefix filter?)
     self.needed_output_columns = [self.url_field]
+
+    super(GenericSearcher, self).__init__(global_conf_in, prefix)
 
     # Initialize attributes from conf
     # TODO: rename model_type in searcher type?
