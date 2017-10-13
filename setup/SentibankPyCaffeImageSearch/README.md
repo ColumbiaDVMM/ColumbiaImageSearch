@@ -14,3 +14,6 @@ You should edit the following parameters:
 - nb_threads in the config file ([conf_search_sbpycaffe_test.json](../../conf/conf_search_sbpycaffe_test.json) or [conf_search_sbpycaffe_release.json](../../conf/conf_search_sbpycaffe_release.json)) to the number of cpus available for the image processing. 
 
 Make sure the certificates to connect to the Kafka broker are also available at the location defined in the config file.
+Same thing for the AWS credentials file.
+
+

@@ -68,8 +68,11 @@ class SearcherLOPQHBase(GenericSearcher):
   def get_train_features(self):
     # Save training features to disk, if we ever want to train with different model configurations as
     # gathering features can take a while
-    train_feat_fn = self.get_train_features_str()
-    train_np = self.storer.load(train_feat_fn)
+    if self.save_train_features:
+      train_feat_fn = self.get_train_features_str()
+      train_np = self.storer.load(train_feat_fn)
+    else
+      train_np = None
     if train_np is None:
       print "[{}: log] Gathering {} training samples...".format(self.pp, self.nb_train)
       sys.stdout.flush()
@@ -104,7 +107,9 @@ class SearcherLOPQHBase(GenericSearcher):
           time.sleep(600)
 
       train_np = np.asarray(train_features)
-      self.storer.save(train_feat_fn, train_np)
+
+      if self.save_train_features:
+        self.storer.save(train_feat_fn, train_np)
 
     return train_np
 

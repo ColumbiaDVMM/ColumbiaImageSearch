@@ -24,6 +24,7 @@ class GenericSearcher(ConfReader):
     self.verbose = 1
     self.top_feature = 0
     self.nb_train = 1000000
+    self.save_train_features = False
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
     self.indexed_updates = set()
@@ -38,6 +39,10 @@ class GenericSearcher(ConfReader):
     self.dict_output_type = self.get_param('dict_output_type')
     # Add any new parameters, e.g. reranking
     self.get_model_params()
+
+    save_train_features = self.get_param('save_train_features')
+    if save_train_features:
+      self.save_train_features = bool(save_train_features)
 
     # Have some parameters to discard images of dimensions lower than some values?...
     # Have some parameters to discard detections with scores lower than some values?...
