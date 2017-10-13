@@ -71,7 +71,7 @@ class SearcherLOPQHBase(GenericSearcher):
     if self.save_train_features:
       train_feat_fn = self.get_train_features_str()
       train_np = self.storer.load(train_feat_fn)
-    else
+    else:
       train_np = None
     if train_np is None:
       print "[{}: log] Gathering {} training samples...".format(self.pp, self.nb_train)
