@@ -69,34 +69,38 @@ class SearcherLOPQHBase(GenericSearcher):
     # Save training features to disk, if we ever want to train with different model configurations as
     # gathering features can take a while
     train_feat_fn = self.get_train_features_str()
-    try:
-      train_np = self.storer.load(train_feat_fn)
-    except:
+    train_np = self.storer.load(train_feat_fn)
+    if train_np is None:
       print "[{}: log] Gathering {} training samples...".format(self.pp, self.nb_train)
       sys.stdout.flush()
       train_features = []
       start_date = "1970-01-01"
       while len(train_features) < self.nb_train:
+        print start_date
         updates = self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str())
-        # Accumulate until we have enough features
-        for update in updates:
-          try:
-            # We should check that update has been processed...
-            update_id = update[0]
-            print "[{}: log] Getting features from update {}".format(self.pp, update_id)
-            start_date = "_".join(update_id.split("_")[-2:-1])
-            list_sha1s = update[1][column_list_sha1s]
-            _, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
-            train_features.extend(features)
-            if len(train_features) >= self.nb_train:
-              break
-          except Exception as inst:
-            print "[{}: error] Failed to get features from update {}: {} {}".format(self.pp, update_id, type(inst), inst)
+        if updates:
+          # Accumulate until we have enough features
+          for update in updates:
+            try:
+              # We should check that update has been processed...
+              update_id = update[0]
+              # Add '~' to avoid re-reading the last row...
+              start_date = "_".join(update_id.split("_")[-2:])+'~'
+              list_sha1s = update[1][column_list_sha1s]
+              _, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+              print "[{}: log] Got {} features from update {}".format(self.pp, len(features), update_id)
+              train_features.extend(features)
+              if len(train_features) >= self.nb_train:
+                break
+            except Exception as inst:
+              print "[{}: error] Failed to get features from update {}: {} {}".format(self.pp, update_id, type(inst), inst)
+              sys.stdout.flush()
+          else:
+            print "[{}: log] Got {} training samples so far...".format(self.pp, len(train_features))
             sys.stdout.flush()
         else:
-          print "[{}: log] Got {} training samples so far...".format(self.pp, len(train_features))
-          sys.stdout.flush()
           # Wait for new updates...
+          print "[{}: log] Waiting for new updates...".format(self.pp, len(train_features))
           time.sleep(600)
 
       train_np = np.asarray(train_features)

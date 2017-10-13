@@ -190,6 +190,7 @@ class HBaseIndexerMinimal(ConfReader):
     # build row_start as index_update_YYYY-MM-DD
     row_start = update_prefix + extr_type + "_" + start_date
     try:
+      # Should we add an option to exclude row_start?
       rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
     except Exception as inst: # try to catch any exception
       print "[get_updates_from_date: error] {}".format(inst)

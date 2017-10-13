@@ -8,13 +8,13 @@ base_path=/media/data/Code/MEMEX/
 
 # You should not need to change that,
 # and if you do, make sure that the config file reflects these changes
-#repo_path=${base_path}/columbiafacesearch/
-repo_path=${base_path}/ColumbiaFaceSearch/
+repo_path=${base_path}/columbiafacesearch/
+#repo_path=${base_path}/ColumbiaFaceSearch/
 PORT_HOST=80
 PORT_DOCKER=5000
 ports_mapping="-p "${PORT_HOST}":"${PORT_DOCKER}
 indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
-s3credentials_path=${base_path}/ColumbiaFaceSearch/aws_credentials/
+s3credentials_path=${repo_path}/conf/aws_credentials/
 indocker_s3credentials_path=/home/ubuntu/.aws/
 
 ## Variables that could be changed

@@ -9,9 +9,7 @@ class GenericSearcher(ConfReader):
   def __init__(self, global_conf_in, prefix=default_prefix):
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
 
-    # Initialize attributes
-    # TODO: rename model_type in searcher type?
-    self.model_type = self.get_required_param('model_type')
+    # Initialize attributes default values
     self.model_params = dict()
     self.input_type = "image"
     self.searcher = None
@@ -28,16 +26,28 @@ class GenericSearcher(ConfReader):
     self.nb_train = 1000000
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
+    self.indexed_updates = set()
+    self.url_field = 'info:s3_url'
+
+    # TODO: Also add feature column for re-ranking (can we use prefix filter?)
+    self.needed_output_columns = [self.url_field]
+
+    # Initialize attributes from conf
+    # TODO: rename model_type in searcher type?
+    self.model_type = self.get_required_param('model_type')
+    self.dict_output_type = self.get_param('dict_output_type')
+    # Add any new parameters, e.g. reranking
+    self.get_model_params()
 
     # Have some parameters to discard images of dimensions lower than some values?...
     # Have some parameters to discard detections with scores lower than some values?...
 
-    # Read conf
-    self.read_conf()
-
-    # We should store set of updates currently indexed
-    self.indexed_updates = set()
-    self.dict_output_type = self.get_param('dict_output_type')
+    # Initialize dict output for formatting
+    if self.dict_output_type:
+      self.do = DictOutput(self.dict_output_type)
+    else:
+      self.do = DictOutput()
+    self.do.url_field = self.url_field
 
     # Initialize everything
     self.init_detector()
@@ -48,18 +58,6 @@ class GenericSearcher(ConfReader):
 
     # Test the performance of the trained model?
     # To try to set max_returned to achieve some target performance
-
-
-    # Initialize dict output for formatting
-    if self.dict_output_type:
-      self.do = DictOutput(self.dict_output_type)
-    else:
-      self.do = DictOutput()
-
-    self.url_field = 'info:s3_url'
-    self.do.url_field = self.url_field
-    # TODO: Also add feature column for re-ranking (can we use prefix filter?)
-    self.needed_output_columns = [self.url_field]
 
     # should codes path be a list to deal with updates?
     # should we store that list in HBase?
@@ -90,8 +88,6 @@ class GenericSearcher(ConfReader):
     tmp_nb_train = self.get_param('nb_train')
     if tmp_nb_train:
       self.nb_train = tmp_nb_train
-    # Add any new parameters, e.g. reranking
-    self.get_model_params()
 
   def get_model_params(self):
     raise NotImplementedError("[{}] get_model_params is not implemented".format(self.pp))

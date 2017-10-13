@@ -1,6 +1,7 @@
 numpy
 scikit-image>=0.13
 dlib
+boto3
 happybase
 flask
 flask_restful
