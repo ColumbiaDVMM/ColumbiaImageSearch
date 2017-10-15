@@ -97,14 +97,12 @@ class ExtractionChecker(ConfReader):
         pass
 
   def get_dict_push(self, list_get_sha1s):
+    # TODO: also pass current update_id, and move the creation of update id out of this method
+    #  this method should actually be used to 'claim' an image as soon as we can.
     dict_push = dict()
-    # append unique processid to 'update_id' to make it safe to use with multiple consumers...
+    # append unique processid to 'update_id' to make it safe to use with multiple consumers, even after a restart.
     # /!\ beware, it should not contain underscores
-    # use self.ingester.pp
     tmp_update_id, _ = self.indexer.get_next_update_id(today=None, extr_type=self.extr_prefix)
-    # Beware: after a restart forming update_id like this may make it not unique i.e same as one before restart...
-    #update_id = tmp_update_id+'-'+self.ingester.pp
-    # Add time
     update_id = tmp_update_id+'-'+self.ingester.pp+'-'+str(time.time())
     for sha1 in list_get_sha1s:
       dict_push[str(sha1)] = dict()
@@ -122,6 +120,8 @@ class ExtractionChecker(ConfReader):
     return dict_push, update_id
 
   def get_unprocessed_rows(self, list_sha1s_to_check):
+    # TODO: also pass current update_id and only delete if != from current update...
+
     unprocessed_rows = set(list_sha1s_to_check)
 
     if list_sha1s_to_check:
@@ -130,11 +130,12 @@ class ExtractionChecker(ConfReader):
       sha1s_rows = self.indexer.get_columns_from_sha1_rows(list_sha1s_to_check, self.check_columns,
                                                            families=self.tablesha1_col_families)
       if sha1s_rows:
+        # TODO: only delete if really previously processed, i.e. if != from current update...
         found_sha1_rows = set([str(row[0]) for row in sha1s_rows])
         # Clean up 'dict_sha1_infos' deleting found_sha1_rows
-        # Beware, this can be dangerous in multiprocess setting...
         self.cleanup_dict_infos(found_sha1_rows)
         set_list_sha1s_to_check = set(list_sha1s_to_check)
+        # TODO: but we should not re-add them, so we should discard them from unprocessed_rows
         unprocessed_rows = set_list_sha1s_to_check - found_sha1_rows
 
     return unprocessed_rows
@@ -142,6 +143,7 @@ class ExtractionChecker(ConfReader):
   def run(self):
     try:
       list_sha1s_to_process = []
+      # TODO: create update_id here
 
       while True:
         list_sha1s_to_check = []
@@ -165,6 +167,9 @@ class ExtractionChecker(ConfReader):
 
         # Check which images have not been processed (or pushed in an update) yet
         unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)
+        # TODO: we should mark those images as being 'owned' by the update we are constructing
+        #   otherwise another update running at the same time could also claim it (if it appears in another ad)
+        #   this can be handle when adding data to the searcher but induces duplicates in extraction process...
 
         # Push sha1s to be processed
         for sha1 in unprocessed_rows:
@@ -181,6 +186,7 @@ class ExtractionChecker(ConfReader):
             # Trim here to push exactly a batch of 'batch_update_size'
             list_push = list_sha1s_to_process[:min(self.indexer.batch_update_size, len(list_sha1s_to_process))]
 
+            # TODO: this should be done before, to 'claim' the images as soon as we plan to process them for this update
             # Gather corresponding sha1 infos
             dict_push, update_id = self.get_dict_push(list_push)
             push_msg = "[{}: at {}] Pushing update {} of {} images."
@@ -206,6 +212,8 @@ class ExtractionChecker(ConfReader):
             list_sha1s_to_process = [sha1 for sha1 in list_sha1s_to_process if sha1 not in list_push]
             self.cleanup_dict_infos(list_push)
             self.last_push = time.time()
+            # TODO: we should create a new update_id here, and let it claim the potential remaining images in 'list_sha1s_to_process'
+            # sanity check that len(list_sha1s_to_process) == len(self.dict_sha1_infos) ?
 
     except Exception as inst:
       exc_type, exc_obj, exc_tb = sys.exc_info()

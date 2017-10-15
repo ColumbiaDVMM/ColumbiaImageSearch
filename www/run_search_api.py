@@ -1,5 +1,6 @@
 import sys
 import json
+import time
 from flask import Flask
 from flask_restful import Api
 from datetime import datetime
@@ -36,7 +37,13 @@ if __name__ == '__main__':
 
 
   # Initialize searcher object only once
-  api.global_searcher = searcher_lopqhbase.SearcherLOPQHBase(global_conf)
+  while True:
+    try:
+      api.global_searcher = searcher_lopqhbase.SearcherLOPQHBase(global_conf)
+      break
+    except Exception as inst:
+      print "Failed to initialized searcher ({}): {}".format(type(inst), inst)
+      time.sleep(60)
   api.global_start_time = datetime.now()
   api.input_type = api.global_searcher.input_type
 

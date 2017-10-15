@@ -295,6 +295,11 @@ class HBaseIndexerMinimal(ConfReader):
   #   self.push_dict_rows(dict_updates, self.table_updateinfos_name)
 
   def push_list_updates(self, list_sha1s, update_id):
+    """ Push the 'update_id' composed of the images in 'list_sha1s' to 'table_updateinfos_name'.
+
+    :param list_sha1s: list of the images SHA1
+    :param update_id: update identifier
+    """
     # Build update dictionary
     dict_updates = dict()
     dict_updates[update_id] = {self.column_list_sha1s: ','.join(list_sha1s)}
@@ -332,6 +337,7 @@ class HBaseIndexerMinimal(ConfReader):
           raise ValueError("Could not initialize hbase_table")
 
         # Sometimes get KeyValue size too large when inserting processed images...
+        # Usually happens for GIF images
         b = hbase_table.batch(batch_size=batch_size) # should we have a bigger batch size?
         # Assume dict_rows[k] is a dictionary ready to be pushed to HBase...
         for k in dict_rows:
@@ -417,7 +423,7 @@ class HBaseIndexerMinimal(ConfReader):
     # sbpycaffe is saved as np.float32 while dlib face features are np.float64
     feat_type_decode = extr_type.split("_")[0]
     # We need to get all extractions and parse them for matches with extr_type...
-    # We could also read image infos if we need to filter things out
+    # We could also read image infos if we need to filter things out based on format and/or image size
 
     #print list_sha1s
     rows = self.get_columns_from_sha1_rows(list_sha1s, columns=[extraction_column_family])
@@ -442,49 +448,3 @@ class HBaseIndexerMinimal(ConfReader):
     if self.verbose > 0:
       print "[{}: info] Got {} rows and {} features.".format(self.pp, len(rows), len(samples_id))
     return samples_id, feats
-
-
-
-    # # Something like this could be used to get precomputed face features
-    # # But we should get a JSON listing all faces found features and parse it...
-    # # (TO BE IMPLEMENTED)
-    # def get_precomp_from_sha1(self, list_sha1s, list_type):
-    #     """ Retrieves the 'list_type' extractions results from HBase for the image in 'list_sha1s'.
-
-    #     :param list list_sha1s: list of sha1s of the images for which the extractions are requested.
-    #     :param list list_type: list of the extractions requested. They have to be a subset of *self.extractions_types*
-    #     :returns (list, list) (res, ok_ids): *res* contains the extractions, *ok_ids* the ids of the 'list_sha1s' for which we retrieved something.
-    #     """
-    #     res = []
-    #     ok_ids = []
-    #     print("[get_precomp_from_sha1] list_sha1s: {}.".format(list_sha1s))
-    #     rows = self.get_full_sha1_rows(list_sha1s)
-    #     # check if we have retrieved rows and extractions for each sha1
-    #     retrieved_sha1s = [row[0] for row in rows]
-    #     print("[get_precomp_from_sha1] retrieved_sha1s: {}.".format(list_sha1s))
-    #     # building a list of ok_ids and res for each extraction type
-    #     ok_ids = [[] for i in range(len(list_type))]
-    #     res = [[] for i in range(len(list_type))]
-    #     list_columns = self.get_columns_name(list_type)
-    #     print("[get_precomp_from_sha1] list_columns: {}.".format(list_columns))
-    #     for i,sha1 in enumerate(retrieved_sha1s):
-    #         for e in range(len(list_type)):
-    #             if list_columns[e] in rows[i][1]:
-    #                 print("[get_precomp_from_sha1] {} {} {} {}.".format(i,sha1,e,list_columns[e]))
-    #                 ok_ids[e].append(list_sha1s.index(sha1))
-    #                 res[e].append(np.frombuffer(base64.b64decode(rows[i][1][list_columns[e]]), np.float32))
-    #                 #res[e].append(rows[i][1][list_columns[e]])
-    #     return res, ok_ids
-
-
-    # def get_columns_name(self, list_type):
-    #     list_columns = []
-    #     if self.extractions_types:
-    #         for e, extr in enumerate(list_type):
-    #             if extr not in self.extractions_types:
-    #                 raise ValueError("[HBaseIndexerMinimal.get_columns_name: error] Unknown extraction type \"{}\".".format(extr))
-    #             pos = self.extractions_types.index(extr)
-    #             list_columns.append(self.extractions_columns[pos])
-    #     else:
-    #         raise ValueError("[HBaseIndexerMinimal.get_columns_name: error] extractions_types were not loaded")
-    #     return list_columns
