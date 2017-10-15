@@ -409,7 +409,7 @@ class ExtractionProcessor(ConfReader):
         del self.q_out
 
         # To try to adjust a too optimistic nb_threads setting
-        if (sum(thread_creation_failed) > 0 or sum(deleted_extr)) and self.nb_threads > 2:
+        if (sum(thread_creation_failed) > 0 or sum(deleted_extr) > 0) and self.nb_threads > 2:
           self.nb_threads -= 1
 
         print_msg = "[{}.process_batch: log] Completed update {} in {}s."
