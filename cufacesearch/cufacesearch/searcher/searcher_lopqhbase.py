@@ -20,6 +20,8 @@ class SearcherLOPQHBase(GenericSearcher):
     self.num_procs = 6 # could be read from configuration
     self.model_params = None
     self.last_refresh = datetime.now()
+    # making LOPQSearcherLMDB the default LOPQSearcher
+    self.lopq_searcher = "LOPQSearcherLMDB"
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
 
   def get_model_params(self):
@@ -32,6 +34,10 @@ class SearcherLOPQHBase(GenericSearcher):
       # Number of dimensions to keep after PCA
       pca = self.get_required_param('lopq_pcadims')
       self.model_params['pca'] = pca
+    lopq_searcher = self.get_param('lopq_searcher')
+    if lopq_searcher:
+      self.lopq_searcher = lopq_searcher
+
 
   def set_pp(self):
     self.pp = "SearcherLOPQHBase"
@@ -63,14 +69,25 @@ class SearcherLOPQHBase(GenericSearcher):
 
     # Setup searcher with LOPQ model
     if lopq_model:
-      from lopq.search import LOPQSearcher
-      self.searcher = LOPQSearcher(lopq_model)
-      # NB: an empty lopq_model would make sense only if we just want to detect...
+      # LOPQSearcherLMDB is now the default, as it makes the index more persistent and more easily usable with multiple processes.
+      if self.lopq_searcher == "LOPQSearcherLMDB":
+        from lopq.search import LOPQSearcherLMDB
+        import lmdb
+        # TODO: should we get path from a parameter?
+        self.searcher = LOPQSearcherLMDB(lopq_model, lmdb_path='./lmdb_index/', id_lambda=str)
+        self.updates_env = lmdb.open('./lmdb_updates/', map_size=1024 * 1000000 * 1, writemap=True, map_async=True, max_dbs=1)
+        self.updates_index_db = self.env.open_db("updates")
+      elif self.lopq_searcher == "LOPQSearcher":
+        from lopq.search import LOPQSearcher
+        self.searcher = LOPQSearcher(lopq_model)
+      else:
+        raise ValueError("Unknown 'lopq_searcher' type: {}".format(self.lopq_searcher))
+    # NB: an empty lopq_model would make sense only if we just want to detect...
 
   def get_train_features(self):
     # Save training features to disk, if we ever want to train with different model configurations as
     # gathering features can take a while
-    # TODO: current pickle system likely to create out of memory error, need to stream saving/loading...
+    # TODO: current pickle system likely to create out of memory error, would need to stream saving/loading...
     if self.save_train_features:
       train_feat_fn = self.get_train_features_str()
       train_np = self.storer.load(train_feat_fn)
@@ -176,17 +193,14 @@ class SearcherLOPQHBase(GenericSearcher):
     # technically we could even explore different configurations...
 
 
-  def compute_codes(self, det_ids, data, codes_path=None, model=None):
+  def compute_codes(self, det_ids, data, codes_path=None):
     # Compute codes for each update batch and save them
     from lopq.utils import compute_codes_parallel
     msg = "[{}.compute_codes: info] Computing codes for {} {}s."
     print msg.format(self.pp, len(det_ids), self.input_type)
 
-    if model is None:
-      model = self.searcher.model
-
     # That keeps the ordering intact, but output is a chain
-    codes = compute_codes_parallel(data, model, self.num_procs)
+    codes = compute_codes_parallel(data, self.searcher.model, self.num_procs)
 
     # Build dict output
     codes_dict = dict()
@@ -211,7 +225,24 @@ class SearcherLOPQHBase(GenericSearcher):
     #   for i, code in enumerate(codes):
     #     outf.write("{}\t{}\n".format(face_ids[i], [code.coarse, code.fine]))
 
+  def add_update(self, update_id):
+    if self.lopq_searcher == "LOPQSearcherLMDB":
+      # TODO: Should we used another LMDB to store updates indexed?
+      with self.updates_env.begin(db=self.updates_index_db, write=True) as txn:
+        txn.put(update_id, datetime.now())
+    else:
+      self.indexed_updates.add(update_id)
 
+  def is_update_indexed(self, update_id):
+    if self.lopq_searcher == "LOPQSearcherLMDB":
+      with self.updates_env.begin(db=self.updates_index_db, write=False) as txn:
+        found_update = txn.get(update_id)
+        if found_update:
+          return True
+        else:
+          return False
+    else:
+      return update_id in self.indexed_updates
 
   def load_codes(self):
     # Calling this method can also perfom an update of the index
@@ -231,7 +262,7 @@ class SearcherLOPQHBase(GenericSearcher):
     for batch_updates in self.indexer.get_updates_from_date(start_date="1970-01-01", extr_type=self.build_extr_str()):
       for update in batch_updates:
         update_id = update[0]
-        if update_id not in self.indexed_updates and "info:"+update_str_processed in update[1]:
+        if not self.is_update_indexed(update_id) and "info:"+update_str_processed in update[1]:
           print "[{}: log] Looking for codes of update {}".format(self.pp, update_id)
           # Get this update codes
           codes_string = self.build_codes_string(update_id)
@@ -241,13 +272,14 @@ class SearcherLOPQHBase(GenericSearcher):
             if codes_dict is None:
               raise ValueError('Could not load codes: {}'.format(codes_string))
           except Exception as inst:
-            # Compute codes for update not yet processed and save them
-            start_compute = time.time()
             # Update codes not available
             if self.verbose > 1:
               print "[{}: log] Update {} codes could not be loaded: {}".format(self.pp, update_id, inst)
+            # Compute codes for update not yet processed and save them
+            start_compute = time.time()
             # Get detections (if any) and features...
             list_sha1s = update[1][column_list_sha1s]
+            # Double check that this gets properly features of detections
             samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
             codes_dict = self.compute_codes(samples_ids, features, codes_string)
             update_compute_time = time.time() - start_compute
@@ -257,7 +289,12 @@ class SearcherLOPQHBase(GenericSearcher):
 
           # Use new method add_codes_from_dict of searcher
           self.searcher.add_codes_from_dict(codes_dict)
-          self.indexed_updates.add(update_id)
+          # TODO: indexed_updates should be made persistent too, and add indexing time
+          self.add_update(update_id)
+
+        # TODO: we could check that update processing time was older than indexing time, otherwise that means that
+        #    the update has been reprocessed and should be re-indexed.
+
 
     # We should save all_codes
     self.save_all_codes()
@@ -270,11 +307,13 @@ class SearcherLOPQHBase(GenericSearcher):
 
   def load_all_codes(self):
     # load self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
+    # NOT for LOPQSearcherLMDB
     pass
 
   def save_all_codes(self):
     # we should save self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
     # self.searcher.index could be big, how to save without memory issue...
+    # NOT for LOPQSearcherLMDB
     pass
 
   def search_from_feats(self, dets, feats, options_dict=dict()):
@@ -299,10 +338,6 @@ class SearcherLOPQHBase(GenericSearcher):
     # this should be set with a parameter either in conf or options_dict too.
     # should we use self.quota here? and potentially overwrite from options_dict
     quota = 2 * max_returned
-
-    sim_images = []
-    sim_dets = []
-    sim_score = []
 
     #print dets
     if self.detector is not None:
@@ -367,6 +402,8 @@ class SearcherLOPQHBase(GenericSearcher):
     else:
       # No detection
       results = []
+      sim_images = []
+      sim_score = []
 
       for i in range(len(feats)):
         if self.searcher:

@@ -42,7 +42,23 @@ def predict_cluster(x, centroids):
     :returns int:
         cluster assignment
     """
-    return ((x - centroids) ** 2).sum(axis=1).argmin(axis=0)
+    #return ((x - centroids) ** 2).sum(axis=1).argmin(axis=0)
+
+    cid = ((x - centroids) ** 2).sum(axis=1).argmin(axis=0)
+    if centroids.shape[0] <= 256:
+        return np.uint8(cid)
+    elif centroids.shape[0] <= 65536:
+        return np.uint16(cid)
+    else:
+        return np.uint32(cid)
+
+    # if centroids.shape[0] <= 256:
+    #     ocid = np.uint8(cid)
+    # elif centroids.shape[0] <= 65536:
+    #     ocid = np.uint16(cid)
+    # else:
+    #     ocid = np.uint32(cid)
+    # return ocid
 
 
 def load_xvecs(filename, base_type='f', max_num=None):

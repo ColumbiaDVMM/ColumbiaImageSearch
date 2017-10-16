@@ -395,21 +395,32 @@ class LOPQSearcherLMDB(LOPQSearcherBase):
         self.lmdb_path = lmdb_path
         self.id_lambda = id_lambda
 
-        self.env = lmdb.open(self.lmdb_path, map_size=1024*2000000*2, writemap=False, map_async=True, max_dbs=1)
+        # TODO: pass memory size, index_db name as parameters?
+        # Should we have another DB to list (permanently) the updates we have indexed?
+        # Set writemap to True to allow usage of a bigger DB than available RAM?
+        # set map_size to 16 or 32GB? Default to (free?) disk size?
+        #self.env = lmdb.open(self.lmdb_path, map_size=1024*1000000*2, writemap=False, map_async=True, max_dbs=1)
+        self.env = lmdb.open(self.lmdb_path, map_size=1024 * 1000000 * 32, writemap=True, map_async=True, max_dbs=1)
         self.index_db = self.env.open_db("index")
+        # This counts the number of entries in all databases...
+        self.nb_indexed = self.env.stat()['entries']
 
     def encode_cell(self, cell):
+        # TODO: type should be adapted to number of coarse clusters
         return array.array("H", cell).tostring()
 
     def decode_cell(self, cell_bytes):
+        # TODO: type should be adapted to number of coarse clusters
         a = array.array("H")
         a.fromstring(cell_bytes)
         return tuple(a.tolist())
 
     def encode_fine_codes(self, fine):
+        # TODO: type should be adapted to number of fine clusters
         return array.array("B", fine).tostring()
 
     def decode_fine_codes(self, fine_bytes):
+        # TODO: type should be adapted to number of fine clusters
         a = array.array("B")
         a.fromstring(fine_bytes)
         return tuple(a.tolist())
@@ -425,6 +436,7 @@ class LOPQSearcherLMDB(LOPQSearcherBase):
             defaults to the index of the code tuple if not provided
         """
         # If a list of ids is not provided, assume it is the index of the data
+        # TODO: If this method is called multiple times, we should add the current number of indexed data...
         if ids is None:
             ids = count()
 
@@ -435,8 +447,10 @@ class LOPQSearcherLMDB(LOPQSearcherBase):
                 key = key_prefix + key_suffix
                 val = self.encode_fine_codes(code[1])
                 txn.put(key, val)
-                self.nb_indexed += 1
+                # the nb_indexed will not be correct if there are duplicates...
+                #self.nb_indexed += 1
         self.env.sync()
+        self.nb_indexed = self.env.stat()['entries']
 
     def get_cell(self, cell):
         """
