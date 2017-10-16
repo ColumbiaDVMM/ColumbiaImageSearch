@@ -76,7 +76,7 @@ class SearcherLOPQHBase(GenericSearcher):
         # TODO: should we get path from a parameter?
         self.searcher = LOPQSearcherLMDB(lopq_model, lmdb_path='./lmdb_index/', id_lambda=str)
         self.updates_env = lmdb.open('./lmdb_updates/', map_size=1024 * 1000000 * 1, writemap=True, map_async=True, max_dbs=1)
-        self.updates_index_db = self.env.open_db("updates")
+        self.updates_index_db = self.updates_env.open_db("updates")
       elif self.lopq_searcher == "LOPQSearcher":
         from lopq.search import LOPQSearcher
         self.searcher = LOPQSearcher(lopq_model)
