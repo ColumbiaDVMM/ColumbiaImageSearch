@@ -229,14 +229,14 @@ class SearcherLOPQHBase(GenericSearcher):
     if self.lopq_searcher == "LOPQSearcherLMDB":
       # TODO: Should we used another LMDB to store updates indexed?
       with self.updates_env.begin(db=self.updates_index_db, write=True) as txn:
-        txn.put(update_id, datetime.now())
+        txn.put(bytes(update_id), bytes(datetime.now()))
     else:
       self.indexed_updates.add(update_id)
 
   def is_update_indexed(self, update_id):
     if self.lopq_searcher == "LOPQSearcherLMDB":
       with self.updates_env.begin(db=self.updates_index_db, write=False) as txn:
-        found_update = txn.get(update_id)
+        found_update = txn.get(bytes(update_id))
         if found_update:
           return True
         else:
