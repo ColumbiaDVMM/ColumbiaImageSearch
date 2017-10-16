@@ -82,8 +82,10 @@ def multisequence(x, centroids):
 
 
 class LOPQSearcherBase(object):
-    
-    nb_indexed = 0
+
+    def __init__(self):
+        self.nb_indexed = 0
+        self.verbose = 0
 
     def add_data(self, data, ids=None, num_procs=1):
         """
@@ -263,8 +265,14 @@ class LOPQSearcherBase(object):
             pass
 
     def add_codes_from_dict(self, codes_dict):
+        # for k in codes_dict:
+        #     self.add_codes([codes_dict[k]], [k])
+        list_codes = []
+        list_ids = []
         for k in codes_dict:
-            self.add_codes([codes_dict[k]], [k])
+            list_codes.append(codes_dict[k])
+            list_ids.append(k)
+        self.add_codes(list_codes, list_ids)
 
 
     def add_codes(self, codes, ids=None):
@@ -341,7 +349,8 @@ class LOPQSearcher(LOPQSearcherBase):
                     dict_ids[cell].add(item_id)
                     self.nb_indexed += 1
                 else:
-                    print 'Discarding duplicate sample: {}'.format(item_id)
+                    if self.verbose > 0:
+                        print 'Discarding duplicate sample: {}'.format(item_id)
             except Exception as inst:
                 err_msg = 'Could not push code {}. ({}: {})'.format(code, type(inst), inst)
                 from cufacesearch.common.error import full_trace_error
