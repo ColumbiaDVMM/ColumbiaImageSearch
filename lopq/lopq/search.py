@@ -310,6 +310,7 @@ class LOPQSearcher(LOPQSearcherBase):
         :param LOPQModel model:
             the model for indexing and ranking
         """
+        super(LOPQSearcher, self).__init__()
         self.model = model
         self.index = defaultdict(list)
 
