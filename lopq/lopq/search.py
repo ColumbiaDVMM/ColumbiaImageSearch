@@ -336,7 +336,7 @@ class LOPQSearcher(LOPQSearcherBase):
                 # NB: should we use a dictionary for 'code' too?
                 #    If we have many collisions that could be beneficial
                 # We need to avoid duplicate insertions,
-                # to deal with images that appear in both legacy/new data that could appear in two different updates...
+                # to deal with images that could appear in two different updates...
                 if cell not in dict_ids:
                     dict_ids[cell] = set()
                     if cell in self.index:
@@ -345,6 +345,8 @@ class LOPQSearcher(LOPQSearcherBase):
                 # should the cell maintain the set of item_id too?
                 # or just get it and memoize it in this method?
                 if item_id not in dict_ids[cell]:
+                    # if code[0] is cell, why do we store it?
+                    # are codes memory optimized here? using the smallest uint possible?
                     self.index[cell].append((item_id, code))
                     dict_ids[cell].add(item_id)
                     self.nb_indexed += 1
@@ -353,8 +355,9 @@ class LOPQSearcher(LOPQSearcherBase):
                         print 'Discarding duplicate sample: {}'.format(item_id)
             except Exception as inst:
                 err_msg = 'Could not push code {}. ({}: {})'.format(code, type(inst), inst)
-                from cufacesearch.common.error import full_trace_error
-                full_trace_error(err_msg)
+                print err_msg
+                #from cufacesearch.common.error import full_trace_error
+                #full_trace_error(err_msg)
 
 
     def get_cell(self, cell):

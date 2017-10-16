@@ -167,24 +167,31 @@ class APIResponder(Resource):
     return outp_we
 
   def refresh(self):
-    # If new images are available in HBase, who would call that?
+    # Force check if new images are available in HBase
+    # Could be called if data needs to be as up-to-date as it can be...
     if self.searcher:
       self.searcher.load_codes()
     return {'refresh': 'just run a new refresh'}
 
   def status(self):
-    # refresh
-    if self.searcher:
-      self.searcher.load_codes()
     # prepare output
     status_dict = {'status': 'OK'}
 
     status_dict['API_start_time'] = self.start_time.isoformat(' ')
     status_dict['API_uptime'] = str(datetime.now()-self.start_time)
-    if self.searcher.indexer.last_refresh:
-      status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh.isoformat(' ')
+
+    # Try to refresh on status call but at most every hour
+    if self.searcher.last_refresh:
+      last_refresh_time = self.searcher.last_refresh
     else:
-      status_dict['last_refresh_time'] = self.searcher.indexer.last_refresh
+      last_refresh_time = self.searcher.indexer.last_refresh
+
+    diff_time = datetime.now()-last_refresh_time
+    if self.searcher and diff_time.total_seconds() > 3600:
+      self.searcher.load_codes()
+      last_refresh_time = self.searcher.last_refresh
+
+    status_dict['last_refresh_time'] = last_refresh_time.isoformat(' ')
     status_dict['nb_indexed'] = str(self.searcher.searcher.nb_indexed)
     return status_dict
 

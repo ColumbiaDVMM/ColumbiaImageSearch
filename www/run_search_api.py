@@ -42,7 +42,9 @@ if __name__ == '__main__':
       api.global_searcher = searcher_lopqhbase.SearcherLOPQHBase(global_conf)
       break
     except Exception as inst:
-      print "Failed to initialized searcher ({}): {}".format(type(inst), inst)
+      err_msg = "Failed to initialized searcher ({}): {}".format(type(inst), inst)
+      from cufacesearch.common.error import full_trace_error
+      full_trace_error(err_msg)
       time.sleep(60)
   api.global_start_time = datetime.now()
   api.input_type = api.global_searcher.input_type

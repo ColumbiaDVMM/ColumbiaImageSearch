@@ -1,6 +1,7 @@
 import sys
 import time
 import numpy as np
+from datetime import datetime
 
 from generic_searcher import GenericSearcher
 # Beware: the loading function to use could depend on the featurizer type...
@@ -18,6 +19,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # number of processors to use for parallel computation of codes
     self.num_procs = 6 # could be read from configuration
     self.model_params = None
+    self.last_refresh = datetime.now()
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
 
   def get_model_params(self):
@@ -219,13 +221,18 @@ class SearcherLOPQHBase(GenericSearcher):
 
     start_load = time.time()
     total_compute_time = 0
+
+    if self.searcher.nb_indexed == 0:
+      # We should try to load a concatenation of all unique codes that also contains a list of the corresponding updates...
+      # fill codes and self.indexed_updates
+      self.load_all_codes()
+
     # Get all updates ids for the extraction type
     for batch_updates in self.indexer.get_updates_from_date(start_date="1970-01-01", extr_type=self.build_extr_str()):
       for update in batch_updates:
         update_id = update[0]
-        print "[{}: log] Looking for codes of update {}".format(self.pp, update_id)
         if update_id not in self.indexed_updates and "info:"+update_str_processed in update[1]:
-
+          print "[{}: log] Looking for codes of update {}".format(self.pp, update_id)
           # Get this update codes
           codes_string = self.build_codes_string(update_id)
           try:
@@ -252,11 +259,23 @@ class SearcherLOPQHBase(GenericSearcher):
           self.searcher.add_codes_from_dict(codes_dict)
           self.indexed_updates.add(update_id)
 
+    # We should save all_codes
+    self.save_all_codes()
+
     total_load = time.time() - start_load
+    self.last_refresh = datetime.now()
     if self.verbose > 0:
       print "[{}: log] Total udpates computation time is: {}s".format(self.pp, total_compute_time)
       print "[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load)
 
+  def load_all_codes(self):
+    # load self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
+    pass
+
+  def save_all_codes(self):
+    # we should save self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
+    # self.searcher.index could be big, how to save without memory issue...
+    pass
 
   def search_from_feats(self, dets, feats, options_dict=dict()):
     import time
