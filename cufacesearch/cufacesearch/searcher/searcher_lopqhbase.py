@@ -73,9 +73,12 @@ class SearcherLOPQHBase(GenericSearcher):
       if self.lopq_searcher == "LOPQSearcherLMDB":
         from lopq.search import LOPQSearcherLMDB
         import lmdb
-        # TODO: should we get path from a parameter?
-        self.searcher = LOPQSearcherLMDB(lopq_model, lmdb_path='./lmdb_index/', id_lambda=str)
-        self.updates_env = lmdb.open('./lmdb_updates/', map_size=1024 * 1000000 * 1, writemap=True, map_async=True, max_dbs=1)
+        # TODO: should we get path from a parameter? and/or add model_str to it?
+        # self.searcher = LOPQSearcherLMDB(lopq_model, lmdb_path='./lmdb_index/', id_lambda=str)
+        # self.updates_env = lmdb.open('./lmdb_updates/', map_size=1024 * 1000000 * 1, writemap=True, map_async=True, max_dbs=1)
+        self.searcher = LOPQSearcherLMDB(lopq_model, lmdb_path='./lmdb_index_'+self.build_model_str(), id_lambda=str)
+        self.updates_env = lmdb.open('./lmdb_updates_'+self.build_model_str(), map_size=1024 * 1000000 * 1,
+                                     writemap=True, map_async=True, max_dbs=1)
         self.updates_index_db = self.updates_env.open_db("updates")
       elif self.lopq_searcher == "LOPQSearcher":
         from lopq.search import LOPQSearcher
@@ -227,7 +230,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
   def add_update(self, update_id):
     if self.lopq_searcher == "LOPQSearcherLMDB":
-      # TODO: Should we used another LMDB to store updates indexed?
+      # TODO: Should we use another LMDB to store updates indexed?
       with self.updates_env.begin(db=self.updates_index_db, write=True) as txn:
         txn.put(bytes(update_id), bytes(datetime.now()))
     else:
@@ -253,10 +256,10 @@ class SearcherLOPQHBase(GenericSearcher):
     start_load = time.time()
     total_compute_time = 0
 
-    if self.searcher.nb_indexed == 0:
-      # We should try to load a concatenation of all unique codes that also contains a list of the corresponding updates...
-      # fill codes and self.indexed_updates
-      self.load_all_codes()
+    # if self.searcher.nb_indexed == 0:
+    #   # We should try to load a concatenation of all unique codes that also contains a list of the corresponding updates...
+    #   # fill codes and self.indexed_updates
+    #   self.load_all_codes()
 
     # Get all updates ids for the extraction type
     for batch_updates in self.indexer.get_updates_from_date(start_date="1970-01-01", extr_type=self.build_extr_str()):
@@ -296,8 +299,8 @@ class SearcherLOPQHBase(GenericSearcher):
         #    the update has been reprocessed and should be re-indexed.
 
 
-    # We should save all_codes
-    self.save_all_codes()
+    # # We should save all_codes
+    # self.save_all_codes()
 
     total_load = time.time() - start_load
     self.last_refresh = datetime.now()
@@ -305,16 +308,16 @@ class SearcherLOPQHBase(GenericSearcher):
       print "[{}: log] Total udpates computation time is: {}s".format(self.pp, total_compute_time)
       print "[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load)
 
-  def load_all_codes(self):
-    # load self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
-    # NOT for LOPQSearcherLMDB
-    pass
-
-  def save_all_codes(self):
-    # we should save self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
-    # self.searcher.index could be big, how to save without memory issue...
-    # NOT for LOPQSearcherLMDB
-    pass
+  # def load_all_codes(self):
+  #   # load self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
+  #   # NOT for LOPQSearcherLMDB
+  #   pass
+  #
+  # def save_all_codes(self):
+  #   # we should save self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
+  #   # self.searcher.index could be big, how to save without memory issue...
+  #   # NOT for LOPQSearcherLMDB
+  #   pass
 
   def search_from_feats(self, dets, feats, options_dict=dict()):
     import time

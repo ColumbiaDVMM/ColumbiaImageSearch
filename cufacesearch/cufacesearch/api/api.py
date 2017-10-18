@@ -192,7 +192,7 @@ class APIResponder(Resource):
       last_refresh_time = self.searcher.last_refresh
 
     status_dict['last_refresh_time'] = last_refresh_time.isoformat(' ')
-    status_dict['nb_indexed'] = str(self.searcher.searcher.nb_indexed)
+    status_dict['nb_indexed'] = str(self.searcher.searcher.get_nb_indexed())
     return status_dict
 
   #TODO: Deal with muliple query images with an array parameter request.form.getlist(key)

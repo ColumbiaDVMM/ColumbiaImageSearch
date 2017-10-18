@@ -87,6 +87,9 @@ class LOPQSearcherBase(object):
         self.nb_indexed = 0
         self.verbose = 0
 
+    def get_nb_indexed(self):
+        return self.nb_indexed
+
     def add_data(self, data, ids=None, num_procs=1):
         """
         Add raw data into the search index.
@@ -402,8 +405,12 @@ class LOPQSearcherLMDB(LOPQSearcherBase):
         #self.env = lmdb.open(self.lmdb_path, map_size=1024*1000000*2, writemap=False, map_async=True, max_dbs=1)
         self.env = lmdb.open(self.lmdb_path, map_size=1024 * 1000000 * 32, writemap=True, map_async=True, max_dbs=1)
         self.index_db = self.env.open_db("index")
-        # This counts the number of entries in all databases...
-        self.nb_indexed = self.env.stat()['entries']
+
+    def get_nb_indexed(self):
+        with self.env.begin(self.index_db, write=False) as txn:
+            self.nb_indexed = txn.stat()['entries']
+        return self.nb_indexed
+
 
     def encode_cell(self, cell):
         # TODO: type should be adapted to number of coarse clusters
