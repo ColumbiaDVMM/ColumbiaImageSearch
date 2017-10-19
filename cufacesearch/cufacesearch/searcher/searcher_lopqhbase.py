@@ -110,7 +110,7 @@ class SearcherLOPQHBase(GenericSearcher):
             for i, item in enumerate(cursor.iternext()):
               if i >= nb_feats_to_read:
                 break
-              feats[i, :] = np.frombuffer(item[1], dtype=get_feat_dtype(self.featurizer_type))
+              feats[i, :] = np.frombuffer(item[1], dtype=dtype)
     return feats
 
   def save_feats_to_lmbd(self, feats_db, samples_ids, np_features, max_feats=0):
