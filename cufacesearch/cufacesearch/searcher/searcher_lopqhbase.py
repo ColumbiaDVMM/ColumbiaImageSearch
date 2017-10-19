@@ -45,7 +45,7 @@ class SearcherLOPQHBase(GenericSearcher):
     if lopq_searcher:
       self.lopq_searcher = lopq_searcher
 
-  def pca_model_str(self):
+  def build_pca_model_str(self):
     # Use feature type, self.nb_train_pca and pca_dims
     if self.pca_model_str is None:
       # We could add some additional info, like model parameters, number of samples used for training...
@@ -230,8 +230,8 @@ class SearcherLOPQHBase(GenericSearcher):
         lopq_model = LOPQModelPCA(V=self.model_params['V'], M=self.model_params['M'],
                                   subquantizer_clusters=self.model_params['subq'], renorm=True)
         # pca loading/training first
-        pca_model = self.storer.load(self.pca_model_str())
-        if lopq_model is None:
+        pca_model = self.storer.load(self.build_pca_model_str())
+        if pca_model is None:
           train_np = self.get_train_features(self.nb_train_pca)
           msg = "[{}.train_model: info] Starting training of PCA model, keeping {} dimensions from features {}."
           print msg.format(self.pp, self.model_params['pca'], train_np.shape)
@@ -240,7 +240,7 @@ class SearcherLOPQHBase(GenericSearcher):
           lopq_model.fit_pca(train_np, pca_dims=self.model_params['pca'])
           print "[{}.train_model: info] Trained pca model in {}s.".format(self.pp, time.time() - start_train_pca)
           del train_np
-          self.storer.save(self.pca_model_str(), {"P": lopq_model.pca_P, "mu":lopq_model.pca_mu})
+          self.storer.save(self.build_pca_model_str(), {"P": lopq_model.pca_P, "mu":lopq_model.pca_mu})
         else:
           lopq_model.pca_P = pca_model["P"]
           lopq_model.pca_mu = pca_model["mu"]
