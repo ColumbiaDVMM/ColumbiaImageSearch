@@ -1,0 +1,6 @@
+{
+    "hbase_host": "zk04.xdata.data-tactics-corp.com:2181",
+    "tab_name_in": "escorts_images_sha1_infos_from_ts_subsampled",
+    "tab_name_out": "escorts_images_sha1_infos_from_ts_subsampled_newformat",
+    "tab_out_families": {"info": {}, "ext": {}, "ad": {}}
+}

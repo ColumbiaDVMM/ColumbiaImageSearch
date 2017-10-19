@@ -26,6 +26,7 @@ default_partitions_nb = 64
 day_gap = 86400000 # One day
 valid_url_start = 'https://s3'
 compression = "org.apache.hadoop.io.compress.GzipCodec"
+#compression = None
 
 fields_cdr = ["obj_stored_url", "obj_parent", "content_type"]
 fields_list = [("info","s3_url"), ("info","all_parent_ids"), ("info","image_discarded"), ("info","cu_feat_id"), ("info","img_info")]
@@ -272,7 +273,11 @@ def sha1_key_json_values(data):
             if field[1]!='s3_url' and field[1]!='img_info': 
                 v[':'.join(field)] = list(set([x for x in get_list_value(json_x,field)[0].strip().split(',')]))
             else: # s3url or img_info
-                v[':'.join(field)] = [unicode(get_list_value(json_x,field)[0].strip())]
+                value = [unicode(get_list_value(json_x,field)[0].strip())]
+                if field[1]=='img_info':
+                    # discard value from HBase to avoid any reduce issue.
+                    value = []
+                v[':'.join(field)] = value
         except: # field not in row
             pass
     return [v]
