@@ -256,6 +256,8 @@ class APIResponder(Resource):
     for i in range(len(all_sim_faces)):
       # Parse query face, and build face tuple (sha1, url/b64 img, face bounding box)
       query_face = all_sim_faces[i]
+      print "query_face [{}]: {}".format(query_face.keys(), query_face)
+      sys.stdout.flush()
       query_sha1 = query_face[self.searcher.do.map['query_sha1']]
       if query_type == 'B64':
         query_face_img = query_urls_map[query_sha1]
@@ -266,7 +268,9 @@ class APIResponder(Resource):
         query_face_bbox_compstr = build_bbox_str_list(query_face_bbox)
       else:
         query_face_bbox_compstr = []
-      img_size = query_face[self.searcher.do.map['img_info']][1:]
+      img_size = None
+      if self.searcher.do.map['img_info'] in query_face:
+        img_size = query_face[self.searcher.do.map['img_info']][1:]
       out_query_face = (query_sha1, query_face_img, query_face_bbox_compstr, img_size)
       # Parse similar faces
       similar_faces = query_face[self.searcher.do.map['similar_'+self.input_type+'s']]
@@ -276,9 +280,13 @@ class APIResponder(Resource):
         # build face tuple (sha1, url/b64 img, face bounding box, distance) for one similar face
         osface_sha1 = similar_faces[self.searcher.do.map['image_sha1s']][j]
         osface_url = similar_faces[self.searcher.do.map['cached_image_urls']][j]
-        osface_bbox = similar_faces[self.searcher.do.map[self.input_type+'s']][j]
-        osface_bbox_compstr = build_bbox_str_list(osface_bbox)
-        osface_img_size = similar_faces[self.searcher.do.map['img_info']][j][1:]
+        osface_bbox_compstr = None
+        if self.input_type != "image":
+          osface_bbox = similar_faces[self.searcher.do.map[self.input_type+'s']][j]
+          osface_bbox_compstr = build_bbox_str_list(osface_bbox)
+        osface_img_size = None
+        if self.searcher.do.map['img_info'] in similar_faces:
+          osface_img_size = similar_faces[self.searcher.do.map['img_info']][j][1:]
         osface_dist = similar_faces[self.searcher.do.map['distances']][j]
         out_similar_faces.append((osface_sha1, osface_url, osface_bbox_compstr, osface_dist, osface_img_size))
       # build output
@@ -296,7 +304,13 @@ class APIResponder(Resource):
 
     #print search_results
     sys.stdout.flush()
-    return make_response(render_template('view_similar_faces_wbbox.html',
+    if self.input_type != "image":
+      return make_response(render_template('view_similar_faces_wbbox.html',
                                          settings=settings,
                                          search_results=search_results),
                          200, headers)
+    else:
+      return make_response(render_template('view_similar_images.html',
+                                           settings=settings,
+                                           search_results=search_results),
+                           200, headers)

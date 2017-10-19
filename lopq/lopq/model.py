@@ -248,8 +248,6 @@ def train_pca(data, pca_dims=256, pca_subsample=None):
     :return:
     """
 
-    # TODO: or should we just use http://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
-
     if pca_subsample:
         data = data[:min(pca_subsample, data.shape[0]), :]
     count = data.shape[0]
@@ -872,8 +870,20 @@ class LOPQModelPCA(LOPQModel):
             self.subquantizer_clusters = subquantizer_clusters
 
 
+    def fit_pca(self, data, pca_dims=256, pca_subsample=None):
+        if self.pca_P is None or self.pca_mu is None:
+            # Train PCA
+            pca_params, pca_dims = train_pca(data, pca_dims, pca_subsample)
+            # set: self.pca_P, self.pca_mu
+            self.pca_P = pca_params['P']
+            self.pca_mu = pca_params['mu']
+        else:
+            raise ValueError("You are trying to retrain PCA...")
 
-    def fit(self, data, pca_dims=256, kmeans_coarse_iters=10, kmeans_local_iters=20, n_init=10, subquantizer_sample_ratio=1.0, random_state=None, verbose=False, pca_subsample=None):
+
+    def fit(self, data, pca_dims=256, kmeans_coarse_iters=10, kmeans_local_iters=20, n_init=10,
+            subquantizer_sample_ratio=1.0, random_state=None, verbose=False, pca_subsample=None,
+            apply_pca=True, train_pca=True):
         """
         Fit a model with the current model parameters. This method will use existing parameters and only
         train missing parameters.
@@ -900,28 +910,20 @@ class LOPQModelPCA(LOPQModel):
         # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/blob/5ee477943e2240585de160b86ceb64eea17a3545/workflows/build-lopq-index/lopq/spark/train_pca.py
         # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/blob/5ee477943e2240585de160b86ceb64eea17a3545/workflows/build-lopq-index/lopq/spark/pca_preparation.py
         # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/blob/e1d334f7820d27f36535cafaaa489d142aba8e8c/workflows/build-lopq-index/lopq/spark/train_model_wpca.py
+        if train_pca:
+            self.fit_pca(data, pca_dims, pca_subsample)
 
-        # Train PCA
-        pca_params, pca_dims = train_pca(data, pca_dims, pca_subsample)
-        # set: self.pca_P, self.pca_mu
-        self.pca_P = pca_params['P']
-        self.pca_mu = pca_params['mu']
 
         print "pca_P {}: {}".format(self.pca_P.shape, self.pca_P)
         print "pca_mu {}: {}".format(self.pca_mu.shape, self.pca_mu)
 
         # This seems to work
         print "data {}: {}".format(data.shape, np.linalg.norm(data[0, :]))
-        pca_data = self.apply_PCA(data)
+        if apply_pca:
+            pca_data = self.apply_PCA(data)
+        else:
+            pca_data = data
         print "pca_data {}: {}".format(pca_data.shape, np.linalg.norm(pca_data[0, :]))
-
-        # Re-normalize pca_data if renorm is set, to have meaningful euclidean distances
-        if self.renorm:
-            norm_pca_data = np.linalg.norm(pca_data, axis=1)
-            print "norm_pca_data {}: {}".format(norm_pca_data.shape, norm_pca_data)
-            normed_pca_data = pca_data/np.tile(norm_pca_data[:, np.newaxis], (1, pca_dims))
-            print "normed_pca_data {}: {}".format(normed_pca_data.shape, np.linalg.norm(normed_pca_data[0, :]))
-            pca_data = normed_pca_data
 
         parameters = train(pca_data, self.V, self.M, self.subquantizer_clusters, existing_parameters,
                            kmeans_coarse_iters, kmeans_local_iters, n_init, subquantizer_sample_ratio,
@@ -955,8 +957,20 @@ class LOPQModelPCA(LOPQModel):
         """
         Apply PCA to sample x.
         """
-        return np.dot(x - self.pca_mu, self.pca_P)
+        pca_data = np.dot(x - self.pca_mu, self.pca_P)
 
+        # Re-normalize if renorm param is set
+        if self.renorm:
+            # Deal with matrix
+            if len(pca_data.shape) > 1:
+                norm_pca_data = np.linalg.norm(pca_data, axis=1)
+                normed_pca_data = pca_data / np.tile(norm_pca_data[:, np.newaxis], (1, self.pca_P.shape[1]))
+            else:  # And single feature
+                norm_pca_data = np.linalg.norm(pca_data)
+                normed_pca_data = pca_data / norm_pca_data
+            pca_data = normed_pca_data
+
+        return pca_data
 
     def predict(self, x):
         """
@@ -972,17 +986,6 @@ class LOPQModelPCA(LOPQModel):
         """
         # First apply PCA
         x_pca = self.apply_PCA(x)
-
-        # Re-normalize if renorm param is set
-        if self.renorm:
-            if len(x_pca.shape) > 1:
-                # TODO: to be tested
-                norm_pca_data = np.linalg.norm(x_pca, axis=1)
-                normed_pca_data = x_pca / np.tile(norm_pca_data[:, np.newaxis], (1, self.pca_P.shape[1]))
-            else:
-                norm_pca_data = np.linalg.norm(x_pca)
-                normed_pca_data = x_pca / norm_pca_data
-            x_pca = normed_pca_data
 
         # Compute coarse quantizer codes
         coarse_codes = self.predict_coarse(x_pca)
@@ -1100,6 +1103,8 @@ class LOPQModelPCA(LOPQModel):
             # Reconstruct from cluster centroid
             x = np.concatenate((x, r + C[cluster]))
 
+            #NB: here with LOPQModelPCA, we get normed PCA projected reconstruction.
+
         return x
 
     def get_subquantizer_distances(self, x, coarse_codes, coarse_split=None):
@@ -1146,7 +1151,7 @@ class LOPQModelPCA(LOPQModel):
         Export model parameters in .mat file format.
 
         Splits in the parameters (coarse splits and fine splits) are concatenated together in the
-        resulting arrays. For example, the Cs paramaters become a 2 x V x D array where the first dimension
+        resulting arrays. For example, the Cs parameters become a 2 x V x D array where the first dimension
         indexes the split. The subquantizer centroids are encoded similarly as a 2 x (M/2) x 256 x (D/M) array.
         """
         raise NotImplementedError('export_mat not yet supported for LOPQModelPCA')

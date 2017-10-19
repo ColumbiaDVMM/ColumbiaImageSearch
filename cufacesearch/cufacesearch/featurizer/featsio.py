@@ -9,14 +9,16 @@ def normfeatB64encode(feat):
   out_feat = feat / norm_feat
   return featB64encode(out_feat)
 
+def get_feat_dtype(feat_type):
+  if feat_type and (feat_type == "sbpycaffe" or feat_type == "sbcmdline"):
+    return np.float32
+  else:
+    return np.float64
+
 def featB64decode(feat_B64, feat_type=None):
   # we need to provide dtype as by default it seems to be np.float64
   # but sentibank features are actually np.float32...
-  if feat_type and feat_type == "sbpycaffe":
-    return np.frombuffer(base64.b64decode(feat_B64), dtype=np.float32)
-  else:
-    return np.frombuffer(base64.b64decode(feat_B64))
-
+  return np.frombuffer(base64.b64decode(feat_B64), dtype=get_feat_dtype(feat_type))
 
 def parse_feat_line(line):
   # Expected line format is:

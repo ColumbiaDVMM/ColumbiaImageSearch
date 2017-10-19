@@ -3,47 +3,77 @@ class DictOutput():
   def __init__(self, mode='CamelCase'):
     self.map = dict()
     self.coord_map = ["left", "top", "right", "bottom"]
+    # add your input type if you create one.
+    self.input_types = ["image", "face"]
 
     if mode == 'CamelCase':
         self.fillDictCamelCase()
     else:
         self.fillDictOld()
 
+  def fillInputFieldsCamelCase(self, input, input_str):
+    self.map['query_' + input] = "Query" + input_str
+    self.map['similar_' + input + 's'] = "Similar" + input_str + "s"
+    self.map[input + 's'] = input_str + "s"
+    self.map['number_'+input+'s'] = "Number" + input_str + "s"
+    self.map['number_similar_'+input+'s'] = "NumberSimilar" + input_str + "s"
+    self.map['all_similar_'+input+'s'] = "AllSimilar" + input_str + "s"
+
+  def fillInputFieldsOld(self, input, input_str):
+    self.map['query_' + input] = "query_" + input_str
+    self.map['similar_' + input + 's'] = "similar_" + input_str + "s"
+    self.map[input + 's'] = input_str + "s"
+    self.map['number_'+input+'s'] = "number_" + input_str + "s"
+    self.map['number_similar_'+input+'s'] = "number_similar_" + input_str + "s"
+    self.map['all_similar_'+input+'s'] = "all_similar_" + input_str + "s"
+
   def fillDictCamelCase(self):
     self.map['query_sha1'] = "QuerySha1"
     self.map['query_url'] = "QueryURL"
-    self.map['query_face'] = "QueryFace"
     self.map['image_sha1s'] = "ImageSha1s"
-    self.map['similar_faces'] = "SimilarFaces"
-    self.map['similar_images'] = "SimilarImages"
-    self.map['faces'] = "Faces"
     self.map['img_info'] = "ImgInfo"
     self.map['distances'] = "Distances"
-    self.map['number_images'] = "NumberImages"
-    self.map['number_faces'] = "NumberFaces"
-    self.map['number_similar_faces'] = "NumberSimilarFaces"
-    self.map['number_similar_images'] = "NumberSimilarImages"
-    self.map['all_similar_faces'] = "AllSimilarFaces"
-    self.map['all_similar_images'] = "AllSimilarImages"
     self.map['cached_image_urls'] = "CachedImageURLs"
+    for input in self.input_types:
+      input_str = input.title()
+      self.fillInputFieldsCamelCase(input, input_str)
+
+    # self.map['query_face'] = "QueryFace"
+    # self.map['query_image'] = "QueryImage"
+    # self.map['similar_faces'] = "SimilarFaces"
+    # self.map['similar_images'] = "SimilarImages"
+    # self.map['faces'] = "Faces"
+    # self.map['images'] = "Images"
+    # self.map['number_faces'] = "NumberFaces"
+    # self.map['number_images'] = "NumberImages"
+    # self.map['number_similar_faces'] = "NumberSimilarFaces"
+    # self.map['number_similar_images'] = "NumberSimilarImages"
+    # self.map['all_similar_faces'] = "AllSimilarFaces"
+    # self.map['all_similar_images'] = "AllSimilarImages"
+
 
   def fillDictOld(self):
     self.map['query_sha1'] = "query_sha1"
     self.map['query_url'] = "query_url"
-    self.map['query_face'] = "query_face"
     self.map['image_sha1s'] = "image_sha1s"
-    self.map['similar_faces'] = "similar_faces"
-    self.map['similar_images'] = "similar_images"
-    self.map['faces'] = "faces"
     self.map['img_info'] = "img_info"
     self.map['distances'] = "distances"
-    self.map['number_images'] = "number_images"
-    self.map['number_faces'] = "number_faces"
-    self.map['number_similar_faces'] = "number_similar_faces"
-    self.map['number_similar_images'] = "number_similar_images"
-    self.map['all_similar_faces'] = "all_similar_faces"
-    self.map['all_similar_images'] = "all_similar_images"
     self.map['cached_image_urls'] = "cached_image_urls"
+    for input in self.input_types:
+      self.fillInputFieldsOld(input, input)
+
+    # self.map['query_face'] = "query_face"
+    # self.map['query_image'] = "query_image"
+    # self.map['similar_faces'] = "similar_faces"
+    # self.map['similar_images'] = "similar_images"
+    # self.map['faces'] = "faces"
+    # self.map['number_images'] = "number_images"
+    # self.map['number_faces'] = "number_faces"
+    # self.map['number_similar_faces'] = "number_similar_faces"
+    # self.map['number_similar_images'] = "number_similar_images"
+    # self.map['all_similar_faces'] = "all_similar_faces"
+    # self.map['all_similar_images'] = "all_similar_images"
+
 
   def format_output(self, dets, sim_images, sim_dets, sim_score, options_dict=dict(), input_type="image"):
     import time

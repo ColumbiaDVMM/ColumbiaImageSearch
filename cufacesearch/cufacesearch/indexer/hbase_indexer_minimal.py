@@ -168,7 +168,7 @@ class HBaseIndexerMinimal(ConfReader):
         # scan table from row_start, and accumulate in rows the information of the columns that are needed
         rows = []
         for one_row in hbase_table.scan(row_start=row_start, columns=columns, batch_size=2):
-          #print "one_row:",one_row
+          print "one_row:",one_row[0]
           rows.extend((one_row,))
           if len(rows) >= maxrows:
             return rows
@@ -207,12 +207,13 @@ class HBaseIndexerMinimal(ConfReader):
     row_start = update_prefix + extr_type + "_" + start_date
     try:
       while True:
-        # Should we add an option to exclude row_start?
         rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
         if rows:
           yield rows
+          # add '~' to exclude last row from next batch
           row_start = rows[-1][0]+'~'
         else:
+          print "[get_updates_from_date: log] 'rows' was None."
           break
     except Exception as inst: # try to catch any exception
       print "[get_updates_from_date: error] {}".format(inst)
