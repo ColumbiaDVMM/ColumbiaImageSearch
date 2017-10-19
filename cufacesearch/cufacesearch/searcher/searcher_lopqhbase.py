@@ -24,6 +24,7 @@ class SearcherLOPQHBase(GenericSearcher):
     self.last_refresh = datetime.now()
     self.last_full_refresh = datetime.now()
     self.last_indexed_update = None
+    self.pca_model_str = None
     # making LOPQSearcherLMDB the default LOPQSearcher
     self.lopq_searcher = "LOPQSearcherLMDB"
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
@@ -44,6 +45,12 @@ class SearcherLOPQHBase(GenericSearcher):
     if lopq_searcher:
       self.lopq_searcher = lopq_searcher
 
+  def pca_model_str(self):
+    # Use feature type, self.nb_train_pca and pca_dims
+    if self.pca_model_str is None:
+      # We could add some additional info, like model parameters, number of samples used for training...
+      self.pca_model_str = self.build_extr_str() + "_pca" + str(self.model_params['pca']) + "_train" + self.nb_train_pca
+    return self.pca_model_str
 
   def set_pp(self):
     self.pp = "SearcherLOPQHBase"
@@ -222,15 +229,21 @@ class SearcherLOPQHBase(GenericSearcher):
         # we could have default values for those parameters and/or heuristic to estimate them based on data count...
         lopq_model = LOPQModelPCA(V=self.model_params['V'], M=self.model_params['M'],
                                   subquantizer_clusters=self.model_params['subq'], renorm=True)
-        # pca_training first
-        train_np = self.get_train_features(self.nb_train_pca)
-        msg = "[{}.train_model: info] Starting training of PCA model, keeping {} dimensions from features {}."
-        print msg.format(self.pp, self.model_params['pca'], train_np.shape)
-        sys.stdout.flush()
-        start_train_pca = time.time()
-        lopq_model.fit_pca(train_np, pca_dims=self.model_params['pca'])
-        print "[{}.train_model: info] Trained pca model in {}s.".format(self.pp, time.time() - start_train_pca)
-        del train_np
+        # pca loading/training first
+        pca_model = self.storer.load(self.pca_model_str())
+        if lopq_model is None:
+          train_np = self.get_train_features(self.nb_train_pca)
+          msg = "[{}.train_model: info] Starting training of PCA model, keeping {} dimensions from features {}."
+          print msg.format(self.pp, self.model_params['pca'], train_np.shape)
+          sys.stdout.flush()
+          start_train_pca = time.time()
+          lopq_model.fit_pca(train_np, pca_dims=self.model_params['pca'])
+          print "[{}.train_model: info] Trained pca model in {}s.".format(self.pp, time.time() - start_train_pca)
+          del train_np
+          self.storer.save(self.pca_model_str(), {"P": lopq_model.pca_P, "mu":lopq_model.pca_mu})
+        else:
+          lopq_model.pca_P = pca_model["P"]
+          lopq_model.pca_mu = pca_model["mu"]
         # train model
         train_np = self.get_train_features(self.nb_train, lopq_pca_model=lopq_model)
         msg = "[{}.train_model: info] Starting local training of 'lopq_pca' model with parameters {} using features {}"

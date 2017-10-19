@@ -309,7 +309,7 @@ def train_coarse(data, V=8, kmeans_coarse_iters=10, n_init=10, random_state=None
     # Fit coarse model
     # TODO: this fails to train properly on big data with memory error, use MiniBatchKMeans instead
     #model = KMeans(n_clusters=V, init="k-means++", max_iter=kmeans_coarse_iters, n_init=n_init, n_jobs=1, verbose=False, random_state=random_state)
-    model = MiniBatchKMeans(n_clusters=V, init='k-means++', max_iter=kmeans_coarse_iters, n_init=n_init, n_jobs=1,
+    model = MiniBatchKMeans(n_clusters=V, init='k-means++', max_iter=kmeans_coarse_iters, n_init=n_init,
                            batch_size=10000, verbose=False, random_state=random_state)
     model.fit(data)
 
@@ -328,7 +328,7 @@ def train_subquantizers(data, num_buckets, subquantizer_clusters=256, kmeans_loc
         #model = KMeans(n_clusters=subquantizer_clusters, init="k-means++", max_iter=kmeans_local_iters,
         #               n_init=n_init, n_jobs=1, verbose=False, random_state=random_state)
         model = MiniBatchKMeans(n_clusters=subquantizer_clusters, init='k-means++', max_iter=kmeans_local_iters,
-                                n_init=n_init, n_jobs=1, batch_size=10000, verbose=False, random_state=random_state)
+                                n_init=n_init, batch_size=10000, verbose=False, random_state=random_state)
         model.fit(d)
         subquantizers.append(model.cluster_centers_)
         logger.info('Fit subquantizer %d of %d.' % (i + 1, num_buckets))
