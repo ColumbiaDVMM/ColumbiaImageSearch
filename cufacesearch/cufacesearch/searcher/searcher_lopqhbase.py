@@ -230,6 +230,7 @@ class SearcherLOPQHBase(GenericSearcher):
         start_train_pca = time.time()
         lopq_model.fit_pca(train_np, pca_dims=self.model_params['pca'])
         print "[{}.train_model: info] Trained pca model in {}s.".format(self.pp, time.time() - start_train_pca)
+        del train_np
         # train model
         train_np = self.get_train_features(self.nb_train, lopq_pca_model=lopq_model)
         msg = "[{}.train_model: info] Starting local training of 'lopq_pca' model with parameters {} using features {}"

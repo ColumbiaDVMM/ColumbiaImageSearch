@@ -1,7 +1,7 @@
 # Copyright 2015, Yahoo Inc.
 # Licensed under the terms of the Apache License, Version 2.0. See the LICENSE file associated with the project for terms.
 import numpy as np
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans
 import logging
 import sys
 from collections import namedtuple
@@ -307,7 +307,10 @@ def train_coarse(data, V=8, kmeans_coarse_iters=10, n_init=10, random_state=None
     logger.info('Fitting coarse quantizer...')
 
     # Fit coarse model
-    model = KMeans(n_clusters=V, init="k-means++", max_iter=kmeans_coarse_iters, n_init=n_init, n_jobs=1, verbose=False, random_state=random_state)
+    # TODO: this fails to train properly on big data with memory error, use MiniBatchKMeans instead
+    #model = KMeans(n_clusters=V, init="k-means++", max_iter=kmeans_coarse_iters, n_init=n_init, n_jobs=1, verbose=False, random_state=random_state)
+    model = MiniBatchKMeans(n_clusters=V, init='k-means++', max_iter=kmeans_coarse_iters, n_init=n_init, n_jobs=1,
+                           batch_size=10000, verbose=False, random_state=random_state)
     model.fit(data)
 
     logger.info('Done fitting coarse quantizer.')
@@ -322,8 +325,10 @@ def train_subquantizers(data, num_buckets, subquantizer_clusters=256, kmeans_loc
 
     subquantizers = list()
     for i, d in enumerate(np.split(data, num_buckets, axis=1)):
-        model = KMeans(n_clusters=subquantizer_clusters, init="k-means++", max_iter=kmeans_local_iters,
-                       n_init=n_init, n_jobs=1, verbose=False, random_state=random_state)
+        #model = KMeans(n_clusters=subquantizer_clusters, init="k-means++", max_iter=kmeans_local_iters,
+        #               n_init=n_init, n_jobs=1, verbose=False, random_state=random_state)
+        model = MiniBatchKMeans(n_clusters=subquantizer_clusters, init='k-means++', max_iter=kmeans_local_iters,
+                                n_init=n_init, n_jobs=1, batch_size=10000, verbose=False, random_state=random_state)
         model.fit(d)
         subquantizers.append(model.cluster_centers_)
         logger.info('Fit subquantizer %d of %d.' % (i + 1, num_buckets))
