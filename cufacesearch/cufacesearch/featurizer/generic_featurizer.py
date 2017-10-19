@@ -13,11 +13,17 @@ def get_featurizer(featurizer_type, global_conf, prefix=None):
     else:
       return DLibFeaturizer(global_conf)
   elif featurizer_type == "sbpycaffe":
-      from sbpycaffe_img_featurizer import SentiBankPyCaffeImgFeaturizer
-      if prefix:
-        return SentiBankPyCaffeImgFeaturizer(global_conf, prefix=prefix)
-      else:
-        return SentiBankPyCaffeImgFeaturizer(global_conf)
+    from sbpycaffe_img_featurizer import SentiBankPyCaffeImgFeaturizer
+    if prefix:
+      return SentiBankPyCaffeImgFeaturizer(global_conf, prefix=prefix)
+    else:
+      return SentiBankPyCaffeImgFeaturizer(global_conf)
+  elif featurizer_type == "sbcmdline":
+    from sbcmdline_img_featurizer import SentiBankCmdLineImgFeaturizer
+    if prefix:
+      return SentiBankCmdLineImgFeaturizer(global_conf, prefix=prefix)
+    else:
+      return SentiBankCmdLineImgFeaturizer(global_conf)
   else:
     raise ValueError("[{}:error] Unknown 'featurizer' {}.".format("get_featurizer", featurizer_type))
 

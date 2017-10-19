@@ -1,6 +1,6 @@
 import sys
 import json
-from kafka import KafkaConsumer
+from tests.kafka import KafkaConsumer
 
 keys_prefix = '/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/ColumbiaFaceSearch/data/keys/hg-kafka-'
 group_id = 'count_ht_cdr31_ext_1'
