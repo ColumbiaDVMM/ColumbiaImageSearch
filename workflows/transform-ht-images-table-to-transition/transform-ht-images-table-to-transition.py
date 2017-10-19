@@ -40,7 +40,7 @@ def get_ads_ids(json_x, key):
         if ads_ids_str_list:
             ads_ids = ads_ids_str_list[0].strip().split(',')
     except Exception as inst:
-        print "[Error] could not get sha1 for row {}. {}".format(key, inst)
+        print "[Error] could not get ads ids for row {}. {}".format(key, inst)
     return ads_ids
 
 
@@ -51,7 +51,7 @@ def get_s3url(json_x, key):
         if s3url_list:
             s3url = s3url_list[0].strip()
     except Exception as inst:
-        print "[Error] could not get sha1 for row {}. {}".format(key, inst)
+        print "[Error] could not get s3url for row {}. {}".format(key, inst)
     return s3url
 
 def get_sbimage_feat(json_x, key):
@@ -61,7 +61,7 @@ def get_sbimage_feat(json_x, key):
         if sb_feat_list:
             sb_feat = sb_feat_list[0]
     except Exception as inst:
-        print "[Error] could not get sha1 for row {}. {}".format(key, inst)
+        print "[Error] could not get sb_feat for row {}. {}".format(key, inst)
     return sb_feat
 
 
@@ -83,7 +83,7 @@ def transform(data):
     fields = []
     # Get ads ids
     ads_ids = get_ads_ids(json_x, key)
-    print "ads_ids",ads_ids
+    #print "ads_ids",ads_ids
     if ads_ids:
         for ad_id in ads_ids:
             # build timestamp as we would get it from CDR or Kafka topic...
@@ -93,7 +93,7 @@ def transform(data):
         return []
     # Get s3url
     s3_url = get_s3url(json_x, key)
-    print "s3_url",s3_url
+    #print "s3_url",s3_url
     if s3_url:
         fields.append((key, [key, "info", "s3_url", s3_url]))
     else: # consider an image without s3_url is invalid
@@ -109,7 +109,7 @@ def transform(data):
         for dlibface_feat_id, dlibface_feat_value in dlibface_feat_list:
             # Should we add a fake score to dlibface_feat_id?
             fields.append((key, [key, "ext", dlibface_feat_id, dlibface_feat_value]))
-    print key, fields
+    #print key, fields
     return fields
 
 def transform_table(hbase_man_in, hbase_man_out):
