@@ -94,17 +94,16 @@ class SearcherLOPQHBase(GenericSearcher):
         raise ValueError("Unknown 'lopq_searcher' type: {}".format(self.lopq_searcher))
     # NB: an empty lopq_model would make sense only if we just want to detect...
 
-  def get_feats_from_lmbd(self, feats_db, nb_features):
+  def get_feats_from_lmbd(self, feats_db, nb_features, dtype):
     nb_saved_feats = self.get_nb_saved_feats(feats_db)
     nb_feats_to_read = min(nb_saved_feats, nb_features)
     feats = None
-    from ..featurizer.featsio import get_feat_dtype
     if nb_feats_to_read > 0:
       with self.save_feat_env.begin(db=feats_db, write=False) as txn:
         with txn.cursor() as cursor:
           if cursor.first():
             first_item = cursor.item()
-            first_feat = np.frombuffer(first_item[1], dtype=get_feat_dtype(self.featurizer_type))
+            first_feat = np.frombuffer(first_item[1], dtype=dtype)
             feats = np.zeros((nb_feats_to_read, first_feat.shape[0]))
             print "[get_feats_from_lmbd] Filling up features matrix: {}".format(feats.shape)
             sys.stdout.flush()
@@ -136,8 +135,11 @@ class SearcherLOPQHBase(GenericSearcher):
     #if self.save_train_features:
     if lopq_pca_model:
       feats_db = self.save_feat_env.open_db("feats_pca")
+      dtype = np.float32
     else:
       feats_db = self.save_feat_env.open_db("feats")
+      from ..featurizer.featsio import get_feat_dtype
+      dtype = get_feat_dtype(self.featurizer_type)
     nb_saved_feats = self.get_nb_saved_feats(feats_db)
 
     if nb_saved_feats < nb_features:
@@ -185,7 +187,7 @@ class SearcherLOPQHBase(GenericSearcher):
           print "[{}: log] Waiting for new updates...".format(self.pp)
           time.sleep(600)
 
-    return self.get_feats_from_lmbd(feats_db, nb_features)
+    return self.get_feats_from_lmbd(feats_db, nb_features, dtype)
 
   def train_index(self):
 

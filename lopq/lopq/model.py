@@ -953,7 +953,7 @@ class LOPQModelPCA(LOPQModel):
             self.mus[split] if self.mus is not None else None, \
             self.subquantizers[split] if self.subquantizers is not None else None
 
-    def apply_PCA(self, x):
+    def apply_PCA(self, x, dtype=np.float32):
         """
         Apply PCA to sample x.
         """
@@ -970,7 +970,7 @@ class LOPQModelPCA(LOPQModel):
                 normed_pca_data = pca_data / norm_pca_data
             pca_data = normed_pca_data
 
-        return pca_data
+        return pca_data.astype(dtype=dtype)
 
     def predict(self, x):
         """
