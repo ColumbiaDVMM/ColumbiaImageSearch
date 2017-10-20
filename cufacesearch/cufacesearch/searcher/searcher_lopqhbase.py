@@ -49,7 +49,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # Use feature type, self.nb_train_pca and pca_dims
     if self.pca_model_str is None:
       # We could add some additional info, like model parameters, number of samples used for training...
-      self.pca_model_str = self.build_extr_str() + "_pca" + str(self.model_params['pca']) + "_train" + self.nb_train_pca
+      self.pca_model_str = self.build_extr_str() + "_pca" + str(self.model_params['pca']) + "_train" + str(self.nb_train_pca)
     return self.pca_model_str
 
   def set_pp(self):
