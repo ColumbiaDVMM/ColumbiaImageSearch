@@ -4,7 +4,7 @@
 #suffix="_test"
 suffix="_release"
 
-source ~/.bashrc
+#source ~/.bashrc
 
 while getopts r: option
 do
@@ -21,7 +21,7 @@ else
   exit -1
 fi
 
-cd ${repo_path}/setup/DLibFaceProcessing
+cd ${repo_path}/setup/DLibFaceSearch
 
 package_name="cufacesearch"
 extr_type="dlibface"
