@@ -14,6 +14,8 @@ PORT_HOST=81
 PORT_DOCKER=5000
 ports_mapping="-p "${PORT_HOST}":"${PORT_DOCKER}
 indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
+s3credentials_path=${repo_path}/conf/aws_credentials/
+indocker_s3credentials_path=/home/ubuntu/.aws/
 
 ## Variables that could be changed
 docker_image="dlibface_search"
@@ -76,6 +78,6 @@ ${SUDO} docker stop ${docker_name}
 ${SUDO} docker rm ${docker_name}
 
 ## Start API
-${SUDO} docker run ${ports_mapping}  -tid -v ${repo_path}:${indocker_repo_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag}
+${SUDO} docker run ${ports_mapping}  -tid -v ${repo_path}:${indocker_repo_path} -v ${s3credentials_path}:${indocker_s3credentials_path} --cap-add IPC_LOCK --name=${docker_name} ${docker_image}:${docker_image_tag}
 echo "Starting DLib Face Search"
 ${SUDO} docker exec -itd ${docker_name} bash ${start_script} -r ${indocker_repo_path}
