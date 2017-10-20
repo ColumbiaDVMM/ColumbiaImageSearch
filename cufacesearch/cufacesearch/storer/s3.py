@@ -22,7 +22,10 @@ class S3Storer(GenericStorer):
     self.bucket_name = self.get_required_param('bucket_name')
 
     self.session = None
-    self.setup()
+    try:
+      self.setup()
+    except botocore.exceptions.ProfileNotFound:
+      raise ValueError("Could not find AWS profile: {}".format(self.aws_profile))
 
   def set_pp(self):
     self.pp = "S3Storer"
