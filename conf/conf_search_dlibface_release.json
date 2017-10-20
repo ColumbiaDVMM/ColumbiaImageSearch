@@ -1,0 +1,28 @@
+{
+  "SEARCHLOPQ_indexer_prefix": "HBI_",
+  "SEARCHLOPQ_indexer_type": "hbase_indexer_minimal",
+  "SEARCHLOPQ_storer_type": "s3",
+  "SEARCHLOPQ_storer_prefix": "ST_",
+  "SEARCHLOPQ_featurizer_prefix": "DLIB_",
+  "SEARCHLOPQ_featurizer_type": "dlib",
+  "SEARCHLOPQ_detector_type": "dlib",
+  "SEARCHLOPQ_input_type": "face",
+  "SEARCHLOPQ_nb_train": 2000000,
+  "SEARCHLOPQ_nb_train_pca": 200000,
+  "SEARCHLOPQ_model_type": "lopq_pca",
+  "SEARCHLOPQ_lopq_pcadims": 128,
+  "SEARCHLOPQ_lopq_V": 2048,
+  "SEARCHLOPQ_lopq_M": 8,
+  "SEARCHLOPQ_lopq_subq": 256,
+  "ST_aws_profile": "cuimagesearch",
+  "ST_bucket_name": "dig-cu-imagesearchindex",
+  "ST_verbose": 0,
+  "HBI_host": "10.1.94.57",
+  "HBI_table_sha1infos": "htcdr31_images_sha1_infos",
+  "HBI_table_updateinfos": "htcdr31_images_update_infos",
+  "HBI_batch_update_size": 2048,
+  "HBI_pool_thread": 1,
+  "DLIB_pred_path": "../data/models/shape_predictor_68_face_landmarks.dat",
+  "DLIB_rec_path": "../data/models/dlib_face_recognition_resnet_model_v1.dat"
+}
+
