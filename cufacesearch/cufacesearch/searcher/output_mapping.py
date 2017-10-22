@@ -132,7 +132,7 @@ class DictOutput():
               #print "sim_dets[i][j]",sim_dets[i][j]
               nb_dets = len(sim_dets[i][j])
 
-          output[out_i][self.map['similar_'+input_type+'s']] = OrderedDict([[self.map['number_'+input_type+'s'], nb_faces],
+          output[out_i][self.map['similar_'+input_type+'s']] = OrderedDict([[self.map['number_'+input_type+'s'], nb_dets],
                                                                 [self.map['image_sha1s'], []],
                                                                 [self.map[input_type+'s'], []],
                                                                 [self.map['img_info'], []],
