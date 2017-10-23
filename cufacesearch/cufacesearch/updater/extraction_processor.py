@@ -409,8 +409,8 @@ class ExtractionProcessor(ConfReader):
         del self.q_out
 
         # To try to adjust a too optimistic nb_threads setting
-        if (sum(thread_creation_failed) > 0 or sum(deleted_extr) > 0) and self.nb_threads > 2:
-          self.nb_threads -= 1
+        # if (sum(thread_creation_failed) > 0 or sum(deleted_extr) > 0) and self.nb_threads > 2:
+        #   self.nb_threads -= 1
 
         print_msg = "[{}.process_batch: log] Completed update {} in {}s."
         print(print_msg.format(self.pp, update_id, time.time() - start_update))
@@ -420,29 +420,37 @@ class ExtractionProcessor(ConfReader):
         # Force garbage collection?
         gc.collect()
 
+        # Should we just raise an Exception and restart clean?
+        if sum(thread_creation_failed) > 0 or sum(deleted_extr) > 0:
+           raise ValueError("Something went wrong. Trying to restart clean")
+
       except Exception as inst:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fulltb = traceback.format_tb(exc_tb)
-
         raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
     self.nb_empt = 0
     self.nb_err = 0
     while True:
-      try:
-        self.process_batch()
-        print("[ExtractionProcessor: log] Nothing to process at: {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
-        sys.stdout.flush()
-        time.sleep(10*self.nb_empt)
-        self.nb_empt += 1
-      except Exception as inst:
+      self.process_batch()
+      print("[ExtractionProcessor: log] Nothing to process at: {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
+      sys.stdout.flush()
+      time.sleep(10*self.nb_empt)
+      self.nb_empt += 1
 
-        err_msg = "ExtractionProcessor died: {} {}".format(type(inst), inst)
-        full_trace_error(err_msg)
-        sys.stdout.flush()
-        time.sleep(10 * self.nb_err)
-        self.nb_err += 1
+      # try:
+      #   self.process_batch()
+      #   print("[ExtractionProcessor: log] Nothing to process at: {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
+      #   sys.stdout.flush()
+      #   time.sleep(10*self.nb_empt)
+      #   self.nb_empt += 1
+      # except Exception as inst:
+      #   err_msg = "ExtractionProcessor died: {} {}".format(type(inst), inst)
+      #   full_trace_error(err_msg)
+      #   sys.stdout.flush()
+      #   time.sleep(10 * self.nb_err)
+      #   self.nb_err += 1
 
 
 if __name__ == "__main__":
@@ -466,5 +474,7 @@ if __name__ == "__main__":
       nb_err = 0
     except Exception as inst:
       full_trace_error("Extraction processor failed: {}".format(inst))
+      del ep
       time.sleep(10*nb_err)
+      ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
       nb_err += 1
