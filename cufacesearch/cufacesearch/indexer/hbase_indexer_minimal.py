@@ -214,7 +214,7 @@ class HBaseIndexerMinimal(ConfReader):
             out_rows = []
             for row in rows:
               if extr_type in row[0]:
-                out_rows.append(row)
+                out_rows.append((row[0],row[1]))
           else:
             out_rows = rows
           yield out_rows
