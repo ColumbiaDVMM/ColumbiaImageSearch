@@ -469,7 +469,10 @@ class SearcherLOPQHBase(GenericSearcher):
               # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
               #results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
               #results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
-              results, visited = self.searcher.search(feats[i], quota=quota, limit=max_returned, with_dists=True)
+              # Normalize feature first as it is how it is done during extraction...
+              norm_feat = np.linalg.norm(feats[i])
+              normed_feat = feats[i] / norm_feat
+              results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
               res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
               print res_msg.format(self.pp, len(results), visited, results[0])
 
