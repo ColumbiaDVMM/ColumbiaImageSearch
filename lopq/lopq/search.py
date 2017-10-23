@@ -198,7 +198,7 @@ class LOPQSearcherBase(object):
         # Retrieve results with multi-index
         if type(self.model) == LOPQModelPCA:
             print "Computing search results and distances with regards to PCA projected feature since model is LOPQModelPCA"
-            x = self.apply_PCA(x)
+            x = self.model.apply_PCA(x)
 
         retrieved, visited = self.get_result_quota(x, quota)
 
