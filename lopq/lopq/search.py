@@ -6,6 +6,7 @@ from itertools import count
 import numpy as np
 import array
 from .utils import iterate_splits, compute_codes_parallel, copy_from_hdfs
+from .model import LOPQModel, LOPQModelPCA
 
 # Modifications by Svebor Karaman
 
@@ -198,7 +199,12 @@ class LOPQSearcherBase(object):
         retrieved, visited = self.get_result_quota(x, quota)
 
         # Compute distance for results
-        results = self.compute_distances(x, retrieved)
+        # TODO: if we use LOPQPCA, distance should be computed with regards to x_pca
+        if type(self.model) == LOPQModelPCA:
+            print "Computing distances with regards to PCA projected feature since model is LOPQModelPCA"
+            results = self.compute_distances(self.model.apply_PCA(x), retrieved)
+        else:
+            results = self.compute_distances(x, retrieved)
 
         # Sort by distance
         # NB: could be a partial up to limit, interesting if limit << quota
@@ -399,7 +405,7 @@ class LOPQSearcherLMDB(LOPQSearcherBase):
         self.id_lambda = id_lambda
 
         # TODO: pass memory size, index_db name as parameters?
-        # Should we have another DB to list (permanently) the updates we have indexed?
+        # Should we have another     DB to list (permanently) the updates we have indexed?
         # Set writemap to True to allow usage of a bigger DB than available RAM?
         # set map_size to 16 or 32GB? Default to (free?) disk size?
         #self.env = lmdb.open(self.lmdb_path, map_size=1024*1000000*2, writemap=False, map_async=True, max_dbs=1)

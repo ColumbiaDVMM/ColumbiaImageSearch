@@ -464,7 +464,7 @@ class SearcherLOPQHBase(GenericSearcher):
                 feat = np.squeeze(feats[i][j])
                 norm_feat = np.linalg.norm(feat)
                 normed_feat = feat / norm_feat
-              # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
+              print "[SearcherLOPQHBase.search_from_feats: log] normed_feat {} norm: {}".format(normed_feat.shape, np.linalg.norm(normed_feat))
               # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
               #results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
               results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
