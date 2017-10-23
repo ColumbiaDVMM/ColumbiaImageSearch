@@ -217,9 +217,10 @@ class HBaseIndexerMinimal(ConfReader):
                 out_rows.append((row[0],row[1]))
           else:
             out_rows = rows
-          yield out_rows
-          # add '~' to exclude last row from next batch
-          row_start = out_rows[-1][0]+'~'
+          if out_rows:
+            yield out_rows
+            # add '~' to exclude last row from next batch
+          row_start = rows[-1][0]+'~'
         else:
           print "[get_updates_from_date: log] 'rows' was None."
           break
