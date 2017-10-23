@@ -196,15 +196,14 @@ class LOPQSearcherBase(object):
             the number of cells visited in the query
         """
         # Retrieve results with multi-index
+        if type(self.model) == LOPQModelPCA:
+            print "Computing search results and distances with regards to PCA projected feature since model is LOPQModelPCA"
+            x = self.apply_PCA(x)
+
         retrieved, visited = self.get_result_quota(x, quota)
 
         # Compute distance for results
-        # TODO: if we use LOPQPCA, distance should be computed with regards to x_pca
-        if type(self.model) == LOPQModelPCA:
-            print "Computing distances with regards to PCA projected feature since model is LOPQModelPCA"
-            results = self.compute_distances(self.model.apply_PCA(x), retrieved)
-        else:
-            results = self.compute_distances(x, retrieved)
+        results = self.compute_distances(x, retrieved)
 
         # Sort by distance
         # NB: could be a partial up to limit, interesting if limit << quota

@@ -514,19 +514,20 @@ class SearcherLOPQHBase(GenericSearcher):
 
       for i in range(len(feats)):
         if self.searcher:
-          if self.model_type == "lopq_pca":
-            feat = np.squeeze(self.searcher.model.apply_PCA(feats[i]))
-            # Should we still apply normalization after PCA?
-          else:
-            feat = np.squeeze(feats[i])
-          # Should we still apply normalization after PCA?
-          norm_feat = np.linalg.norm(feat)
-          normed_feat = feat / norm_feat
-          print "normed_feat {} norm: {}".format(normed_feat.shape, np.linalg.norm(normed_feat))
+          # if self.model_type == "lopq_pca":
+          #   feat = np.squeeze(self.searcher.model.apply_PCA(feats[i]))
+          #   # Should we still apply normalization after PCA?
+          # else:
+          #   feat = np.squeeze(feats[i])
+          # # Should we still apply normalization after PCA?
+          # norm_feat = np.linalg.norm(feat)
+          # normed_feat = feat / norm_feat
+          # print "normed_feat {} norm: {}".format(normed_feat.shape, np.linalg.norm(normed_feat))
           # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
           # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
           # results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
-          results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
+          #results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
+          results, visited = self.searcher.search(feats[i], quota=quota, limit=max_returned, with_dists=True)
           res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
           print res_msg.format(self.pp, len(results), visited, results[0])
 
