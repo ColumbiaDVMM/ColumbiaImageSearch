@@ -475,6 +475,7 @@ if __name__ == "__main__":
     except Exception as inst:
       full_trace_error("Extraction processor failed: {}".format(inst))
       del ep
+      gc.collect()
       time.sleep(10*nb_err)
       ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
       nb_err += 1
