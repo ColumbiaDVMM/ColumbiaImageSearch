@@ -168,7 +168,7 @@ class HBaseIndexerMinimal(ConfReader):
         # scan table from row_start, and accumulate in rows the information of the columns that are needed
         rows = []
         for one_row in hbase_table.scan(row_start=row_start, columns=columns, batch_size=2):
-          print "one_row:",one_row[0]
+          #print "one_row:",one_row[0]
           rows.extend((one_row,))
           if len(rows) >= maxrows:
             return rows
