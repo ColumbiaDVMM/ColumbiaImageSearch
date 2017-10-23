@@ -360,8 +360,8 @@ class SearcherLOPQHBase(GenericSearcher):
 
     # Get all updates ids for the extraction type
     for batch_updates in self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str()):
-      for rows_update in batch_updates:
-        for update in rows_update:
+      for update in batch_updates:
+          print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
           update_id = update[0]
           if self.is_update_indexed(update_id):
             print "[{}: log] Skipping update {} already indexed.".format(self.pp, update_id)
