@@ -209,9 +209,17 @@ class HBaseIndexerMinimal(ConfReader):
       while True:
         rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
         if rows:
-          yield rows
+          if extr_type:
+            # Filter out updates of other extractions type.
+            out_rows = []
+            for row in rows:
+              if extr_type in row[0]:
+                out_rows.append(row)
+          else:
+            out_rows = rows
+          yield out_rows
           # add '~' to exclude last row from next batch
-          row_start = rows[-1][0]+'~'
+          row_start = out_rows[-1][0]+'~'
         else:
           print "[get_updates_from_date: log] 'rows' was None."
           break
