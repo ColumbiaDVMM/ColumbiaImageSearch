@@ -195,11 +195,11 @@ class LOPQSearcherBase(object):
         :returns int visited:
             the number of cells visited in the query
         """
-        # Retrieve results with multi-index
         if type(self.model) == LOPQModelPCA:
             print "Performing search with PCA projected feature since model is LOPQModelPCA"
             x = self.model.apply_PCA(x)
 
+        # Retrieve results with multi-index
         retrieved, visited = self.get_result_quota(x, quota)
 
         # Compute distance for results
