@@ -361,45 +361,45 @@ class SearcherLOPQHBase(GenericSearcher):
     # Get all updates ids for the extraction type
     for batch_updates in self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str()):
       for update in batch_updates:
-          print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
-          update_id = update[0]
-          if self.is_update_indexed(update_id):
-            print "[{}: log] Skipping update {} already indexed.".format(self.pp, update_id)
+        print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
+        update_id = update[0]
+        if self.is_update_indexed(update_id):
+          print "[{}: log] Skipping update {} already indexed.".format(self.pp, update_id)
+        else:
+          if "info:"+update_str_processed in update[1]:
+            print "[{}: log] Looking for codes of update {}".format(self.pp, update_id)
+            # Get this update codes
+            codes_string = self.build_codes_string(update_id)
+            try:
+              # Check for precomputed codes
+              codes_dict = self.storer.load(codes_string)
+              if codes_dict is None:
+                raise ValueError('Could not load codes: {}'.format(codes_string))
+            except Exception as inst:
+              # Update codes not available
+              if self.verbose > 1:
+                print "[{}: log] Update {} codes could not be loaded: {}".format(self.pp, update_id, inst)
+              # Compute codes for update not yet processed and save them
+              start_compute = time.time()
+              # Get detections (if any) and features...
+              list_sha1s = update[1][column_list_sha1s]
+              # Double check that this gets properly features of detections
+              samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+              codes_dict = self.compute_codes(samples_ids, features, codes_string)
+              update_compute_time = time.time() - start_compute
+              total_compute_time += update_compute_time
+              if self.verbose > 0:
+                print "[{}: log] Update {} codes computation done in {}s".format(self.pp, update_id, update_compute_time)
+
+            # Use new method add_codes_from_dict of searcher
+            self.searcher.add_codes_from_dict(codes_dict)
+            # TODO: indexed_updates should be made persistent too, and add indexing time
+            self.add_update(update_id)
+
           else:
-            if "info:"+update_str_processed in update[1]:
-              print "[{}: log] Looking for codes of update {}".format(self.pp, update_id)
-              # Get this update codes
-              codes_string = self.build_codes_string(update_id)
-              try:
-                # Check for precomputed codes
-                codes_dict = self.storer.load(codes_string)
-                if codes_dict is None:
-                  raise ValueError('Could not load codes: {}'.format(codes_string))
-              except Exception as inst:
-                # Update codes not available
-                if self.verbose > 1:
-                  print "[{}: log] Update {} codes could not be loaded: {}".format(self.pp, update_id, inst)
-                # Compute codes for update not yet processed and save them
-                start_compute = time.time()
-                # Get detections (if any) and features...
-                list_sha1s = update[1][column_list_sha1s]
-                # Double check that this gets properly features of detections
-                samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
-                codes_dict = self.compute_codes(samples_ids, features, codes_string)
-                update_compute_time = time.time() - start_compute
-                total_compute_time += update_compute_time
-                if self.verbose > 0:
-                  print "[{}: log] Update {} codes computation done in {}s".format(self.pp, update_id, update_compute_time)
-
-              # Use new method add_codes_from_dict of searcher
-              self.searcher.add_codes_from_dict(codes_dict)
-              # TODO: indexed_updates should be made persistent too, and add indexing time
-              self.add_update(update_id)
-
-            else:
-              print "[{}: log] Skipping unprocessed update {}".format(self.pp, update_id)
-          # TODO: we could check that update processing time was older than indexing time, otherwise that means that
-          #    the update has been reprocessed and should be re-indexed.
+            print "[{}: log] Skipping unprocessed update {}".format(self.pp, update_id)
+        # TODO: we could check that update processing time was older than indexing time, otherwise that means that
+        #    the update has been reprocessed and should be re-indexed.
 
 
     # # We should save all_codes
