@@ -989,14 +989,16 @@ class LOPQModelPCA(LOPQModel):
         :returns tuple:
             a tuple of fine codes
         """
-        # First apply PCA
+        # Should we assume PCA was applied out of this method?
         x_pca = self.apply_PCA(x)
 
         # Compute coarse quantizer codes
         coarse_codes = self.predict_coarse(x_pca)
+        #coarse_codes = self.predict_coarse(x)
 
         # Compute fine codes
         fine_codes = self.predict_fine(x_pca, coarse_codes)
+        #fine_codes = self.predict_fine(x, coarse_codes)
 
         return LOPQCode(coarse_codes, fine_codes)
 

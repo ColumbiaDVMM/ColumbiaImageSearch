@@ -361,7 +361,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # Get all updates ids for the extraction type
     for batch_updates in self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str()):
       for update in batch_updates:
-        print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
+        #print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
         update_id = update[0]
         if self.is_update_indexed(update_id):
           print "[{}: log] Skipping update {} already indexed.".format(self.pp, update_id)
@@ -459,16 +459,17 @@ class SearcherLOPQHBase(GenericSearcher):
           results = []
           if "detect_only" not in options_dict or not options_dict["detect_only"]:
             if self.searcher:
-              if self.model_type == "lopq_pca":
-                normed_feat = np.squeeze(self.searcher.model.apply_PCA(feats[i][j]))
-              else:
-                feat = np.squeeze(feats[i][j])
-                norm_feat = np.linalg.norm(feat)
-                normed_feat = feat / norm_feat
-              print "[SearcherLOPQHBase.search_from_feats: log] normed_feat {} norm: {}".format(normed_feat.shape, np.linalg.norm(normed_feat))
+              # if self.model_type == "lopq_pca":
+              #   normed_feat = np.squeeze(self.searcher.model.apply_PCA(feats[i][j]))
+              # else:
+              #   feat = np.squeeze(feats[i][j])
+              #   norm_feat = np.linalg.norm(feat)
+              #   normed_feat = feat / norm_feat
+              # print "[SearcherLOPQHBase.search_from_feats: log] normed_feat {} norm: {}".format(normed_feat.shape, np.linalg.norm(normed_feat))
               # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
               #results, visited = self.searcher.search(feat, quota=self.quota, limit=self.sim_limit, with_dists=True)
-              results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
+              #results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
+              results, visited = self.searcher.search(feats[i], quota=quota, limit=max_returned, with_dists=True)
               res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
               print res_msg.format(self.pp, len(results), visited, results[0])
 
@@ -520,8 +521,11 @@ class SearcherLOPQHBase(GenericSearcher):
           # else:
           #   feat = np.squeeze(feats[i])
           # # Should we still apply normalization after PCA?
-          # norm_feat = np.linalg.norm(feat)
-          # normed_feat = feat / norm_feat
+          #norm_feat = np.linalg.norm(feat)
+          #normed_feat = feat / norm_feat
+          # Let the searcher project now
+          #norm_feat = np.linalg.norm(feats[i])
+          #normed_feat = feats[i] / norm_feat
           # print "normed_feat {} norm: {}".format(normed_feat.shape, np.linalg.norm(normed_feat))
           # print "[SearcherLOPQHBase.search_from_feats: log] pca_projected_feat.shape: {}".format(pca_projected_feat.shape)
           # format of results is a list of namedtuples as: namedtuple('Result', ['id', 'code', 'dist'])
