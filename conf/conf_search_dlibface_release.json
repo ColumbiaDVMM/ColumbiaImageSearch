@@ -14,6 +14,7 @@
   "SEARCHLOPQ_lopq_V": 2048,
   "SEARCHLOPQ_lopq_M": 8,
   "SEARCHLOPQ_lopq_subq": 256,
+  "SEARCHLOPQ_reranking": true,
   "ST_aws_profile": "cuimagesearch",
   "ST_bucket_name": "dig-cu-imagesearchindex",
   "ST_verbose": 0,

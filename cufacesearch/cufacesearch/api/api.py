@@ -256,7 +256,7 @@ class APIResponder(Resource):
     for i in range(len(all_sim_faces)):
       # Parse query face, and build face tuple (sha1, url/b64 img, face bounding box)
       query_face = all_sim_faces[i]
-      print "query_face [{}]: {}".format(query_face.keys(), query_face)
+      #print "query_face [{}]: {}".format(query_face.keys(), query_face)
       sys.stdout.flush()
       query_sha1 = query_face[self.searcher.do.map['query_sha1']]
       if query_type == 'B64':

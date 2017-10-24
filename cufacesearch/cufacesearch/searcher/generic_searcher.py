@@ -93,6 +93,9 @@ class GenericSearcher(ConfReader):
     tmp_nb_train = self.get_param('nb_train')
     if tmp_nb_train:
       self.nb_train = tmp_nb_train
+    tmp_reranking = self.get_param('reranking')
+    if tmp_reranking:
+      self.reranking = True
 
   def get_model_params(self):
     raise NotImplementedError("[{}] get_model_params is not implemented".format(self.pp))
