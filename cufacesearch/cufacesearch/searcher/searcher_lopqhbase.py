@@ -472,6 +472,7 @@ class SearcherLOPQHBase(GenericSearcher):
             res_list_sha1s = [str(x.id).split('_')[0] for x in results]
             res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s, self.build_extr_str())
 
+          tmp_img_sim = []
           tmp_dets_sim_ids = []
           tmp_dets_sim_score = []
           for ires, res in enumerate(results):
