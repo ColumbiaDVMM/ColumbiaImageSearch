@@ -17,7 +17,7 @@
     {% endif %}
 
     {% for query_face, similar_faces in search_results %}
-      {% set query_face_id = query_face[0]+'_'.join(query_face[2]) %}
+      {% set query_face_id = query_face[0]+'_'+'_'.join(query_face[2]) %}
       <h2>Query face:</h2>
       <canvas id="canvas_query_{{query_face_id}}">Your browser does not support the HTML5 canvas tag.</canvas>
       <script>
@@ -40,12 +40,13 @@
       {% for onesimface in similar_faces %}
         <p>{{onesimeface}}</p>
         {% for sha1, url, bbox, dist, iminfo in onesimface %}
-        {% set face_id = sha1+'_'.join(bbox) %}
+        {% set face_id = sha1+'_'+'_'.join(bbox) %}
         <canvas id="canvas_res_{{face_id}}_query_{{query_face_id}}">Your browser does not support the HTML5 canvas tag.</canvas>
         <script>
           var ctxt_res{{face_id}}_query{{query_face_id}} = document.getElementById('canvas_res_{{face_id}}_query_{{query_face_id}}').getContext("2d");
           var img_{{sha1}} = new Image();
           img_{{sha1}}.src = "{{url}}";
+          img_{{sha1}}.title = "{{dist}}";
           img_{{sha1}}.onload = function () {
             ctxt_res{{face_id}}_query{{query_face_id}}.canvas.width = img_{{sha1}}.width;
             ctxt_res{{face_id}}_query{{query_face_id}}.canvas.height = img_{{sha1}}.height;
