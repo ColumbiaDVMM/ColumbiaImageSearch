@@ -444,7 +444,7 @@ class SearcherLOPQHBase(GenericSearcher):
       max_returned = options_dict["max_returned"]
     # this should be set with a parameter either in conf or options_dict too.
     # should we use self.quota here? and potentially overwrite from options_dict
-    quota = min(10 * max_returned, 1000)
+    quota = min(100 * max_returned, 1000)
 
     #print dets
     if self.detector is not None:
@@ -538,23 +538,40 @@ class SearcherLOPQHBase(GenericSearcher):
           res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
           print res_msg.format(self.pp, len(results), visited, results[0])
 
-        # TODO: If reranking, get features from hbase for detections using res.id
-        #   we could also already get 's3_url' to avoid a second call to HBase later...
+        # Reranking, get features from hbase for detections using res.id
+        if self.reranking:
+          res_list_sha1s = [str(x.id) for x in results]
+          res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s, self.build_extr_str())
 
         tmp_img_sim = []
         tmp_sim_score = []
         for ires, res in enumerate(results):
           dist = res.dist
-          # TODO: if reranking compute actual distance
           if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
             if not max_returned or (max_returned and ires < max_returned):
-
               tmp_img_sim.append(str(res.id))
-              tmp_sim_score.append(dist)
-              # TODO: rerank using tmp_face_sim_score
+              if self.reranking:
+                # If reranking compute actual distance
+                try:
+                  pos = res_samples_ids.index(res.id)
+                  tmp_sim_score.append(np.linalg.norm(normed_feat - res_features[pos]))
+                except Exception as inst:
+                  print "Could not compute reranked distance for sample {}, error {} {}".format(res.id, type(inst), inst)
+                  tmp_sim_score.append(dist)
+              else:
+                tmp_sim_score.append(dist)
 
-        # print tmp_img_sim
-        # If
+        # If reranking, we need to reorder
+        if self.reranking:
+          sids = np.argsort(tmp_sim_score, axis=0)
+          rerank_img_sim = []
+          rerank_sim_score = []
+          for si in sids:
+            rerank_img_sim.append(tmp_img_sim[si])
+            rerank_sim_score.append(tmp_sim_score[si])
+          tmp_img_sim = rerank_img_sim
+          tmp_sim_score = rerank_sim_score
+
         if tmp_img_sim:
           rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
           # rows should contain id, s3_url of images
