@@ -461,7 +461,7 @@ class SearcherLOPQHBase(GenericSearcher):
             if self.searcher:
               # Normalize feature first as it is how it is done during extraction...
               norm_feat = np.linalg.norm(feats[i])
-              normed_feat = feats[i] / norm_feat
+              normed_feat = np.squeeze(feats[i] / norm_feat)
               results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
               res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
               print res_msg.format(self.pp, len(results), visited, results[0])
@@ -510,7 +510,7 @@ class SearcherLOPQHBase(GenericSearcher):
         if self.searcher:
           # Normalize feature first as it is how it is done during extraction...
           norm_feat = np.linalg.norm(feats[i])
-          normed_feat = feats[i] / norm_feat
+          normed_feat = np.squeeze(feats[i] / norm_feat)
           results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
           res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
           print res_msg.format(self.pp, len(results), visited, results[0])
