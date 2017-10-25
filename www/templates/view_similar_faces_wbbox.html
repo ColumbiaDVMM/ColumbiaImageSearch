@@ -46,7 +46,6 @@
           var ctxt_res{{face_id}}_query{{query_face_id}} = document.getElementById('canvas_res_{{face_id}}_query_{{query_face_id}}').getContext("2d");
           var img_{{sha1}} = new Image();
           img_{{sha1}}.src = "{{url}}";
-          img_{{sha1}}.title = "{{dist}}";
           img_{{sha1}}.onload = function () {
             ctxt_res{{face_id}}_query{{query_face_id}}.canvas.width = img_{{sha1}}.width;
             ctxt_res{{face_id}}_query{{query_face_id}}.canvas.height = img_{{sha1}}.height;
@@ -54,6 +53,7 @@
             ctxt_res{{face_id}}_query{{query_face_id}}.rect({{bbox[0]}},{{bbox[1]}},{{bbox[2]}},{{bbox[3]}});
             ctxt_res{{face_id}}_query{{query_face_id}}.lineWidth = 6;
             ctxt_res{{face_id}}_query{{query_face_id}}.strokeStyle = '#ff0000';
+            ctxt_res{{face_id}}_query{{query_face_id}}.fillText("{{ '{0:0.2f}'.format({{dist}}) }}",5,5);
             ctxt_res{{face_id}}_query{{query_face_id}}.stroke();
           };
         </script>
