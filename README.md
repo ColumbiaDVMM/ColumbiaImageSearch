@@ -10,6 +10,7 @@ by the [DVMM lab](http://www.ee.columbia.edu/ln/dvmm/) of Columbia University fo
 
 The required processing to build am image search index can be 
 decomposed in three main steps:
+
 - images downloading: download images (contained in webpages) from a data source 
 where the webpages documents are in the MEMEX CDR v3.1 format (currently assumed to be a Kafka topic)
 - image processing: perform the detection and feature extraction on those images.
@@ -27,11 +28,10 @@ for more information about the models.
 However, the package `cufacesearch` has been written in a modular way and using 
 another image feature extraction model, face detection or recognition model should be fairly easy.
 
-NB: For now the python package is still named `cufacesearch` even if it contains both 
+NB: For now, the python package is still named `cufacesearch` even if it contains both 
 image and face search capability. The package will be renamed soon.
 
 [//]: # (Add a figure overview)
-[//]: # (The system relies on HBase to store the detection and extracted features.)
 
 ## Installation 
 
@@ -48,35 +48,3 @@ Most of the settings can be configured through a JSON file
 passed as parameter of one of the processing steps.
 Some examples configuration files are provided in the [conf](conf) folder.
 Additional detail are provided in each sub-folder of the [setup](./setup) folder.
-
-<!---
-### Manual installation
-
-Deprecated... 
-
-#### Dependecies
-
-If you want to install the tool without docker, you should first install the packages needed. 
-For Ubuntu:
-
-- sudo apt-get install git python-pip python-dev libpng-dev libjpeg8-dev libfreetype6-dev pkg-config libblas-dev liblapack-dev libatlas-base-dev gfortran cmake libboost-all-dev
-
-#### Setup python packages 
-
-Then running the script [setup_face_search.sh](./setup/setup_face_search.sh) with the parameter '-r' set to the absolute 
-path of this repo should be enough.
-
-#### Manual execution
-
-Run the script [keep_alive_face_api.sh](./www/keep_alive_face_api.sh).
-
-Edit the following parameters to match your installation:
-
-- CONF_FILE
-- API_FOLDER
-- LOG_FOLDER
--->
-
-
-
-
