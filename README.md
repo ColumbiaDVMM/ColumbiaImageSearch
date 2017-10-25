@@ -8,12 +8,12 @@ by the [DVMM lab](http://www.ee.columbia.edu/ln/dvmm/) of Columbia University fo
 
 ## Overview
 
-The required processing to build am image search index can be 
-decomposed in three main steps:
+The required processing to build the image or face search index can be 
+decomposed in the following three main steps:
 
 - images downloading: download images (contained in webpages) from a data source 
-where the webpages documents are in the MEMEX CDR v3.1 format (currently assumed to be a Kafka topic)
-- image processing: perform the detection and feature extraction on those images.
+of webpages documents (currently assumed to be in the MEMEX CDR v3.1 format in a Kafka topic);
+- image processing: perform the detection and feature extraction on those images;
 - images indexing: build a search index (currently using a modified version of [LOPQ](https://github.com/yahoo/lopq)) and expose 
 it through a REST API.
 
@@ -39,15 +39,15 @@ image and face search capability. The package will be renamed soon.
 
 For convenience a docker installation process is provided in [setup](./setup),
 there is one sub-folder for each step of a processing pipeline. 
-The first downloading step being shared by the two pipelines, there are 5 sub-folders. 
-Check the README.md in those setup folder for additional information.
+The first downloading step being shared by the two pipelines, there are a total of 5 sub-folders. 
+Check the README.md in each of those setup folder for additional information.
 
 ### Configuration
 
 Most of the settings can be configured through a JSON file 
 passed as parameter of one of the processing steps.
 Some examples configuration files are provided in the [conf](conf) folder.
-Additional detail are provided in each sub-folder of the [setup](./setup) folder.
+Additional details are provided in each sub-folder of the [setup](./setup) folder.
 
 ## License
 
