@@ -1,13 +1,20 @@
-# Face search
+# Columbia University Image and Face Search Tool
 
-This repository implements a face search tool developed for the [MEMEX project](https://www.darpa.mil/program/memex).
+Author: [Svebor Karaman](mailto:svebor.karaman@columbia.edu)
+
+This repository implements the image and face search tools developed 
+by Columbia University for the [MEMEX project](https://www.darpa.mil/program/memex).
+
+The image recognition model is based on the DeepSentibank feature representation 
+that was trained targeting Adjective-Noun Pairs (ANP) where the adjective are  
 
 The face detection and recognition model are currently the publicly available models from the [DLib](http://blog.dlib.net/) library, 
 see the blog post [DLib face recognition](http://blog.dlib.net/2017/02/high-quality-face-recognition-with-deep.html) 
-for more information about the models. However, the package 'cufacesearch' has been written in a modular way and using 
+for more information about the models. However, the package `cufacesearch` has been written in a modular way and using 
 another face detection or recognition model should be fairly easy.
 
-Author: [Svebor Karaman](mailto:svebor.karaman@columbia.edu)
+NB: For now the python package is still named `cufacesearch` even if it contains both 
+image and face search capability.
 
 ## Installation 
 
@@ -17,6 +24,8 @@ For convenience a docker installation process is provided in [setup](./setup),
 check the README.md in that folder for additional information.
 
 ### Manual installation
+
+Deprecated... 
 
 #### Dependecies
 
