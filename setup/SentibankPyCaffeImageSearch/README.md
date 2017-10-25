@@ -57,25 +57,25 @@ There is no need to change these values.
 Here is a list of the API endpoints:
 
 - `/status` (e.g. `localhost:80/cuimgsearch/status`): 
-  - Returns a JSON formatted list of information about the image similarity service status, namely the `API_start_time`, 
-  `API_uptime`, `last_refresh_time` and number of indexed images `nb_indexed` values. This is also use to refresh the index if it has not been 
-  refreshed in the last 4 hours. 
-  - No parameter.
+    - Returns a JSON formatted list of information about the image similarity service status, namely the `API_start_time`, 
+    `API_uptime`, `last_refresh_time` and number of indexed images `nb_indexed` values. This is also use to refresh the index if it has not been 
+    refreshed in the last 4 hours. 
+    - No parameter.
 - `/refresh`: to force a refresh of the index, i.e. checking for newly processed updates not yet indexed.
 - `/byURL`
-  - Returns a JSON formatted list of similar images of the query image(s) accessible at the provided URL(s).
-  - Parameters:
-    - `data` [required]: the URL(s) from which the query image(s) should be downloaded 
+    - Returns a JSON formatted list of similar images of the query image(s) accessible at the provided URL(s).
+    - Parameters:
+        - `data` [required]: the URL(s) from which the query image(s) should be downloaded 
 - `/byB64`
-  - Returns a JSON formatted list of similar images of the base64 encoded query image(s).
-  - Parameters:
-    - `data` [required]: the base64 encoded query image(s)
+    - Returns a JSON formatted list of similar images of the base64 encoded query image(s).
+    - Parameters:
+        - `data` [required]: the base64 encoded query image(s)
 - `/bySHA1`
-  - Returns a JSON formatted list of similar images of the query image(s) identified by their SHA1. This is intended to 
-  be used only for indexed images. If your query image is not indexed yet, you should fallback to calling the 
-  `byURL` endpoint using the image S3 URL.
-  - Parameters:
-    - `data` [required]: the SHA1 checksum of the query image(s)
+    - Returns a JSON formatted list of similar images of the query image(s) identified by their SHA1. This is intended to 
+    be used only for indexed images. If your query image is not indexed yet, you should fallback to calling the 
+    `byURL` endpoint using the image S3 URL.
+    - Parameters:
+        - `data` [required]: the SHA1 checksum of the query image(s)
 - `/view_similar_byX`: any of the previously listed endpoints `byX` can be prefixed by `view_similar_` to access a simple 
 visualization of the results, i.e. `view_similar_byURL`, `view_similar_byB64` and `view_similar_bySHA1`. 
 This is provided to give a quick idea of the type of results you can expect. Beware, no blurring applied on images here. 
@@ -102,6 +102,7 @@ The output format is a JSON with the top-level fields:
 - `AllSimilarImages`: an array containing the similar images information.
 
 Each value in the `AllSimilarImages` array has the fields:
+
 - `QuerySha1`: the SHA1 checksum of the query image.
 - `QueryURL`: the query image URL. Not present if query was made with B64 encoded image.
 - `ImgInfo`: An array containing some information about the query image, as [format, width, height] e.g. ["JPEG", 200, 292]
@@ -135,7 +136,7 @@ __email__ = "svebor.karaman (at) columbia.edu"
  
  
 imagedltimeout = 4
-base_facesearch_url = "https://localhost:80/cuimgsearch/"
+base_search_url = "https://localhost:80/cuimgsearch/"
  
 
 def get_b64_from_data(data):
@@ -176,16 +177,16 @@ if __name__ == "__main__":
  parser.add_option("-p", "--password", dest="password")
  parser.add_option("-i", "--image", dest="image_data", required=True)
  # Should be one of the valid_service_urls:
- # - base_facesearch_url+"byURL" [default]
- # - base_facesearch_url+"bySHA1"
- # - base_facesearch_url+"byB64" [could induce a big -i parameter, so -i should still be the URL of the image to be encoded in base64]
- parser.add_option("-s", "--service", dest="service_url", default=base_facesearch_url+"byURL")
+ # - base_search_url+"byURL" [default]
+ # - base_search_url+"bySHA1"
+ # - base_search_url+"byB64" [could induce a big -i parameter, so -i should still be the URL of the image to be encoded in base64]
+ parser.add_option("-s", "--service", dest="service_url", default=base_search_url+"byURL")
  parser.add_option("-r", "--request_type", dest="request_type", default="POST")
  parser.add_option("-o", "--options", dest="options", default="{}")
   
  # Validate options
  valid_request_types = ["GET", "POST"]
- valid_service_urls = [base_facesearch_url+x for x in ["byURL", "bySHA1", "byB64"]]
+ valid_service_urls = [base_search_url+x for x in ["byURL", "bySHA1", "byB64"]]
  (c_options, args) = parser.parse_args()
  print("Got options: {}".format(c_options))
  if not c_options.user or not c_options.password:
