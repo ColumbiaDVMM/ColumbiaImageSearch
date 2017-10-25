@@ -3,6 +3,7 @@
 #  should this suffix be set from a parameter?
 #suffix="_test"
 suffix="_release"
+endpoint = "cuimgsearch"
 
 while getopts r: option
 do
@@ -29,5 +30,5 @@ conf="conf_search_"${extr_type}${suffix}".json"
 # extraction_checker could be run on the same machine as the search API? or as the image downloader one?
 #echo "python ../../www/run_search_api.py -c ../../conf/${conf} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d).txt" >> ~/tmp.txt
 
-python ../../www/run_search_api.py -c ../../conf/${conf} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d_%H-%M-%S).txt
+python ../../www/run_search_api.py -c ../../conf/${conf}  -e ${endpoint} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d_%H-%M-%S).txt
 

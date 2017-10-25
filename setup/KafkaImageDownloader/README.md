@@ -1,4 +1,4 @@
-# Docker installation
+# Image downloader setup 
 
 ## Start script
 

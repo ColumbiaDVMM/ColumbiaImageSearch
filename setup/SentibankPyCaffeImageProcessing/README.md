@@ -1,4 +1,4 @@
-# Docker installation
+# Full image processing setup
 
 ## Start script
 
@@ -55,3 +55,6 @@ Note that these tables would be created by the pipeline if they do not exist yet
 You may lower the parameter `EXTR_nb_threads` to decrease the CPU and memory usage. 
 You may decrease/increase the parameter `KIcheck_verbose` and `KIproc_verbose` in the range [0,6] to get less/additional information in 
 the log file.
+
+The model files `SBPYCAFFE_sbcaffe_path` and `SBPYCAFFE_imgmean_path` will be downloaded automatically. 
+There is no need to change these values.
