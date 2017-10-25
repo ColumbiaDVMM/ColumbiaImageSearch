@@ -22,15 +22,16 @@ that was trained targeting the Adjective-Noun Pairs (ANP) of the
 
 The face detection and recognition model are currently the publicly available models from the [DLib](http://blog.dlib.net/) library, 
 see the blog post [DLib face recognition](http://blog.dlib.net/2017/02/high-quality-face-recognition-with-deep.html) 
-for more information about the models. However, the package `cufacesearch` has been written in a modular way and using 
-another face detection or recognition model should be fairly easy.
+for more information about the models. 
 
-The system relies on HBase to store the detection and extracted features.
+However, the package `cufacesearch` has been written in a modular way and using 
+another image feature extraction model, face detection or recognition model should be fairly easy.
 
 NB: For now the python package is still named `cufacesearch` even if it contains both 
 image and face search capability. The package will be renamed soon.
 
 [//]: # (Add a figure overview)
+[//]: # (The system relies on HBase to store the detection and extracted features.)
 
 ## Installation 
 
