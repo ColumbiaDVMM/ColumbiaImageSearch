@@ -3,7 +3,7 @@
 #  should this suffix be set from a parameter?
 #suffix="_test"
 suffix="_release"
-endpoint = "cufacesearch"
+endpoint="cufacesearch"
 #source ~/.bashrc
 
 while getopts r: option
