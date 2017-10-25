@@ -28,9 +28,9 @@ Thus, by default, the API would be accessible at `localhost:80/cuimgsearch`, mor
 
 You should edit the following script parameters:
 
-- `repo_path` (or just `base_path`) and `PORT_HOST` in the script [start_docker_sentibank_pycaffe_image_search.sh](start_docker_sentibank_pycaffe_image_search.sh): absolute path to the root of this repository.
+- `repo_path` (or just `base_path`) in the script [start_docker_sentibank_pycaffe_image_search.sh](start_docker_sentibank_pycaffe_image_search.sh): absolute path to the root of this repository.
 - `PORT_HOST` in the script [start_docker_sentibank_pycaffe_image_search.sh](start_docker_sentibank_pycaffe_image_search.sh): port of the host machine where the API will be listening.
-- suffix in the script [run_sentibank_pycaffe_image_search.sh](run_sentibank_pycaffe_image_search.sh): corresponding to whatever suffix (e.g. `test`) you use for your configuration file.
+- `suffix` in the script [run_sentibank_pycaffe_image_search.sh](run_sentibank_pycaffe_image_search.sh): corresponding to whatever suffix (e.g. `test`) you use for your configuration file.
 
 ## Configuration file
 
