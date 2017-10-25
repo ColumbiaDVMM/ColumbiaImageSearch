@@ -486,13 +486,11 @@ class SearcherLOPQHBase(GenericSearcher):
                 if self.reranking:
                   try:
                     pos = res_samples_ids.index(res.id)
-                    print "{}: res_features[{}] shape: {}, norm: {}".format(res.id, pos, res_features[pos].shape, np.linalg.norm(res_features[pos]))
-                    tmp_dets_sim_score.append(np.linalg.norm(normed_feat - res_features[pos]))
+                    dist = np.linalg.norm(normed_feat - res_features[pos])
+                    print "{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
                   except Exception as inst:
-                    print "Could not compute reranked distance for sample {}, error {} {}".format(res.id, type(inst), inst)
-                    tmp_dets_sim_score.append(dist)
-                else:
-                  tmp_dets_sim_score.append(dist)
+                    print "Could not compute reranking distance for sample {}, error {} {}".format(res.id, type(inst), inst)
+                tmp_dets_sim_score.append(dist)
 
           # If reranking, we need to reorder
           if self.reranking:
