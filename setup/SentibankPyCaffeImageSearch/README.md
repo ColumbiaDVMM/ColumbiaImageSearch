@@ -56,9 +56,7 @@ There is no need to change these values.
 ### Endpoints overview
 Here is a list of the API endpoints:
 
-
 - `/status` (e.g. `localhost:80/cuimgsearch/status`): 
-
     - Returns a JSON formatted list of information about the image similarity service status, namely the `API_start_time`, 
     `API_uptime`, `last_refresh_time` and number of indexed images `nb_indexed` values. This is also use to refresh the index if it has not been 
     refreshed in the last 4 hours. 
@@ -67,17 +65,16 @@ Here is a list of the API endpoints:
 - `/refresh`: to force a refresh of the index, i.e. checking for newly processed updates not yet indexed.
 
 - `/byURL`
- 
     - Returns a JSON formatted list of similar images of the query image(s) accessible at the provided URL(s).
     - Parameters:
         - `data` [required]: the URL(s) from which the query image(s) should be downloaded 
-- `/byB64`
 
+- `/byB64`
     - Returns a JSON formatted list of similar images of the base64 encoded query image(s).
     - Parameters:
         - `data` [required]: the base64 encoded query image(s)
-- `/bySHA1`
 
+- `/bySHA1`
     - Returns a JSON formatted list of similar images of the query image(s) identified by their SHA1. This is intended to 
     be used only for indexed images. If your query image is not indexed yet, you should fallback to calling the 
     `byURL` endpoint using the image S3 URL.
