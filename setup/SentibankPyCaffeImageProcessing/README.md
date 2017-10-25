@@ -1,4 +1,4 @@
-# Docker installation
+# Full image processing setup
 
 ## Start script
 
@@ -9,7 +9,8 @@ processing script. You can later on use this script to restart the processing, i
 if it is already there.
 
 This processing pipeline is divided into two processes, extraction checker and extraction processor.
-Based on the values in the configuration file, these two processes will perform the following tasks: 
+Based on the values in the configuration file, these two processes will perform the following tasks:
+ 
 - extraction checker: that reads images form the Kafka topic `KIcheck_consumer_topics`,
 check that they have not yet been marked as processed in the HBase table `HBI_table_sha1infos`
 and creates batches of `HBI_batch_update_size` unprocessed images and pushed them to both 
@@ -34,6 +35,7 @@ You should edit the following parameters:
 
 You should edit the Kafka related parameters in your config file (e.g. [conf_kafka_image_downloader_test.json](../../conf/conf_kafka_image_downloader_test.json)), 
 to make sure that:
+
 - the servers lists `KIcheck_consumer_servers`, `KIcheck_producer_servers` and 
 `KIproc_consumer_servers` are pointing to the correct addresses 
 of your Kafka brokers.
@@ -45,6 +47,7 @@ The relative path is with regards to the folder containing this README.md.
 
 
 You should edit the HBase related parameters in your config file, to make sure that:
+
 - The HBase host `HBI_host` is correct.
 - The HBase tables `HBI_table_sha1infos` and `HBI_table_updateinfos`.
 Note that these tables would be created by the pipeline if they do not exist yet.
@@ -52,3 +55,6 @@ Note that these tables would be created by the pipeline if they do not exist yet
 You may lower the parameter `EXTR_nb_threads` to decrease the CPU and memory usage. 
 You may decrease/increase the parameter `KIcheck_verbose` and `KIproc_verbose` in the range [0,6] to get less/additional information in 
 the log file.
+
+The model files `SBPYCAFFE_sbcaffe_path` and `SBPYCAFFE_imgmean_path` will be downloaded automatically. 
+There is no need to change these values.

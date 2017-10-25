@@ -1,4 +1,4 @@
-# Docker installation
+# Image downloader setup 
 
 ## Start script
 
@@ -30,6 +30,7 @@ In the same script you might want to change the `nb_workers` parameter to a lowe
 
 You should edit the Kafka related parameters in your config file (e.g. [conf_kafka_image_downloader_test.json](../../conf/conf_kafka_image_downloader_test.json)), 
 to make sure that:
+
 - the servers lists `KID_consumer_servers` and 
 `KID_producer_servers` are pointing to the correct addresses 
 of your Kafka brokers.

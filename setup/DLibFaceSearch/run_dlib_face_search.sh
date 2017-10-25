@@ -3,7 +3,7 @@
 #  should this suffix be set from a parameter?
 #suffix="_test"
 suffix="_release"
-
+endpoint = "cufacesearch"
 #source ~/.bashrc
 
 while getopts r: option
@@ -30,7 +30,7 @@ conf="conf_search_"${extr_type}${suffix}".json"
 # extraction_checker could be run on the same machine as the search API? or as the image downloader one?
 # Should we have a script that make sure this process are still alive akin to the keep_alive_api.sh scripts...
 
-python ../../www/run_search_api.py -c ../../conf/${conf} -e "cufacesearch" &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d_%H-%M-%S).txt
+python ../../www/run_search_api.py -c ../../conf/${conf} -e ${endpoint} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d_%H-%M-%S).txt
 
 
 
