@@ -48,3 +48,7 @@ Most of the settings can be configured through a JSON file
 passed as parameter of one of the processing steps.
 Some examples configuration files are provided in the [conf](conf) folder.
 Additional detail are provided in each sub-folder of the [setup](./setup) folder.
+
+## License
+
+Apache License Version 2.0, see [LICENSE](LICENSE).
