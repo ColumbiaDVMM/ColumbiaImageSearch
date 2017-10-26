@@ -1,0 +1,36 @@
+<html>
+  <head>
+    <title>Images viewer</title>
+    <link rel="stylesheet" href="../static/style.css">
+  </head>
+  <body>
+    {% if settings["no_blur"] %}
+      {% set img_style = "img_vis" %}
+    {% else %}
+      {% set img_style = "img_blur" %}
+    {% endif %}
+    {# Tricky, need to know image size to properly draw face bbox.... #}
+    {% if settings["max_height"] %}
+      {% set max_height = settings["max_height"] %}
+    {% else %}
+      {% set max_height = 300 %}
+    {% endif %}
+
+    {% for query_face, similar_faces in search_results %}
+      {% set query_face_id = query_face[0] %}
+      <h2>Query image:</h2>
+      <img src="{{query_face[1]}}" title="{{query_face_id}}" class="{{img_style}}">
+
+      <h2>Query results:</h2>
+      {% for onesimface in similar_faces %}
+        <p>{{onesimeface}}</p>
+        {% for sha1, url, bbox, dist, iminfo in onesimface %}
+        {% set face_id = sha1 %}
+        <img src="{{url}}" alt="{{sha1}}" class="{{img_style}}" title="{{dist}}" style="height: {{max_height}}px;">
+        {% endfor %}
+      {% endfor %}
+    {% endfor %}
+  <script>
+  </script>
+  </body>
+</html>
