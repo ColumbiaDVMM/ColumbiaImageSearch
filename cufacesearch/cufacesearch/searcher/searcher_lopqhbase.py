@@ -444,7 +444,7 @@ class SearcherLOPQHBase(GenericSearcher):
       max_returned = options_dict["max_returned"]
     # this should be set with a parameter either in conf or options_dict too.
     # should we use self.quota here? and potentially overwrite from options_dict
-    quota = min(100 * max_returned, 1000)
+    quota = min(100 * max_returned, 5000)
 
     #print dets
     if self.detector is not None:
@@ -486,12 +486,11 @@ class SearcherLOPQHBase(GenericSearcher):
                 if self.reranking:
                   try:
                     pos = res_samples_ids.index(res.id)
-                    tmp_dets_sim_score.append(np.linalg.norm(normed_feat - res_features[pos]))
+                    dist = np.linalg.norm(normed_feat - res_features[pos])
+                    print "{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
                   except Exception as inst:
-                    print "Could not compute reranked distance for sample {}, error {} {}".format(res.id, type(inst), inst)
-                    tmp_dets_sim_score.append(dist)
-                else:
-                  tmp_dets_sim_score.append(dist)
+                    print "Could not compute reranking distance for sample {}, error {} {}".format(res.id, type(inst), inst)
+                tmp_dets_sim_score.append(dist)
 
           # If reranking, we need to reorder
           if self.reranking:

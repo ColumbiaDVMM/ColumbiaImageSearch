@@ -187,7 +187,7 @@ class APIResponder(Resource):
       last_refresh_time = self.searcher.indexer.last_refresh
 
     diff_time = datetime.now()-last_refresh_time
-    if self.searcher and diff_time.total_seconds() > 3600:
+    if self.searcher and diff_time.total_seconds() > 3600*4:
       self.searcher.load_codes()
       last_refresh_time = self.searcher.last_refresh
 

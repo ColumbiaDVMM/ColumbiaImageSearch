@@ -4,6 +4,7 @@
 #suffix="_test"
 suffix="_release"
 #suffix="_packathon"
+endpoint="cuimgsearch"
 
 while getopts r: option
 do
@@ -27,5 +28,5 @@ source ~/.bashrc
 extr_type="sbpycaffe"
 conf="conf_search_"${extr_type}${suffix}".json"
 
-python ../../www/run_search_api.py -c ../../conf/${conf} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d_%H-%M-%S).txt
+python ../../www/run_search_api.py -c ../../conf/${conf}  -e ${endpoint} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d_%H-%M-%S).txt
 
