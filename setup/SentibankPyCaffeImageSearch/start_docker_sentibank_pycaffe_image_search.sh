@@ -2,9 +2,9 @@
 
 ## Adjust that to the actual host values
 # TODO: set this, base_path on host machine
-#base_path=/media/data/Code/MEMEX/
+base_path=/media/data/Code/MEMEX/
 #base_path=/Users/svebor/Documents/Workspace/CodeColumbia/MEMEX/
-base_path=~
+#base_path=~
 PORT_HOST=80
 
 # You should not need to change that,
