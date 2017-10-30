@@ -20,8 +20,6 @@ img_URL_column = "info:s3_url"
 extraction_column_family = "ext"
 default_prefix = "HBI_"
 
-# Is the connection pool causing some issue? Could we use a single connection?
-
 class HBaseIndexerMinimal(ConfReader):
 
   def __init__(self, global_conf_in, prefix=default_prefix):
