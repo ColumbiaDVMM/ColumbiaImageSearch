@@ -1,9 +1,9 @@
 #!/bin/bash
 # TODO: set this, test or release?
 #  should this suffix be set from a parameter?
-#suffix="_test"
-suffix="_release"
-endpoint = "cuimgsearch"
+suffix="_test"
+#suffix="_release"
+endpoint="cuimgsearch"
 
 while getopts r: option
 do
