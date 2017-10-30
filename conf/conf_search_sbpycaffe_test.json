@@ -1,7 +1,7 @@
 {
   "SEARCHLOPQ_indexer_prefix": "HBI_",
   "SEARCHLOPQ_indexer_type": "hbase_indexer_minimal",
-  "SEARCHLOPQ_storer_type": "s3",
+  "SEARCHLOPQ_storer_type": "local",
   "SEARCHLOPQ_storer_prefix": "ST_",
   "SEARCHLOPQ_featurizer_prefix": "SBPYCAFFE_",
   "SEARCHLOPQ_featurizer_type": "sbpycaffe",
@@ -11,8 +11,7 @@
   "SEARCHLOPQ_lopq_V": 8,
   "SEARCHLOPQ_lopq_M": 4,
   "SEARCHLOPQ_lopq_subq": 32,
-  "ST_aws_profile": "cuimagesearch",
-  "ST_bucket_name": "dig-cu-imagesearchindex",
+  "ST_base_path": "../../data/index",
   "ST_verbose": 0,
   "HBI_host": "10.1.94.57",
   "HBI_table_sha1infos": "backpage_test_images_sha1_infos2",
