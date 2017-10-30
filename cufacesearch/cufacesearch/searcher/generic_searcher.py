@@ -170,6 +170,7 @@ class GenericSearcher(ConfReader):
     """
     from ..storer.generic_storer import get_storer, default_prefix as storer_default_prefix
     storer_type = self.get_required_param("storer_type")
+    print "[init_storer: log] storer_type: {}".format(storer_type)
     # try to get prefix from conf
     prefix = storer_default_prefix
     tmp_prefix = self.get_param("storer_prefix")
