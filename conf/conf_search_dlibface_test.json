@@ -7,12 +7,14 @@
   "SEARCHLOPQ_featurizer_type": "dlib",
   "SEARCHLOPQ_detector_type": "dlib",
   "SEARCHLOPQ_input_type": "face",
-  "SEARCHLOPQ_nb_train": 1000,
-  "SEARCHLOPQ_model_type": "lopq",
-  "SEARCHLOPQ_lopq_V": 8,
-  "SEARCHLOPQ_lopq_M": 2,
-  "SEARCHLOPQ_lopq_subq": 32,
-  "ST_base_path": "../data/index/",
+  "SEARCHLOPQ_nb_train": 2000000,
+  "SEARCHLOPQ_nb_train_pca": 100000,
+  "SEARCHLOPQ_model_type": "lopq_pca",
+  "SEARCHLOPQ_lopq_pcadims": 128,
+  "SEARCHLOPQ_lopq_V": 2048,
+  "SEARCHLOPQ_lopq_M": 8,
+  "SEARCHLOPQ_lopq_subq": 256,
+  "ST_base_path": "../../data/index/",
   "ST_verbose": 0,
   "HBI_host": "10.1.94.57",
   "HBI_table_sha1infos": "backpage_test_images_sha1_infos",
@@ -22,4 +24,3 @@
   "DLIB_pred_path": "../../data/models/shape_predictor_68_face_landmarks.dat",
   "DLIB_rec_path": "../../data/models/dlib_face_recognition_resnet_model_v1.dat"
 }
-

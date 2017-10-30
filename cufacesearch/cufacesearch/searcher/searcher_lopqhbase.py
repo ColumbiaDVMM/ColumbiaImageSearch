@@ -20,6 +20,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # number of processors to use for parallel computation of codes
     self.num_procs = 8 # could be read from configuration
     self.model_params = None
+    self.get_pretrained_model = True
     self.nb_train_pca = 100000
     self.last_refresh = datetime.now()
     self.last_full_refresh = datetime.now()
@@ -68,18 +69,36 @@ class SearcherLOPQHBase(GenericSearcher):
         full_trace_error(inst)
       print "[{}: log] Looks like model was not trained yet ({})".format(self.pp, inst)
 
-      # # this is from our modified LOPQ package...
-      # # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq/python
-      # # 'LOPQModelPCA' could be the type of the model loaded from pickle file
-      # from lopq.model import LOPQModel, LOPQModelPCA
-      self.save_feat_env = lmdb.open('./lmdb_feats_' + self.build_model_str(), map_size=1024 * 1000000 * 128,
-                                     writemap=True, map_async=True, max_dbs=2)
+      self.loaded_pretrain_model = False
+      # Try to get it from public bucket e.g.:
+      # https://s3-us-west-2.amazonaws.com/dig-cu-imagesearchindex/sbpycaffe_feat_full_image_lopq_pca-pca256-subq256-M8-V256_train100000
+      if self.get_pretrained_model:
+        from ..common.dl import download_file
+        import pickle
+        try:
+          base_model_path = "https://s3-us-west-2.amazonaws.com/dig-cu-imagesearchindex/"
+          download_file(base_model_path+self.build_model_str(), self.build_model_str())
+          lopq_model = pickle.load(open(self.build_model_str(), 'rb'))
+          self.storer.save(self.build_model_str(), lopq_model)
+          print "[{}: log] Loaded pretrained model {} from s3".format(self.pp, self.build_model_str())
+          self.loaded_pretrain_model = True
+        except Exception as inst:
+          print "[{}: log] Could not loaded pretrained model {} from s3: {}".format(self.pp, self.build_model_str(), inst)
 
-      # Train and save model in save_path folder
-      lopq_model = self.train_index()
-      # TODO: we could build a more unique model identifier (using sha1/md5 of model parameters? using date of training?)
-      #  that would also mean we should list from the storer and guess (based on date of creation) the correct model above...
-      self.storer.save(self.build_model_str(), lopq_model)
+
+      if not self.loaded_pretrain_model:
+        # # this is from our modified LOPQ package...
+        # # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq/python
+        # # 'LOPQModelPCA' could be the type of the model loaded from pickle file
+        # from lopq.model import LOPQModel, LOPQModelPCA
+        self.save_feat_env = lmdb.open('./lmdb_feats_' + self.build_model_str(), map_size=1024 * 1000000 * 128,
+                                       writemap=True, map_async=True, max_dbs=2)
+
+        # Train and save model in save_path folder
+        lopq_model = self.train_index()
+        # TODO: we could build a more unique model identifier (using sha1/md5 of model parameters? using date of training?)
+        #  that would also mean we should list from the storer and guess (based on date of creation) the correct model above...
+        self.storer.save(self.build_model_str(), lopq_model)
 
 
     # Setup searcher with LOPQ model
