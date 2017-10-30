@@ -22,7 +22,7 @@
   "HBI_table_updateinfos": "htcdr31_images_update_infos",
   "HBI_batch_update_size": 2048,
   "HBI_pool_thread": 1,
-  "SBPYCAFFE_sbcaffe_path": "../data/models/caffe_sentibank_train_iter_250000",
-  "SBPYCAFFE_imgmean_path": "../data/models/imagenet_mean.npy"
+  "SBPYCAFFE_sbcaffe_path": "../../data/models/caffe_sentibank_train_iter_250000",
+  "SBPYCAFFE_imgmean_path": "../../data/models/imagenet_mean.npy"
 }
 
