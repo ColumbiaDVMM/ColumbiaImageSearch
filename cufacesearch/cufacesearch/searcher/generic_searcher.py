@@ -26,6 +26,7 @@ class GenericSearcher(ConfReader):
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
     self.indexed_updates = set()
+    # TODO: should come from indexer.img_URL_column
     self.url_field = 'info:s3_url'
 
     # TODO: Also add feature column for re-ranking (can we use prefix filter?)
@@ -184,13 +185,24 @@ class GenericSearcher(ConfReader):
       log_msg = "[{}.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
       print log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed))
 
-  def search_image_list(self, image_list, options_dict=dict()):
+  # TODO: rename as search_imageURL_list, write similar method for search_imageFiles_list
+  def search_imageURL_list(self, image_list, options_dict=dict()):
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_URL' function
     if self.detector is None:
       from ..imgio.imgio import get_buffer_from_URL
       detect_load_fn = lambda x: get_buffer_from_URL(x)
     else:
       detect_load_fn = self.detector.detect_from_url
+    return self._search_from_any_list(image_list, detect_load_fn, options_dict)
+
+  def search_image_path_list(self, image_list, options_dict=dict()):
+    # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_file' function
+    # NB: path would be path from within the docker...
+    if self.detector is None:
+      from ..imgio.imgio import get_buffer_from_filepath
+      detect_load_fn = lambda x: get_buffer_from_filepath(x)
+    else:
+      detect_load_fn = self.detector.detect_from_filepath
     return self._search_from_any_list(image_list, detect_load_fn, options_dict)
 
   def search_imageB64_list(self, imageB64_list, options_dict=dict()):

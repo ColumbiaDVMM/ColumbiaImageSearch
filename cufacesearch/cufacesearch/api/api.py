@@ -26,6 +26,7 @@ class APIResponder(Resource):
     self.input_type = input_type
     # how to blur canvas images but keep the face clean?
     self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height", "max_returned"]
+    # TODO: should come from indexer.img_URL_column
     self.column_url = "info:s3_url"
 
   def get(self, mode):
@@ -72,16 +73,12 @@ class APIResponder(Resource):
     start = time.time()
     if mode == "byURL":
       resp = self.search_byURL(query, options)
-    elif mode == "byURL_nocache":
-      resp = self.search_byURL_nocache(query, options)
     elif mode == "bySHA1":
       resp = self.search_bySHA1(query, options)
-    elif mode == "bySHA1_nocache":
-      resp = self.search_bySHA1_nocache(query, options)
+    elif mode == "byPATH":
+      resp = self.search_byPATH(query, options)
     elif mode == "byB64":
       resp = self.search_byB64(query, options)
-    elif mode == "byB64_nocache":
-      resp = self.search_byB64_nocache(query, options)
     elif mode == "view_similar_byURL":
       query_reponse = self.search_byURL(query, options)
       return self.view_similar_query_response('URL', query, query_reponse, options)
@@ -93,6 +90,12 @@ class APIResponder(Resource):
     elif mode == "view_similar_bySHA1":
       query_reponse = self.search_bySHA1(query, options)
       return self.view_similar_query_response('SHA1', query, query_reponse, options)
+    # elif mode == "byURL_nocache":
+    #   resp = self.search_byURL_nocache(query, options)
+    # elif mode == "bySHA1_nocache":
+    #   resp = self.search_bySHA1_nocache(query, options)
+    # elif mode == "byB64_nocache":
+    #   resp = self.search_byB64_nocache(query, options)
     else:
       return {'error': 'unknown_mode: '+str(mode)}
     resp['Timing'] = time.time()-start
@@ -126,39 +129,36 @@ class APIResponder(Resource):
     return outp
 
   def search_byURL(self, query, options=None):
-    return self.search_byURL_nocache(query, options)
-
-  def search_byURL_nocache(self, query, options=None):
     query_urls = self.get_clean_urls_from_query(query)
     options_dict, errors = self.get_options_dict(options)
-    outp = self.searcher.search_image_list(query_urls, options_dict)
+    #outp = self.searcher.search_image_list(query_urls, options_dict)
+    outp = self.searcher.search_imageURL_list(query_urls, options_dict)
+    outp_we = self.append_errors(outp, errors)
+    sys.stdout.flush()
+    return outp_we
+
+  def search_byPATH(self, query, options=None):
+    query_paths = query.split(',')
+    options_dict, errors = self.get_options_dict(options)
+    outp = self.searcher.search_image_path_list(query_paths, options_dict)
     outp_we = self.append_errors(outp, errors)
     sys.stdout.flush()
     return outp_we
 
   def search_bySHA1(self, query, options=None):
-    # could use precomputed faces detections and features here
-    # could also have precomputed similarities and return them here
-    return self.search_bySHA1_nocache(query, options)
-
-  def search_bySHA1_nocache(self, query, options=None):
     query_sha1s = query.split(',')
     options_dict, errors = self.get_options_dict(options)
     # get the URLs from HBase and search
+    # TODO: how to deal with ingestion from folder here?...
     rows_urls = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, columns=[self.column_url])
     query_urls = [row[1][self.column_url] for row in rows_urls]
-    outp = self.searcher.search_image_list(query_urls, options_dict)
+    #outp = self.searcher.search_image_list(query_urls, options_dict)
+    outp = self.searcher.search_imageURL_list(query_urls, options_dict)
     outp_we = self.append_errors(outp, errors)
     sys.stdout.flush()
     return outp_we
 
   def search_byB64(self, query, options=None):
-    # we can implement a version that computes the sha1
-    # and get preocmputed features from HBase
-    # left for later as we consider queries with b64 are for out of index images
-    return self.search_byB64_nocache(query, options)
-
-  def search_byB64_nocache(self, query, options=None):
     query_b64s = [str(x) for x in query.split(',')]
     options_dict, errors = self.get_options_dict(options)
     outp = self.searcher.search_imageB64_list(query_b64s, options_dict)
@@ -314,3 +314,17 @@ class APIResponder(Resource):
                                            settings=settings,
                                            search_results=search_results),
                            200, headers)
+
+  # def search_byURL(self, query, options=None):
+  #   return self.search_byURL_nocache(query, options)
+
+  # def search_bySHA1(self, query, options=None):
+  #   # could use precomputed faces detections and features here
+  #   # could also have precomputed similarities and return them here
+  #   return self.search_bySHA1_nocache(query, options)
+
+  # def search_byB64(self, query, options=None):
+  #   # we can implement a version that computes the sha1
+  #   # and get preocmputed features from HBase
+  #   # left for later as we consider queries with b64 are for out of index images
+  #   return self.search_byB64_nocache(query, options)

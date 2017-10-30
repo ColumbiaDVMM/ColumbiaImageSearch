@@ -17,6 +17,7 @@ update_str_processed = "processed"
 update_str_started = "started"
 img_buffer_column = "info:img_buffer"
 img_URL_column = "info:s3_url"
+img_path_column = "info:img_path"
 extraction_column_family = "ext"
 default_prefix = "HBI_"
 

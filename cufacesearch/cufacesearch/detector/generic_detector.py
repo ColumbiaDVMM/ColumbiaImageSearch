@@ -1,4 +1,4 @@
-from ..imgio.imgio import get_buffer_from_URL, get_buffer_from_B64, get_SHA1_img_info_from_buffer
+from ..imgio.imgio import get_buffer_from_URL, get_buffer_from_filepath, get_buffer_from_B64, get_SHA1_img_info_from_buffer
 from skimage import io as skio
 import numpy as np
 
@@ -26,46 +26,123 @@ class GenericFaceDetector(object):
   def __init__(self):
     pass
 
-  def detect_from_url(self, img_url, up_sample=default_upsampling, image_dl_timeout=default_image_dl_timeout):
-    """ Detect faces in image at URL 'img_url'.
+  def load_image_from_buffer(self, img_buffer):
+    """ Load an image from a buffer.
 
-    :param img_url: full URL of the image to process
-    :param up_sample: number of upsampling before detection to allow small faces detection.
-    :param image_dl_timeout: timeout in seconds for image download.
-    :return:
+    Deal with GIF and alpha channel.
+
+    Args:
+      img_buffer (buffer): image buffer
+
+    Returns:
+      image (numpy.array): the loaded image
     """
-    return self.detect_from_buffer(get_buffer_from_URL(img_url, image_dl_timeout=image_dl_timeout), up_sample=up_sample)
-
-  def detect_from_b64(self, base64str, up_sample=default_upsampling):
-    return self.detect_from_buffer(get_buffer_from_B64(base64str), up_sample)
-
-  # You may need to override this method if your detector needs cannot work with a skimage
-  def detect_from_buffer(self, img_buffer, up_sample=default_upsampling):
-    sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
-    img_buffer.seek(0)
-    img = skio.imread(img_buffer)
-    return sha1, img_type, width, height, img, self.detect_from_img(img, up_sample)
-
-  def detect_from_buffer_noinfos(self, img_buffer, up_sample=default_upsampling):
     img = skio.imread(img_buffer)
     # Deal with GIF
     if len(img.shape) == 4:
       # Get first 'frame' of GIF
       img = np.squeeze(img[1, :, :, :])
     # Deal with alpha channel in PNG
-    if img.shape[-1]==4:
+    if img.shape[-1] == 4:
       img = img[:, :, :3]
+    return img
+
+  def detect_from_filepath(self, img_file_path, up_sample=default_upsampling, image_dl_timeout=default_image_dl_timeout,
+                      with_infos=True):
+    """ Run face detection in image at local path 'img_file_path'.
+
+    The path has to be readable from within the docker.
+
+    Args:
+      img_file_path (str): full path of the image to process
+      up_sample (int): number of upsampling before detection to allow small faces detection. [optional]
+      image_dl_timeout (int): timeout in seconds for image download. [optional]
+      with_infos (bool): wether or not we also . [optional]
+
+    Returns:
+      output (tuple): (optionally image infos), loaded image, and the detections as a list of dict with keys "left", "top", "right", "bottom"
+    """
+    if with_infos:
+      return self.detect_from_buffer(get_buffer_from_filepath(img_file_path, image_dl_timeout=image_dl_timeout),
+                                     up_sample=up_sample)
+    else:
+      return self.detect_from_buffer_noinfos(get_buffer_from_filepath(img_file_path, image_dl_timeout=image_dl_timeout),
+                                     up_sample=up_sample)
+
+  def detect_from_url(self, img_url, up_sample=default_upsampling, image_dl_timeout=default_image_dl_timeout,
+                      with_infos=True):
+    """ Run face detection in image at URL 'img_url'.
+
+    Args:
+      img_url (str): full URL of the image to process
+      up_sample (int): number of upsampling before detection to allow small faces detection. [optional]
+      image_dl_timeout (int): timeout in seconds for image download. [optional]
+      with_infos (bool): wether or not we also . [optional]
+
+    Returns:
+      output (tuple): (optionally image infos), loaded image, and the detections as a list of dict with keys "left", "top", "right", "bottom"
+    """
+    if with_infos:
+      return self.detect_from_buffer(get_buffer_from_URL(img_url, image_dl_timeout=image_dl_timeout),
+                                     up_sample=up_sample)
+    else:
+      return self.detect_from_buffer_noinfos(get_buffer_from_URL(img_url, image_dl_timeout=image_dl_timeout),
+                                     up_sample=up_sample)
+
+  def detect_from_b64(self, img_base64str, up_sample=default_upsampling, with_infos=True):
+    """ Run face detection in image encoded in base64 'base64str'.
+
+    Args:
+      img_base64str (str): base64 encoded string of the image to process
+      up_sample (int): number of upsampling before detection to allow small faces detection.
+      with_infos (bool): wether or not we also . [optional]
+
+    Returns:
+      output (tuple): (optionally image infos), loaded image, and the detections as a list of dict with keys "left", "top", "right", "bottom"
+    """
+    if with_infos:
+      return self.detect_from_buffer(get_buffer_from_B64(img_base64str), up_sample)
+    else:
+      return self.detect_from_buffer_noinfos(get_buffer_from_B64(img_base64str), up_sample)
+
+  # You may need to override this method if your detector needs cannot work with a skimage
+  def detect_from_buffer(self, img_buffer, up_sample=default_upsampling):
+    """ Detect faces in an image and extract image infos.
+
+    Args:
+      img_buffer (buffer): image buffer
+      up_sample (int): integer to specifiy if we should perform upsampling (optional)
+
+    Returns:
+      output (tuple): (sha1, img_type, width, height, img, detections) with 'img' being the loaded image and 'detections' the detections as a list of dict with keys "left", "top", "right", "bottom"
+    """
+    sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
+    img_buffer.seek(0)
+    img = self.load_image_from_buffer(img_buffer)
+    return sha1, img_type, width, height, img, self.detect_from_img(img, up_sample)
+
+  def detect_from_buffer_noinfos(self, img_buffer, up_sample=default_upsampling):
+    """ Detect faces in an image but do not extract image infos.
+
+    Args:
+      img_buffer (buffer): image buffer
+      up_sample (int): integer to specifiy if we should perform upsampling (optional)
+
+    Returns:
+      output (tuple): (img, detections) with 'img' being the loaded image and 'detections' the detections as a list of dict with keys "left", "top", "right", "bottom"
+    """
+    img = self.load_image_from_buffer(img_buffer)
     return img, self.detect_from_img(img, up_sample)
 
-  # You have to override this method in the child class.
+  #NB: You have to override this method in the child class.
   def detect_from_img(self, img, up_sample=default_upsampling):
     """ This method implementation will depend on the actual detector being used.
 
     Args:
       img: image as a scikit-image
-      up_sample: integer to specifiy if we should perform upsampling (optional)
+      up_sample (int): integer to specifiy if we should perform upsampling (optional)
 
     Returns:
-      list: the detections as a list of dict with keys "left", "top", "right", "bottom"
+      detections (list): the detections as a list of dict with keys "left", "top", "right", "bottom"
     """
     raise NotImplementedError('detect_from_img')
