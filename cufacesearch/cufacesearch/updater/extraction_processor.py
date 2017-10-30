@@ -88,6 +88,11 @@ class ExtractionProcessor(ConfReader):
     if file_input:
       self.url_input = False
 
+    if self.url_input:
+      self.img_column =  img_URL_column
+    else:
+      self.img_column = img_path_column
+
     # Need to be build from extraction type and detection input + "_processed"
     self.extr_family_column = "ext"
     tmp_extr_family_column = self.get_param("extr_family_column")
@@ -147,7 +152,7 @@ class ExtractionProcessor(ConfReader):
             print ("[{}.get_batch_hbase: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
             # also get 'ext:' to check if extraction was already processed?
             # TODO: should we also get img_path_column?
-            rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
+            rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
             #print "rows_batch", rows_batch
             if rows_batch:
               print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
@@ -185,8 +190,8 @@ class ExtractionProcessor(ConfReader):
           print("[{}.get_batch_kafka: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
           # NB: we could also get 'ext:' of images to double check if extraction was already processed
           #rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
-          # TODO: should we also get img_path_column?
-          rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
+          # TODO: should we also get img_path_column? based on self.url_input
+          rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
           #print "rows_batch", rows_batch
           if rows_batch:
             print("[{}.get_batch_kafka: log] Yielding for update: {}".format(self.pp, update_id))
@@ -247,11 +252,12 @@ class ExtractionProcessor(ConfReader):
             list_in.append(tup)
           else:
             # need to re-download, accumulate a list of URLs to download
-            if img_URL_column in img[1]:
-              q_in_dl.put((img[0], img[1][img_URL_column], True))
+            # Deal with img_path_column for local_images_kafka_pusher
+            if self.img_column in img[1]:
+              q_in_dl.put((img[0], img[1][self.img_column], True))
               nb_imgs_dl += 1
             else:
-              print("[{}.process_batch: warning] No buffer and no URL for image {} !".format(self.pp, img[0]))
+              print("[{}.process_batch: warning] No buffer and no URL/path for image {} !".format(self.pp, img[0]))
               continue
 
         # Download missing images
