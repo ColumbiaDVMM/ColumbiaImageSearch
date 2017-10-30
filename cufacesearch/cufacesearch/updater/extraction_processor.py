@@ -12,7 +12,7 @@ from cufacesearch.common import column_list_sha1s
 from cufacesearch.common.error import full_trace_error
 from cufacesearch.common.conf_reader import ConfReader
 from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_started, update_str_processed, \
-                                                       img_buffer_column, img_URL_column
+                                                       img_buffer_column, img_URL_column, img_path_column
 from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, GenericExtractor, build_extr_str
 from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
@@ -28,23 +28,27 @@ def build_batch(list_in, batch_size):
 
 class ThreadedDownloaderBufferOnly(threading.Thread):
 
-  def __init__(self, q_in, q_out):
+  def __init__(self, q_in, q_out, url_input=True):
     threading.Thread.__init__(self)
     self.q_in = q_in
     self.q_out = q_out
+    self.url_input = url_input
 
   def run(self):
-    from cufacesearch.imgio.imgio import get_buffer_from_URL, buffer_to_B64
+    from cufacesearch.imgio.imgio import get_buffer_from_URL, get_buffer_from_filepath, buffer_to_B64
 
     while self.q_in.empty() == False:
       try:
         # The queue should already have items, no need to block
-        (sha1, url, push_back) = self.q_in.get(False)
+        (sha1, in_img, push_back) = self.q_in.get(False)
       except:
         continue
 
       try:
-        img_buffer = get_buffer_from_URL(url)
+        if self.url_input:
+          img_buffer = get_buffer_from_URL(in_img)
+        else:
+          img_buffer = get_buffer_from_filepath(in_img)
         if img_buffer:
           # Push
           self.q_out.put((sha1, buffer_to_B64(img_buffer), push_back, None))
@@ -61,6 +65,7 @@ class ExtractionProcessor(ConfReader):
     self.nb_empt = 0
     self.nb_err = 0
     self.max_proc_time = 600 # in seconds?
+    self.url_input = True
 
     super(ExtractionProcessor, self).__init__(global_conf, prefix)
 
@@ -78,6 +83,10 @@ class ExtractionProcessor(ConfReader):
     verbose = self.get_param("verbose")
     if verbose:
       self.verbose = int(verbose)
+
+    file_input = self.get_param("file_input")
+    if file_input:
+      self.url_input = False
 
     # Need to be build from extraction type and detection input + "_processed"
     self.extr_family_column = "ext"
@@ -137,6 +146,7 @@ class ExtractionProcessor(ConfReader):
             list_sha1s = str_list_sha1s.split(',')
             print ("[{}.get_batch_hbase: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
             # also get 'ext:' to check if extraction was already processed?
+            # TODO: should we also get img_path_column?
             rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
             #print "rows_batch", rows_batch
             if rows_batch:
@@ -175,6 +185,7 @@ class ExtractionProcessor(ConfReader):
           print("[{}.get_batch_kafka: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
           # NB: we could also get 'ext:' of images to double check if extraction was already processed
           #rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
+          # TODO: should we also get img_path_column?
           rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, img_URL_column])
           #print "rows_batch", rows_batch
           if rows_batch:
