@@ -40,8 +40,8 @@ to connect to the Kafka broker are available at the location
 defined in the config file. 
 The relative path is with regards to the folder containing this README.md.
 - the output topics `KID_producer_cdr_out_topic` and 
-`KID_producer_images_out_topic` have been created 
-beforehand, they will NOT be created automatically.
+`KID_producer_images_out_topic` should have been created 
+beforehand if the Kafka configuration has the parameter `auto.create.topics.enable` set to `False`.
 
 You may lower the parameter `KID_nb_threads` to decrease the CPU usage. 
 You may decrease/increase the parameter `KID_verbose` in the range [0,6] to get less/additional information in 
