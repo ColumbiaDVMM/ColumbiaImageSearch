@@ -5,6 +5,7 @@ from .generic_kafka_processor import GenericKafkaProcessor
 
 default_prefix = "LIKP_"
 skip_formats = ['SVG', 'RIFF']
+valid_formats = ['JPEG', 'JPG', 'GIF', 'PNG']
 
 class LocalImageKafkaPusher(GenericKafkaProcessor):
   # To push list of images to be processed from the folder 'input_path' containing the images
@@ -22,18 +23,23 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
     self.pp = "LocalImageKafkaPusher"
 
   def get_next_img(self):
-    # TODO: could use glob. Actually implement and test that
-    #  with a timestamp ordering? to try to add automatically new images?
-    # should we define a pattern to be matched i.e. valid image file extension?
-    import glob
-    yield glob.iglob(self.input_path)
+    # TODO: test that
+    #  improvement: with a timestamp ordering? to try to add automatically new images?
+    #  we could also not rely on file extension but try to actually get the type of the image.
+    import os
+    for root, dirs, files in os.walk(self.input_path):
+      for basename in files:
+        if basename.split('.')[-1].upper() in valid_formats:
+          filename = os.path.join(root, basename)
+          yield filename
 
   def build_image_msg(self, dict_imgs):
-    # Build dict ouput for each image with fields 's3_url', 'sha1', 'img_info' and 'img_buffer'
+    # Build dict ouput for each image with fields 'img_path', 'sha1', 'img_info'
     img_out_msgs = []
     for img_path in dict_imgs:
       tmp_dict_out = dict()
-      # TODO: use indexer.img_path_column.split(':')[-1] instead of img_path?
+      # TODO: use indexer.img_path_column.split(':')[-1] instead of 'img_path'?
+      # Should the img_path be relative to self.input_path?
       tmp_dict_out['img_path'] = img_path
       tmp_dict_out['sha1'] = dict_imgs[img_path]['sha1']
       tmp_dict_out['img_info'] = dict_imgs[img_path]['img_info']
@@ -44,7 +50,7 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
     from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_filepath
 
     # Get images data and infos
-    for sha1, img_path in self.get_next_img():
+    for img_path in self.get_next_img():
 
       if (self.process_count + self.process_failed) % self.display_count == 0:
         avg_process_time = self.process_time / max(1, self.process_count + self.process_failed)
@@ -76,8 +82,5 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
           print print_msg.format(self.pp, img_path, inst)
 
       # Push to images_out_topic
-      # Beware, this pushes a LOT of data to the Kafka topic self.images_out_topic...
       for img_out_msg in self.build_image_msg(dict_imgs):
         self.producer.send(self.images_out_topic, img_out_msg)
-
-

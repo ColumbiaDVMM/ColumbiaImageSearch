@@ -4,7 +4,7 @@ from cufacesearch.ingester.kafka_image_downloader import DaemonKafkaImageDownloa
 from cufacesearch.ingester.kafka_image_downloader import default_prefix
 import time
 
-# Should this sccript just be as the main in 'kafka_image_downloader'?
+# Should this script just be as the main in 'kafka_image_downloader'?
 
 if __name__ == "__main__":
 
