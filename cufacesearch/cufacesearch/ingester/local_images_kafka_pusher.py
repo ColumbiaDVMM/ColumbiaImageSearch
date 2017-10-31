@@ -22,11 +22,11 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
     self.pp = "LocalImageKafkaPusher"
 
   def get_next_img(self):
-    # TODO: could use glob
+    # TODO: could use glob. Actually implement and test that
     #  with a timestamp ordering? to try to add automatically new images?
+    # should we define a pattern to be matched i.e. valid image file extension?
     import glob
-    for full_img_path in glob.glob(self.input_path):
-      yield full_img_path
+    yield glob.iglob(self.input_path)
 
   def build_image_msg(self, dict_imgs):
     # Build dict ouput for each image with fields 's3_url', 'sha1', 'img_info' and 'img_buffer'
