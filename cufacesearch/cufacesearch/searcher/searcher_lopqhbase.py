@@ -477,19 +477,19 @@ class SearcherLOPQHBase(GenericSearcher):
           tmp_dets_sim_score = []
           for ires, res in enumerate(results):
             dist = res.dist
+            # if reranking compute actual distance
+            if self.reranking:
+              try:
+                pos = res_samples_ids.index(res.id)
+                dist = np.linalg.norm(normed_feat - res_features[pos])
+                print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
+              except Exception as inst:
+                print "Could not compute reranking distance for sample {}, error {} {}".format(res.id, type(inst), inst)
             if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
               if not max_returned or (max_returned and ires < max_returned ):
                 tmp_dets_sim_ids.append(res.id)
                 # here id would be face_id that we could build as sha1_facebbox?
                 tmp_img_sim.append(str(res.id).split('_')[0])
-                # if reranking compute actual distance
-                if self.reranking:
-                  try:
-                    pos = res_samples_ids.index(res.id)
-                    dist = np.linalg.norm(normed_feat - res_features[pos])
-                    print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
-                  except Exception as inst:
-                    print "Could not compute reranking distance for sample {}, error {} {}".format(res.id, type(inst), inst)
                 tmp_dets_sim_score.append(dist)
 
           # If reranking, we need to reorder
@@ -546,20 +546,18 @@ class SearcherLOPQHBase(GenericSearcher):
         tmp_sim_score = []
         for ires, res in enumerate(results):
           dist = res.dist
+          if self.reranking:
+            # If reranking compute actual distance
+            try:
+              pos = res_samples_ids.index(res.id)
+              dist = np.linalg.norm(normed_feat - res_features[pos])
+              print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
+            except Exception as inst:
+              print "Could not compute reranked distance for sample {}, error {} {}".format(res.id, type(inst), inst)
           if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
             if not max_returned or (max_returned and ires < max_returned):
               tmp_img_sim.append(str(res.id))
-              if self.reranking:
-                # If reranking compute actual distance
-                try:
-                  pos = res_samples_ids.index(res.id)
-                  tmp_sim_score.append(np.linalg.norm(normed_feat - res_features[pos]))
-                  print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
-                except Exception as inst:
-                  print "Could not compute reranked distance for sample {}, error {} {}".format(res.id, type(inst), inst)
-                  tmp_sim_score.append(dist)
-              else:
-                tmp_sim_score.append(dist)
+              tmp_sim_score.append(dist)
 
         # If reranking, we need to reorder
         if self.reranking:
