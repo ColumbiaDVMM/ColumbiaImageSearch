@@ -1,8 +1,8 @@
 #!/bin/bash
 # TODO: set this, test or release?
 #  should this suffix be set from a parameter?
-suffix="_test"
-#suffix="_release"
+#suffix="_test"
+suffix="_release"
 endpoint="cufacesearch"
 #source ~/.bashrc
 
