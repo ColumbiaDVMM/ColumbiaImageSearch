@@ -183,17 +183,18 @@ class DictOutput():
                                                               [self.map['cached_image_urls'], []],
                                                               [self.map['distances'], []]])
 
-        # Explore list of similar faces
+        # Explore list of similar images
         for j in range(nb_images):
           #print "sim_images[i][j]",sim_images[i][0][j]
           nb_images_similar += 1
           output[out_i][self.map['similar_images']][self.map['image_sha1s']].append(sim_images[i][0][j][0].strip())
           output[out_i][self.map['similar_images']][self.map['cached_image_urls']].append(sim_images[i][0][j][1][self.url_field].strip())
-          output[out_i][self.map['similar_images']][self.map['distances']].append(sim_score[i][0][j])
+          output[out_i][self.map['similar_images']][self.map['distances']].append(float(sim_score[i][0][j]))
 
       outp = OrderedDict([[self.map['number_images'], len(dets)],
                           [self.map['number_similar_images'], nb_images_similar],
                           [self.map['all_similar_images'], output]])
 
     print "[format_output: log] build_output took: {}".format(time.time() - start_build_output)
+    print outp
     return outp

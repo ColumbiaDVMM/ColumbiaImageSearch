@@ -487,7 +487,7 @@ class SearcherLOPQHBase(GenericSearcher):
                   try:
                     pos = res_samples_ids.index(res.id)
                     dist = np.linalg.norm(normed_feat - res_features[pos])
-                    print "{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
+                    print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
                   except Exception as inst:
                     print "Could not compute reranking distance for sample {}, error {} {}".format(res.id, type(inst), inst)
                 tmp_dets_sim_score.append(dist)
@@ -554,6 +554,7 @@ class SearcherLOPQHBase(GenericSearcher):
                 try:
                   pos = res_samples_ids.index(res.id)
                   tmp_sim_score.append(np.linalg.norm(normed_feat - res_features[pos]))
+                  print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
                 except Exception as inst:
                   print "Could not compute reranked distance for sample {}, error {} {}".format(res.id, type(inst), inst)
                   tmp_sim_score.append(dist)
