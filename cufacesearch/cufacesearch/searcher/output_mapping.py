@@ -196,5 +196,5 @@ class DictOutput():
                           [self.map['all_similar_images'], output]])
 
     print "[format_output: log] build_output took: {}".format(time.time() - start_build_output)
-    print outp
+    #print outp
     return outp

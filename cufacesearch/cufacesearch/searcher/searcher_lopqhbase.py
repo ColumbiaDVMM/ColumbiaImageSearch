@@ -482,7 +482,7 @@ class SearcherLOPQHBase(GenericSearcher):
               try:
                 pos = res_samples_ids.index(res.id)
                 dist = np.linalg.norm(normed_feat - res_features[pos])
-                print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
+                #print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
               except Exception as inst:
                 print "Could not compute reranking distance for sample {}, error {} {}".format(res.id, type(inst), inst)
             if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
@@ -551,7 +551,7 @@ class SearcherLOPQHBase(GenericSearcher):
             try:
               pos = res_samples_ids.index(res.id)
               dist = np.linalg.norm(normed_feat - res_features[pos])
-              print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
+              #print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
             except Exception as inst:
               print "Could not compute reranked distance for sample {}, error {} {}".format(res.id, type(inst), inst)
           if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
