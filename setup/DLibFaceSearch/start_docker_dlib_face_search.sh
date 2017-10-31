@@ -6,7 +6,7 @@ repo_path=$(git rev-parse --show-toplevel)
 
 # You should not need to change that,
 # and if you do, make sure that the config file reflects these changes
-PORT_HOST=81
+PORT_HOST=80
 PORT_DOCKER=5000
 ports_mapping="-p "${PORT_HOST}":"${PORT_DOCKER}
 indocker_repo_path=/home/ubuntu/memex/ColumbiaImageSearch
