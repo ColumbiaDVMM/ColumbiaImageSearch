@@ -27,6 +27,14 @@ def get_featurizer(featurizer_type, global_conf, prefix=None):
   else:
     raise ValueError("[{}:error] Unknown 'featurizer' {}.".format("get_featurizer", featurizer_type))
 
+def get_feat_size(featurizer_type):
+  if featurizer_type == "dlib":
+    return 128
+  elif featurizer_type == "sbpycaffe" or featurizer_type == "sbcmdline":
+    return 4096
+  else:
+    raise ValueError("[{}:error] Unknown 'featurizer' {}.".format("get_feat_size", featurizer_type))
+
 class GenericFeaturizer(ConfReader):
 
   def __init__(self, global_conf_in, prefix=""):

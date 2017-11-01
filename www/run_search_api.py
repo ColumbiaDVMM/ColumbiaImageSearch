@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
 
   # Start API
-  print 'Starting Face Search API on port {}'.format(options.port)
+  print 'Starting Search API on port {}'.format(options.port)
   sys.stdout.flush()
 
   from gevent.wsgi import WSGIServer

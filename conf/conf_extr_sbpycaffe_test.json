@@ -60,7 +60,7 @@
     "request_timeout_ms": 60000,
     "consumer_timeout_ms": 60000
   },
-  "SBPY_sbcaffe_path": "../../data/caffe_sentibank_train_iter_250000",
-  "SBPY_imgmean_path": "../../data/imagenet_mean.npy"
+  "SBPY_sbcaffe_path": "../../data/models/caffe_sentibank_train_iter_250000",
+  "SBPY_imgmean_path": "../../data/models/imagenet_mean.npy"
 }
 

@@ -2,10 +2,12 @@
 # TODO: set this, test or release?
 #  should this suffix be set from a parameter?
 
-#suffix="_test"
-suffix="_release"
+suffix="_test"
+#suffix="_release"
 #suffix="_packathon"
 endpoint="cuimgsearch"
+
+# NB: here 'repo_path' has to be the 'indocker_repo_path'
 
 while getopts r: option
 do
@@ -29,5 +31,8 @@ source ~/.bashrc
 extr_type="sbpycaffe"
 conf="conf_search_"${extr_type}${suffix}".json"
 
-python ../../www/run_search_api.py -c ../../conf/${conf}  -e ${endpoint} &> log_searchapi${suffix}_${extr_type}_$(date +%Y-%m-%d_%H-%M-%S).txt
+cmd="python ../../www/run_search_api.py"
+args="-c ../../conf/"${conf}"  -e "${endpoint}
+log="log_"${extr_type}"_searchapi"${suffix}
+bash ../../scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}" --log="${log}"
 
