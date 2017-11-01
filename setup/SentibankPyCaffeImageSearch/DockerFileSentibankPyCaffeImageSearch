@@ -26,8 +26,7 @@ RUN \
 
 
 # Create needed directories
-RUN mkdir /home/ubuntu && mkdir /home/ubuntu/memex && mkdir /home/ubuntu/memex/update && \
-    mkdir /home/ubuntu/memex/ColumbiaImageSearch
+RUN mkdir /home/ubuntu && mkdir /home/ubuntu/memex && mkdir /home/ubuntu/memex/ColumbiaImageSearch
 
 # One line ENV setting
 ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 HOME=/home/ubuntu

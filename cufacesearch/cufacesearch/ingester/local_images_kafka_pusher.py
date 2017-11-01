@@ -1,7 +1,7 @@
 import json
 import time
-
-from .generic_kafka_processor import GenericKafkaProcessor
+from argparse import ArgumentParser
+from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
 default_prefix = "LIKP_"
 skip_formats = ['SVG', 'RIFF']
@@ -14,7 +14,7 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
     # call GenericKafkaProcessor init (and others potentially)
     super(LocalImageKafkaPusher, self).__init__(global_conf_filename, prefix, pid)
     # any additional initialization needed, like producer specific output logic
-    self.images_out_topic = self.get_required_param('producer_cdr_out_topic')
+    self.images_out_topic = self.get_required_param('producer_images_out_topic')
     self.input_path = self.get_required_param('input_path')
 
     self.set_pp()
@@ -47,10 +47,12 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
     return img_out_msgs
 
   def process(self):
-    from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_filepath
+    from cufacesearch.imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_filepath
+    nb_img_found = 0
 
     # Get images data and infos
     for img_path in self.get_next_img():
+      nb_img_found += 1
 
       if (self.process_count + self.process_failed) % self.display_count == 0:
         avg_process_time = self.process_time / max(1, self.process_count + self.process_failed)
@@ -84,3 +86,14 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
       # Push to images_out_topic
       for img_out_msg in self.build_image_msg(dict_imgs):
         self.producer.send(self.images_out_topic, img_out_msg)
+
+    print "[{}: log] Found {} images in: {}".format(self.pp, nb_img_found, self.input_path)
+
+if __name__ == "__main__":
+  # Get config
+  parser = ArgumentParser()
+  parser.add_argument("-c", "--conf", dest="conf_file", required=True)
+  options = parser.parse_args()
+
+  likp = LocalImageKafkaPusher(options.conf_file)
+  likp.process()

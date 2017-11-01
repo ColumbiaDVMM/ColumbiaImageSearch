@@ -115,9 +115,14 @@ class GenericKafkaProcessor(ConfReader):
     self.pp = "GenericKafkaProcessor"
 
   def init_consumer(self):
+    # Get topic
+    #topic = self.get_required_param('consumer_topics')
+    topic = self.get_param('consumer_topics')
+    if topic is None:
+      print "[{}: warning] Could not initialize consumer as no 'consumer_topics' was provided".format(self.pp)
+      return
 
-    ## Required parameters
-    topic = self.get_required_param('consumer_topics')
+
     # NB: topic could be a list
     if type(topic) == list:
       topic = [str(t) for t in topic]
@@ -163,4 +168,4 @@ class GenericKafkaProcessor(ConfReader):
       self.producer = KafkaProducer(**dict_args)
     except Exception as inst:
       # Would be OK for ingester that do not output to kafka...
-      print "[{}: warning] Could not initialize producer: {}".format(self.pp, inst)
+      print "[{}: warning] Could not initialize producer with arguments {}. Error was: {}".format(self.pp, dict_args, inst)

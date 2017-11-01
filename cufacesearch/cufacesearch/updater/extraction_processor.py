@@ -85,13 +85,16 @@ class ExtractionProcessor(ConfReader):
       self.verbose = int(verbose)
 
     file_input = self.get_param("file_input")
+    print("[{}.get_batch_hbase: log] file_input: {}".format(self.pp, file_input))
     if file_input:
       self.url_input = False
+    print("[{}.get_batch_hbase: log] url_input: {}".format(self.pp, self.url_input))
 
     if self.url_input:
       self.img_column =  img_URL_column
     else:
       self.img_column = img_path_column
+    print("[{}.get_batch_hbase: log] img_column: {}".format(self.pp, self.img_column))
 
     # Need to be build from extraction type and detection input + "_processed"
     self.extr_family_column = "ext"
@@ -143,15 +146,13 @@ class ExtractionProcessor(ConfReader):
     # modified get_unprocessed_updates_from_date to get updates that were started but never finished
     try:
       # needs to read update table rows starting with 'index_update_'+extr and not marked as indexed.
-      list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id, extr_type="_"+self.extr_prefix)
+      list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id, extr_type=self.extr_prefix)
       if list_updates:
         for update_id, update_cols in list_updates:
           if self.extr_prefix in update_id:
-            str_list_sha1s = update_cols[column_list_sha1s]
-            list_sha1s = str_list_sha1s.split(',')
+            list_sha1s = update_cols[column_list_sha1s].split(',')
             print ("[{}.get_batch_hbase: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
             # also get 'ext:' to check if extraction was already processed?
-            # TODO: should we also get img_path_column?
             rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
             #print "rows_batch", rows_batch
             if rows_batch:
@@ -165,6 +166,24 @@ class ExtractionProcessor(ConfReader):
             print("[{}.get_batch_hbase: log] Skipping update {} from another extraction type.".format(self.pp, update_id))
       else:
         print("[{}.get_batch_hbase: log] Nothing to update!".format(self.pp))
+        # Look for updates that have some unprocessed images
+        for updates in self.indexer.get_missing_extr_updates_from_date("1970-01-01", extr_type=self.extr_prefix):
+          for update_id, update_cols in updates:
+            if self.extr_prefix in update_id:
+              list_sha1s = update_cols[column_list_sha1s].split(',')
+              print("[{}.get_batch_hbase: log] Update {} has {} images with missing extractions.".format(self.pp, update_id, len(list_sha1s)))
+              # also get 'ext:' to check if extraction was already processed?
+              rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
+              if rows_batch:
+                print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
+                yield rows_batch, update_id
+                print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
+              else:
+                print(
+                  "[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
+            else:
+              print("[{}.get_batch_hbase: log] Skipping update {} from another extraction type.".format(self.pp, update_id))
+
     except Exception as inst:
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
 
@@ -191,6 +210,7 @@ class ExtractionProcessor(ConfReader):
           # NB: we could also get 'ext:' of images to double check if extraction was already processed
           #rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
           # TODO: should we also get img_path_column? based on self.url_input
+          print("[{}.get_batch_kafka: log] Looking for colums: {}".format(self.pp, [img_buffer_column, self.img_column]))
           rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
           #print "rows_batch", rows_batch
           if rows_batch:
@@ -209,7 +229,7 @@ class ExtractionProcessor(ConfReader):
         for rows_batch, update_id in self.get_batch_hbase():
           yield rows_batch, update_id
     except Exception as inst:
-      full_trace_error("[{}.get_batch: error] {}".format(self.pp, inst))
+      full_trace_error("[{}.get_batch_kafka: error] {}".format(self.pp, inst))
 
 
   def process_batch(self):
@@ -266,7 +286,7 @@ class ExtractionProcessor(ConfReader):
           for i in range(min(self.nb_threads, nb_imgs_dl)):
             # should read (url, obj_pos) from self.q_in
             # and push (url, obj_pos, buffer, img_info, start_process, end_process) to self.q_out
-            thread = ThreadedDownloaderBufferOnly(q_in_dl, q_out_dl)
+            thread = ThreadedDownloaderBufferOnly(q_in_dl, q_out_dl, url_input=self.url_input)
             thread.start()
             threads_dl.append(thread)
 
