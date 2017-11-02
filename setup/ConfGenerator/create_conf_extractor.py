@@ -56,9 +56,9 @@ if __name__ == "__main__":
 
   # Generic ingestion settings
   verbose = os.getenv('verbose', 0)
-  conf[extr_prefix + "verbose"] = verbose
+  conf[extr_prefix + "verbose"] = int(verbose)
   conf[extr_prefix + "max_delay"] = 600
-  conf[extr_prefix + "nb_threads"] = 2
+  conf[extr_prefix + "nb_threads"] = int(os.getenv('extr_nb_threads', 1))
 
   kafka_servers = json.loads(os.getenv('kafka_servers', '["kafka0.team-hg-memex.com:9093",\
                                                          "kafka1.team-hg-memex.com:9093",\
