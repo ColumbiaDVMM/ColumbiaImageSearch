@@ -10,6 +10,8 @@ kafka:
   hostname: kafka
   stdin_open: true
   tty: true
+  command:
+    - "bash"
   ports:
     - "9092:9092"
   links:
