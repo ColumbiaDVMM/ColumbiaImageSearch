@@ -41,3 +41,14 @@ def mkpath(outpath):
     except:
       pass
 
+def untar_file(fname, outpath):
+  import tarfile
+  if fname.endswith("tar.gz") or fname.endswith("tgz"):
+    tar = tarfile.open(fname, "r:gz")
+    tar.extractall(path=outpath)
+    tar.close()
+  elif (fname.endswith("tar")):
+    tar = tarfile.open(fname, "r:")
+    tar.extractall(path=outpath)
+    tar.close()
+

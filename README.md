@@ -8,10 +8,15 @@ by the [DVMM lab](http://www.ee.columbia.edu/ln/dvmm/) of Columbia University fo
 
 ## Overview
 
+This project can be used to build a searchable index of images that can scale to millions of images.
+It provides a RESTful API for querying the index to find similar images in less than a second.
+
 The required processing to build the image or face search index can be 
 decomposed in the following three main steps:
 
-- images downloading: download images (contained in webpages) from a data source 
+- images ingestion, that could be:
+  - reading from a directory of images 
+  - or downloading images (contained in webpages) from a data source 
 of webpages documents (currently assumed to be in the MEMEX CDR v3.1 format in a Kafka topic);
 - image processing: perform the detection and feature extraction on those images;
 - images indexing: build a search index (currently using a modified version of [LOPQ](https://github.com/yahoo/lopq)) and expose 
@@ -35,19 +40,56 @@ image and face search capability. The package will be renamed soon.
 
 ## Installation 
 
-### Docker installation
+### Pre-requisite
 
-For convenience a docker installation process is provided in [setup](./setup),
-there is one sub-folder for each step of a processing pipeline. 
-The first downloading step being shared by the two pipelines, there are a total of 5 sub-folders. 
-Check the README.md in each of those setup folder for additional information.
+The current implementation assumes it can have access to both HBase tables and Kafka topics.
+If you do not currently have access to those resources you can set up a testing environment 
+with docker by following the guidelines in [Prerequisite](./setup/Prerequisite/README.md).
 
-### Configuration
+NB: This is currently still a work in progress as connecting to Kafka set up as this does not seem to work yet.
 
-Most of the settings can be configured through a JSON file 
-passed as parameter of one of the processing steps.
-Some examples configuration files are provided in the [conf](conf) folder.
-Additional details are provided in each sub-folder of the [setup](./setup) folder.
+### Configure settings
+
+The whole pipeline can be configure from a single settings file. 
+An example setting is provided in [settings.env.sample](./setup/settings.env.sample).
+
+You should (copy and) edit this file to match your target settings.
+These settings are roughly divided into:
+
+- HBase settings
+- Kafka settings
+- Input settings
+- Extraction settings
+- Search settings 
+
+BEWARE: Note that the Kafka topics you define have to be created manually in your Kafka manager 
+before starting any processing. 
+
+### Generate configuration files
+
+Once you have set up your settings file, you can generate the configuration files by running the command: 
+
+`./setup/ConfGenerator/generate_confs.sh -s ./setup/settings.env.sample`
+
+### Start the dockers
+
+Any of the following scripts will first build the needed docker image. 
+But as they share the same docker image, it will be done only once.
+
+Once the configuration file have been generated, you can start the ingestion with: 
+`./scripts/start_docker_local_images_pusher.sh -s ./setup/settings.env.sample`
+It will generate log files starting with `log_image_ingestion_[conf_name]`. 
+Check these logs for any error.  
+
+You can then start the processing with: 
+`./scripts/start_docker_processing.sh -s ./setup/settings.env.sample`
+It will generate log files starting with `log_check_[conf_name]` and `log_proc_[conf_name]`. 
+Check these logs for any error.  
+
+Finally, you can start the indexing and search with: 
+`./scripts/start_docker_search.sh -s ./setup/settings.env.sample`
+It will generate log files starting with `log_search_[conf_name]`. 
+Check these logs for any error. 
 
 ## License
 

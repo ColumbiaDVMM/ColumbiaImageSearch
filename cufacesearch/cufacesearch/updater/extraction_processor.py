@@ -504,7 +504,9 @@ if __name__ == "__main__":
   ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
   nb_err = 0
 
-  print("Starting extraction {}".format(ep.extr_prefix))
+  print("Extraction processor options are: {}".format(options))
+  sys.stdout.flush()
+
   while True:
     try:
       ep.run()

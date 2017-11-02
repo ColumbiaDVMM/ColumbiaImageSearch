@@ -16,6 +16,7 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
     # any additional initialization needed, like producer specific output logic
     self.images_out_topic = self.get_required_param('producer_images_out_topic')
     self.input_path = self.get_required_param('input_path')
+    self.source_zip = self.get_param('source_zip')
 
     self.set_pp()
 
@@ -96,4 +97,14 @@ if __name__ == "__main__":
   options = parser.parse_args()
 
   likp = LocalImageKafkaPusher(options.conf_file)
+  if likp.source_zip:
+    import os, sys
+    from cufacesearch.common.dl import download_file, untar_file
+    local_zip = os.path.join(likp.input_path, likp.source_zip.split('/')[-1])
+    if not os.path.exists(local_zip):
+      print "Downloading {} to {}".format(likp.source_zip, local_zip)
+      sys.stdout.flush()
+      download_file(likp.source_zip, local_zip)
+      untar_file(local_zip, likp.input_path)
+
   likp.process()

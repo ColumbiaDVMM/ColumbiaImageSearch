@@ -1,12 +1,12 @@
-from argparse import ArgumentParser
+# TODO: Should this script just be as the main in 'kafka_image_downloader'?
+
 from cufacesearch.ingester.kafka_image_downloader import KafkaImageDownloader, KafkaThreadedImageDownloader
 from cufacesearch.ingester.kafka_image_downloader import DaemonKafkaImageDownloader, DaemonKafkaThreadedImageDownloader
 from cufacesearch.ingester.kafka_image_downloader import default_prefix
-import time
-
-# Should this script just be as the main in 'kafka_image_downloader'?
 
 if __name__ == "__main__":
+  from argparse import ArgumentParser
+  import time
 
   # Get conf file
   parser = ArgumentParser()

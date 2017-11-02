@@ -1,5 +1,8 @@
 # Full image search setup
 
+This readme is no longer up to date due to the ongoing rewriting of the startup script
+to have a single settings file. But most of the information are still relevant apart from the start/setup scripts.
+
 ## Start script
 
 The script [start_docker_sentibank_pycaffe_image_search.sh](start_docker_sentibank_pycaffe_image_search.sh) will build the docker 

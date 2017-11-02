@@ -1,4 +1,4 @@
-# Docker installation
+# Setup
 
 This folder contains the Docker files and setup scripts for each of the components of the system:
 

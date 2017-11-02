@@ -259,6 +259,9 @@ if __name__ == "__main__":
   parser.add_argument("-w", "--workers", dest="workers", type=int, default=1)
   options = parser.parse_args()
 
+  print "Extraction checker options are: {}".format(options)
+  sys.stdout.flush()
+
   if options.deamon:  # use daemon
     for w in range(options.workers):
       dec = DaemonExtractionChecker(options.conf_file, prefix=options.prefix)
