@@ -16,7 +16,7 @@ if __name__ == "__main__":
   hbase_prefix = "HBI_"
 
   # Generic ingestion settings
-  verbose = os.getenv('verbose', 0)
+  verbose = int(os.getenv('verbose', 0))
   conf[search_prefix + "verbose"] = verbose
   conf[search_prefix + 'get_pretrained_model'] = False
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
   conf[hbase_prefix + 'host'] =  os.environ['hbase_host']
   conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos']
   conf[hbase_prefix + 'table_updateinfos'] = os.environ['table_updateinfos']
-  conf[hbase_prefix + 'batch_update_size'] = os.environ['batch_update_size']
+  conf[hbase_prefix + 'batch_update_size'] = int(os.environ['batch_update_size'])
   conf[hbase_prefix + 'pool_thread'] = 1
 
   # Local input settings
@@ -65,13 +65,13 @@ if __name__ == "__main__":
 
   # Search parameters
   conf[search_prefix + 'model_type'] = os.environ['model_type']
-  conf[search_prefix + 'nb_train'] = os.environ['nb_train']
-  conf[search_prefix + 'lopq_V'] = os.environ['lopq_V']
-  conf[search_prefix + 'lopq_M'] = os.environ['lopq_M']
-  conf[search_prefix + 'lopq_subq'] = os.environ['lopq_subq']
+  conf[search_prefix + 'nb_train'] = int(os.environ['nb_train'])
+  conf[search_prefix + 'lopq_V'] = int(os.environ['lopq_V'])
+  conf[search_prefix + 'lopq_M'] = int(os.environ['lopq_M'])
+  conf[search_prefix + 'lopq_subq'] = int(os.environ['lopq_subq'])
   if conf[search_prefix + 'model_type'] == "lopq_pca":
-    conf[search_prefix + 'nb_train_pca'] = os.environ['nb_train_pca']
-    conf[search_prefix + 'lopq_pcadims'] = os.environ['lopq_pcadims']
+    conf[search_prefix + 'nb_train_pca'] = int(os.environ['nb_train_pca'])
+    conf[search_prefix + 'lopq_pcadims'] = int(os.environ['lopq_pcadims'])
 
   if not os.path.exists(options.output_dir):
     os.mkdir(options.output_dir)
