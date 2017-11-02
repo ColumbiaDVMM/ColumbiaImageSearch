@@ -26,8 +26,10 @@ else
 fi
 
 cd ${repo_path}
+mkdir "./logs"
 
 package_name="cufacesearch"
+
 
 cmd="python ./"${package_name}"/"${package_name}"/ingester/local_images_kafka_pusher.py"
 args="-c ./conf/generated/conf_ingestion_"${conf_name}.json
