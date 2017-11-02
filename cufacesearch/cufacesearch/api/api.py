@@ -34,7 +34,10 @@ class APIResponder(Resource):
     options = request.args.get('options')
     if query:
       print "[get] received parameters: {}".format(request.args.keys())
-      print "[get] received data: {}".format(query)
+      try:
+        print u'[get] received data: '+query.encode('utf-8').strip()
+      except:
+        print '[get] data contains unicode'
       print "[get] received options: {}".format(options)
       return self.process_query(mode, query, options)
     else:
@@ -203,6 +206,7 @@ class APIResponder(Resource):
   def get_clean_urls_from_query(query):
     """ To deal with comma in URLs.
     """
+    # TODO: fix issue with unicode in URL
     tmp_query_urls = ['http'+str(x) for x in query.split('http') if x]
     query_urls = []
     for x in tmp_query_urls:
@@ -294,7 +298,8 @@ class APIResponder(Resource):
       for j in range(similar_faces[self.searcher.do.map['number_'+self.input_type+'s']]):
         # build face tuple (sha1, url/b64 img, face bounding box, distance) for one similar face
         osface_sha1 = similar_faces[self.searcher.do.map['image_sha1s']][j]
-        if query_type == "PATH":
+        #if query_type == "PATH":
+        if self.searcher.file_input:
           with open(similar_faces[self.searcher.do.map['cached_image_urls']][j], 'rb') as img_buffer:
             img_info = get_SHA1_img_info_from_buffer(img_buffer)
             img_B64 = buffer_to_B64(img_buffer)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sleep_time=60
+sleep_time=600
 
 while getopts :-: option
 do
