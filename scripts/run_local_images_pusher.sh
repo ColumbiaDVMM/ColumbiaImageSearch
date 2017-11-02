@@ -28,6 +28,8 @@ fi
 cd ${repo_path}
 mkdir "./logs"
 
+set -a && . ${repo_path}/setup/Prerequisite/.env && set +a
+
 package_name="cufacesearch"
 
 
