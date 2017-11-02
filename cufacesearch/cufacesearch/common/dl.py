@@ -52,3 +52,41 @@ def untar_file(fname, outpath):
     tar.extractall(path=outpath)
     tar.close()
 
+def fixurl(url):
+  # Inspired from https://stackoverflow.com/a/804380 but using requests
+  from requests.utils import urlparse, urlunparse, quote, unquote
+
+  # turn string into unicode
+  if not isinstance(url, unicode):
+    url = url.decode('utf8')
+
+  # parse it
+  parsed = urlparse(url)
+
+  # divide the netloc further
+  userpass, at, hostport = parsed.netloc.rpartition('@')
+  user, colon1, pass_ = userpass.partition(':')
+  host, colon2, port = hostport.partition(':')
+
+  # encode each component
+  scheme = parsed.scheme.encode('utf8')
+  user = quote(user.encode('utf8'))
+  colon1 = colon1.encode('utf8')
+  pass_ = quote(pass_.encode('utf8'))
+  at = at.encode('utf8')
+  host = host.encode('idna')
+  colon2 = colon2.encode('utf8')
+  port = port.encode('utf8')
+  path = '/'.join(  # could be encoded slashes!
+    quote(unquote(pce).encode('utf8'), '')
+    for pce in parsed.path.split('/')
+  )
+  query = quote(unquote(parsed.query).encode('utf8'), '=&?/')
+  fragment = quote(unquote(parsed.fragment).encode('utf8'))
+
+  # put it back together
+  netloc = ''.join((user, colon1, pass_, at, host, colon2, port))
+  #urlunparse((scheme, netloc, path, params, query, fragment))
+  params = ''
+  return urlunparse((scheme, netloc, path, params, query, fragment))
+

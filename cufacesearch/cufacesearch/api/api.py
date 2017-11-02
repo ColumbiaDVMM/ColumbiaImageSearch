@@ -30,12 +30,13 @@ class APIResponder(Resource):
     self.column_url = "info:s3_url"
 
   def get(self, mode):
-    query = request.args.get('data')
+    query = request.args.get('data').encode('utf-8').strip()
+    #query = unicode(request.args.get('data'), "utf8")
     options = request.args.get('options')
     if query:
       print "[get] received parameters: {}".format(request.args.keys())
       try:
-        print u'[get] received data: '+query.encode('utf-8').strip()
+        print u'[get] received data: '+query
       except:
         print '[get] data contains unicode'
       print "[get] received options: {}".format(options)
@@ -206,8 +207,10 @@ class APIResponder(Resource):
   def get_clean_urls_from_query(query):
     """ To deal with comma in URLs.
     """
-    # TODO: fix issue with unicode in URL
-    tmp_query_urls = ['http'+str(x) for x in query.split('http') if x]
+    # tmp_query_urls = ['http'+str(x) for x in query.split('http') if x]
+    # fix issue with unicode in URL
+    from cufacesearch.common.dl import fixurl
+    tmp_query_urls = [fixurl('http' + x) for x in query.split('http') if x]
     query_urls = []
     for x in tmp_query_urls:
       if x[-1] == ',':
@@ -281,7 +284,8 @@ class APIResponder(Resource):
       if query_type == 'B64' or query_type == "PATH":
         query_face_img = query_urls_map[query_sha1]
       else:
-        query_face_img = query_face[self.searcher.do.map['query_url']]
+        query_face_img = query_face[self.searcher.do.map['query_url']].decode("utf8")
+        #query_face_img = query_face[self.searcher.do.map['query_url']]
       if self.searcher.do.map['query_'+self.input_type] in query_face:
         query_face_bbox = query_face[self.searcher.do.map['query_'+self.input_type]]
         query_face_bbox_compstr = build_bbox_str_list(query_face_bbox)
