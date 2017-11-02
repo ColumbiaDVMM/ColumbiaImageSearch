@@ -8,6 +8,8 @@ zookeeper:
 kafka:
   image: wurstmeister/kafka
   hostname: kafka
+  stdin_open: true
+  tty: true
   ports:
     - "9092:9092"
   links:
