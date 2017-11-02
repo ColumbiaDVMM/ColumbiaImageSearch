@@ -26,6 +26,9 @@ fi
 
 cd ${repo_path}
 
+# Initialize path environment variables
+source ~/.bashrc
+
 package_name="cufacesearch"
 
 # Start extraction checker

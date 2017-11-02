@@ -27,15 +27,40 @@ hbase:
    - "60030:60030"
   links:
    - zookeeper
-local_img_push:
+cuimg_push:
   image: svebork/columbia_image_search:1.0
-  hostname: local_img_push
+  hostname: cuimg_push
   stdin_open: true
   tty: true
   cap_add:
     - IPC_LOCK
   volumes:
     - $repo_path:$indocker_repo_path
-  command: $docker_pusher_cmd
+  command: $docker_push_cmd
   links:
     - kafka
+cuimg_proc:
+  image: svebork/columbia_image_search:1.0
+  hostname: cuimg_proc
+  stdin_open: true
+  tty: true
+  cap_add:
+    - IPC_LOCK
+  volumes:
+    - $repo_path:$indocker_repo_path
+  command: $docker_proc_cmd
+  links:
+    - kafka
+    - hbase
+cuimg_search:
+  image: svebork/columbia_image_search:1.0
+  hostname: cuimg_search
+  stdin_open: true
+  tty: true
+  cap_add:
+    - IPC_LOCK
+  volumes:
+    - $repo_path:$indocker_repo_path
+  command: $docker_search_cmd
+  links:
+    - hbase

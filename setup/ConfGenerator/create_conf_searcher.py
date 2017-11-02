@@ -47,7 +47,7 @@ if __name__ == "__main__":
     conf[search_prefix + 'featurizer_type'] = "sbpycaffe"
     conf[search_prefix + 'detector_type'] = "full"
     conf[search_prefix + 'input_type'] = "image"
-    conf[featurizer_prefix + 'sbcaffe_path'] = "./data/models/caffe_sentibank_train_iter_250000",
+    conf[featurizer_prefix + 'sbcaffe_path'] = "./data/models/caffe_sentibank_train_iter_250000"
     conf[featurizer_prefix + 'imgmean_path'] = "./data/models/imagenet_mean.npy"
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))

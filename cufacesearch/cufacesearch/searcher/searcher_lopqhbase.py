@@ -203,7 +203,7 @@ class SearcherLOPQHBase(GenericSearcher):
                 break
             except Exception as inst:
               from cufacesearch.common.error import full_trace_error
-              err_msg = "[{}: error] Failed to get features from update {}: {} {}".format(self.pp, update_id, type(inst), inst)
+              err_msg = "[{}: error] Failed to get features: {} {}".format(self.pp, type(inst), inst)
               full_trace_error(err_msg)
               sys.stdout.flush()
           else:
