@@ -6,17 +6,19 @@
   "EXTR_featurizer_type": "sbpycaffe",
   "EXTR_detector_type": "full",
   "EXTR_input_type": "image",
-  "EXTR_max_delay": 600,
-  "EXTR_nb_threads": 6,
+  "EXTR_max_delay": 1200,
+  "EXTR_nb_threads": 2,
+  "EXTR_file_input": true,
+  "EXTR_verbose": 4,
   "HBI_host": "10.1.94.57",
-  "HBI_table_sha1infos": "backpage_test_images_sha1_infos2",
-  "HBI_table_updateinfos": "backpage_test_images_update_infos2",
+  "HBI_table_sha1infos": "test_local_images_infos",
+  "HBI_table_updateinfos": "test_local_images_updates_infos",
   "HBI_batch_update_size": 1000,
   "HBI_pool_thread": 1,
   "KIcheck_verbose": 1,
-  "KIcheck_consumer_topics": "backpage-test-images2",
-  "KIcheck_consumer_group": "backpage-test-images-sbpycaffe-extrchecker1",
-  "KIcheck_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KIcheck_consumer_topics": "test-local-images",
+  "KIcheck_consumer_group": "test-local-images-sbpycaffe-extrchecker2",
+  "KIcheck_consumer_servers": ["kafka0.team-hg-memex.com:9093", "kafka1.team-hg-memex.com:9093", "kafka2.team-hg-memex.com:9093", "kafka3.team-hg-memex.com:9093", "kafka4.team-hg-memex.com:9093", "kafka5.team-hg-memex.com:9093", "kafka6.team-hg-memex.com:9093", "kafka7.team-hg-memex.com:9093", "kafka8.team-hg-memex.com:9093", "kafka9.team-hg-memex.com:9093"],
   "KIcheck_consumer_security": {
     "security_protocol":"SSL",
     "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
@@ -31,7 +33,7 @@
     "request_timeout_ms": 600000,
     "consumer_timeout_ms": 600000
   },
-  "KIcheck_producer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KIcheck_producer_servers": ["kafka0.team-hg-memex.com:9093", "kafka1.team-hg-memex.com:9093", "kafka2.team-hg-memex.com:9093", "kafka3.team-hg-memex.com:9093", "kafka4.team-hg-memex.com:9093", "kafka5.team-hg-memex.com:9093", "kafka6.team-hg-memex.com:9093", "kafka7.team-hg-memex.com:9093", "kafka8.team-hg-memex.com:9093", "kafka9.team-hg-memex.com:9093"],
   "KIcheck_producer_security": {
     "security_protocol":"SSL",
     "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
@@ -39,11 +41,11 @@
     "ssl_keyfile":"../../data/keys/hg-kafka-client-key.pem",
     "ssl_check_hostname":false
   },
-  "KIcheck_producer_updates_out_topic": "backpage-test-images-sbpycaffe-updates2",
-  "KIproc_verbose": 2,
-  "KIproc_consumer_topics":  "backpage-test-images-sbpycaffe-updates2",
-  "KIproc_consumer_group": "backpage-test-images-sbpycaffe-extrproc1",
-  "KIproc_consumer_servers":  ["54.202.16.183:9093", "54.213.217.208:9093", "34.223.224.66:9093", "54.214.183.205:9093", "54.191.242.156:9093"],
+  "KIcheck_producer_updates_out_topic": "test-local-images-sbpycaffe-updates",
+  "KIproc_verbose": 4,
+  "KIproc_consumer_topics":  "test-local-images-sbpycaffe-updates",
+  "KIproc_consumer_group": "test-local-images-extrproc3",
+  "KIproc_consumer_servers":  ["kafka0.team-hg-memex.com:9093", "kafka1.team-hg-memex.com:9093", "kafka2.team-hg-memex.com:9093", "kafka3.team-hg-memex.com:9093", "kafka4.team-hg-memex.com:9093", "kafka5.team-hg-memex.com:9093", "kafka6.team-hg-memex.com:9093", "kafka7.team-hg-memex.com:9093", "kafka8.team-hg-memex.com:9093", "kafka9.team-hg-memex.com:9093"],
   "KIproc_consumer_security": {
     "security_protocol":"SSL",
     "ssl_cafile":"../../data/keys/hg-kafka-ca-cert.pem",
@@ -54,11 +56,11 @@
   "KIproc_consumer_options": {
     "auto_offset_reset": "earliest",
     "max_poll_records": 2,
-    "session_timeout_ms": 300000,
-    "request_timeout_ms": 600000,
-    "consumer_timeout_ms": 600000
+    "session_timeout_ms": 30000,
+    "request_timeout_ms": 60000,
+    "consumer_timeout_ms": 60000
   },
-  "SBPY_sbcaffe_path": "../../data/caffe_sentibank_train_iter_250000",
-  "SBPY_imgmean_path": "../../data/imagenet_mean.npy"
+  "SBPY_sbcaffe_path": "../../data/models/caffe_sentibank_train_iter_250000",
+  "SBPY_imgmean_path": "../../data/models/imagenet_mean.npy"
 }
 

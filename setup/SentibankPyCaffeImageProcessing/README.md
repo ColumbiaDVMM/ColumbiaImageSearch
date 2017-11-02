@@ -1,11 +1,15 @@
 # Full image processing setup
 
+This readme is no longer up to date due to the ongoing rewriting of the startup script
+to have a single settings file. But most of the information are still relevant apart from the start/setup scripts.
+
 ## Start script
 
 The script [start_docker_sentibank_pycaffe_image_processing.sh](start_docker_sentibank_pycaffe_image_processing.sh) 
-will build the docker image from the docker file, setup all dependencies (using the script 
-[setup_sentibank_pycaffe_image_processing.sh](setup_sentibank_pycaffe_image_processing.sh)) and start the 
-processing script. You can later on use this script to restart the processing, it will not rebuild the docker image 
+will build the docker image from the docker file [DockerFileColumbiaImageSearch](../DockerBuild/DockerFileColumbiaImageSearch), 
+setup all dependencies (using the script 
+[setup_columbia_image_search.sh](../DockerBuild/setup_columbia_image_search.sh)) 
+and start the processing script. You can later on use this script to restart the processing, it will not rebuild the docker image 
 if it is already there.
 
 This processing pipeline is divided into two processes, extraction checker and extraction processor.
@@ -27,8 +31,7 @@ You should also check these log files for any error.
 ### Script parameters
 
 You should edit the following parameters:
-
-- repo path (or just base_path) in the script [start_docker_sentibank_pycaffe_image_processing.sh](start_docker_sentibank_pycaffe_image_processing.sh): absolute path to the root of this repository. 
+ 
 - suffix in the script [run_sentibank_pycaffe_image_processing.sh](run_sentibank_pycaffe_image_processing.sh): corresponding to whatever suffix (e.g. `test`) you use for your configuration file.  
 
 ## Configuration file

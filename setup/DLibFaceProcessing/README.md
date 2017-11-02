@@ -1,5 +1,8 @@
 # Face processing setup
 
+This readme is no longer up to date due to the ongoing rewriting of the startup script
+to have a single settings file. But most of the information are still relevant apart from the start/setup scripts.
+
 ## Start script
 
 The script [start_docker_dlib_face_processing.sh](start_docker_dlib_face_processing.sh) will build the docker image from the docker file, 

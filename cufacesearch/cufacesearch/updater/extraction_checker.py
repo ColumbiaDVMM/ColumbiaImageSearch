@@ -47,6 +47,7 @@ class ExtractionChecker(ConfReader):
     self.last_push = time.time()
 
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
+    # TODO: should we add the 'ad' column family too here by default
     self.tablesha1_col_families = {'info': dict(), self.extr_family_column: dict()}
     self.list_extr_prefix = [self.featurizer_type, "feat", self.detector_type, self.input_type]
     self.extr_prefix = "_".join(self.list_extr_prefix)
@@ -60,6 +61,8 @@ class ExtractionChecker(ConfReader):
 
     # Initialize indexer and ingester
     self.indexer = HBaseIndexerMinimal(self.global_conf, prefix=self.get_required_param("indexer_prefix"))
+    # TODO: could we easily defined a local file ingester that could be used as a drop-in replacement for the Kafka one?
+    #  beware of all implications downstream...
     self.ingester = GenericKafkaProcessor(self.global_conf, prefix=self.get_required_param("check_ingester_prefix"))
     self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
     self.ingester.pp = "ec"
@@ -168,6 +171,7 @@ class ExtractionChecker(ConfReader):
         # Check which images have not been processed (or pushed in an update) yet
         unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)
         # TODO: we should mark those images as being 'owned' by the update we are constructing
+        #   (only reallyimportant if we are running multiple threads...)
         #   otherwise another update running at the same time could also claim it (if it appears in another ad)
         #   this can be handle when adding data to the searcher but induces duplicates in extraction process...
 
@@ -254,6 +258,9 @@ if __name__ == "__main__":
   parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
   parser.add_argument("-w", "--workers", dest="workers", type=int, default=1)
   options = parser.parse_args()
+
+  print "Extraction checker options are: {}".format(options)
+  sys.stdout.flush()
 
   if options.deamon:  # use daemon
     for w in range(options.workers):

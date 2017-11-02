@@ -5,8 +5,7 @@ import numpy as np
 from datetime import datetime
 
 from generic_searcher import GenericSearcher
-# Beware: the loading function to use could depend on the featurizer type...
-from ..featurizer.featsio import load_face_features
+from ..featurizer.generic_featurizer import get_feat_size
 from ..indexer.hbase_indexer_minimal import column_list_sha1s, update_str_processed
 from ..common.error import full_trace_error
 
@@ -20,6 +19,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # number of processors to use for parallel computation of codes
     self.num_procs = 8 # could be read from configuration
     self.model_params = None
+    self.get_pretrained_model = True
     self.nb_train_pca = 100000
     self.last_refresh = datetime.now()
     self.last_full_refresh = datetime.now()
@@ -68,18 +68,44 @@ class SearcherLOPQHBase(GenericSearcher):
         full_trace_error(inst)
       print "[{}: log] Looks like model was not trained yet ({})".format(self.pp, inst)
 
-      # # this is from our modified LOPQ package...
-      # # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq/python
-      # # 'LOPQModelPCA' could be the type of the model loaded from pickle file
-      # from lopq.model import LOPQModel, LOPQModelPCA
-      self.save_feat_env = lmdb.open('./lmdb_feats_' + self.build_model_str(), map_size=1024 * 1000000 * 128,
-                                     writemap=True, map_async=True, max_dbs=2)
+      self.loaded_pretrain_model = False
+      # Try to get it from public bucket e.g.:
+      # https://s3-us-west-2.amazonaws.com/dig-cu-imagesearchindex/sbpycaffe_feat_full_image_lopq_pca-pca256-subq256-M8-V256_train100000
+      if self.get_pretrained_model:
+        from ..common.dl import download_file
+        import pickle
+        try:
+          base_model_path = "https://s3-us-west-2.amazonaws.com/dig-cu-imagesearchindex/"
+          # This can fail with a "retrieval incomplete: got only" ...
+          download_file(base_model_path+self.build_model_str(), self.build_model_str())
+          lopq_model = pickle.load(open(self.build_model_str(), 'rb'))
+          self.storer.save(self.build_model_str(), lopq_model)
+          print "[{}: log] Loaded pretrained model {} from s3".format(self.pp, self.build_model_str())
+          self.loaded_pretrain_model = True
+        except Exception as inst:
+          print "[{}: log] Could not loaded pretrained model {} from s3: {}".format(self.pp, self.build_model_str(), inst)
 
-      # Train and save model in save_path folder
-      lopq_model = self.train_index()
-      # TODO: we could build a more unique model identifier (using sha1/md5 of model parameters? using date of training?)
-      #  that would also mean we should list from the storer and guess (based on date of creation) the correct model above...
-      self.storer.save(self.build_model_str(), lopq_model)
+
+      if not self.loaded_pretrain_model:
+        # # this is from our modified LOPQ package...
+        # # https://github.com/ColumbiaDVMM/ColumbiaImageSearch/tree/master/workflows/build-lopq-index/lopq/python
+        # # 'LOPQModelPCA' could be the type of the model loaded from pickle file
+        # from lopq.model import LOPQModel, LOPQModelPCA
+        # Size of DB should depend on nb_train... How should we properly set the size of this?
+        # It should be nb_train_pca * size_feat + nb_train * size_feat_pca
+        feat_size = get_feat_size(self.featurizer_type)
+        if self.model_type == "lopq_pca":
+          map_size = self.nb_train_pca * feat_size * 4*8 + self.nb_train * self.model_params['pca'] * 4*8
+        else:
+          map_size = self.nb_train * feat_size * 4*8
+        self.save_feat_env = lmdb.open('./lmdb_feats_' + self.build_model_str(), map_size=int(1.1*map_size),
+                                       writemap=True, map_async=True, max_dbs=2)
+
+        # Train and save model in save_path folder
+        lopq_model = self.train_index()
+        # TODO: we could build a more unique model identifier (using domain information? sha1/md5 of model parameters? using date of training?)
+        #  that would also mean we should list from the storer and guess (based on date of creation) the correct model above...
+        self.storer.save(self.build_model_str(), lopq_model)
 
 
     # Setup searcher with LOPQ model
@@ -91,6 +117,7 @@ class SearcherLOPQHBase(GenericSearcher):
         # self.searcher = LOPQSearcherLMDB(lopq_model, lmdb_path='./lmdb_index/', id_lambda=str)
         # self.updates_env = lmdb.open('./lmdb_updates/', map_size=1024 * 1000000 * 1, writemap=True, map_async=True, max_dbs=1)
         self.searcher = LOPQSearcherLMDB(lopq_model, lmdb_path='./lmdb_index_'+self.build_model_str(), id_lambda=str)
+        # How could we properly set the size of this?
         self.updates_env = lmdb.open('./lmdb_updates_'+self.build_model_str(), map_size=1024 * 1000000 * 1,
                                      writemap=True, map_async=True, max_dbs=1)
         self.updates_index_db = self.updates_env.open_db("updates")
@@ -134,12 +161,6 @@ class SearcherLOPQHBase(GenericSearcher):
       return txn.stat()['entries']
 
   def get_train_features(self, nb_features, lopq_pca_model=None):
-    train_features = []
-    #nb_saved_feats = 0
-    # Save training features to disk, if we ever want to train with different model configurations as
-    # gathering features can take a while
-    # TODO: current pickle system likely to create out of memory error, would need to stream saving/loading or save to LMDB...
-    #if self.save_train_features:
     if lopq_pca_model:
       feats_db = self.save_feat_env.open_db("feats_pca")
       dtype = np.float32
@@ -154,9 +175,8 @@ class SearcherLOPQHBase(GenericSearcher):
       sys.stdout.flush()
       start_date = "1970-01-01"
       done = False
-      # Accumulate until we have enough features
+      # Accumulate until we have enough features, or we have read all features if 'wait_for_nbtrain' is false
       while not done:
-        # TODO: this has been changed to a generator, need to be tested
         for batch_updates in self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str()):
           for update in batch_updates:
             try:
@@ -171,11 +191,13 @@ class SearcherLOPQHBase(GenericSearcher):
                 else:
                   np_features = np.asarray(features)
                 print "[{}: log] Got features {} from update {}".format(self.pp, np_features.shape, update_id)
+                sys.stdout.flush()
                 # just appending like this does not account for duplicates...
                 #train_features.extend(np_features)
                 nb_saved_feats = self.save_feats_to_lmbd(feats_db, samples_ids, np_features)
               else:
                 print "[{}: log] Did not get features from update {}".format(self.pp, update_id)
+                sys.stdout.flush()
               if nb_saved_feats >= nb_features:
                 done = True
                 break
@@ -191,8 +213,15 @@ class SearcherLOPQHBase(GenericSearcher):
             break
         else:
           # Wait for new updates...
-          print "[{}: log] Waiting for new updates...".format(self.pp)
-          time.sleep(600)
+          # TODO: could be optional
+          if self.wait_for_nbtrain:
+            print "[{}: log] Waiting for new updates...".format(self.pp)
+            sys.stdout.flush()
+            time.sleep(600)
+          else:
+            print "[{}: log] Gathered all available features ({})...".format(self.pp, self.get_nb_saved_feats(feats_db))
+            sys.stdout.flush()
+            break
 
     return self.get_feats_from_lmbd(feats_db, nb_features, dtype)
 
@@ -290,21 +319,9 @@ class SearcherLOPQHBase(GenericSearcher):
 
     return codes_dict
 
-    # Deprecated direct save to disk as tsv
-    # out_dir = os.path.dirname(codes_path)
-    # try:
-    #   os.makedirs(out_dir)
-    # except:
-    #   pass
-    # # to be saved as tsv, e.g. each line is face_id\tcode
-    # # allow for appending, beware to start from empty file...
-    # with open(codes_path, 'at') as outf:
-    #   for i, code in enumerate(codes):
-    #     outf.write("{}\t{}\n".format(face_ids[i], [code.coarse, code.fine]))
-
   def add_update(self, update_id):
     if self.lopq_searcher == "LOPQSearcherLMDB":
-      # TODO: Should we use another LMDB to store updates indexed?
+      # Use another LMDB to store updates indexed?
       with self.updates_env.begin(db=self.updates_index_db, write=True) as txn:
         txn.put(bytes(update_id), bytes(datetime.now()))
     else:

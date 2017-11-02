@@ -128,6 +128,10 @@ def get_buffer_from_B64(base64str):
   import base64
   return StringIO(base64.b64decode(base64str))
 
+def get_buffer_from_filepath(filepath):
+  from cStringIO import StringIO
+  with open(filepath, 'rb') as fd:
+    return StringIO(fd.read())
 
 def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=default_retries):
   # Sometime fails with a timeout, now using retries

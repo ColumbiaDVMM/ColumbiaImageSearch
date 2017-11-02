@@ -1,5 +1,6 @@
 from output_mapping import DictOutput
 from ..common.conf_reader import ConfReader
+from ..indexer.hbase_indexer_minimal import img_path_column, img_URL_column
 
 default_prefix = "GESEARCH_"
 
@@ -23,15 +24,35 @@ class GenericSearcher(ConfReader):
     self.top_feature = 0
     self.nb_train = 1000000
     self.save_train_features = False
+    self.wait_for_nbtrain = True
+    self.get_pretrained_model = False
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
     self.indexed_updates = set()
-    self.url_field = 'info:s3_url'
-
-    # TODO: Also add feature column for re-ranking (can we use prefix filter?)
-    self.needed_output_columns = [self.url_field]
 
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
+
+    # To deal with local file ingestion
+    self.file_input = False
+    file_input = self.get_param('file_input')
+    if file_input:
+      self.file_input = True
+
+    if self.file_input:
+      self.img_column = img_path_column
+    else:
+      self.img_column = img_URL_column
+
+    # TODO: Also add feature column for re-ranking (can we use prefix filter?)
+    self.needed_output_columns = [self.img_column]
+
+    get_pretrained_model = self.get_param('get_pretrained_model')
+    if get_pretrained_model:
+      self.get_pretrained_model = get_pretrained_model
+
+    wait_for_nbtrain = self.get_param('wait_for_nbtrain')
+    if wait_for_nbtrain is not None:
+      self.wait_for_nbtrain = wait_for_nbtrain
 
     # Initialize attributes from conf
     # TODO: rename model_type in searcher type?
@@ -52,7 +73,7 @@ class GenericSearcher(ConfReader):
       self.do = DictOutput(self.dict_output_type)
     else:
       self.do = DictOutput()
-    self.do.url_field = self.url_field
+    self.do.url_field = self.img_column
 
     # Initialize everything
     self.init_detector()
@@ -185,14 +206,25 @@ class GenericSearcher(ConfReader):
       log_msg = "[{}.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
       print log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed))
 
-  def search_image_list(self, image_list, options_dict=dict()):
+  # TODO: rename as search_imageURL_list, write similar method for search_imageFiles_list
+  def search_imageURL_list(self, image_list, options_dict=dict()):
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_URL' function
     if self.detector is None:
       from ..imgio.imgio import get_buffer_from_URL
       detect_load_fn = lambda x: get_buffer_from_URL(x)
     else:
       detect_load_fn = self.detector.detect_from_url
-    return self._search_from_any_list(image_list, detect_load_fn, options_dict)
+    return self._search_from_any_list(image_list, detect_load_fn, options_dict, push_img=True)
+
+  def search_image_path_list(self, image_list, options_dict=dict()):
+    # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_file' function
+    # NB: path would be path from within the docker...
+    if self.detector is None:
+      from ..imgio.imgio import get_buffer_from_filepath
+      detect_load_fn = lambda x: get_buffer_from_filepath(x)
+    else:
+      detect_load_fn = self.detector.detect_from_filepath
+    return self._search_from_any_list(image_list, detect_load_fn, options_dict, push_img=True)
 
   def search_imageB64_list(self, imageB64_list, options_dict=dict()):
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_B64' function
@@ -202,9 +234,9 @@ class GenericSearcher(ConfReader):
     else:
       detect_load_fn = self.detector.detect_from_b64
     # TODO: check if we have the "data:image/jpeg;base64," at the beggining of each B64 image?
-    return self._search_from_any_list(imageB64_list, detect_load_fn, options_dict)
+    return self._search_from_any_list(imageB64_list, detect_load_fn, options_dict, push_img=False)
 
-  def _search_from_any_list(self, image_list, detect_load_fn, options_dict):
+  def _search_from_any_list(self, image_list, detect_load_fn, options_dict, push_img=False):
     dets = []
     feats = []
     import time
@@ -220,10 +252,14 @@ class GenericSearcher(ConfReader):
         detect_time = time.time() - start_detect
         print 'Detect in one image in {:0.3}s.'.format(detect_time)
         total_detect += detect_time
-        if image.startswith('http'):
+        if push_img:
           dets.append((sha1, faces, image, img_type, width, height))
         else:
           dets.append((sha1, faces, None, img_type, width, height))
+        # if image.startswith('http'):
+        #   dets.append((sha1, faces, image, img_type, width, height))
+        # else:
+        #   dets.append((sha1, faces, None, img_type, width, height))
         # If we found faces, get features for each face
         faces_feats = []
         # Check if we were asked only to perform detection
@@ -244,7 +280,11 @@ class GenericSearcher(ConfReader):
         img = detect_load_fn(image)
         sha1 = get_SHA1_from_buffer(img)
         # Still fill a dets list with the image sha1 to propagate down for the search results...
-        if image.startswith('http'):
+        # if image.startswith('http'):
+        #   dets.append((sha1, image))
+        # else:
+        #   dets.append((sha1, None))
+        if push_img:
           dets.append((sha1, image))
         else:
           dets.append((sha1, None))

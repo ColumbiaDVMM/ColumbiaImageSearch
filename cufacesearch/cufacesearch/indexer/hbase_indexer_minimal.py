@@ -17,6 +17,7 @@ update_str_processed = "processed"
 update_str_started = "started"
 img_buffer_column = "info:img_buffer"
 img_URL_column = "info:s3_url"
+img_path_column = "info:img_path"
 extraction_column_family = "ext"
 default_prefix = "HBI_"
 
@@ -233,7 +234,7 @@ class HBaseIndexerMinimal(ConfReader):
     rows = None
     self.check_errors(previous_err, "get_unprocessed_updates_from_date", inst)
     # build row_start as index_update_YYYY-MM-DD
-    row_start = update_prefix + extr_type + "_" + start_date
+    row_start = update_prefix + "_" + extr_type + "_" + start_date
     #print row_start
     last_row = row_start
     try:
@@ -249,7 +250,7 @@ class HBaseIndexerMinimal(ConfReader):
               rows = [(row_id, row_val)]
             else:
               rows.append((row_id, row_val))
-      if rows is None:
+      if rows:
         if tmp_rows is None or len(tmp_rows) < maxrows:
           # Looks like we really have nothing to process...
           return rows
@@ -264,6 +265,45 @@ class HBaseIndexerMinimal(ConfReader):
       return self.get_unprocessed_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
                                                     previous_err=previous_err+1, inst=inst)
     return rows
+
+  def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=5, previous_err=0, inst=None):
+    # start_date should be in format YYYY-MM-DD(_XX)
+    rows = None
+    self.check_errors(previous_err, "get_missing_extr_updates_from_date", inst)
+    # build row_start as index_update_YYYY-MM-DD
+    row_start = update_prefix + extr_type + "_" + start_date
+    next_start_date = start_date
+
+    try:
+      while True:
+        rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
+        if rows:
+          out_rows = []
+          if extr_type:
+            # Filter out updates of other extractions type.
+            for row in rows:
+              next_start_date = '_'.join(row[0].split('_')[-2:])
+              if extr_type in row[0]:
+                missing_extr_sha1s = self.get_missing_extr_sha1s(row[1][column_list_sha1s].split(','), extr_type)
+                if missing_extr_sha1s:
+                  out_row_val = dict()
+                  out_row_val[column_list_sha1s] = ','.join(missing_extr_sha1s)
+                  if out_rows:
+                    out_rows.append((row[0], out_row_val))
+                  else:
+                    out_rows = [(row[0], out_row_val)]
+          if out_rows:
+            yield out_rows
+            # add '~' to exclude last row from next batch
+          row_start = rows[-1][0]+'~'
+        else:
+          print "[get_missing_extr_updates_from_date: log] 'rows' was None."
+          break
+    except Exception as inst: # try to catch any exception
+      print "[get_missing_extr_updates_from_date: error] {}".format(inst)
+      self.refresh_hbase_conn("get_missing_extr_updates_from_date")
+      yield self.get_missing_extr_updates_from_date(next_start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
+                                        inst=inst)
 
   def get_today_string(self):
     return datetime.today().strftime('%Y-%m-%d')
@@ -456,3 +496,13 @@ class HBaseIndexerMinimal(ConfReader):
     if self.verbose > 0:
       print "[{}: info] Got {} rows and {} features.".format(self.pp, len(rows), len(samples_id))
     return samples_id, feats
+
+  def get_missing_extr_sha1s(self, list_sha1s, extr_type):
+    rows = self.get_columns_from_sha1_rows(list_sha1s, columns=[extraction_column_family])
+    sha1s_w_extr = set()
+    for row in rows:
+      for k in row[1]:
+        if k.startswith(extraction_column_family+":"+extr_type) and k.endswith(extr_str_processed):
+          sha1s_w_extr.add(str(row[0]))
+    #print "Found {} sha1s with extractions".format(len(sha1s_w_extr))
+    return list(set(list_sha1s) - sha1s_w_extr)
