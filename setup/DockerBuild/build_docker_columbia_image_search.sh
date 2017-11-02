@@ -76,3 +76,8 @@ fi
 ${SUDO} docker stop ${setup_docker_name}
 
 # Push?
+export DOCKER_ID_USER="svebork"
+push_docker_image=${base_docker_image}:${docker_image_tag}
+docker login
+docker tag ${push_docker_image} $DOCKER_ID_USER/${push_docker_image}
+docker push $DOCKER_ID_USER/${push_docker_image}
