@@ -56,14 +56,15 @@ An example setting is provided in [settings.env.sample](./setup/settings.env.sam
 You should (copy and) edit this file to match your target settings.
 These settings are roughly divided into:
 
-- HBase settings
-- Kafka settings
-- Input settings
-- Extraction settings
-- Search settings 
+- HBase settings: you should provide the host, and a table name for storing infos about the images, and updates (batch of images to be processed)
+- Kafka settings: for the security keys, the path are relative to the root of this repository and should be in a folder in it.
+- Input settings: folder containing the images or Kafka topic containing the ads.
+- Extraction settings: wether to perform face or image processing.
+- Search settings: parameters of the indexing and API. 
 
 BEWARE: Note that the Kafka topics you define have to be created manually in your Kafka manager 
 before starting any processing. 
+
 
 ### Generate configuration files
 
@@ -89,7 +90,15 @@ Check these logs for any error.
 Finally, you can start the indexing and search with: 
 `./scripts/start_docker_search.sh -s ./setup/settings.env.sample`
 It will generate log files starting with `log_search_[conf_name]`. 
-Check these logs for any error. 
+Check these logs for any error.
+
+### Perform searches
+
+You can check the readmes [DLibFaceSearch](./setup/DLibFaceSearch/README.md) and 
+[SentibankImageSearch](./setup/SentibankPyCaffeImageSearch/README.md) for details about the APIs.
+A sample `python` script is provided at the end of each README.
+
+You can also open your browser at `http://localhost/[endpoint]/view_similar_byURL?data=[an_image_URL]` to visualize some results. 
 
 ## License
 
