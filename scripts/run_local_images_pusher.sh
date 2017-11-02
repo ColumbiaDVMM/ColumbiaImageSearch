@@ -31,5 +31,5 @@ package_name="cufacesearch"
 
 cmd="python ./"${package_name}"/"${package_name}"/ingester/local_images_kafka_pusher.py"
 args="-c ./conf/generated/conf_ingestion_"${conf_name}.json
-log="log_image_ingestion_"${conf_name}
+log="./logs/log_image_ingestion_"${conf_name}
 bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}" --log="${log}"

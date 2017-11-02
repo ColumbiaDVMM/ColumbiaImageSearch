@@ -102,6 +102,11 @@ class ExtractionProcessor(ConfReader):
     if tmp_extr_family_column:
       self.extr_family_column = tmp_extr_family_column
 
+    self.push_back = False
+    push_back = self.get_param("push_back")
+    if push_back:
+      self.push_back = True
+
     self.extr_prefix = build_extr_str(self.featurizer_type, self.detector_type, self.input_type)
     self.set_pp()
 
@@ -274,7 +279,7 @@ class ExtractionProcessor(ConfReader):
             # need to re-download, accumulate a list of URLs to download
             # Deal with img_path_column for local_images_kafka_pusher
             if self.img_column in img[1]:
-              q_in_dl.put((img[0], img[1][self.img_column], True))
+              q_in_dl.put((img[0], img[1][self.img_column], self.push_back))
               nb_imgs_dl += 1
             else:
               print("[{}.process_batch: warning] No buffer and no URL/path for image {} !".format(self.pp, img[0]))
@@ -513,8 +518,10 @@ if __name__ == "__main__":
       nb_err = 0
     except Exception as inst:
       full_trace_error("Extraction processor failed: {}".format(inst))
-      del ep
-      gc.collect()
-      time.sleep(10*nb_err)
-      ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
-      nb_err += 1
+      sys.stdout.flush()
+      raise inst
+      # del ep
+      # gc.collect()
+      # time.sleep(10*nb_err)
+      # ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
+      # nb_err += 1
