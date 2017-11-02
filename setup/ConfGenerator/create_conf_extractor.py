@@ -70,24 +70,28 @@ if __name__ == "__main__":
                                                          "kafka7.team-hg-memex.com:9093",
                                                          "kafka8.team-hg-memex.com:9093",
                                                          "kafka9.team-hg-memex.com:9093"]))
-  kafka_security = json.loads(os.getenv('kafka_security', "{\"security_protocol\": \"SSL\", \"ssl_cafile\": \"./data/keys/hg-kafka-ca-cert.pem\", \"ssl_certfile\": \"./data/keys/hg-kafka-client-cert.pem\", \"ssl_keyfile\": \"./data/keys/hg-kafka-client-key.pem\", \"ssl_check_hostname\": false}"))
+  #kafka_security = json.loads(os.getenv('kafka_security', "{\"security_protocol\": \"SSL\", \"ssl_cafile\": \"./data/keys/hg-kafka-ca-cert.pem\", \"ssl_certfile\": \"./data/keys/hg-kafka-client-cert.pem\", \"ssl_keyfile\": \"./data/keys/hg-kafka-client-key.pem\", \"ssl_check_hostname\": false}"))
+  env_kafka_security = os.getenv('kafka_security')
+  if env_kafka_security:
+    kafka_security = json.loads(env_kafka_security)
+    conf[check_ingester_prefix + 'consumer_security'] = kafka_security
+    conf[check_ingester_prefix + 'producer_security'] = kafka_security
+    conf[proc_ingester_prefix + 'consumer_security'] = kafka_security
+
   consumer_options = json.loads(os.getenv('kafka_consumer_options', "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 10, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
 
   # Checker consumer
   conf[check_ingester_prefix + 'consumer_servers'] = kafka_servers
-  conf[check_ingester_prefix + 'consumer_security'] = kafka_security
   conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_topic']
   conf[check_ingester_prefix + 'consumer_group'] = os.environ['extr_check_consumer_group']
   conf[check_ingester_prefix + 'consumer_options'] = consumer_options
   conf[check_ingester_prefix + 'verbose'] = verbose
   # Checker producer
   conf[check_ingester_prefix + 'producer_servers'] = kafka_servers
-  conf[check_ingester_prefix + 'producer_security'] = kafka_security
   conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
 
   # Processor consumer
   conf[proc_ingester_prefix + 'consumer_servers'] = kafka_servers
-  conf[proc_ingester_prefix + 'consumer_security'] = kafka_security
   conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
   conf[proc_ingester_prefix + 'consumer_group'] = os.environ['extr_proc_consumer_group']
   conf[proc_ingester_prefix + 'consumer_options'] = consumer_options

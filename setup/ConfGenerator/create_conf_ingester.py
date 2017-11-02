@@ -29,7 +29,15 @@ if __name__ == "__main__":
   # Generic ingestion settings
   conf[prefix + 'verbose'] = os.getenv('verbose', 0)
   conf[prefix + 'producer_servers'] = json.loads(os.getenv('kafka_servers', ["kafka0.team-hg-memex.com:9093", "kafka1.team-hg-memex.com:9093", "kafka2.team-hg-memex.com:9093", "kafka3.team-hg-memex.com:9093", "kafka4.team-hg-memex.com:9093", "kafka5.team-hg-memex.com:9093", "kafka6.team-hg-memex.com:9093", "kafka7.team-hg-memex.com:9093", "kafka8.team-hg-memex.com:9093", "kafka9.team-hg-memex.com:9093"]))
-  conf[prefix + 'producer_security'] = json.loads(os.getenv('kafka_security', "{\"security_protocol\": \"SSL\", \"ssl_cafile\": \"./data/keys/hg-kafka-ca-cert.pem\", \"ssl_certfile\": \"./data/keys/hg-kafka-client-cert.pem\", \"ssl_keyfile\": \"./data/keys/hg-kafka-client-key.pem\", \"ssl_check_hostname\": false}"))
+
+  env_kafka_security = os.getenv('kafka_security')
+  if env_kafka_security:
+    kafka_security = json.loads(env_kafka_security)
+    conf[prefix + 'producer_security'] = kafka_security
+    conf[prefix + 'consumer_security'] = kafka_security
+
+  #conf[prefix + 'producer_security'] = json.loads(os.getenv('kafka_security', "{\"security_protocol\": \"SSL\", \"ssl_cafile\": \"./data/keys/hg-kafka-ca-cert.pem\", \"ssl_certfile\": \"./data/keys/hg-kafka-client-cert.pem\", \"ssl_keyfile\": \"./data/keys/hg-kafka-client-key.pem\", \"ssl_check_hostname\": false}"))
+  
   conf[prefix + 'producer_images_out_topic'] = os.environ['images_topic']
 
   if not os.path.exists(options.output_dir):
