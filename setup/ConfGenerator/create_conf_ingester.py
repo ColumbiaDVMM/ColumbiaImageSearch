@@ -26,9 +26,20 @@ if __name__ == "__main__":
     conf[prefix + 'consumer_topics'] = os.environ['input_topic']
     conf[prefix + 'consumer_group'] = os.environ['input_consumer_group']
 
+  kafka_servers = json.loads(os.getenv('kafka_servers', '["kafka0.team-hg-memex.com:9093",\
+                                                           "kafka1.team-hg-memex.com:9093",\
+                                                           "kafka2.team-hg-memex.com:9093",\
+                                                           "kafka3.team-hg-memex.com:9093",\
+                                                           "kafka4.team-hg-memex.com:9093",\
+                                                           "kafka5.team-hg-memex.com:9093",\
+                                                           "kafka6.team-hg-memex.com:9093",\
+                                                           "kafka7.team-hg-memex.com:9093",\
+                                                           "kafka8.team-hg-memex.com:9093",\
+                                                           "kafka9.team-hg-memex.com:9093"]'))
+
   # Generic ingestion settings
   conf[prefix + 'verbose'] = os.getenv('verbose', 0)
-  conf[prefix + 'producer_servers'] = json.loads(os.getenv('kafka_servers', ["kafka0.team-hg-memex.com:9093", "kafka1.team-hg-memex.com:9093", "kafka2.team-hg-memex.com:9093", "kafka3.team-hg-memex.com:9093", "kafka4.team-hg-memex.com:9093", "kafka5.team-hg-memex.com:9093", "kafka6.team-hg-memex.com:9093", "kafka7.team-hg-memex.com:9093", "kafka8.team-hg-memex.com:9093", "kafka9.team-hg-memex.com:9093"]))
+  conf[prefix + 'producer_servers'] = kafka_servers
 
   env_kafka_security = os.getenv('kafka_security')
   if env_kafka_security:

@@ -60,16 +60,16 @@ if __name__ == "__main__":
   conf[extr_prefix + "max_delay"] = 600
   conf[extr_prefix + "nb_threads"] = 2
 
-  kafka_servers = json.loads(os.getenv('kafka_servers', ["kafka0.team-hg-memex.com:9093",
-                                                         "kafka1.team-hg-memex.com:9093",
-                                                         "kafka2.team-hg-memex.com:9093",
-                                                         "kafka3.team-hg-memex.com:9093",
-                                                         "kafka4.team-hg-memex.com:9093",
-                                                         "kafka5.team-hg-memex.com:9093",
-                                                         "kafka6.team-hg-memex.com:9093",
-                                                         "kafka7.team-hg-memex.com:9093",
-                                                         "kafka8.team-hg-memex.com:9093",
-                                                         "kafka9.team-hg-memex.com:9093"]))
+  kafka_servers = json.loads(os.getenv('kafka_servers', '["kafka0.team-hg-memex.com:9093",\
+                                                         "kafka1.team-hg-memex.com:9093",\
+                                                         "kafka2.team-hg-memex.com:9093",\
+                                                         "kafka3.team-hg-memex.com:9093",\
+                                                         "kafka4.team-hg-memex.com:9093",\
+                                                         "kafka5.team-hg-memex.com:9093",\
+                                                         "kafka6.team-hg-memex.com:9093",\
+                                                         "kafka7.team-hg-memex.com:9093",\
+                                                         "kafka8.team-hg-memex.com:9093",\
+                                                         "kafka9.team-hg-memex.com:9093"]'))
   #kafka_security = json.loads(os.getenv('kafka_security', "{\"security_protocol\": \"SSL\", \"ssl_cafile\": \"./data/keys/hg-kafka-ca-cert.pem\", \"ssl_certfile\": \"./data/keys/hg-kafka-client-cert.pem\", \"ssl_keyfile\": \"./data/keys/hg-kafka-client-key.pem\", \"ssl_check_hostname\": false}"))
   env_kafka_security = os.getenv('kafka_security')
   if env_kafka_security:
