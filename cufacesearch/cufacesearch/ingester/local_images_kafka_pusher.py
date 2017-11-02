@@ -17,6 +17,7 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
     self.images_out_topic = self.get_required_param('producer_images_out_topic')
     self.input_path = self.get_required_param('input_path')
     self.source_zip = self.get_param('source_zip')
+    self.ingested_images = set()
 
     self.set_pp()
 
@@ -32,7 +33,9 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
       for basename in files:
         if basename.split('.')[-1].upper() in valid_formats:
           filename = os.path.join(root, basename)
-          yield filename
+          if filename not in self.ingested_images:
+            yield filename
+            self.ingested_images.add(filename)
 
   def build_image_msg(self, dict_imgs):
     # Build dict ouput for each image with fields 'img_path', 'sha1', 'img_info'
@@ -50,6 +53,9 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
   def process(self):
     from cufacesearch.imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_filepath
     nb_img_found = 0
+
+    if self.producer is None:
+      raise ValueError("Producer was not initialized. Will not be able to push.")
 
     # Get images data and infos
     for img_path in self.get_next_img():
@@ -89,6 +95,7 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
         self.producer.send(self.images_out_topic, img_out_msg)
 
     print "[{}: log] Found {} images in: {}".format(self.pp, nb_img_found, self.input_path)
+    sys.stdout.flush()
 
 if __name__ == "__main__":
   # Get config
@@ -107,4 +114,6 @@ if __name__ == "__main__":
       download_file(likp.source_zip, local_zip)
       untar_file(local_zip, likp.input_path)
 
-  likp.process()
+  while True:
+    likp.process()
+    time.sleep(60)
