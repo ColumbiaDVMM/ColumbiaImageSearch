@@ -38,6 +38,8 @@ cd ${repo_path}
 # Initialize path environment variables
 source ~/.bashrc
 
+set -a && . ${repo_path}/setup/Prerequisite/.env && set +a
+
 # Make sure path are consistent by moving to repo root.
 repo_path=$(git rev-parse --show-toplevel)
 cd ${repo_path}
