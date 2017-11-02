@@ -63,11 +63,9 @@ class GenericFaceDetector(object):
       output (tuple): (optionally image infos), loaded image, and the detections as a list of dict with keys "left", "top", "right", "bottom"
     """
     if with_infos:
-      return self.detect_from_buffer(get_buffer_from_filepath(img_file_path, image_dl_timeout=image_dl_timeout),
-                                     up_sample=up_sample)
+      return self.detect_from_buffer(get_buffer_from_filepath(img_file_path), up_sample=up_sample)
     else:
-      return self.detect_from_buffer_noinfos(get_buffer_from_filepath(img_file_path, image_dl_timeout=image_dl_timeout),
-                                     up_sample=up_sample)
+      return self.detect_from_buffer_noinfos(get_buffer_from_filepath(img_file_path), up_sample=up_sample)
 
   def detect_from_url(self, img_url, up_sample=default_upsampling, image_dl_timeout=default_image_dl_timeout,
                       with_infos=True):

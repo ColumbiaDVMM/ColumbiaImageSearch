@@ -69,6 +69,7 @@ if __name__ == "__main__":
   conf[search_prefix + 'lopq_V'] = int(os.environ['lopq_V'])
   conf[search_prefix + 'lopq_M'] = int(os.environ['lopq_M'])
   conf[search_prefix + 'lopq_subq'] = int(os.environ['lopq_subq'])
+  conf[search_prefix + 'reranking'] = os.getenv('reranking', True)
   if conf[search_prefix + 'model_type'] == "lopq_pca":
     conf[search_prefix + 'nb_train_pca'] = int(os.environ['nb_train_pca'])
     conf[search_prefix + 'lopq_pcadims'] = int(os.environ['lopq_pcadims'])
