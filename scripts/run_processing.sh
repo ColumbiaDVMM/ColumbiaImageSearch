@@ -25,11 +25,10 @@ else
 fi
 
 cd ${repo_path}
+mkdir "./logs"
 
 # Initialize path environment variables
 source ~/.bashrc
-
-#set -a; . ${repo_path}/setup/Prerequisite/.env; set +a
 
 package_name="cufacesearch"
 
