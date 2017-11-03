@@ -29,7 +29,7 @@ cd ${repo_path}
 # Initialize path environment variables
 source ~/.bashrc
 
-set -a && . ${repo_path}/setup/Prerequisite/.env && set +a
+#set -a; . ${repo_path}/setup/Prerequisite/.env; set +a
 
 package_name="cufacesearch"
 

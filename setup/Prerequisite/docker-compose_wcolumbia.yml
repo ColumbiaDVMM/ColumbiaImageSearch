@@ -61,6 +61,8 @@ cuimg_search:
     - IPC_LOCK
   volumes:
     - $repo_path:$indocker_repo_path
+  ports:
+    - $port_host:5000
   command: $docker_search_cmd
   links:
     - hbase
