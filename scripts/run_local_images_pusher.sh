@@ -24,10 +24,9 @@ else
   echo "repo_path not set. Use -r to set repo_path please."
   exit -1
 fi
-mkdir "./logs"
-cd ${repo_path}
 
-#set -a; . ${repo_path}/setup/Prerequisite/.env; set +a
+cd ${repo_path}
+mkdir "./logs"
 
 package_name="cufacesearch"
 

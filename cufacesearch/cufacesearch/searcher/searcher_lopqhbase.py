@@ -178,35 +178,35 @@ class SearcherLOPQHBase(GenericSearcher):
       # Accumulate until we have enough features, or we have read all features if 'wait_for_nbtrain' is false
       while not done:
         for batch_updates in self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str()):
-          for updates in batch_updates:
-            for update in updates:
-              try:
-                # We could check that update has been processed... but if it haven't we won't get features anyway...
-                update_id = update[0]
-                list_sha1s = update[1][column_list_sha1s]
-                samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
-                if features:
-                  # Apply PCA to features here to save memory
-                  if lopq_pca_model:
-                    np_features = lopq_pca_model.apply_PCA(np.asarray(features))
-                  else:
-                    np_features = np.asarray(features)
-                  print "[{}: log] Got features {} from update {}".format(self.pp, np_features.shape, update_id)
-                  sys.stdout.flush()
-                  # just appending like this does not account for duplicates...
-                  #train_features.extend(np_features)
-                  nb_saved_feats = self.save_feats_to_lmbd(feats_db, samples_ids, np_features)
+          for update in batch_updates:
+            #for update in updates:
+            try:
+              # We could check that update has been processed... but if it haven't we won't get features anyway...
+              update_id = update[0]
+              list_sha1s = update[1][column_list_sha1s]
+              samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+              if features:
+                # Apply PCA to features here to save memory
+                if lopq_pca_model:
+                  np_features = lopq_pca_model.apply_PCA(np.asarray(features))
                 else:
-                  print "[{}: log] Did not get features from update {}".format(self.pp, update_id)
-                  sys.stdout.flush()
-                if nb_saved_feats >= nb_features:
-                  done = True
-                  break
-              except Exception as inst:
-                from cufacesearch.common.error import full_trace_error
-                err_msg = "[{}: error] Failed to get features: {} {}".format(self.pp, type(inst), inst)
-                full_trace_error(err_msg)
+                  np_features = np.asarray(features)
+                print "[{}: log] Got features {} from update {}".format(self.pp, np_features.shape, update_id)
                 sys.stdout.flush()
+                # just appending like this does not account for duplicates...
+                #train_features.extend(np_features)
+                nb_saved_feats = self.save_feats_to_lmbd(feats_db, samples_ids, np_features)
+              else:
+                print "[{}: log] Did not get features from update {}".format(self.pp, update_id)
+                sys.stdout.flush()
+              if nb_saved_feats >= nb_features:
+                done = True
+                break
+            except Exception as inst:
+              from cufacesearch.common.error import full_trace_error
+              err_msg = "[{}: error] Failed to get features: {} {}".format(self.pp, type(inst), inst)
+              full_trace_error(err_msg)
+              sys.stdout.flush()
             else:
               print "[{}: log] Got {} training samples so far...".format(self.pp, nb_saved_feats)
               sys.stdout.flush()
