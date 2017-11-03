@@ -46,9 +46,9 @@ class HBaseIndexerMinimal(ConfReader):
     """
     super(HBaseIndexerMinimal, self).read_conf()
     # HBase conf
-    self.hbase_host = self.get_required_param('host')
-    self.table_sha1infos_name = self.get_required_param('table_sha1infos')
-    self.table_updateinfos_name = self.get_param('table_updateinfos')
+    self.hbase_host = str(self.get_required_param('host'))
+    self.table_sha1infos_name = str(self.get_required_param('table_sha1infos'))
+    self.table_updateinfos_name = str(self.get_param('table_updateinfos'))
     if self.verbose > 0:
       print_msg = "[{}.read_conf: info] HBase tables name: {} (sha1infos), {} (updateinfos)"
       print print_msg.format(self.pp, self.table_sha1infos_name, self.table_updateinfos_name)
