@@ -26,19 +26,14 @@ class APIResponder(Resource):
     self.input_type = input_type
     # how to blur canvas images but keep the face clean?
     self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height", "max_returned"]
-    # TODO: should come from indexer.img_URL_column
-    self.column_url = "info:s3_url"
 
   def get(self, mode):
-    query = request.args.get('data').encode('utf-8').strip()
+    query = request.args.get('data')
     #query = unicode(request.args.get('data'), "utf8")
     options = request.args.get('options')
     if query:
       print "[get] received parameters: {}".format(request.args.keys())
-      try:
-        print u'[get] received data: '+query
-      except:
-        print '[get] data contains unicode'
+      print "[get] received data: "+query.encode('ascii','ignore')
       print "[get] received options: {}".format(options)
       return self.process_query(mode, query, options)
     else:
@@ -155,18 +150,21 @@ class APIResponder(Resource):
   def search_bySHA1(self, query, options=None):
     query_sha1s = query.split(',')
     options_dict, errors = self.get_options_dict(options)
-    # get the URLs from HBase and search
-    # TODO: how to deal with ingestion from folder here?...
-    rows_urls = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, columns=[self.column_url])
-    query_urls = [row[1][self.column_url] for row in rows_urls]
-    #outp = self.searcher.search_image_list(query_urls, options_dict)
-    outp = self.searcher.search_imageURL_list(query_urls, options_dict)
+    # get the image URLs/paths from HBase and search
+    # TODO: should we actually try to get features?
+    rows_imgs = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, columns=[self.searcher.img_column])
+    # TODO: what shoudl we do if we get less rows_imgs than query_sha1s?
+    query_imgs = [row[1][self.searcher.img_column] for row in rows_imgs]
+    if self.searcher.file_input:
+      outp = self.searcher.search_image_path_list(query_imgs, options_dict)
+    else:
+      outp = self.searcher.search_imageURL_list(query_imgs, options_dict)
     outp_we = self.append_errors(outp, errors)
     sys.stdout.flush()
     return outp_we
 
   def search_byB64(self, query, options=None):
-    query_b64s = [str(x) for x in query.split(',')]
+    query_b64s = [str(x) for x in query.split(',') if not x.startswith('data:')]
     options_dict, errors = self.get_options_dict(options)
     outp = self.searcher.search_imageB64_list(query_b64s, options_dict)
     outp_we = self.append_errors(outp, errors)
@@ -209,7 +207,7 @@ class APIResponder(Resource):
     """
     # tmp_query_urls = ['http'+str(x) for x in query.split('http') if x]
     # fix issue with unicode in URL
-    from cufacesearch.common.dl import fixurl
+    from ..common.dl import fixurl
     tmp_query_urls = [fixurl('http' + x) for x in query.split('http') if x]
     query_urls = []
     for x in tmp_query_urls:
@@ -245,14 +243,18 @@ class APIResponder(Resource):
       # - embedded format for each b64 query
       # TODO: use array parameter
       query_list = query.split(',')
-      query_b64_infos = [get_SHA1_img_type_from_B64(q) for q in query_list]
+      query_b64_infos = [get_SHA1_img_type_from_B64(q) for q in query_list if not q.startswith('data:')]
       query_urls_map = dict()
       for img_id, img_info in enumerate(query_b64_infos):
         query_urls_map[img_info[0]] = "data:"+ImageMIMETypes[img_info[1]]+";base64,"+str(query_list[img_id])
-    elif query_type == "PATH":
+    elif query_type == "PATH" or (query_type == "SHA1" and self.searcher.file_input):
       # Encode query in B64
       query_infos = []
       query_list = query.split(',')
+      # Get images paths from sha1s
+      if query_type == 'SHA1' and self.searcher.file_input:
+        rows_imgs = self.searcher.indexer.get_columns_from_sha1_rows(query_list, columns=[self.searcher.img_column])
+        query_list = [row[1][self.searcher.img_column] for row in rows_imgs]
       query_list_B64 = []
       for q in query_list:
         with open(q,'rb') as img_buffer:
@@ -261,7 +263,7 @@ class APIResponder(Resource):
       query_urls_map = dict()
       for img_id, img_info in enumerate(query_infos):
         query_urls_map[img_info[0]] = "data:" + ImageMIMETypes[img_info[1]] + ";base64," + str(query_list_B64[img_id])
-    elif query_type == 'SHA1' or query_type == "URL":
+    elif query_type == "URL" or (query_type == "SHA1" and not self.searcher.file_input):
       # URLs should already be in query response
       pass
     else:
@@ -281,7 +283,7 @@ class APIResponder(Resource):
       #print "query_face [{}]: {}".format(query_face.keys(), query_face)
       sys.stdout.flush()
       query_sha1 = query_face[self.searcher.do.map['query_sha1']]
-      if query_type == 'B64' or query_type == "PATH":
+      if query_type == "B64" or query_type == "PATH" or (query_type == "SHA1" and self.searcher.file_input):
         query_face_img = query_urls_map[query_sha1]
       else:
         query_face_img = query_face[self.searcher.do.map['query_url']].decode("utf8")
