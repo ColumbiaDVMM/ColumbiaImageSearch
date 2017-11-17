@@ -132,8 +132,10 @@ class HBaseIndexerMinimal(ConfReader):
           print "[get_create_table: info] created table {}".format(table_name)
           return table
     except Exception as inst:
-      # may fail if families in dictionary do not match those of an existing table, or because of connection issues?
-      pass
+      # May fail if families in dictionary do not match those of an existing table, or because of connection issues?
+      # Should we raise it up?
+      #pass
+      raise inst
 
   # use 'row_prefix' http://happybase.readthedocs.io/en/latest/api.html?highlight=scan#happybase.Table.scan?
   def scan_with_prefix(self, table_name, row_prefix=None, columns=None, maxrows=10, previous_err=0, inst=None):
@@ -226,8 +228,13 @@ class HBaseIndexerMinimal(ConfReader):
     except Exception as inst: # try to catch any exception
       print "[get_updates_from_date: error] {}".format(inst)
       self.refresh_hbase_conn("get_updates_from_date")
-      yield self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
-                                        inst=inst)
+      try:
+        for out_rows in self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
+                                        inst=inst):
+          yield out_rows
+      except Exception as inst:
+        raise inst
+
 
   def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=5, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
@@ -431,17 +438,23 @@ class HBaseIndexerMinimal(ConfReader):
           hbase_table = self.get_create_table(table_name, families=families, conn=connection)
         else:
           hbase_table = self.get_create_table(table_name, conn=connection)
-        # slice list_queries in batches of batch_size to query
-        rows = []
-        nb_batch = 0
-        for batch_start in range(0,len(list_queries), batch_size):
-          batch_list_queries = list_queries[batch_start:min(batch_start+batch_size,len(list_queries))]
-          rows.extend(hbase_table.rows(batch_list_queries, columns=columns))
-          nb_batch += 1
-        if self.verbose:
-          print("[get_rows_by_batch: log] got {} rows using {} batches.".format(len(rows), nb_batch))
-        return rows
+        if hbase_table:
+          # slice list_queries in batches of batch_size to query
+          rows = []
+          nb_batch = 0
+          for batch_start in range(0,len(list_queries), batch_size):
+            batch_list_queries = list_queries[batch_start:min(batch_start+batch_size,len(list_queries))]
+            rows.extend(hbase_table.rows(batch_list_queries, columns=columns))
+            nb_batch += 1
+          if self.verbose:
+            print("[get_rows_by_batch: log] got {} rows using {} batches.".format(len(rows), nb_batch))
+          return rows
+        else:
+          err_msg = "[get_rows_by_batch: error] could not get table: {} (families: {})"
+          raise ValueError(err_msg.format(table_name, families))
     except Exception as inst:
+      if type(inst) == ValueError:
+        raise inst
       # try to force longer sleep time if error repeats...
       self.refresh_hbase_conn("get_rows_by_batch", sleep_time=previous_err)
       return self.get_rows_by_batch(list_queries, table_name, families=families, columns=columns,

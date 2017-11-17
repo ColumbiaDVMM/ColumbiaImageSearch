@@ -502,6 +502,7 @@ class SearcherLOPQHBase(GenericSearcher):
                 dist = np.linalg.norm(normed_feat - res_features[pos])
                 #print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
               except Exception as inst:
+                # Means feature was not saved to backend index...
                 print "Could not compute reranking distance for sample {}, error {} {}".format(res.id, type(inst), inst)
             if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
               if not max_returned or (max_returned and ires < max_returned ):
@@ -529,7 +530,21 @@ class SearcherLOPQHBase(GenericSearcher):
             rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
             # rows should contain id, s3_url of images
             #print rows
-            sim_images.append(rows)
+            if not rows:
+              sim_images.append([(x,) for x in tmp_img_sim])
+            elif len(rows) < len(tmp_img_sim) or not rows:
+              # fall back to just sha1s... but beware to keep order...
+              dec = 0
+              fixed_rows = []
+              for pos, sha1 in tmp_img_sim:
+                if rows[pos-dec][0] == sha1:
+                  fixed_rows.append(rows[pos-dec])
+                else:
+                  dec += 1
+                  fixed_rows.append((sha1,))
+              sim_images.append(fixed_rows)
+            else:
+              sim_images.append(rows)
             sim_dets.append(tmp_dets_sim_ids)
             sim_score.append(tmp_dets_sim_score)
           else:
