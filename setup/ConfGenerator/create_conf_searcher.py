@@ -39,16 +39,20 @@ if __name__ == "__main__":
     conf[search_prefix + 'featurizer_type'] = "dlib"
     conf[search_prefix + 'detector_type'] = "dlib"
     conf[search_prefix + 'input_type'] = "face"
-    conf[featurizer_prefix + 'pred_path'] = "./data/models/shape_predictor_68_face_landmarks.dat"
-    conf[featurizer_prefix + 'rec_path'] = "./data/models/dlib_face_recognition_resnet_model_v1.dat"
+    # conf[featurizer_prefix + 'pred_path'] = "./data/models/shape_predictor_68_face_landmarks.dat"
+    # conf[featurizer_prefix + 'rec_path'] = "./data/models/dlib_face_recognition_resnet_model_v1.dat"
+    conf[featurizer_prefix + 'pred_path'] = "/data/models/shape_predictor_68_face_landmarks.dat"
+    conf[featurizer_prefix + 'rec_path'] = "/data/models/dlib_face_recognition_resnet_model_v1.dat"
   elif extr_type == "sbpycaffeimg":
     featurizer_prefix = "SBPY_"
     conf[search_prefix + 'featurizer_prefix'] = featurizer_prefix
     conf[search_prefix + 'featurizer_type'] = "sbpycaffe"
     conf[search_prefix + 'detector_type'] = "full"
     conf[search_prefix + 'input_type'] = "image"
-    conf[featurizer_prefix + 'sbcaffe_path'] = "./data/models/caffe_sentibank_train_iter_250000"
-    conf[featurizer_prefix + 'imgmean_path'] = "./data/models/imagenet_mean.npy"
+    #conf[featurizer_prefix + 'sbcaffe_path'] = "./data/models/caffe_sentibank_train_iter_250000"
+    #conf[featurizer_prefix + 'imgmean_path'] = "./data/models/imagenet_mean.npy"
+    conf[featurizer_prefix + 'sbcaffe_path'] = "/data/models/caffe_sentibank_train_iter_250000"
+    conf[featurizer_prefix + 'imgmean_path'] = "/data/models/imagenet_mean.npy"
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))
 
