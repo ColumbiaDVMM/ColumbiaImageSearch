@@ -53,7 +53,7 @@ services:
     environment:
       ZK_HOSTS: "zookeeper:2181"
       KM_CONFIGFILE: "/opt/application.conf"
-      JMX_PORT: "true"
+      #JMX_PORT: "true"
     ports:
       - "9997:9000"
     # Access kafka manager at: http://0.0.0.0:9997/kafka_manager/
