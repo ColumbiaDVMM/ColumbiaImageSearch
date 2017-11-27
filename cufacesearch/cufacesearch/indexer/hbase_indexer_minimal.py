@@ -15,6 +15,7 @@ batch_size = 100
 extr_str_processed = "processed"
 update_str_processed = "processed"
 update_str_started = "started"
+update_str_created = "created"
 img_buffer_column = "info:img_buffer"
 img_URL_column = "info:s3_url"
 img_path_column = "info:img_path"

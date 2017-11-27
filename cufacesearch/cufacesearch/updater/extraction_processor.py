@@ -113,11 +113,13 @@ class ExtractionProcessor(ConfReader):
     # Initialize queues
     self.init_queues()
 
-    # Initialize extractors only once
+    # Initialize extractors only once (just one first)
     self.extractors = []
-    for i in range(self.nb_threads):
-      self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
-                                      self.extr_family_column, self.featurizer_prefix, self.global_conf))
+    #for i in range(self.nb_threads):
+    #  self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
+    #                                  self.extr_family_column, self.featurizer_prefix, self.global_conf))
+    self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
+                                            self.extr_family_column, self.featurizer_prefix, self.global_conf))
 
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
     # What if the table has some other column families?...
@@ -173,21 +175,29 @@ class ExtractionProcessor(ConfReader):
         print("[{}.get_batch_hbase: log] Nothing to update!".format(self.pp))
         # Look for updates that have some unprocessed images
         for updates in self.indexer.get_missing_extr_updates_from_date("1970-01-01", extr_type=self.extr_prefix):
-          for update_id, update_cols in updates:
-            if self.extr_prefix in update_id:
-              list_sha1s = update_cols[column_list_sha1s].split(',')
-              print("[{}.get_batch_hbase: log] Update {} has {} images with missing extractions.".format(self.pp, update_id, len(list_sha1s)))
-              # also get 'ext:' to check if extraction was already processed?
-              rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
-              if rows_batch:
-                print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
-                yield rows_batch, update_id
-                print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
+          try:
+            for update_id, update_cols in updates:
+              if self.extr_prefix in update_id:
+                if column_list_sha1s in update_cols:
+                  list_sha1s = update_cols[column_list_sha1s].split(',')
+                  print("[{}.get_batch_hbase: log] Update {} has {} images with missing extractions.".format(self.pp, update_id, len(list_sha1s)))
+                  # also get 'ext:' to check if extraction was already processed?
+                  rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
+                  if rows_batch:
+                    print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
+                    yield rows_batch, update_id
+                    print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
+                  else:
+                    print(
+                      "[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
+                else:
+                  print("[{}.get_batch_hbase: log] Update {} has no images list.".format(self.pp, update_id))
               else:
-                print(
-                  "[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
-            else:
-              print("[{}.get_batch_hbase: log] Skipping update {} from another extraction type.".format(self.pp, update_id))
+                print("[{}.get_batch_hbase: log] Skipping update {} from another extraction type.".format(self.pp, update_id))
+          except Exception as inst:
+            print(
+              "[{}.get_batch_hbase: error] updates {} raised error {}".format(self.pp, updates, inst))
+
 
     except Exception as inst:
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
@@ -251,7 +261,7 @@ class ExtractionProcessor(ConfReader):
         self.init_queues()
         threads = []
 
-        # If we deleted an extractor at some point
+        # If we deleted an extractor at some point or for first batch
         while len(self.extractors) < self.nb_threads:
           self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
                                                   self.extr_family_column, self.featurizer_prefix,
@@ -375,6 +385,7 @@ class ExtractionProcessor(ConfReader):
                   print(end_msg.format(i+1, nb_threads_running, threads[i].pid))
                 else:
                   if self.verbose > 0:
+                    # In this cases does this happen...
                     timeout_msg = "Thread {}/{} (pid: {}) force marked task as done because max_proc_time ({}) has passed."
                     self.q_in[i_q_in].task_done()
                     print(timeout_msg.format(i+1, nb_threads_running, threads[i].pid, self.max_proc_time))
@@ -519,7 +530,8 @@ if __name__ == "__main__":
     except Exception as inst:
       full_trace_error("Extraction processor failed: {}".format(inst))
       sys.stdout.flush()
-      raise inst
+      sys.exit(0)
+      #raise inst
       # del ep
       # gc.collect()
       # time.sleep(10*nb_err)

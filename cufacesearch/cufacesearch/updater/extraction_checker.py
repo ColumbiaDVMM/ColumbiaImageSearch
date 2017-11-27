@@ -7,7 +7,7 @@ import multiprocessing
 from datetime import datetime
 from argparse import ArgumentParser
 from cufacesearch.common.conf_reader import ConfReader
-from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal
+from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_created
 from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
 default_extr_check_prefix = "EXTR_"
@@ -45,6 +45,8 @@ class ExtractionChecker(ConfReader):
     if max_delay:
       self.max_delay = int(max_delay)
     self.last_push = time.time()
+    self.nb_imgs_check = 0
+    self.nb_imgs_unproc = 0
 
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
     # TODO: should we add the 'ad' column family too here by default
@@ -170,6 +172,11 @@ class ExtractionChecker(ConfReader):
 
         # Check which images have not been processed (or pushed in an update) yet
         unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)
+        self.nb_imgs_check += len(list_sha1s_to_check)
+        if (time.time() - self.last_push) > self.max_delay/60:
+          msg_log = "[{}: log] Found {}/{} unprocessed images"
+          print msg_log.format(self.pp, self.nb_imgs_unproc, self.nb_imgs_check)
+
         # TODO: we should mark those images as being 'owned' by the update we are constructing
         #   (only reallyimportant if we are running multiple threads...)
         #   otherwise another update running at the same time could also claim it (if it appears in another ad)
@@ -193,28 +200,36 @@ class ExtractionChecker(ConfReader):
             # TODO: this should be done before, to 'claim' the images as soon as we plan to process them for this update
             # Gather corresponding sha1 infos
             dict_push, update_id = self.get_dict_push(list_push)
-            push_msg = "[{}: at {}] Pushing update {} of {} images."
-            print push_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id, len(dict_push.keys()))
-            sys.stdout.flush()
+            if dict_push:
+              self.nb_imgs_unproc += len(dict_push.keys())
+              push_msg = "[{}: at {}] Pushing update {} of {} images."
+              print push_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id, len(dict_push.keys()))
+              sys.stdout.flush()
 
-            # Push them
-            self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name, families=self.tablesha1_col_families)
-            # Push update
-            #self.indexer.push_list_updates(list_push, update_id)
-            self.indexer.push_list_updates(dict_push.keys(), update_id)
-            # We also push update_id and list_push to a kafka topic to allow better parallelized extraction
-            dict_updates = dict()
-            dict_updates[update_id] = ','.join(dict_push.keys())
-            self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates))
+              # Push them
+              # We also push update_id and list_push to a kafka topic to allow better parallelized extraction
+              dict_updates = dict()
+              dict_updates[update_id] = ','.join(dict_push.keys())
+              dict_updates['info:' + update_str_created] = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
+              # Push update
+              #self.indexer.push_list_updates(list_push, update_id)
+              self.indexer.push_list_updates(dict_push.keys(), update_id)
+              self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name,
+                                          families=self.tablesha1_col_families)
+              self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates))
 
-            # Gather any remaining sha1s and clean up infos
-            if len(list_sha1s_to_process) > self.indexer.batch_update_size:
-              list_sha1s_to_process = list_sha1s_to_process[self.indexer.batch_update_size:]
+              # Gather any remaining sha1s and clean up infos
+              if len(list_sha1s_to_process) > self.indexer.batch_update_size:
+                list_sha1s_to_process = list_sha1s_to_process[self.indexer.batch_update_size:]
+              else:
+                list_sha1s_to_process = []
+              # if duplicates wrt list_push, remove them. Can this still happen?
+              list_sha1s_to_process = [sha1 for sha1 in list_sha1s_to_process if sha1 not in list_push]
+              self.cleanup_dict_infos(list_push)
             else:
-              list_sha1s_to_process = []
-            # if duplicates wrt list_push, remove them. Can this still happen?
-            list_sha1s_to_process = [sha1 for sha1 in list_sha1s_to_process if sha1 not in list_push]
-            self.cleanup_dict_infos(list_push)
+              no_push_msg = "[{}: at {}] Nothing to push for update {}"
+              print no_push_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id)
+              sys.stdout.flush()
             self.last_push = time.time()
             # TODO: we should create a new update_id here, and let it claim the potential remaining images in 'list_sha1s_to_process'
             # sanity check that len(list_sha1s_to_process) == len(self.dict_sha1_infos) ?
