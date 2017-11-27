@@ -2,11 +2,22 @@ version: "3"
 
 services:
 
+#  zookeeper:
+#    image: oddpoet/zookeeper
+#    hostname: zookeeper
+#    command:
+#      - "2181"
+#    ports:
+#      - "2181:2181"
+#    networks:
+#      cu_imgsearch_net:
+# Try to use same image as dig-etl-engine
   zookeeper:
-    image: oddpoet/zookeeper
+    image: wurstmeister/zookeeper
     hostname: zookeeper
-    command:
-      - "2181"
+    container_name: zookeeper
+    environment:
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
     ports:
       - "2181:2181"
     networks:
@@ -14,6 +25,7 @@ services:
   kafka:
     image: wurstmeister/kafka
     hostname: kafka
+    container_name: kafka
     ports:
       - "9092:9092"
     links:
@@ -26,25 +38,43 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     # In /opt/kafka/config/server.properties
     # log.dirs=/kafka/kafka-logs-kafka
+    # List topics with /opt/kafka/bin/kafka-topics.sh --list --zookeeper zk:2181
     volumes:
       - cuimgsearch-kafka-volume:/kafka/kafka-logs-kafka
     networks:
       cu_imgsearch_net:
-#  kafka_manager:
-#    image: sheepkiller/kafka-manager
-#    environment:
-#      ZK_HOSTS: "zookeeper:2181"
-#      KM_CONFIGFILE: "/opt/application.conf"
-#    volumes:
-#      - ../../conf/km.conf:/opt/application.conf
-#    depends_on:
-#      - zookeeper
-#      - kafka
-#    networks:
-#      cu_imgsearch_net:
+  kafka_manager:
+    image: sheepkiller/kafka-manager
+    hostname: kafka_manager
+    container_name: kafka_manager
+    # Needs to manually add cluster! https://github.com/yahoo/kafka-manager/issues/244
+    # Click on "Cluster" -> "Add Cluster" add "zookeeper:2181"
+    # Have "Enable JMX Polling" and "Poll consumer information" checked
+    environment:
+      ZK_HOSTS: "zookeeper:2181"
+      KM_CONFIGFILE: "/opt/application.conf"
+      JMX_PORT: "true"
+    ports:
+      - "9997:9000"
+    # Access kafka manager at: http://0.0.0.0:9997/kafka_manager/
+    # But do not show cluster for now...
+    #command: "./start-kafka-manager.sh"
+    command: tail -f /dev/null
+    volumes:
+      - ../../conf/kafka_manager/km.conf:/opt/application.conf
+      - cuimgsearch-kafka-volume:/kafka/kafka-logs-kafka # Is this OK? Kafka-manager is read-only?
+    depends_on:
+      - zookeeper
+      - kafka
+    links:
+      - zookeeper
+      - kafka
+    networks:
+      cu_imgsearch_net:
   hbase:
     image: kevinsvds/hbase
     hostname: hbase
+    container_name: hbase
     ports:
       - "9090:9090"
       - "9095:9095"
@@ -67,9 +97,32 @@ services:
       - cuimgsearch-hbase-volume:/var/lib/hadoop-hdfs
     networks:
       cu_imgsearch_net:
+  hue:
+    image: gethue/hue:latest
+    hostname: hue
+    container_name: hue
+    dns: 8.8.8.8
+    ports:
+     - "9999:8888"
+    #command: tail -f /dev/null
+    command: "./build/env/bin/hue runserver_plus 0.0.0.0:8888"
+    volumes:
+      - ../../conf/hue/hue.ini:/hue/desktop/conf/hue.ini
+#      - ../../../apps/hbase/src:/hue/apps/hbase/src
+# Could not connect to localhost:10000 (code THRIFTTRANSPORT): TTransportException('Could not connect to localhost:10000',)
+# HTTPConnectionPool(host='localhost', port=8983): Max retries exceeded with url: /solr/admin/info/system?user.name=hue&doAs=memex&wt=json (Caused by NewConnectionError('<requests.packages.urllib3.connection.HTTPConnection object at 0x7fbefe000d10>: Failed to establish a new connection: [Errno 99] Cannot assign requested address',))
+    depends_on:
+      - zookeeper
+      - hbase
+    links:
+      - zookeeper
+      - hbase
+    networks:
+      cu_imgsearch_net:
   pusher:
     image: svebork/columbia_image_search:1.0
     hostname: cuimg_push
+    container_name: cuimg_push
     stdin_open: true
     tty: true
     cap_add:
@@ -87,6 +140,7 @@ services:
   processor:
     image: svebork/columbia_image_search:1.0
     hostname: cuimg_proc
+    container_name: cuimg_proc
     stdin_open: true
     tty: true
     cap_add:
@@ -106,6 +160,7 @@ services:
   search:
     image: svebork/columbia_image_search:1.0
     hostname: cuimg_search
+    container_name: cuimg_search
     stdin_open: true
     tty: true
     cap_add:

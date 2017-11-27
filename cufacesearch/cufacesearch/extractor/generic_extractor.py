@@ -1,5 +1,6 @@
 import sys
 import time
+from datetime import datetime
 import traceback
 import multiprocessing
 from cufacesearch.detector.generic_detector import get_detector, get_bbox_str
@@ -32,11 +33,15 @@ class DaemonBatchExtractor(multiprocessing.Process):
     while self.q_in.empty() == False:
 
       try:
-        # The queue should already have items, no need to block
-        batch = self.q_in.get(False)
-      except:
+        # The queue should already have items,but seems sometime to block forever...
+        #batch = self.q_in.get(False)
+        print "[DaemonBatchExtractor.{}] Checking for a batch at: {}".format(self.pid, datetime.now().isoformat())
+        sys.stdout.flush()
+        batch = self.q_in.get(timeout=10)
+      except Exception as inst:
         #self.q_in.task_done()
-        print "[DaemonBatchExtractor.{}] Did not get a batch".format(self.pid)
+        print "[DaemonBatchExtractor.{}] Did not get a batch ()".format(self.pid, inst)
+        sys.stdout.flush()
         continue
 
       try:
@@ -92,6 +97,8 @@ class DaemonBatchExtractor(multiprocessing.Process):
         # Try to mark as done anyway?
         self.q_in.task_done()
 
+    print "[DaemonBatchExtractor.{}] Reached end of input queue at: {}".format(self.pid, datetime.now().isoformat())
+    sys.stdout.flush()
 
 
 class GenericExtractor(object):
