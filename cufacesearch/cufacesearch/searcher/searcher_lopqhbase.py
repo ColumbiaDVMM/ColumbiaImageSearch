@@ -231,22 +231,23 @@ class SearcherLOPQHBase(GenericSearcher):
               nb_features_to_read = nb_saved_feats
               break
         else:
-          # Wait for new updates...
-          # TODO: could be optional
-          if self.wait_for_nbtrain:
-            if nb_saved_feats >= nb_min_train:
-              print "[{}: log] Gathered minimum number of training features ({})...".format(self.pp, nb_min_train)
+          if not done:
+            # Wait for new updates...
+            # TODO: could be optional
+            if self.wait_for_nbtrain:
+              if nb_saved_feats >= nb_min_train:
+                print "[{}: log] Gathered minimum number of training features ({})...".format(self.pp, nb_min_train)
+                sys.stdout.flush()
+                break
+              else:
+                print "[{}: log] Waiting for new updates. Got {} training samples so far...".format(self.pp,
+                                                                                                    nb_saved_feats)
+                sys.stdout.flush()
+                time.sleep(60)
+            else:
+              print "[{}: log] Gathered all available features ({})...".format(self.pp, self.get_nb_saved_feats(feats_db))
               sys.stdout.flush()
               break
-            else:
-              print "[{}: log] Waiting for new updates. Got {} training samples so far...".format(self.pp,
-                                                                                                  nb_saved_feats)
-              sys.stdout.flush()
-              time.sleep(60)
-          else:
-            print "[{}: log] Gathered all available features ({})...".format(self.pp, self.get_nb_saved_feats(feats_db))
-            sys.stdout.flush()
-            break
 
     return self.get_feats_from_lmbd(feats_db, nb_features_to_read, dtype)
 

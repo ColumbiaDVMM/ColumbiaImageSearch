@@ -94,14 +94,14 @@ if __name__ == "__main__":
   # Search parameters
   conf[search_prefix + 'model_type'] = os.environ['model_type']
   conf[search_prefix + 'nb_train'] = int(os.environ['nb_train'])
-  conf[search_prefix + 'nb_min_train'] = os.getenv('nb_min_train', conf[search_prefix + 'nb_train'])
+  conf[search_prefix + 'nb_min_train'] = int(os.getenv('nb_min_train', conf[search_prefix + 'nb_train']))
   conf[search_prefix + 'lopq_V'] = int(os.environ['lopq_V'])
   conf[search_prefix + 'lopq_M'] = int(os.environ['lopq_M'])
   conf[search_prefix + 'lopq_subq'] = int(os.environ['lopq_subq'])
   conf[search_prefix + 'reranking'] = os.getenv('reranking', True)
   if conf[search_prefix + 'model_type'] == "lopq_pca":
     conf[search_prefix + 'nb_train_pca'] = int(os.environ['nb_train_pca'])
-    conf[search_prefix + 'nb_min_train_pca'] = os.getenv('nb_min_train_pca', conf[search_prefix + 'nb_train_pca'])
+    conf[search_prefix + 'nb_min_train_pca'] = int(os.getenv('nb_min_train_pca', conf[search_prefix + 'nb_train_pca']))
     conf[search_prefix + 'lopq_pcadims'] = int(os.environ['lopq_pcadims'])
 
   if not os.path.exists(options.output_dir):
