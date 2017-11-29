@@ -8,9 +8,25 @@ if __name__ == "__main__":
   parser.add_argument("-o", "--output_dir", dest="output_dir", required=True)
   options = parser.parse_args()
 
+  # Environment variables:
+  # - conf_name (required)
+  # - input_type (required)
+  # - images_topic (required, output topic)
+  # If 'input_type' is local:
+  # - input_path (optional, default: ./data/input_images/)
+  # - source_zip (optional, e.g. to be used for an online dataset)
+  # If 'input_type' is kafka:
+  # - input_topic (required)
+  # - input_consumer_group (required)
+  # - kafka_servers (optional, default: memex HG kakfa brokers)
+  # - kafka_security (optional)
+  # TODO: report this list in the docs.
+  # Make sure the docker-compose propagate all these variables down, so we can generate conf files in docker...
+
   # Initialization
   conf = dict()
   conf_name = os.environ['conf_name']
+
 
   # Local input settings
   if os.environ['input_type'] == "local":
@@ -54,4 +70,7 @@ if __name__ == "__main__":
   if not os.path.exists(options.output_dir):
     os.mkdir(options.output_dir)
 
-  json.dump(conf, open(os.path.join(options.output_dir,'conf_ingestion_'+conf_name+'.json'),'wt'), sort_keys=True, indent=4)
+  outpath = os.path.join(options.output_dir,'conf_ingestion_'+conf_name+'.json')
+  json.dump(conf, open(outpath,'wt'), sort_keys=True, indent=4)
+  print("Saved conf at {}: {}".format(outpath, json.dumps(conf)))
+

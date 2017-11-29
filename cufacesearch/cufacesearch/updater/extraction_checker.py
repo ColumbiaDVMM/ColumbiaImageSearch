@@ -47,6 +47,7 @@ class ExtractionChecker(ConfReader):
     self.last_push = time.time()
     self.nb_imgs_check = 0
     self.nb_imgs_unproc = 0
+    self.nb_imgs_unproc_lastprint = 0
 
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
     # TODO: should we add the 'ad' column family too here by default
@@ -173,9 +174,10 @@ class ExtractionChecker(ConfReader):
         # Check which images have not been processed (or pushed in an update) yet
         unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)
         self.nb_imgs_check += len(list_sha1s_to_check)
-        if (time.time() - self.last_push) > self.max_delay/60:
+        if (time.time() - self.last_push) > self.max_delay/60 and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
           msg_log = "[{}: log] Found {}/{} unprocessed images"
           print msg_log.format(self.pp, self.nb_imgs_unproc, self.nb_imgs_check)
+          self.nb_imgs_unproc_lastprint = self.nb_imgs_unproc
 
         # TODO: we should mark those images as being 'owned' by the update we are constructing
         #   (only reallyimportant if we are running multiple threads...)
@@ -191,8 +193,6 @@ class ExtractionChecker(ConfReader):
 
         if list_sha1s_to_process:
           # Push them to HBase by batch of 'batch_update_size'
-          # Seems to get stuck with a lag of 1868 total on backpage-test...
-          # Then got some HBase errors. No lag anymore but have all images been pushed?
           if len(list_sha1s_to_process) >= self.indexer.batch_update_size or ((time.time() - self.last_push) > self.max_delay and len(list_sha1s_to_process) > 0):
             # Trim here to push exactly a batch of 'batch_update_size'
             list_push = list_sha1s_to_process[:min(self.indexer.batch_update_size, len(list_sha1s_to_process))]
@@ -206,17 +206,19 @@ class ExtractionChecker(ConfReader):
               print push_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id, len(dict_push.keys()))
               sys.stdout.flush()
 
-              # Push them
-              # We also push update_id and list_push to a kafka topic to allow better parallelized extraction
-              dict_updates = dict()
-              dict_updates[update_id] = ','.join(dict_push.keys())
-              dict_updates['info:' + update_str_created] = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
-              # Push update
-              #self.indexer.push_list_updates(list_push, update_id)
-              self.indexer.push_list_updates(dict_push.keys(), update_id)
+              # Push images
               self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name,
                                           families=self.tablesha1_col_families)
-              self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates))
+
+              # Build updates dict
+              dict_updates_db = dict()
+              dict_updates_kafka = dict()
+              dict_updates_db[update_id] = {self.indexer.column_list_sha1s: ','.join(dict_push.keys()),
+                                         'info:' + update_str_created: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}
+              dict_updates_kafka[update_id] = ','.join(dict_push.keys())
+              # Push them
+              self.indexer.push_dict_rows(dict_updates_db, self.indexer.table_updateinfos_name)
+              self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates_kafka))
 
               # Gather any remaining sha1s and clean up infos
               if len(list_sha1s_to_process) > self.indexer.batch_update_size:

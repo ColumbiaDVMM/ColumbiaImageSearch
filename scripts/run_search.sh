@@ -47,5 +47,6 @@ cd ${repo_path}
 cmd="python ./www/run_search_api.py"
 args="-c ./conf/generated/conf_search_"${conf_name}".json -e "${endpoint}
 log="./logs/log_searchapi_"${endpoint}
-bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}" --log="${log}"
+#bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}" --log="${log}"
+bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}"
 

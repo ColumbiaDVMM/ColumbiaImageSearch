@@ -8,6 +8,30 @@ if __name__ == "__main__":
   parser.add_argument("-o", "--output_dir", dest="output_dir", required=True)
   options = parser.parse_args()
 
+  # General environment variables
+  # - conf_name (required)
+  # - extr_type (required)
+  # - input_type (required)
+  # Hbase related environment variables
+  # - hbase_host (required)
+  # - table_sha1infos (required)
+  # - table_updateinfos (required)
+  # - batch_update_size (required)
+  # Search related environment variables
+  # - model_type (required)
+  # - nb_train (required)
+  # - nb_min_train (optional)
+  # - lopq_V (required)
+  # - lopq_M (required)
+  # - lopq_subq (required)
+  # - reranking  (optional, default: true)
+  # If model_type is lopq_pca:
+  # - nb_train_pca (required)
+  # - nb_min_train_pca (optional)
+  # - lopq_pcadims (required)
+  # TODO: report this list in the docs.
+  # Make sure the docker-compose propagate all these variables down, so we can generate conf files in docker...
+
   # Initialization
   conf = dict()
   conf_name = os.environ['conf_name']
@@ -26,7 +50,7 @@ if __name__ == "__main__":
   storer_type = os.environ['storer']
   if storer_type == "local":
     conf[search_prefix + 'storer_type'] = storer_type
-    conf[storer_prefix + 'base_path'] = os.getenv('storer_base_path', './data/index')
+    conf[storer_prefix + 'base_path'] = os.getenv('storer_base_path', '/data/index')
     conf[storer_prefix + 'verbose'] = verbose
   # TODO: deal with AWS
 
@@ -70,16 +94,20 @@ if __name__ == "__main__":
   # Search parameters
   conf[search_prefix + 'model_type'] = os.environ['model_type']
   conf[search_prefix + 'nb_train'] = int(os.environ['nb_train'])
+  conf[search_prefix + 'nb_min_train'] = os.getenv('nb_min_train', conf[search_prefix + 'nb_train'])
   conf[search_prefix + 'lopq_V'] = int(os.environ['lopq_V'])
   conf[search_prefix + 'lopq_M'] = int(os.environ['lopq_M'])
   conf[search_prefix + 'lopq_subq'] = int(os.environ['lopq_subq'])
   conf[search_prefix + 'reranking'] = os.getenv('reranking', True)
   if conf[search_prefix + 'model_type'] == "lopq_pca":
     conf[search_prefix + 'nb_train_pca'] = int(os.environ['nb_train_pca'])
+    conf[search_prefix + 'nb_min_train_pca'] = os.getenv('nb_min_train_pca', conf[search_prefix + 'nb_train_pca'])
     conf[search_prefix + 'lopq_pcadims'] = int(os.environ['lopq_pcadims'])
 
   if not os.path.exists(options.output_dir):
     os.mkdir(options.output_dir)
 
-  json.dump(conf, open(os.path.join(options.output_dir,'conf_search_'+conf_name+'.json'),'wt'), sort_keys=True, indent=4)
+  outpath = os.path.join(options.output_dir,'conf_search_'+conf_name+'.json')
+  json.dump(conf, open(outpath,'wt'), sort_keys=True, indent=4)
+  print("Saved conf at {}: {}".format(outpath, json.dumps(conf)))
 

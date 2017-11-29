@@ -163,9 +163,11 @@ class ExtractionProcessor(ConfReader):
             rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
             #print "rows_batch", rows_batch
             if rows_batch:
-              print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
+              if self.verbose > 4:
+                print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
               yield rows_batch, update_id
-              print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
+              if self.verbose > 4:
+                print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
               self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
             else:
               print("[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
@@ -184,9 +186,11 @@ class ExtractionProcessor(ConfReader):
                   # also get 'ext:' to check if extraction was already processed?
                   rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
                   if rows_batch:
-                    print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
+                    if self.verbose > 4:
+                      print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
                     yield rows_batch, update_id
-                    print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
+                    if self.verbose > 4:
+                      print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
                   else:
                     print(
                       "[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
@@ -224,14 +228,16 @@ class ExtractionProcessor(ConfReader):
           print("[{}.get_batch_kafka: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
           # NB: we could also get 'ext:' of images to double check if extraction was already processed
           #rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=["info:img_buffer"])
-          # TODO: should we also get img_path_column? based on self.url_input
-          print("[{}.get_batch_kafka: log] Looking for colums: {}".format(self.pp, [img_buffer_column, self.img_column]))
+          if self.verbose > 3:
+            print("[{}.get_batch_kafka: log] Looking for colums: {}".format(self.pp, [img_buffer_column, self.img_column]))
           rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
           #print "rows_batch", rows_batch
           if rows_batch:
-            print("[{}.get_batch_kafka: log] Yielding for update: {}".format(self.pp, update_id))
+            if self.verbose > 4:
+              print("[{}.get_batch_kafka: log] Yielding for update: {}".format(self.pp, update_id))
             yield rows_batch, update_id
-            print("[{}.get_batch_kafka: log] After yielding for update: {}".format(self.pp, update_id))
+            if self.verbose > 4:
+              print("[{}.get_batch_kafka: log] After yielding for update: {}".format(self.pp, update_id))
             self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
           # Should we try to commit offset only at this point?
           else:
@@ -253,7 +259,7 @@ class ExtractionProcessor(ConfReader):
     for rows_batch, update_id in self.get_batch_kafka():
       try:
         start_update = time.time()
-        print("[{}.process_batch: log] Processing update {} of {} rows.".format(self.pp, update_id, len(rows_batch)))
+        print("[{}] Processing update {} of {} rows.".format(self.pp, update_id, len(rows_batch)))
         sys.stdout.flush()
 
         # Initialize
@@ -292,7 +298,7 @@ class ExtractionProcessor(ConfReader):
               q_in_dl.put((img[0], img[1][self.img_column], self.push_back))
               nb_imgs_dl += 1
             else:
-              print("[{}.process_batch: warning] No buffer and no URL/path for image {} !".format(self.pp, img[0]))
+              print("[{}: warning] No buffer and no URL/path for image {} !".format(self.pp, img[0]))
               continue
 
         # Download missing images
@@ -314,16 +320,16 @@ class ExtractionProcessor(ConfReader):
             nb_dl += 1
             if inst:
               if self.verbose > 0:
-                print("[{}.process_batch: log] Could not download image {}, error was: {}".format(self.pp, sha1, inst))
+                print("[{}: log] Could not download image {}, error was: {}".format(self.pp, sha1, inst))
             else:
               if buffer:
                 list_in.append((sha1, buffer, push_back))
               else:
                 # Is that possible?
-                print("[{}.process_batch: error] No error but no buffer either for image {}".format(self.pp, sha1))
+                print("[{}: error] No error but no buffer either for image {}".format(self.pp, sha1))
 
 
-        buff_msg = "[{}.process_batch: log] Got {}/{} image buffers for update {}."
+        buff_msg = "[{}] Got {}/{} image buffers for update {}."
         print(buff_msg.format(self.pp, len(list_in), len(rows_batch), update_id))
         sys.stdout.flush()
 
@@ -336,8 +342,8 @@ class ExtractionProcessor(ConfReader):
         for i in range(self.nb_threads):
           q_in_size.append(self.q_in[i].qsize())
           q_in_size_tot += q_in_size[i]
-        if self.verbose > 1:
-          print("[{}.process_batch: log] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
+        if self.verbose > 3:
+          print("[{}] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
 
         # Start daemons...
         thread_creation_failed = [0]*self.nb_threads
@@ -380,31 +386,36 @@ class ExtractionProcessor(ConfReader):
               if not self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
                 time.sleep(1)
               else:
-                if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and self.verbose > 2:
-                  end_msg = "Thread {}/{} (pid: {}) marked as finished because processing seems finished"
-                  print(end_msg.format(i+1, nb_threads_running, threads[i].pid))
+                if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero():
+                  if self.verbose > 3:
+                    end_msg = "[{}] Thread {}/{} (pid: {}) marked as finished because processing seems finished"
+                    print(end_msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
                 else:
                   if self.verbose > 0:
                     # In this cases does this happen...
-                    timeout_msg = "Thread {}/{} (pid: {}) force marked task as done because max_proc_time ({}) has passed."
-                    self.q_in[i_q_in].task_done()
-                    print(timeout_msg.format(i+1, nb_threads_running, threads[i].pid, self.max_proc_time))
+                    timeout_msg = "[{}] Thread {}/{} (pid: {}) force marked task as done because max_proc_time ({}) has passed."
+                    print(timeout_msg.format(self.pp, i+1, nb_threads_running, threads[i].pid, self.max_proc_time))
                     sys.stdout.flush()
                     # Try to delete corresponding extractor to free memory?
                     # And reduce number of threads at the end of the loop
+                  try:
+                    self.q_in[i_q_in].task_done()
                     if deleted_extr[i] == 0:
                       # since we pushed the extractor as self.extractors[i] in a loop of self.nb_threads we use i_q_in
                       del self.extractors[i_q_in]
                       deleted_extr[i] = 1
+                  except Exception:
+                    pass
                 threads_finished[i] = 1
             else:
               if self.verbose > 2:
                 # We actually never gave something to process...
-                noproc_msg = "Thread {}/{} (pid: {}) marked as finished because no data was passed to it"
-                print(noproc_msg.format(i+1, nb_threads_running, threads[i].pid))
+                noproc_msg = "[{}] Thread {}/{} (pid: {}) marked as finished because no data was passed to it"
+                print(noproc_msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
               threads_finished[i] = 1
 
         # Cleanup threads to free memory before getting data back
+        # Daemon may still be running... and will actually be deleted only when they exit after not getting a batch
         del threads
 
         # Gather results
@@ -415,40 +426,40 @@ class ExtractionProcessor(ConfReader):
           q_out_size_tot += q_out_size[i]
 
         if self.verbose > 3:
-          print("[{}.process_batch: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
+          print("[{}: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
           sys.stdout.flush()
 
         # Can get stuck here?
         dict_imgs = dict()
         for i in range(self.nb_threads):
           if self.verbose > 4:
-            print("Thread {} q_out_size: {}".format(i+1, q_out_size[i]))
+            print("[{}] Thread {} q_out_size: {}".format(self.pp, i+1, q_out_size[i]))
             sys.stdout.flush()
           while q_out_size[i]>0 and not self.q_out[i].empty():
-            if self.verbose > 4:
-              print("Thread {} q_out is not empty.".format(i + 1))
+            if self.verbose > 5:
+              print("[{}] Thread {} q_out is not empty.".format(self.pp, i + 1))
               sys.stdout.flush()
             try:
               batch_out = self.q_out[i].get(True, 10)
-              if self.verbose > 2:
-                print("Got batch of {} features from thread {} q_out.".format(len(batch_out), i + 1))
+              if self.verbose > 3:
+                print("[{}] Got batch of {} features from thread {} q_out.".format(self.pp, len(batch_out), i + 1))
                 sys.stdout.flush()
               for sha1, dict_out in batch_out:
                 dict_imgs[sha1] = dict_out
             except:
               if self.verbose > 1:
-                print("Thread {} failed to get from q_out: {}".format(i+1))
+                print("[{}] Thread {} failed to get from q_out: {}".format(self.pp, i+1))
                 sys.stdout.flush()
               pass
-            if self.verbose > 3:
-              print("Marking task done in q_out of thread {}.".format(i + 1))
+            if self.verbose > 4:
+              print("[{}] Marking task done in q_out of thread {}.".format(self.pp, i + 1))
               sys.stdout.flush()
             self.q_out[i].task_done()
 
-        if self.verbose > 0:
-          print_msg = "[{}.process_batch: log] Got features for {}/{} images in {}s."
-          print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), time.time() - start_process))
-          sys.stdout.flush()
+        #if self.verbose > 0:
+        print_msg = "[{}] Got features for {}/{} images in {}s."
+        print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), time.time() - start_process))
+        sys.stdout.flush()
 
         # Push them
         self.indexer.push_dict_rows(dict_rows=dict_imgs, table_name=self.indexer.table_sha1infos_name)
@@ -465,7 +476,7 @@ class ExtractionProcessor(ConfReader):
         # if (sum(thread_creation_failed) > 0 or sum(deleted_extr) > 0) and self.nb_threads > 2:
         #   self.nb_threads -= 1
 
-        print_msg = "[{}.process_batch: log] Completed update {} in {}s."
+        print_msg = "[{}] Completed update {} in {}s."
         print(print_msg.format(self.pp, update_id, time.time() - start_update))
         sys.stdout.flush()
         self.nb_err = 0
@@ -530,7 +541,7 @@ if __name__ == "__main__":
     except Exception as inst:
       full_trace_error("Extraction processor failed: {}".format(inst))
       sys.stdout.flush()
-      sys.exit(0)
+      break
       #raise inst
       # del ep
       # gc.collect()

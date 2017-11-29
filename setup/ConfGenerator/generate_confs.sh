@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Deprecated: each python script is now called when starting each docker container
+
 while getopts s: option
 do
   case "${option}"
