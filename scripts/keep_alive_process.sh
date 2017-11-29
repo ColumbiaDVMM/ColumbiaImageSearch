@@ -30,17 +30,23 @@ else
   exit -1
 fi
 
-if [ ${log+x} ]; then
-  echo "log: "${log}
-else
-  echo "log not set. Use --log to set args please."
-  exit -1
-fi
+#if [ ${log+x} ]; then
+#  echo "log: "${log}
+#else
+#  echo "log not set. Use --log to set args please."
+#  exit -1
+#fi
 
 while true;
 do
-    echo "["$(date)"] Starting process." >> ${log}"_keepalive";
-    ${command} ${args} &> ${log}"_"$(date +%Y-%m-%d_%H-%M-%S);
-    echo "["$(date)"] Process crashed." >> ${log}"_keepalive";
+    if [ ${log+x} ]; then
+        echo "["$(date)"] Starting process." >> ${log}"_keepalive";
+        ${command} ${args} &> ${log}"_"$(date +%Y-%m-%d_%H-%M-%S);
+        echo "["$(date)"] Process crashed." >> ${log}"_keepalive";
+    else
+        echo "["$(date)"] Starting process."
+        ${command} ${args}
+        echo "["$(date)"] Process crashed."
+    fi
     sleep ${sleep_time};
 done

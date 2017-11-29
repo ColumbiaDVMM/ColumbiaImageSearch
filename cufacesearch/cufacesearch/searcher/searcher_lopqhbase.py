@@ -41,6 +41,9 @@ class SearcherLOPQHBase(GenericSearcher):
       self.model_params['pca'] = pca
       nb_train_pca = self.get_required_param('nb_train_pca')
       self.nb_train_pca = nb_train_pca
+      nb_min_train_pca = self.get_param('nb_min_train_pca')
+      if nb_min_train_pca:
+        self.nb_min_train_pca = nb_min_train_pca
     lopq_searcher = self.get_param('lopq_searcher')
     if lopq_searcher:
       self.lopq_searcher = lopq_searcher
@@ -160,7 +163,9 @@ class SearcherLOPQHBase(GenericSearcher):
     with self.save_feat_env.begin(db=feats_db, write=False) as txn:
       return txn.stat()['entries']
 
-  def get_train_features(self, nb_features, lopq_pca_model=None):
+  def get_train_features(self, nb_features, lopq_pca_model=None, nb_min_train=None):
+    if nb_min_train is None:
+      nb_min_train = nb_features
     if lopq_pca_model:
       feats_db = self.save_feat_env.open_db("feats_pca")
       dtype = np.float32
@@ -169,13 +174,17 @@ class SearcherLOPQHBase(GenericSearcher):
       from ..featurizer.featsio import get_feat_dtype
       dtype = get_feat_dtype(self.featurizer_type)
     nb_saved_feats = self.get_nb_saved_feats(feats_db)
+    nb_features_to_read = nb_features
+
+    seen_updates = set()
 
     if nb_saved_feats < nb_features:
       print "[{}: log] Gathering {} training samples...".format(self.pp, nb_features)
       sys.stdout.flush()
       start_date = "1970-01-01"
       done = False
-      # Accumulate until we have enough features, or we have read all features if 'wait_for_nbtrain' is false
+      # Accumulate until we have enough features,
+      # or we have read all features if 'wait_for_nbtrain' is false and we have at least nb_min_train
       while not done:
         for batch_updates in self.indexer.get_updates_from_date(start_date=start_date, extr_type=self.build_extr_str()):
           for update in batch_updates:
@@ -184,25 +193,28 @@ class SearcherLOPQHBase(GenericSearcher):
               # We could check that update has been processed... but if it haven't we won't get features anyway...
               update_id = update[0]
               if column_list_sha1s in update[1]:
-                list_sha1s = update[1][column_list_sha1s]
-                samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
-                if features:
-                  # Apply PCA to features here to save memory
-                  if lopq_pca_model:
-                    np_features = lopq_pca_model.apply_PCA(np.asarray(features))
+                if update_id not in seen_updates:
+                  list_sha1s = update[1][column_list_sha1s]
+                  samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+                  if features:
+                    # Apply PCA to features here to save memory
+                    if lopq_pca_model:
+                      np_features = lopq_pca_model.apply_PCA(np.asarray(features))
+                    else:
+                      np_features = np.asarray(features)
+                    print "[{}: log] Got features {} from update {}".format(self.pp, np_features.shape, update_id)
+                    sys.stdout.flush()
+                    # just appending like this does not account for duplicates...
+                    #train_features.extend(np_features)
+                    nb_saved_feats = self.save_feats_to_lmbd(feats_db, samples_ids, np_features)
+                    seen_updates.add(update_id)
                   else:
-                    np_features = np.asarray(features)
-                  print "[{}: log] Got features {} from update {}".format(self.pp, np_features.shape, update_id)
-                  sys.stdout.flush()
-                  # just appending like this does not account for duplicates...
-                  #train_features.extend(np_features)
-                  nb_saved_feats = self.save_feats_to_lmbd(feats_db, samples_ids, np_features)
-                else:
-                  print "[{}: log] Did not get features from update {}".format(self.pp, update_id)
-                  sys.stdout.flush()
-                if nb_saved_feats >= nb_features:
-                  done = True
-                  break
+                    if self.verbose > 3:
+                      print "[{}: log] Did not get features from update {}".format(self.pp, update_id)
+                      sys.stdout.flush()
+                  if nb_saved_feats >= nb_features:
+                    done = True
+                    break
               else:
                 print "[{}: warning] Update {} has no list of images associated to it.".format(self.pp, update_id)
                 sys.stdout.flush()
@@ -212,28 +224,36 @@ class SearcherLOPQHBase(GenericSearcher):
               full_trace_error(err_msg)
               sys.stdout.flush()
             else:
-              print "[{}: log] Got {} training samples so far...".format(self.pp, nb_saved_feats)
-              sys.stdout.flush()
+              if self.verbose >4:
+                print "[{}: log] Got {} training samples so far...".format(self.pp, nb_saved_feats)
+                sys.stdout.flush()
             if done:
+              nb_features_to_read = nb_saved_feats
               break
         else:
           # Wait for new updates...
           # TODO: could be optional
           if self.wait_for_nbtrain:
-            print "[{}: log] Waiting for new updates...".format(self.pp)
-            sys.stdout.flush()
-            time.sleep(600)
+            if nb_saved_feats >= nb_min_train:
+              print "[{}: log] Gathered minimum number of training features ({})...".format(self.pp, nb_min_train)
+              sys.stdout.flush()
+              break
+            else:
+              print "[{}: log] Waiting for new updates. Got {} training samples so far...".format(self.pp,
+                                                                                                  nb_saved_feats)
+              sys.stdout.flush()
+              time.sleep(60)
           else:
             print "[{}: log] Gathered all available features ({})...".format(self.pp, self.get_nb_saved_feats(feats_db))
             sys.stdout.flush()
             break
 
-    return self.get_feats_from_lmbd(feats_db, nb_features, dtype)
+    return self.get_feats_from_lmbd(feats_db, nb_features_to_read, dtype)
 
   def train_index(self):
 
       if self.model_type == "lopq":
-        train_np = self.get_train_features(self.nb_train)
+        train_np = self.get_train_features(self.nb_train, nb_min_train=self.nb_min_train)
         print "Got train features array with shape: {}".format(train_np.shape)
         nb_train_feats = train_np.shape[0]
         sys.stdout.flush()
@@ -266,7 +286,7 @@ class SearcherLOPQHBase(GenericSearcher):
         # pca loading/training first
         pca_model = self.storer.load(self.build_pca_model_str())
         if pca_model is None:
-          train_np = self.get_train_features(self.nb_train_pca)
+          train_np = self.get_train_features(self.nb_train_pca, nb_min_train=self.nb_min_train_pca)
           msg = "[{}.train_model: info] Starting training of PCA model, keeping {} dimensions from features {}."
           print msg.format(self.pp, self.model_params['pca'], train_np.shape)
           sys.stdout.flush()
@@ -279,7 +299,7 @@ class SearcherLOPQHBase(GenericSearcher):
           lopq_model.pca_P = pca_model["P"]
           lopq_model.pca_mu = pca_model["mu"]
         # train model
-        train_np = self.get_train_features(self.nb_train, lopq_pca_model=lopq_model)
+        train_np = self.get_train_features(self.nb_train, lopq_pca_model=lopq_model, nb_min_train=self.nb_min_train)
         msg = "[{}.train_model: info] Starting local training of 'lopq_pca' model with parameters {} using features {}"
         print msg.format(self.pp, self.model_params, train_np.shape)
         sys.stdout.flush()

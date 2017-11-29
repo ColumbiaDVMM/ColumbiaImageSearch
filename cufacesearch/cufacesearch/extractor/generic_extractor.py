@@ -25,30 +25,40 @@ class DaemonBatchExtractor(multiprocessing.Process):
   def __init__(self, extractor, q_in, q_out, verbose=0):
     super(DaemonBatchExtractor, self).__init__()
     self.extractor = extractor
+    self.pp_str = build_extr_str(self.extractor.featurizer_type, self.extractor.detector_type, self.extractor.input_type)
+    self.pp = "DaemonBatchExtractor.{}".format(self.pp_str)
     self.q_in = q_in
     self.q_out = q_out
     self.verbose = verbose
+    self.qin_timeout = 5
 
   def run(self):
-    while self.q_in.empty() == False:
+    empty = False
+    self.pp = "DaemonBatchExtractor.{}.{}".format(self.pp_str, self.pid)
+    # Unreliable...
+    #while self.q_in.empty() == False:
+    while not empty:
 
       try:
         # The queue should already have items,but seems sometime to block forever...
         #batch = self.q_in.get(False)
-        print "[DaemonBatchExtractor.{}] Checking for a batch at: {}".format(self.pid, datetime.now().isoformat())
-        sys.stdout.flush()
-        batch = self.q_in.get(timeout=10)
-      except Exception as inst:
-        #self.q_in.task_done()
-        print "[DaemonBatchExtractor.{}] Did not get a batch ()".format(self.pid, inst)
-        sys.stdout.flush()
+        if self.verbose > 3:
+          print "[{}] Looking for a batch at: {}".format(self.pp, datetime.now().isoformat())
+          sys.stdout.flush()
+        batch = self.q_in.get(timeout=self.qin_timeout)
+      except Exception:
+        # This may appear in the log when the following update is being processed.
+        if self.verbose > 3:
+          print "[{}] Did not get a batch. Leaving".format(self.pp)
+          sys.stdout.flush()
+        empty = True
         continue
 
       try:
 
         start_process = time.time()
         if self.verbose > 1:
-          print "[DaemonBatchExtractor.{}] Got batch of {} images to process.".format(self.pid, len(batch))
+          print "[{}] Got batch of {} images to process.".format(self.pp, len(batch))
           sys.stdout.flush()
 
         # Process each image
@@ -64,19 +74,16 @@ class DaemonBatchExtractor(multiprocessing.Process):
               out_dict[img_buffer_column] = img_buffer_b64
             out_batch.append((sha1, out_dict))
           except Exception as inst:
-            err_msg = "[DaemonBatchExtractor.{}: warning] Extraction failed for img {} with error ({}): {}"
-            print err_msg.format(self.pid, sha1, type(inst), inst)
+            err_msg = "[{}: warning] Extraction failed for img {} with error ({}): {}"
+            print err_msg.format(self.pp, sha1, type(inst), inst)
             sys.stdout.flush()
         #---
 
         # Push batch out
         if self.verbose > 0:
-          print_msg = "[DaemonBatchExtractor.{}] Computed {}/{} extractions in {}s."
-          print print_msg.format(self.pid, len(out_batch), len(batch), time.time() - start_process)
+          print_msg = "[{}] Computed {}/{} extractions in {}s."
+          print print_msg.format(self.pp, len(out_batch), len(batch), time.time() - start_process)
           sys.stdout.flush()
-
-        # Delete extractor before pushing to free memory
-        del self.extractor
 
         # Put but allow timeout, to avoid blocking which seems to happen if not enough memory is available
         self.q_out.put(out_batch, True, 10)
@@ -87,7 +94,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
       except Exception as inst:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fulltb = traceback.format_tb(exc_tb)
-        print "[DaemonBatchExtractor.{}: {}] {} ({})".format(self.pid, type(inst), inst, ''.join(fulltb))
+        print "[{}: {}] {} ({})".format(self.pp, type(inst), inst, ''.join(fulltb))
         sys.stdout.flush()
 
         # Try to push whatever we have so far?
@@ -97,8 +104,10 @@ class DaemonBatchExtractor(multiprocessing.Process):
         # Try to mark as done anyway?
         self.q_in.task_done()
 
-    print "[DaemonBatchExtractor.{}] Reached end of input queue at: {}".format(self.pid, datetime.now().isoformat())
-    sys.stdout.flush()
+    # Cleanup without waiting for GC
+    del self.extractor
+    #print "[DaemonBatchExtractor.{}] Reached end of input queue at: {}".format(self.pid, datetime.now().isoformat())
+    #sys.stdout.flush()
 
 
 class GenericExtractor(object):

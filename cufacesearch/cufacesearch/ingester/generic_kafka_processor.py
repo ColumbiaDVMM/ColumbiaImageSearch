@@ -72,19 +72,17 @@ class GenericKafkaProcessor(ConfReader):
     return dict_args
 
   def toc_process_ok(self, start_process, end_time=time.time()):
+    # Can end_time be smaller than start_process??
+    self.process_time += abs(end_time - start_process)
     self.process_count += 1
-    #self.process_time += time.time() - start_process
-    self.process_time += end_time - start_process
 
   def toc_process_skip(self, start_process, end_time=time.time()):
+    self.process_time += abs(end_time - start_process)
     self.process_skip += 1
-    #self.process_time += time.time() - start_process
-    self.process_time += end_time - start_process
 
   def toc_process_failed(self, start_process, end_time=time.time()):
+    self.process_time += abs(end_time - start_process)
     self.process_failed += 1
-    #self.process_time += time.time() - start_process
-    self.process_time += end_time - start_process
 
   def print_stats(self, msg):
     tot = self.process_count + self.process_failed + self.process_skip

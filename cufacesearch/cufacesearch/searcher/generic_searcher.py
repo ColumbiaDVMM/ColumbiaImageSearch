@@ -23,6 +23,7 @@ class GenericSearcher(ConfReader):
     self.verbose = 1
     self.top_feature = 0
     self.nb_train = 1000000
+    self.nb_min_train = 10000
     self.save_train_features = False
     self.wait_for_nbtrain = True
     self.get_pretrained_model = False
@@ -111,9 +112,13 @@ class GenericSearcher(ConfReader):
     tmp_input_type = self.get_param('input_type')
     if tmp_input_type:
       self.input_type = tmp_input_type
+    # Should nb_train be interpreted as nb_min_train?
     tmp_nb_train = self.get_param('nb_train')
     if tmp_nb_train:
       self.nb_train = tmp_nb_train
+    nb_min_train = self.get_param('nb_min_train')
+    if nb_min_train:
+      self.nb_min_train = nb_min_train
     tmp_reranking = self.get_param('reranking')
     if tmp_reranking:
       self.reranking = True

@@ -8,6 +8,26 @@ if __name__ == "__main__":
   parser.add_argument("-o", "--output_dir", dest="output_dir", required=True)
   options = parser.parse_args()
 
+  # General environment variables
+  # - conf_name (required)
+  # - extr_type (required)
+  # - input_type (required)
+  # - extr_nb_threads (optional, default: 1)
+  # Kafka related environment variables
+  # - images_topic (required)
+  # - extr_check_consumer_group (required)
+  # - extr_proc_consumer_group (required)
+  # - updates_topic
+  # - kafka_servers (optional, default: memex HG kakfa brokers)
+  # - kafka_security (optional)
+  # Hbase related environment variables
+  # - hbase_host (required)
+  # - table_sha1infos (required)
+  # - table_updateinfos (required)
+  # - batch_update_size (required)
+  # TODO: report this list in the docs.
+  # Make sure the docker-compose propagate all these variables down, so we can generate conf files in docker...
+
   # Initialization
   conf = dict()
   conf_name = os.environ['conf_name']
@@ -61,7 +81,7 @@ if __name__ == "__main__":
   # Generic ingestion settings
   verbose = os.getenv('verbose', 0)
   conf[extr_prefix + "verbose"] = int(verbose)
-  conf[extr_prefix + "max_delay"] = 600
+  conf[extr_prefix + "max_delay"] = int(os.getenv('extr_check_max_delay', 3600))
   conf[extr_prefix + "nb_threads"] = int(os.getenv('extr_nb_threads', 1))
 
   kafka_servers = json.loads(os.getenv('kafka_servers', '["kafka0.team-hg-memex.com:9093",\
@@ -104,4 +124,6 @@ if __name__ == "__main__":
   if not os.path.exists(options.output_dir):
     os.mkdir(options.output_dir)
 
-  json.dump(conf, open(os.path.join(options.output_dir,'conf_extraction_'+conf_name+'.json'),'wt'), sort_keys=True, indent=4)
+  outpath = os.path.join(options.output_dir,'conf_extraction_'+conf_name+'.json')
+  json.dump(conf, open(outpath,'wt'), sort_keys=True, indent=4)
+  print("Saved conf at {}: {}".format(outpath, json.dumps(conf)))

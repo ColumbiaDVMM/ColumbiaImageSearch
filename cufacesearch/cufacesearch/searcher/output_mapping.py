@@ -145,7 +145,7 @@ class DictOutput():
           for jj in range(nb_dets):
             sim_det = sim_dets[i][j][jj]
             nb_faces_similar += 1
-            print sim_images[i][j][jj]
+            #print sim_images[i][j][jj]
             output[out_i][self.map['similar_'+input_type+'s']][self.map['image_sha1s']].append(sim_images[i][j][jj][0].strip())
             if sim_images[i][j][jj] > 1:
               output[out_i][self.map['similar_'+input_type+'s']][self.map['cached_image_urls']].append(sim_images[i][j][jj][1][self.url_field].strip())

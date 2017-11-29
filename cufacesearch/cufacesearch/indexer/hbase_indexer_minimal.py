@@ -127,10 +127,10 @@ class HBaseIndexerMinimal(ConfReader):
         if type(inst) == TTransportException:
           raise inst
         else:
-          print "[get_create_table: info] table {} does not exist (yet): {}{}".format(table_name, type(inst), inst)
+          print "[{}.get_create_table: info] table {} does not exist (yet): {}{}".format(self.pp, table_name, type(inst), inst)
           conn.create_table(table_name, families)
           table = conn.table(table_name)
-          print "[get_create_table: info] created table {}".format(table_name)
+          print "[{}.get_create_table: info] created table {}".format(self.pp, table_name)
           return table
     except Exception as inst:
       # May fail if families in dictionary do not match those of an existing table, or because of connection issues?
@@ -224,10 +224,10 @@ class HBaseIndexerMinimal(ConfReader):
             # add '~' to exclude last row from next batch
           row_start = rows[-1][0]+'~'
         else:
-          print "[get_updates_from_date: log] 'rows' was None."
+          #print "[{}.get_updates_from_date: log] 'rows' was None.".format(self.pp)
           break
     except Exception as inst: # try to catch any exception
-      print "[get_updates_from_date: error] {}".format(inst)
+      print "[{}.get_updates_from_date: error] {}".format(self.pp, inst)
       self.refresh_hbase_conn("get_updates_from_date")
       try:
         for out_rows in self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
