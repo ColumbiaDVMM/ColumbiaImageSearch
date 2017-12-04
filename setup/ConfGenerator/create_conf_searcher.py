@@ -29,6 +29,7 @@ if __name__ == "__main__":
   # - nb_train_pca (required)
   # - nb_min_train_pca (optional)
   # - lopq_pcadims (required)
+  # TODO: add storer infos.
   # TODO: report this list in the docs.
   # Make sure the docker-compose propagate all these variables down, so we can generate conf files in docker...
 
@@ -52,7 +53,12 @@ if __name__ == "__main__":
     conf[search_prefix + 'storer_type'] = storer_type
     conf[storer_prefix + 'base_path'] = os.getenv('storer_base_path', '/data/index')
     conf[storer_prefix + 'verbose'] = verbose
-  # TODO: deal with AWS
+  if storer_type == "s3":
+    conf[search_prefix + 'storer_type'] = storer_type
+    # A file 'credentials' should exist in docker at /home/ubuntu/.aws/
+    conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
+    conf[storer_prefix + 'bucket_name'] = os.environ['bucket_name']
+    conf[storer_prefix + 'verbose'] = verbose
 
   # Extraction settings
   extr_type = os.environ['extr_type']
