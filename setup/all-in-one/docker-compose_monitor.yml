@@ -2,16 +2,6 @@ version: "3"
 
 services:
 
-#  zookeeper:
-#    image: oddpoet/zookeeper
-#    hostname: zookeeper
-#    command:
-#      - "2181"
-#    ports:
-#      - "2181:2181"
-#    networks:
-#      cu_imgsearch_net:
-# Try to use same image as dig-etl-engine
   zookeeper:
     image: wurstmeister/zookeeper
     hostname: zookeeper
@@ -145,8 +135,7 @@ services:
       cu_imgsearch_net:
   img_pusher:
     image: svebork/columbia_image_search:1.0
-    hostname: cuimg_push
-    container_name: cuimg_push
+    hostname: ${input_conf_name}
     stdin_open: true
     tty: true
     environment:
@@ -181,10 +170,9 @@ services:
       - kafka
     networks:
       cu_imgsearch_net:
-  face_processor:
+  processor:
     image: svebork/columbia_image_search:1.0
-    hostname: cuface_proc
-    container_name: cuface_proc
+    hostname: ${extr_conf_name}
     stdin_open: true
     tty: true
     cap_add:
@@ -227,10 +215,9 @@ services:
       - hbase
     networks:
       cu_imgsearch_net:
-  face_search:
+  search:
     image: svebork/columbia_image_search:1.0
-    hostname: cuface_search
-    container_name: cuface_search
+    hostname: ${search_conf_name}
     stdin_open: true
     tty: true
     cap_add:
@@ -288,7 +275,7 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 172.63.0.0/16
+        - subnet: 172.66.0.0/16
 
 volumes:
   cufacesearch-volume:

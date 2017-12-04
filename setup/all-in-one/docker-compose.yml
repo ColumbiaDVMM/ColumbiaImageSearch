@@ -1,0 +1,225 @@
+version: "3"
+
+services:
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    hostname: zookeeper
+    container_name: zookeeper
+    environment:
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+    ports:
+      - "2181:2181"
+    networks:
+      cu_imgsearch_net:
+  kafka:
+    image: wurstmeister/kafka
+    hostname: kafka
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    links:
+      - zookeeper:zk
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ADVERTISED_HOST_NAME: "kafka"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    # In /opt/kafka/config/server.properties
+    # log.dirs=/kafka/kafka-logs-kafka
+    # List topics with /opt/kafka/bin/kafka-topics.sh --list --zookeeper zk:2181
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+    volumes:
+      - cuimgsearch-kafka-volume:/kafka/kafka-logs-kafka
+    networks:
+      cu_imgsearch_net:
+  hbase:
+    image: kevinsvds/hbase
+    hostname: hbase
+    container_name: hbase
+    ports:
+      - "9090:9090"
+      - "9095:9095"
+      - "60000:60000"
+      - "60010:60010"
+      - "60020:60020"
+      - "60030:60030"
+    links:
+      - zookeeper:zk
+    depends_on:
+      - zookeeper
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+    #In /etc/hbase/conf/hbase-site.xml:
+    #<name>hbase.rootdir</name>
+    #<value>hdfs://localhost/hbase</value>
+    #In /etc/hadoop/conf/hdfs-site.xml
+    #<name>hadoop.tmp.dir</name>
+    #<value>/var/lib/hadoop-hdfs/cache/${user.name}</value>
+    # So mount volume at /var/lib/hadoop-hdfs for persistence?
+    volumes:
+      - cuimgsearch-hbase-volume:/var/lib/hadoop-hdfs
+    networks:
+      cu_imgsearch_net:
+  img_pusher:
+    image: svebork/columbia_image_search:1.0
+    hostname: ${input_conf_name}
+    stdin_open: true
+    tty: true
+    environment:
+      # General environment variables
+      - input_type
+      - verbose
+      - input_path
+      - source_zip
+      - "conf_name=${input_conf_name}"
+      # Kafka related environment variables
+      - input_topic
+      - input_consumer_group
+      - images_topic
+      - kafka_servers
+      - kafka_security
+    cap_add:
+      - IPC_LOCK
+    # nothing really needs to be persistent here. no other volumes needed
+    volumes:
+      - $repo_path:$indocker_repo_path
+    # TODO: Should we pass all related env var and call conf generation in the docker?
+    #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_local_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_local_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+    links:
+      - kafka
+    depends_on:
+      - kafka
+    networks:
+      cu_imgsearch_net:
+  processor:
+    image: svebork/columbia_image_search:1.0
+    hostname: ${extr_conf_name}
+    stdin_open: true
+    tty: true
+    cap_add:
+      - IPC_LOCK
+    environment:
+      # General environment variables
+      - input_type
+      - verbose
+      - "conf_name=${extr_conf_name}"
+      - "extr_type=${extr_type}"
+      - "extr_nb_threads=${extr_nb_threads}"
+      # Kafka related environment variables
+      - images_topic
+      - kafka_servers
+      - kafka_security
+      - "extr_check_consumer_group=${extr_check_consumer_group}"
+      - "extr_proc_consumer_group=${extr_proc_consumer_group}"
+      - "updates_topic=${updates_topic}"
+      # Hbase related environment variables
+      - hbase_host
+      - "table_sha1infos=${table_sha1infos}"
+      - "table_updateinfos=${table_updateinfos}"
+      - "batch_update_size=${batch_update_size}"
+    # nothing really needs to be persistent here. no other volumes needed
+    volumes:
+      - $repo_path:$indocker_repo_path
+    # TODO: Should we pass all related env var and call conf generation in the docker?
+    #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+    links:
+      - kafka
+      - hbase
+    depends_on:
+      - kafka
+      - hbase
+    networks:
+      cu_imgsearch_net:
+  search:
+    image: svebork/columbia_image_search:1.0
+    hostname: ${search_conf_name}
+    stdin_open: true
+    tty: true
+    cap_add:
+      - IPC_LOCK
+    environment:
+      # General environment variables
+      - input_type
+      - verbose
+      - "conf_name=${search_conf_name}"
+      - "extr_type=${extr_type}"
+      - "storer=${storer}"
+      # Hbase related environment variables
+      - hbase_host
+      - "table_sha1infos=${table_sha1infos}"
+      - "table_updateinfos=${table_updateinfos}"
+      - "batch_update_size=${batch_update_size}"
+      # Search related environment variables
+      - "model_type=${model_type}"
+      - "nb_train=${nb_train}"
+      - "nb_min_train=${nb_min_train}"
+      - "lopq_V=${lopq_V}"
+      - "lopq_M=${lopq_M}"
+      - "lopq_subq=${lopq_subq}"
+      - "reranking=${reranking}"
+      # If model_type is lopq_pca:
+      - "nb_train_pca=${nb_train_pca}"
+      - "nb_min_train_pca=${nb_min_train_pca}"
+      - "lopq_pcadims=${lopq_pcadims}"
+    # need to add a volume that store the search index data
+    volumes:
+      - $repo_path:$indocker_repo_path
+      - cufacesearch-volume:/data
+    ports:
+      - $port_host:5000
+    # TODO: Should we pass all related env var and call conf generation in the docker?
+    #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+    links:
+      - hbase
+    depends_on:
+      - hbase
+    networks:
+      cu_imgsearch_net:
+
+networks:
+#  external:
+#    name: cu_imgsearch_net
+  cu_imgsearch_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.66.0.0/16
+
+volumes:
+  cufacesearch-volume:
+  # These volumes should be shared for different extractions...
+  cuimgsearch-kafka-volume:
+  cuimgsearch-hbase-volume:
