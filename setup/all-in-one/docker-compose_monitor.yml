@@ -5,7 +5,7 @@ services:
   zookeeper:
     image: wurstmeister/zookeeper
     hostname: zookeeper
-    container_name: zookeeper
+    #container_name: zookeeper
     environment:
       KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
     logging:
@@ -20,7 +20,7 @@ services:
   kafka:
     image: wurstmeister/kafka
     hostname: kafka
-    container_name: kafka
+    #container_name: kafka
     ports:
       - "9092:9092"
     links:
@@ -46,7 +46,7 @@ services:
   kafka_manager:
     image: sheepkiller/kafka-manager
     hostname: kafka_manager
-    container_name: kafka_manager
+    #container_name: kafka_manager
     environment:
       ZK_HOSTS: "zookeeper:2181"
       KM_CONFIGFILE: "/opt/application.conf"
@@ -78,7 +78,7 @@ services:
   hbase:
     image: kevinsvds/hbase
     hostname: hbase
-    container_name: hbase
+    #container_name: hbase
     ports:
       - "9090:9090"
       - "9095:9095"
@@ -109,7 +109,7 @@ services:
   hue:
     image: gethue/hue:latest
     hostname: hue
-    container_name: hue
+    #container_name: hue
     dns: 8.8.8.8
     ports:
      - "9999:8888"
@@ -184,6 +184,7 @@ services:
       - "conf_name=${extr_conf_name}"
       - "extr_type=${extr_type}"
       - "extr_nb_threads=${extr_nb_threads}"
+      - "extr_check_max_delay=${extr_check_max_delay}"
       # Kafka related environment variables
       - images_topic
       - kafka_servers
