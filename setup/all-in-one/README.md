@@ -23,7 +23,7 @@ The API is ready to be used when you see a message like `Starting Search API on 
 You can check the API status by querying the route `status` of the `endpoint` you defined, 
 e.g. [http://localhost/cufacesearch/status](http://localhost/cufacesearch/status).
 Details about the API are provided in the [README.md](../../www/README.md) file of the `www` folder. 
- 
+You can also open your browser at [http://localhost/[endpoint]/view_similar_byURL?data=[an_image_URL]](http://localhost/[endpoint]/view_similar_byURL?data=[an_image_URL]) to visualize some results.
 
 A docker compose file [docker-compose_monitor.yml](docker-compose_monitor.yml) with additional monitoring tools is also provided.
 You can use it by running:

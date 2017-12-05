@@ -292,14 +292,17 @@ class HBaseIndexerMinimal(ConfReader):
             for row in rows:
               next_start_date = '_'.join(row[0].split('_')[-2:])
               if extr_type in row[0]:
-                missing_extr_sha1s = self.get_missing_extr_sha1s(row[1][column_list_sha1s].split(','), extr_type)
-                if missing_extr_sha1s:
-                  out_row_val = dict()
-                  out_row_val[column_list_sha1s] = ','.join(missing_extr_sha1s)
-                  if out_rows:
-                    out_rows.append((row[0], out_row_val))
-                  else:
-                    out_rows = [(row[0], out_row_val)]
+                if column_list_sha1s in row[1]:
+                  missing_extr_sha1s = self.get_missing_extr_sha1s(row[1][column_list_sha1s].split(','), extr_type)
+                  if missing_extr_sha1s:
+                    out_row_val = dict()
+                    out_row_val[column_list_sha1s] = ','.join(missing_extr_sha1s)
+                    if out_rows:
+                      out_rows.append((row[0], out_row_val))
+                    else:
+                      out_rows = [(row[0], out_row_val)]
+                else:
+                  print "[get_missing_extr_updates_from_date: warning] update {} has no list of image.".format(row[0])
           if out_rows:
             yield out_rows
             # add '~' to exclude last row from next batch
@@ -350,6 +353,7 @@ class HBaseIndexerMinimal(ConfReader):
   #   # Push them
   #   self.push_dict_rows(dict_updates, self.table_updateinfos_name)
 
+  # Deprecated
   def push_list_updates(self, list_sha1s, update_id):
     """ Push the 'update_id' composed of the images in 'list_sha1s' to 'table_updateinfos_name'.
 
