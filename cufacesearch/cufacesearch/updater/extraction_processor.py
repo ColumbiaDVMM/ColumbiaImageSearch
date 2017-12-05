@@ -174,7 +174,7 @@ class ExtractionProcessor(ConfReader):
           else:
             print("[{}.get_batch_hbase: log] Skipping update {} from another extraction type.".format(self.pp, update_id))
       else:
-        print("[{}.get_batch_hbase: log] Nothing to update!".format(self.pp))
+        print("[{}.get_batch_hbase: log] No unprocessed update found.".format(self.pp))
         # Look for updates that have some unprocessed images
         for updates in self.indexer.get_missing_extr_updates_from_date("1970-01-01", extr_type=self.extr_prefix):
           try:
@@ -245,7 +245,7 @@ class ExtractionProcessor(ConfReader):
         else:
           print("[{}.get_batch_kafka: log] Skipping already processed update: {}".format(self.pp, update_id))
       else:
-        print("[{}.get_batch_kafka: log] Nothing to update!".format(self.pp))
+        print("[{}.get_batch_kafka: log] No update found.".format(self.pp))
         # Fall back to checking HBase for unstarted/unfinished updates
         for rows_batch, update_id in self.get_batch_hbase():
           yield rows_batch, update_id

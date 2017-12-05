@@ -308,7 +308,7 @@ class HBaseIndexerMinimal(ConfReader):
             # add '~' to exclude last row from next batch
           row_start = rows[-1][0]+'~'
         else:
-          print "[get_missing_extr_updates_from_date: log] 'rows' was None."
+          print "[get_missing_extr_updates_from_date: log] No update with unprocessed images found."
           break
     except Exception as inst: # try to catch any exception
       print "[get_missing_extr_updates_from_date: error] {}".format(inst)
