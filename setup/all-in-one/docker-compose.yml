@@ -125,6 +125,7 @@ services:
       - "conf_name=${extr_conf_name}"
       - "extr_type=${extr_type}"
       - "extr_nb_threads=${extr_nb_threads}"
+      - "extr_check_max_delay=${extr_check_max_delay}"
       # Kafka related environment variables
       - images_topic
       - kafka_servers
