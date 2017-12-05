@@ -24,6 +24,9 @@ class APIResponder(Resource):
     self.searcher = global_searcher
     self.start_time = global_start_time
     self.input_type = input_type
+    # This could be loaded from config?
+    self.default_no_blur = True
+    self.default_max_height = 120
     # how to blur canvas images but keep the face clean?
     self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height", "max_returned"]
 
@@ -326,7 +329,8 @@ class APIResponder(Resource):
 
     # Prepare settings
     settings = dict()
-    settings["no_blur"] = False
+    settings["no_blur"] = self.default_no_blur
+    settings["max_height"] = self.default_max_height
     if "no_blur" in options_dict:
       settings["no_blur"] = options_dict["no_blur"]
     if "max_height" in options_dict:
@@ -342,27 +346,7 @@ class APIResponder(Resource):
                                          search_results=search_results),
                          200, headers)
     else:
-      # if query_type == "PATH":
-      #   return make_response(render_template('view_similar_images_local.html',
-      #                                        settings=settings,
-      #                                        search_results=search_results),
-      #                        200, headers)
-      # else:
       return make_response(render_template('view_similar_images.html',
                                            settings=settings,
                                            search_results=search_results),
                              200, headers)
-
-  # def search_byURL(self, query, options=None):
-  #   return self.search_byURL_nocache(query, options)
-
-  # def search_bySHA1(self, query, options=None):
-  #   # could use precomputed faces detections and features here
-  #   # could also have precomputed similarities and return them here
-  #   return self.search_bySHA1_nocache(query, options)
-
-  # def search_byB64(self, query, options=None):
-  #   # we can implement a version that computes the sha1
-  #   # and get preocmputed features from HBase
-  #   # left for later as we consider queries with b64 are for out of index images
-  #   return self.search_byB64_nocache(query, options)
