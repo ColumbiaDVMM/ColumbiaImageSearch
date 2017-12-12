@@ -87,7 +87,8 @@ def build_batch_rdd(batch_udpate, extr_type, processed=True):
 
 
 def create_processed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1infos_out, extr_type,
-                           batch_update_size=4096):
+                           batch_update_size=8192):
+    # NB: use bigger batches for already processed images
     # Read all images and keep those that have been processed (i.e. have features stored in HBase) but not claimed by an update
     in_rdd = hbase_man_in.read_hbase_table()
     out_rdd = in_rdd.filter(lambda row: get_processed_images(row, extr_type)).keys()
@@ -113,7 +114,7 @@ def create_processed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1
 
 
 def create_unprocessed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1infos_out, extr_type,
-                             batch_update_size=4096):
+                             batch_update_size=2048):
     # Read all images and keep those that have not been processed (i.e. have no features stored in HBase) and not claimed by an update
     in_rdd = hbase_man_in.read_hbase_table()
     out_rdd = in_rdd.filter(lambda row: get_unprocessed_images(row, extr_type)).keys()
