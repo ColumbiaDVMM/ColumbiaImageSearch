@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import json
 import time
 import datetime
@@ -45,7 +47,7 @@ def get_unprocessed_images(data):
         if not check_extr_performed(extr_tuple_list, extr_type) and not check_extr_claimed(extr_tuple_list, extr_type):
             return True
     except Exception as inst:
-        print "[Error in get_images_to_be_indexed] key was {}. {}".format(key, inst)
+        print("[Error in get_images_to_be_indexed] key was {}. {}".format(key, inst))
     return False
 
 
@@ -59,7 +61,7 @@ def get_processed_images(data, extr_type):
         if check_extr_performed(extr_tuple_list, extr_type) and not check_extr_claimed(extr_tuple_list, extr_type):
             return True
     except Exception as inst:
-        print "[Error in get_images_processed] key was {}. {}".format(key, inst)
+        print("[Error in get_images_processed] key was {}. {}".format(key, inst))
     return False
 
 
@@ -92,6 +94,7 @@ def create_processed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1
     # Build batches
     iterator = out_rdd.toLocalIterator()
     batch_udpate = []
+    nb_batches = 0
     for x in iterator:
         batch_udpate.append(x)
         if len(batch_udpate)==batch_update_size:
@@ -99,11 +102,14 @@ def create_processed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1
             hbase_man_updates_out.rdd2hbase(batch_update_rdd)
             hbase_man_sha1infos_out.rdd2hbase(batch_images_out_rdd)
             batch_udpate = []
+            nb_batches += 1
     # Last batch
     if batch_udpate:
         batch_update_rdd, batch_images_out_rdd = build_batch_rdd(batch_udpate, extr_type)
         hbase_man_updates_out.rdd2hbase(batch_update_rdd)
         hbase_man_sha1infos_out.rdd2hbase(batch_images_out_rdd)
+        nb_batches += 1
+    print("Created {} processed batches of {} images for extraction: {}".format(nb_batches, batch_update_size, extr_type))
 
 
 def create_unprocessed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1infos_out, extr_type,
@@ -114,6 +120,7 @@ def create_unprocessed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sh
     # Build batches
     iterator = out_rdd.toLocalIterator()
     batch_udpate = []
+    nb_batches = 0
     for x in iterator:
         batch_udpate.append(x)
         if len(batch_udpate) == batch_update_size:
@@ -121,17 +128,20 @@ def create_unprocessed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sh
             hbase_man_updates_out.rdd2hbase(batch_update_rdd)
             hbase_man_sha1infos_out.rdd2hbase(batch_images_out_rdd)
             batch_udpate = []
+            nb_batches += 1
     # Last batch
     if batch_udpate:
         batch_update_rdd, batch_images_out_rdd = build_batch_rdd(batch_udpate, extr_type, processed=False)
         hbase_man_updates_out.rdd2hbase(batch_update_rdd)
         hbase_man_sha1infos_out.rdd2hbase(batch_images_out_rdd)
+        nb_batches += 1
+    print("Created {} unprocessed batches of {} images for extraction: {}".format(nb_batches, batch_update_size))
             
 
 if __name__ == '__main__':
     from hbase_manager import HbaseManager
     job_conf = json.load(open("job_conf.json","rt"))
-    print job_conf
+    print(job_conf)
     tab_sha1_infos_name = job_conf["tab_sha1_infos"]
     tab_updates_name = job_conf["tab_updates"]
     hbase_host = job_conf["hbase_host"]
