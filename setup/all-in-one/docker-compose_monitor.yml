@@ -123,7 +123,7 @@ services:
     volumes:
       - ../../conf/hue/hue.ini:/hue/desktop/conf/hue.ini
 #      - ../../../apps/hbase/src:/hue/apps/hbase/src
-# Could not connect to localhost:10000 (code THRIFTTRANSPORT): TTransportException('Could not connect to localhost:10000',)
+# Sometimes got: Could not connect to localhost:10000 (code THRIFTTRANSPORT): TTransportException('Could not connect to localhost:10000',)
 # HTTPConnectionPool(host='localhost', port=8983): Max retries exceeded with url: /solr/admin/info/system?user.name=hue&doAs=memex&wt=json (Caused by NewConnectionError('<requests.packages.urllib3.connection.HTTPConnection object at 0x7fbefe000d10>: Failed to establish a new connection: [Errno 99] Cannot assign requested address',))
     depends_on:
       - zookeeper
@@ -156,9 +156,7 @@ services:
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
-    # TODO: Should we pass all related env var and call conf generation in the docker?
-    #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_local_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"
-    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_local_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
     logging:
       driver: "json-file"
       options:
@@ -253,8 +251,6 @@ services:
       - cuimgsearch-volume:/data
     ports:
       - $port_host:5000
-    # TODO: Should we pass all related env var and call conf generation in the docker?
-    #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
     logging:
       driver: "json-file"

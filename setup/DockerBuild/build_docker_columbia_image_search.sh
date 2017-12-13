@@ -15,8 +15,6 @@ setup_docker_name="cu_img_search"
 
 SUDO='sudo'
 
-## TODO: try to push/load from docker hub
-
 ## Build the docker image if needed
 
 # test base docker i.e. columbia_image_search:0.9
@@ -75,7 +73,7 @@ fi
 
 ${SUDO} docker stop ${setup_docker_name}
 
-## Push?
+## Push any updated image to docker hub
 #export DOCKER_ID_USER="svebork"
 #push_docker_image=${base_docker_image}:${docker_image_tag}
 #docker login

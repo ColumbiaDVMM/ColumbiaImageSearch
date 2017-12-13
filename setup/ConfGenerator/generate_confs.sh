@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Deprecated: each python script is now called when starting each docker container
+# maintained for non docker usage.
 
 while getopts s: option
 do

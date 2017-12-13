@@ -9,7 +9,7 @@
 FROM ubuntu:trusty
 
 # Setup and configure
-# All packages may not be required for every docker we could start. But we just build one fit all docker.
+# NB: All packages may not be required for every docker container we could start. But we just build one fit all docker.
 
 ENV DEBIAN_FRONTEND noninteractive
 RUN \
