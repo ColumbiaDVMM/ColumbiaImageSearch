@@ -1,3 +1,4 @@
+from __future__ import print_function
 import json
 
 class ConfReader(object):
@@ -12,11 +13,11 @@ class ConfReader(object):
     self.pp = None
     self.set_pp()
     self.verbose = 0
-    if type(global_conf_in)==dict:
-      print '[{}.init: info] got dictionary configuration.'.format(self.pp)
+    if type(global_conf_in) == dict:
+      print('[{}.init: info] got dictionary configuration.'.format(self.pp))
       self.global_conf = global_conf_in
     else:
-      print '[{}.init: info] reading configuration from file: {}'.format(self.pp, global_conf_in)
+      print('[{}.init: info] reading configuration from file: {}'.format(self.pp, global_conf_in))
       self.global_conf = json.load(open(global_conf_in, 'rt'))
     self.prefix = prefix
     self.read_conf()
@@ -48,10 +49,10 @@ class ConfReader(object):
     if key_param in self.global_conf:
       if self.verbose > 1:
         found_msg = '[{}.get_param: info] found {} with value {} in configuration'
-        print found_msg.format(self.pp, key_param, self.global_conf[key_param])
+        print(found_msg.format(self.pp, key_param, self.global_conf[key_param]))
       return self.global_conf[key_param]
     if self.verbose > 0:
-      print '[{}.get_param: info] could not find {} in configuration'.format(self.pp, key_param)
+      print('[{}.get_param: info] could not find {} in configuration'.format(self.pp, key_param))
 
   def get_required_param(self, param):
     """ Read required parameter 'param' from configuration file.
@@ -63,6 +64,6 @@ class ConfReader(object):
     param_value = self.get_param(param)
     if param_value is None:
       msg = '[{}.get_required_param: error] {} not defined in configuration'.format(self.pp, param)
-      print msg
+      print(msg)
       raise ValueError(msg)
     return param_value

@@ -82,9 +82,11 @@ services:
     environment:
       # General environment variables
       - input_type
-      - verbose
       - input_path
+      - input_nb_threads
+      - verbose
       - source_zip
+      - "nb_workers=${input_nb_workers}"
       - "conf_name=${input_conf_name}"
       # Kafka related environment variables
       - input_topic
@@ -97,9 +99,7 @@ services:
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
-    # TODO: Should we pass all related env var and call conf generation in the docker?
-    #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_local_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"
-    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_local_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
     logging:
       driver: "json-file"
       options:
@@ -111,7 +111,7 @@ services:
       - kafka
     networks:
       cu_imgsearch_net:
-  processor:
+  img_processor:
     image: svebork/columbia_image_search:1.0
     hostname: ${extr_conf_name}
     stdin_open: true
@@ -157,7 +157,7 @@ services:
       - hbase
     networks:
       cu_imgsearch_net:
-  search:
+  img_search:
     image: svebork/columbia_image_search:1.0
     hostname: ${search_conf_name}
     stdin_open: true
@@ -191,11 +191,9 @@ services:
     # need to add a volume that store the search index data
     volumes:
       - $repo_path:$indocker_repo_path
-      - cufacesearch-volume:/data
+      - cuimgsearch-volume:/data
     ports:
       - $port_host:5000
-    # TODO: Should we pass all related env var and call conf generation in the docker?
-    #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
     logging:
       driver: "json-file"
@@ -210,6 +208,7 @@ services:
       cu_imgsearch_net:
 
 networks:
+## Something like that should be used when adding image search to an already existing docker-compose
 #  external:
 #    name: cu_imgsearch_net
   cu_imgsearch_net:
@@ -220,7 +219,7 @@ networks:
         - subnet: 172.66.0.0/16
 
 volumes:
-  cufacesearch-volume:
+  cuimgsearch-volume:
   # These volumes should be shared for different extractions...
   cuimgsearch-kafka-volume:
   cuimgsearch-hbase-volume:

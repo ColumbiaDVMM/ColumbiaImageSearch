@@ -41,7 +41,8 @@ Here is a list of the API routes:
 
 - `/view_similar_byX`: any of the previously listed endpoints `byX` can be prefixed by `view_similar_` to access a simple 
 visualization of the results, i.e. `view_similar_byURL`, `view_similar_byB64` and `view_similar_bySHA1`. 
-This is provided to give a quick idea of the type of results you can expect. Beware, no blurring applied on images here. 
+This is provided to give a quick idea of the type of results you can expect. 
+Beware, no blurring applied on images here. 
 
 ## Additional details
 All endpoints support an additional parameter `options` that should be JSON formatted and can contain the following values:
