@@ -25,7 +25,7 @@ else
 fi
 
 cd ${repo_path}
-mkdir "./logs"
+#mkdir "./logs"
 
 # Initialize path environment variables
 source ~/.bashrc
@@ -35,15 +35,15 @@ package_name="cufacesearch"
 # Start extraction checker
 echo "Start extraction checker"
 cmd="python ./"${package_name}"/"${package_name}"/updater/extraction_checker.py"
-args="-d -c ./conf/generated/conf_extraction_"${conf_name}".json"
-log="./logs/log_check_"${conf_name}
+args=" -d -c ./conf/generated/conf_extraction_"${conf_name}".json"
+#log="./logs/log_check_"${conf_name}
 bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}"&
 
 # Start extraction processor
 echo "Start extraction processor"
 cmd="python ./"${package_name}"/"${package_name}"/updater/extraction_processor.py"
-args="-c ./conf/generated/conf_extraction_"${conf_name}".json"
-log="./logs/log_proc_"${conf_name}
+args=" -c ./conf/generated/conf_extraction_"${conf_name}".json"
+#log="./logs/log_proc_"${conf_name}
 #bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}" --log="${log}"
 bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}"
 

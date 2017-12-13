@@ -34,7 +34,7 @@ else
 fi
 
 cd ${repo_path}
-mkdir "./logs"
+#mkdir "./logs"
 
 # Initialize path environment variables
 source ~/.bashrc
@@ -45,8 +45,8 @@ cd ${repo_path}
 
 # Start and keep API alive
 cmd="python ./www/run_search_api.py"
-args="-c ./conf/generated/conf_search_"${conf_name}".json -e "${endpoint}
-log="./logs/log_searchapi_"${endpoint}
+args=" -c ./conf/generated/conf_search_"${conf_name}".json -e "${endpoint}
+#log="./logs/log_searchapi_"${endpoint}
 #bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}" --log="${log}"
 bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}"
 

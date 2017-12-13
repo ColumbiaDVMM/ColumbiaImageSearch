@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import sys
 import time
 import lmdb
@@ -69,7 +71,7 @@ class SearcherLOPQHBase(GenericSearcher):
     except Exception as inst:
       if type(inst) != ValueError:
         full_trace_error(inst)
-      print "[{}: log] Looks like model was not trained yet ({})".format(self.pp, inst)
+      print("[{}: log] Looks like model was not trained yet ({})".format(self.pp, inst))
 
       self.loaded_pretrain_model = False
       # Try to get it from public bucket e.g.:
@@ -83,10 +85,10 @@ class SearcherLOPQHBase(GenericSearcher):
           download_file(base_model_path+self.build_model_str(), self.build_model_str())
           lopq_model = pickle.load(open(self.build_model_str(), 'rb'))
           self.storer.save(self.build_model_str(), lopq_model)
-          print "[{}: log] Loaded pretrained model {} from s3".format(self.pp, self.build_model_str())
+          print("[{}: log] Loaded pretrained model {} from s3".format(self.pp, self.build_model_str()))
           self.loaded_pretrain_model = True
         except Exception as inst:
-          print "[{}: log] Could not loaded pretrained model {} from s3: {}".format(self.pp, self.build_model_str(), inst)
+          print("[{}: log] Could not loaded pretrained model {} from s3: {}".format(self.pp, self.build_model_str(), inst))
 
 
       if not self.loaded_pretrain_model:
@@ -142,7 +144,7 @@ class SearcherLOPQHBase(GenericSearcher):
             first_item = cursor.item()
             first_feat = np.frombuffer(first_item[1], dtype=dtype)
             feats = np.zeros((nb_feats_to_read, first_feat.shape[0]))
-            print "[get_feats_from_lmbd] Filling up features matrix: {}".format(feats.shape)
+            print("[get_feats_from_lmbd] Filling up features matrix: {}".format(feats.shape))
             sys.stdout.flush()
             for i, item in enumerate(cursor.iternext()):
               if i >= nb_feats_to_read:
@@ -179,7 +181,7 @@ class SearcherLOPQHBase(GenericSearcher):
     seen_updates = set()
 
     if nb_saved_feats < nb_features:
-      print "[{}: log] Gathering {} training samples...".format(self.pp, nb_features)
+      print("[{}: log] Gathering {} training samples...".format(self.pp, nb_features))
       sys.stdout.flush()
       start_date = "1970-01-01"
       done = False
@@ -202,7 +204,7 @@ class SearcherLOPQHBase(GenericSearcher):
                       np_features = lopq_pca_model.apply_PCA(np.asarray(features))
                     else:
                       np_features = np.asarray(features)
-                    print "[{}: log] Got features {} from update {}".format(self.pp, np_features.shape, update_id)
+                    print("[{}: log] Got features {} from update {}".format(self.pp, np_features.shape, update_id))
                     sys.stdout.flush()
                     # just appending like this does not account for duplicates...
                     #train_features.extend(np_features)
@@ -210,13 +212,13 @@ class SearcherLOPQHBase(GenericSearcher):
                     seen_updates.add(update_id)
                   else:
                     if self.verbose > 3:
-                      print "[{}: log] Did not get features from update {}".format(self.pp, update_id)
+                      print("[{}: log] Did not get features from update {}".format(self.pp, update_id))
                       sys.stdout.flush()
                   if nb_saved_feats >= nb_features:
                     done = True
                     break
               else:
-                print "[{}: warning] Update {} has no list of images associated to it.".format(self.pp, update_id)
+                print("[{}: warning] Update {} has no list of images associated to it.".format(self.pp, update_id))
                 sys.stdout.flush()
             except Exception as inst:
               from cufacesearch.common.error import full_trace_error
@@ -225,7 +227,7 @@ class SearcherLOPQHBase(GenericSearcher):
               sys.stdout.flush()
             else:
               if self.verbose >4:
-                print "[{}: log] Got {} training samples so far...".format(self.pp, nb_saved_feats)
+                print("[{}: log] Got {} training samples so far...".format(self.pp, nb_saved_feats))
                 sys.stdout.flush()
             if done:
               nb_features_to_read = nb_saved_feats
@@ -236,16 +238,15 @@ class SearcherLOPQHBase(GenericSearcher):
             # TODO: could be optional
             if self.wait_for_nbtrain:
               if nb_saved_feats >= nb_min_train:
-                print "[{}: log] Gathered minimum number of training features ({})...".format(self.pp, nb_min_train)
+                print("[{}: log] Gathered minimum number of training features ({})...".format(self.pp, nb_min_train))
                 sys.stdout.flush()
                 break
               else:
-                print "[{}: log] Waiting for new updates. Got {} training samples so far...".format(self.pp,
-                                                                                                    nb_saved_feats)
+                print("[{}: log] Waiting for new updates. Got {} training samples so far...".format(self.pp, nb_saved_feats))
                 sys.stdout.flush()
                 time.sleep(60)
             else:
-              print "[{}: log] Gathered all available features ({})...".format(self.pp, self.get_nb_saved_feats(feats_db))
+              print("[{}: log] Gathered all available features ({})...".format(self.pp, self.get_nb_saved_feats(feats_db)))
               sys.stdout.flush()
               break
 
@@ -255,7 +256,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
       if self.model_type == "lopq":
         train_np = self.get_train_features(self.nb_train, nb_min_train=self.nb_min_train)
-        print "Got train features array with shape: {}".format(train_np.shape)
+        print("Got train features array with shape: {}".format(train_np.shape))
         nb_train_feats = train_np.shape[0]
         sys.stdout.flush()
 
@@ -266,17 +267,17 @@ class SearcherLOPQHBase(GenericSearcher):
                                  subquantizer_clusters=self.model_params['subq'])
           # we could have separate training/indexing features
           msg = "[{}.train_model: info] Starting local training of 'lopq' model with parameters {} using {} features."
-          print msg.format(self.pp, self.model_params, nb_train_feats)
+          print(msg.format(self.pp, self.model_params, nb_train_feats))
           start_train = time.time()
           # specify a n_init < 10 (default value) to speed-up training?
           lopq_model.fit(train_np, verbose=True)
           # save model
           self.storer.save(self.build_model_str(), lopq_model)
-          print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
+          print("[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train))
           return lopq_model
         else:
           msg = "[{}.train_model: error] Could not train model, not enough training samples."
-          print msg.format(self.pp)
+          print(msg.format(self.pp))
 
       elif self.model_type == "lopq_pca":
         # lopq_pca training.
@@ -289,11 +290,11 @@ class SearcherLOPQHBase(GenericSearcher):
         if pca_model is None:
           train_np = self.get_train_features(self.nb_train_pca, nb_min_train=self.nb_min_train_pca)
           msg = "[{}.train_model: info] Starting training of PCA model, keeping {} dimensions from features {}."
-          print msg.format(self.pp, self.model_params['pca'], train_np.shape)
+          print(msg.format(self.pp, self.model_params['pca'], train_np.shape))
           sys.stdout.flush()
           start_train_pca = time.time()
           lopq_model.fit_pca(train_np, pca_dims=self.model_params['pca'])
-          print "[{}.train_model: info] Trained pca model in {}s.".format(self.pp, time.time() - start_train_pca)
+          print("[{}.train_model: info] Trained pca model in {}s.".format(self.pp, time.time() - start_train_pca))
           del train_np
           self.storer.save(self.build_pca_model_str(), {"P": lopq_model.pca_P, "mu":lopq_model.pca_mu})
         else:
@@ -302,7 +303,7 @@ class SearcherLOPQHBase(GenericSearcher):
         # train model
         train_np = self.get_train_features(self.nb_train, lopq_pca_model=lopq_model, nb_min_train=self.nb_min_train)
         msg = "[{}.train_model: info] Starting local training of 'lopq_pca' model with parameters {} using features {}"
-        print msg.format(self.pp, self.model_params, train_np.shape)
+        print(msg.format(self.pp, self.model_params, train_np.shape))
         sys.stdout.flush()
         start_train = time.time()
         # specify a n_init < 10 (default value) to speed-up training?
@@ -310,7 +311,7 @@ class SearcherLOPQHBase(GenericSearcher):
         # TODO: we could evaluate model based on reconstruction of some randomly sampled features?
         # save model
         self.storer.save(self.build_model_str(), lopq_model)
-        print "[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train)
+        print("[{}.train_model: info] Trained lopq model in {}s.".format(self.pp, time.time() - start_train))
         sys.stdout.flush()
         return lopq_model
         #err_msg = "[{}.train_model: error] Local training of 'lopq_pca' model not yet implemented."
@@ -329,7 +330,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # Compute codes for each update batch and save them
     from lopq.utils import compute_codes_parallel
     msg = "[{}.compute_codes: info] Computing codes for {} {}s."
-    print msg.format(self.pp, len(det_ids), self.input_type)
+    print(msg.format(self.pp, len(det_ids), self.input_type))
 
     # That keeps the ordering intact, but output is a chain
     codes = compute_codes_parallel(data, self.searcher.model, self.num_procs)
@@ -386,7 +387,7 @@ class SearcherLOPQHBase(GenericSearcher):
   def load_codes(self, full_refresh=False):
     # Calling this method can also perfom an update of the index
     if not self.searcher:
-      print "[{}.load_codes: info] Not loading codes as searcher is not initialized.".format(self.pp)
+      print("[{}.load_codes: info] Not loading codes as searcher is not initialized.".format(self.pp))
       return
 
     start_load = time.time()
@@ -407,32 +408,36 @@ class SearcherLOPQHBase(GenericSearcher):
         #print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
         update_id = update[0]
         if self.is_update_indexed(update_id):
-          print "[{}: log] Skipping update {} already indexed.".format(self.pp, update_id)
+          print("[{}: log] Skipping update {} already indexed.".format(self.pp, update_id))
         else:
           if "info:"+update_str_processed in update[1]:
-            print "[{}: log] Looking for codes of update {}".format(self.pp, update_id)
+            print("[{}: log] Looking for codes of update {}".format(self.pp, update_id))
             # Get this update codes
             codes_string = self.build_codes_string(update_id)
             try:
               # Check for precomputed codes
-              codes_dict = self.storer.load(codes_string)
+              codes_dict = self.storer.load(codes_string, silent=True)
               if codes_dict is None:
                 raise ValueError('Could not load codes: {}'.format(codes_string))
             except Exception as inst:
               # Update codes not available
               if self.verbose > 1:
-                print "[{}: log] Update {} codes could not be loaded: {}".format(self.pp, update_id, inst)
+                print("[{}: log] Update {} codes could not be loaded: {}".format(self.pp, update_id, inst))
               # Compute codes for update not yet processed and save them
               start_compute = time.time()
               # Get detections (if any) and features...
-              list_sha1s = update[1][column_list_sha1s]
-              # Double check that this gets properly features of detections
-              samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
-              codes_dict = self.compute_codes(samples_ids, features, codes_string)
-              update_compute_time = time.time() - start_compute
-              total_compute_time += update_compute_time
-              if self.verbose > 0:
-                print "[{}: log] Update {} codes computation done in {}s".format(self.pp, update_id, update_compute_time)
+              if column_list_sha1s in update[1]:
+                list_sha1s = update[1][column_list_sha1s]
+                # Double check that this gets properly features of detections
+                samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+                codes_dict = self.compute_codes(samples_ids, features, codes_string)
+                update_compute_time = time.time() - start_compute
+                total_compute_time += update_compute_time
+                if self.verbose > 0:
+                  print("[{}: log] Update {} codes computation done in {}s".format(self.pp, update_id, update_compute_time))
+              else:
+                print("[{}: warning] Update {} has no list of images.".format(self.pp, update_id))
+                continue
 
             # Use new method add_codes_from_dict of searcher
             self.searcher.add_codes_from_dict(codes_dict)
@@ -440,7 +445,7 @@ class SearcherLOPQHBase(GenericSearcher):
             self.add_update(update_id)
 
           else:
-            print "[{}: log] Skipping unprocessed update {}".format(self.pp, update_id)
+            print("[{}: log] Skipping unprocessed update {}".format(self.pp, update_id))
         # TODO: we could check that update processing time was older than indexing time, otherwise that means that
         #    the update has been reprocessed and should be re-indexed.
 
@@ -452,8 +457,8 @@ class SearcherLOPQHBase(GenericSearcher):
     self.last_refresh = datetime.now()
     #if self.verbose > 0:
 
-    print "[{}: log] Total udpates computation time is: {}s".format(self.pp, total_compute_time)
-    print "[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load)
+    print("[{}: log] Total udpates computation time is: {}s".format(self.pp, total_compute_time))
+    print("[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load))
 
   # def load_all_codes(self):
   #   # load self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
@@ -507,7 +512,7 @@ class SearcherLOPQHBase(GenericSearcher):
               normed_feat = np.squeeze(feats[i][j] / norm_feat)
               results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
               res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
-              print res_msg.format(self.pp, len(results), visited, results[0])
+              print(res_msg.format(self.pp, len(results), visited, results[0]))
 
           # If reranking, get features from hbase for detections using res.id
           #   we could also already get 's3_url' to avoid a second call to HBase later...
@@ -528,7 +533,7 @@ class SearcherLOPQHBase(GenericSearcher):
                 #print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
               except Exception as inst:
                 # Means feature was not saved to backend index...
-                print "Could not compute reranking distance for sample {}, error {} {}".format(res.id, type(inst), inst)
+                print("Could not compute reranking distance for sample {}, error {} {}".format(res.id, type(inst), inst))
             if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
               if not max_returned or (max_returned and ires < max_returned ):
                 tmp_dets_sim_ids.append(res.id)
@@ -593,7 +598,7 @@ class SearcherLOPQHBase(GenericSearcher):
           normed_feat = np.squeeze(feats[i] / norm_feat)
           results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned, with_dists=True)
           res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
-          print res_msg.format(self.pp, len(results), visited, results[0])
+          print(res_msg.format(self.pp, len(results), visited, results[0]))
 
         # Reranking, get features from hbase for detections using res.id
         if self.reranking:
@@ -611,7 +616,7 @@ class SearcherLOPQHBase(GenericSearcher):
               dist = np.linalg.norm(normed_feat - res_features[pos])
               #print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
             except Exception as inst:
-              print "Could not compute reranked distance for sample {}, error {} {}".format(res.id, type(inst), inst)
+              print("Could not compute reranked distance for sample {}, error {} {}".format(res.id, type(inst), inst))
           if (filter_near_dup and dist <= near_dup_th) or not filter_near_dup:
             if not max_returned or (max_returned and ires < max_returned):
               tmp_img_sim.append(str(res.id))
@@ -643,7 +648,7 @@ class SearcherLOPQHBase(GenericSearcher):
       all_sim_score.append(sim_score)
 
     search_time = time.time() - start_search
-    print 'Search performed in {:0.3}s.'.format(search_time)
+    print("[{}: log] Search performed in {:0.3}s.".format(self.pp, search_time))
 
     # format output
     #print "all_sim_images",all_sim_images

@@ -30,13 +30,6 @@ else
   exit -1
 fi
 
-#if [ ${log+x} ]; then
-#  echo "log: "${log}
-#else
-#  echo "log not set. Use --log to set args please."
-#  exit -1
-#fi
-
 while true;
 do
     if [ ${log+x} ]; then

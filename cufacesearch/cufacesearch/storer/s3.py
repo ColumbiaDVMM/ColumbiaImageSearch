@@ -52,7 +52,7 @@ class S3Storer(GenericStorer):
       print "[{}: log] Saved file: {}".format(self.pp, key)
 
 
-  def load(self, key):
+  def load(self, key, silent=False):
     # Load a pickle object from s3 bucket
     try:
       buffer = sio.StringIO()
@@ -64,8 +64,9 @@ class S3Storer(GenericStorer):
         print "[{}: log] Loaded file: {}".format(self.pp, key)
       return obj
     except Exception as e:
-      err_msg = "[{}: error ({}: {})] Could not load object with key: {}"
-      print err_msg.format(self.pp, type(e), e, key)
+      if self.verbose > 1 and not silent:
+        err_msg = "[{}: error ({}: {})] Could not load object with key: {}"
+        print err_msg.format(self.pp, type(e), e, key)
 
   def list_prefix(self, prefix_path):
     for obj in self.bucket.objects.filter(Prefix=prefix_path):

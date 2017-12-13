@@ -170,7 +170,7 @@ services:
       - kafka
     networks:
       cu_imgsearch_net:
-  processor:
+  img_processor:
     image: svebork/columbia_image_search:1.0
     hostname: ${extr_conf_name}
     stdin_open: true
@@ -216,7 +216,7 @@ services:
       - hbase
     networks:
       cu_imgsearch_net:
-  search:
+  img_search:
     image: svebork/columbia_image_search:1.0
     hostname: ${search_conf_name}
     stdin_open: true
@@ -250,7 +250,7 @@ services:
     # need to add a volume that store the search index data
     volumes:
       - $repo_path:$indocker_repo_path
-      - cufacesearch-volume:/data
+      - cuimgsearch-volume:/data
     ports:
       - $port_host:5000
     # TODO: Should we pass all related env var and call conf generation in the docker?
@@ -279,7 +279,7 @@ networks:
         - subnet: 172.66.0.0/16
 
 volumes:
-  cufacesearch-volume:
+  cuimgsearch-volume:
   # These volumes should be shared for different extractions...
   cuimgsearch-kafka-volume:
   cuimgsearch-hbase-volume:

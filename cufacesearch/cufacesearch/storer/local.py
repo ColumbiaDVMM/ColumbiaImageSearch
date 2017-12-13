@@ -37,7 +37,7 @@ class LocalStorer(GenericStorer):
     if self.verbose > 1:
       print "[{}: log] Saved file: {}".format(self.pp, full_path)
 
-  def load(self, key):
+  def load(self, key, silent=False):
     # Load a pickle object from disk
     try:
       full_path = self.get_full_path(key)
@@ -46,7 +46,7 @@ class LocalStorer(GenericStorer):
         print "[{}: log] Loaded file: {}".format(self.pp, full_path)
       return obj
     except Exception as e:
-      if self.verbose > 0:
+      if self.verbose > 0 and not silent:
         err_msg = "[{}: error ({}: {})] Could not load object from path: {}"
         print err_msg.format(self.pp, type(e), e, full_path)
 

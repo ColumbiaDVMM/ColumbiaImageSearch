@@ -1,0 +1,38 @@
+version: "3"
+
+services:
+
+  img_pusher:
+    image: svebork/columbia_image_search:1.0
+    hostname: ${input_conf_name}
+    stdin_open: true
+    tty: true
+    environment:
+      # General environment variables
+      - verbose
+      - input_type
+      - "conf_name=${input_conf_name}"
+      # Local pusher related environment variables
+      - input_path
+      - source_zip
+      # Kafka input related environment variables
+      - input_topic
+      - input_nb_threads
+      - input_consumer_group
+      - input_obj_stored_prefix
+      - "nb_workers=${input_nb_workers}"
+      # Kafka output related environment variables
+      - images_topic
+      - cdr_out_topic
+      - kafka_servers
+      - kafka_security
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - $repo_path:$indocker_repo_path
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"

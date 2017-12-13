@@ -5,8 +5,7 @@ import time
 import threading
 import multiprocessing
 from datetime import datetime
-from .generic_kafka_processor import GenericKafkaProcessor
-from ..imgio.imgio import buffer_to_B64
+from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
 default_prefix = "KID_"
 default_prefix_frompkl = "KIDFP_"
@@ -19,7 +18,9 @@ class KafkaImageDownloader(GenericKafkaProcessor):
     # call GenericKafkaProcessor init (and others potentially)
     super(KafkaImageDownloader, self).__init__(global_conf_filename, prefix, pid)
     # any additional initialization needed, like producer specific output logic
-    self.cdr_out_topic = self.get_required_param('producer_cdr_out_topic')
+    # Should producer_cdr_out_topic be really required?
+    #self.cdr_out_topic = self.get_required_param('producer_cdr_out_topic')
+    self.cdr_out_topic = self.get_param('producer_cdr_out_topic')
     self.images_out_topic = self.get_required_param('producer_images_out_topic')
     # TODO: get s3 url prefix from actual location
     # for now "object_stored_prefix" in "_meta" of domain CDR
@@ -75,12 +76,14 @@ class KafkaImageDownloader(GenericKafkaProcessor):
       # This produces too much data to be pushed to the Kafka topic.
       # Just push image info and let extractors re-download the image.
       # # encode buffer in B64 for JSON dumping
-      # tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
+      #from ..imgio.imgio import buffer_to_B64
+      #tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
       img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
     return img_out_msgs
 
   def process_one(self, msg):
-    from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
+    # Cannot use local import with main in this file
+    from cufacesearch.imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
 
     self.print_stats(msg)
     msg_value = json.loads(msg.value)
@@ -120,7 +123,12 @@ class KafkaImageDownloader(GenericKafkaProcessor):
           sys.stdout.flush()
 
     # Push to cdr_out_topic
-    self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
+    # check if self.cdr_out_topic is empty? as this is only for DIG ingestion...
+    if self.cdr_out_topic:
+      self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
+    else:
+      print_msg = "[{}.process_one: warning] cdr_out_topic is not defined"
+      print print_msg.format(self.pp)
 
     # NB: we could have all extraction registered here,
     # and not pushing an image if it has been processed by all extractions.
@@ -139,7 +147,8 @@ class ThreadedDownloader(threading.Thread):
     self.q_out = q_out
 
   def run(self):
-    from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
+    # Cannot use local import with main in this file
+    from cufacesearch.imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
 
     while self.q_in.empty() == False:
       try:
@@ -251,7 +260,12 @@ class KafkaThreadedImageDownloader(KafkaImageDownloader):
         sys.stdout.flush()
 
     # Push to cdr_out_topic
-    self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
+    #self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
+    if self.cdr_out_topic:
+      self.producer.send(self.cdr_out_topic, self.build_cdr_msg(msg_value, dict_imgs))
+    else:
+      print_msg = "[{}.process_one: warning] cdr_out_topic is not defined"
+      print print_msg.format(self.pp)
 
     # Push to images_out_topic
     for img_out_msg in self.build_image_msg(dict_imgs):
@@ -297,12 +311,13 @@ class KafkaImageDownloaderFromPkl(GenericKafkaProcessor):
       # encode buffer in B64?
       # TODO: should we discard buffer and let extractors redownload the image
       #   to avoid filling up the kafka topic.
+      #from ..imgio.imgio import buffer_to_B64
       #tmp_dict_out['img_buffer'] = buffer_to_B64(dict_imgs[url]['img_buffer'])
       img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
     return img_out_msgs
 
   def process(self):
-    from ..imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
+    from cufacesearch.imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_URL
 
     # Get images data and infos
     for sha1, url in self.get_next_img():
@@ -397,3 +412,47 @@ class DaemonKafkaThreadedImageDownloader(multiprocessing.Process):
         print "KafkaThreadedImageDownloader.{} died (In {}:{}, {}:{})".format(self.pid, fname, exc_tb.tb_lineno, type(inst), inst)
       time.sleep(10)
 
+
+if __name__ == "__main__":
+
+  from argparse import ArgumentParser
+  import time
+
+  # Get conf file
+  parser = ArgumentParser()
+  parser.add_argument("-c", "--conf", dest="conf_file", required=True)
+  parser.add_argument("-p", "--prefix", dest="prefix", default=default_prefix)
+  parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
+  parser.add_argument("-t", "--threaded", dest="threaded", action="store_true", default=False)
+  #parser.add_argument("-w", "--workers", dest="workers", type=int, default=15)
+  parser.add_argument("-w", "--workers", dest="workers", type=int, default=50) # change following repartition
+  parser.add_argument("-m", "--max_message", dest="max_message", type=int, default=0) # only for non daemon version
+  options = parser.parse_args()
+
+  print options
+
+  nb_msg = 0
+
+  if options.deamon:  # use daemon
+    for w in range(options.workers):
+      if options.threaded:
+        dkip = DaemonKafkaThreadedImageDownloader(options.conf_file, prefix=options.prefix)
+      else:
+        dkip = DaemonKafkaImageDownloader(options.conf_file, prefix=options.prefix)
+      dkip.start()
+    time.sleep(60)
+  else:
+    # Initialize
+    if options.threaded:
+      kip = KafkaThreadedImageDownloader(options.conf_file, prefix=options.prefix)
+    else:
+      kip = KafkaImageDownloader(options.conf_file, prefix=options.prefix)
+
+    # Ingest
+    while True:
+      for msg in kip.consumer:
+        kip.process_one(msg)
+        nb_msg += 1
+        if options.max_message > 0 and nb_msg >= options.max_message:
+          time.sleep(10)
+          exit()

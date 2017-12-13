@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from output_mapping import DictOutput
 from ..common.conf_reader import ConfReader
 from ..indexer.hbase_indexer_minimal import img_path_column, img_URL_column
@@ -30,7 +32,6 @@ class GenericSearcher(ConfReader):
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
     self.indexed_updates = set()
-
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
 
     # To deal with local file ingestion
@@ -122,6 +123,9 @@ class GenericSearcher(ConfReader):
     tmp_reranking = self.get_param('reranking')
     if tmp_reranking:
       self.reranking = True
+    verbose = self.get_param('verbose')
+    if verbose:
+      self.verbose = int(verbose)
 
   def get_model_params(self):
     raise NotImplementedError("[{}] get_model_params is not implemented".format(self.pp))
@@ -196,7 +200,7 @@ class GenericSearcher(ConfReader):
     """
     from ..storer.generic_storer import get_storer, default_prefix as storer_default_prefix
     storer_type = self.get_required_param("storer_type")
-    print "[init_storer: log] storer_type: {}".format(storer_type)
+    print("[{}.init_storer: log] storer_type: {}".format(self.pp, storer_type))
     # try to get prefix from conf
     prefix = storer_default_prefix
     tmp_prefix = self.get_param("storer_prefix")
@@ -209,7 +213,7 @@ class GenericSearcher(ConfReader):
     if self.top_feature > 0:
       self.ratio = self.top_feature * 1.0 / len(self.searcher.nb_indexed)
       log_msg = "[{}.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
-      print log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed))
+      print(log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed)))
 
   # TODO: rename as search_imageURL_list, write similar method for search_imageFiles_list
   def search_imageURL_list(self, image_list, options_dict=dict()):
@@ -255,7 +259,7 @@ class GenericSearcher(ConfReader):
         start_detect = time.time()
         sha1, img_type, width, height, img, faces = detect_load_fn(image)
         detect_time = time.time() - start_detect
-        print 'Detect in one image in {:0.3}s.'.format(detect_time)
+        print("[{}: log] Detect in one image in {:0.3}s.".format(self.pp, detect_time))
         total_detect += detect_time
         if push_img:
           dets.append((sha1, faces, image, img_type, width, height))
@@ -270,11 +274,11 @@ class GenericSearcher(ConfReader):
         # Check if we were asked only to perform detection
         if "detect_only" not in options_dict or not options_dict["detect_only"]:
           for one_face in faces:
-            print one_face
+            print(one_face)
             start_featurize = time.time()
             one_feat = self.featurizer.featurize(img, one_face)
             featurize_time = time.time() - start_featurize
-            print 'Featurized one face in {:0.3}s.'.format(featurize_time)
+            print("[{}: log] Featurized one face in {:0.3}s.".format(self.pp, featurize_time))
             total_featurize += featurize_time
             faces_feats.append(one_feat)
         feats.append(faces_feats)
@@ -295,7 +299,7 @@ class GenericSearcher(ConfReader):
           dets.append((sha1, None))
         img_feat = self.featurizer.featurize(img)
         featurize_time = time.time() - start_featurize
-        print 'Featurized one image in {:0.3}s.'.format(featurize_time)
+        print("[{}: log] Featurized one image in {:0.3}s.".format(self.pp, featurize_time))
         total_featurize += featurize_time
         feats.append(img_feat)
 

@@ -1,0 +1,50 @@
+version: "3"
+
+services:
+
+  img_search:
+    image: svebork/columbia_image_search:1.0
+    hostname: ${search_conf_name}
+    stdin_open: true
+    tty: true
+    cap_add:
+      - IPC_LOCK
+    environment:
+      # General environment variables
+      - input_type
+      - verbose
+      - "conf_name=${search_conf_name}"
+      - "extr_type=${extr_type}"
+      - "storer=${storer}"
+      # Hbase related environment variables
+      - hbase_host
+      - "table_sha1infos=${table_sha1infos}"
+      - "table_updateinfos=${table_updateinfos}"
+      - "batch_update_size=${batch_update_size}"
+      # Search related environment variables
+      - "model_type=${model_type}"
+      - "nb_train=${nb_train}"
+      - "nb_min_train=${nb_min_train}"
+      - "lopq_V=${lopq_V}"
+      - "lopq_M=${lopq_M}"
+      - "lopq_subq=${lopq_subq}"
+      - "reranking=${reranking}"
+      # If model_type is lopq_pca:
+      - "nb_train_pca=${nb_train_pca}"
+      - "nb_min_train_pca=${nb_min_train_pca}"
+      - "lopq_pcadims=${lopq_pcadims}"
+    # need to add a volume that store the search index data
+    volumes:
+      - $repo_path:$indocker_repo_path
+      - cuimgsearch-volume:/data
+    ports:
+      - $port_host:5000
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+
+volumes:
+  cuimgsearch-volume:
