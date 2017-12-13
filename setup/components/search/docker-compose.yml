@@ -33,6 +33,9 @@ services:
       - "nb_train_pca=${nb_train_pca}"
       - "nb_min_train_pca=${nb_min_train_pca}"
       - "lopq_pcadims=${lopq_pcadims}"
+      # If storer is s3
+      - aws_profile
+      - aws_bucket_name
     # need to add a volume that store the search index data
     volumes:
       - $repo_path:$indocker_repo_path
