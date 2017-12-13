@@ -47,6 +47,7 @@ if __name__ == "__main__":
 
   conf[search_prefix + 'storer_prefix'] = storer_prefix
   conf[search_prefix + 'indexer_prefix'] = hbase_prefix
+  # We only have this type of indexer for now...
   conf[search_prefix + 'indexer_type'] = "hbase_indexer_minimal"
   storer_type = os.environ['storer']
   if storer_type == "local":
@@ -57,7 +58,7 @@ if __name__ == "__main__":
     conf[search_prefix + 'storer_type'] = storer_type
     # A file 'credentials' should exist in docker at /home/ubuntu/.aws/
     conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
-    conf[storer_prefix + 'bucket_name'] = os.environ['bucket_name']
+    conf[storer_prefix + 'bucket_name'] = os.environ['aws_bucket_name']
     conf[storer_prefix + 'verbose'] = verbose
 
   # Extraction settings
@@ -83,6 +84,7 @@ if __name__ == "__main__":
     #conf[featurizer_prefix + 'imgmean_path'] = "./data/models/imagenet_mean.npy"
     conf[featurizer_prefix + 'sbcaffe_path'] = "/data/models/caffe_sentibank_train_iter_250000"
     conf[featurizer_prefix + 'imgmean_path'] = "/data/models/imagenet_mean.npy"
+  # TODO: add sbcmdline for legacy data
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))
 
@@ -91,9 +93,11 @@ if __name__ == "__main__":
   conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos']
   conf[hbase_prefix + 'table_updateinfos'] = os.environ['table_updateinfos']
   conf[hbase_prefix + 'batch_update_size'] = int(os.environ['batch_update_size'])
+  # TODO: should we expose that parameter
   conf[hbase_prefix + 'pool_thread'] = 1
 
   # Local input settings
+  # NB: confusing names between that input_type and the extraction input_type i.e. 'face' or 'image'
   if os.environ['input_type'] == "local":
     conf[search_prefix + 'file_input'] = True
 

@@ -1,0 +1,80 @@
+zookeeper:
+  image: oddpoet/zookeeper
+  hostname: zookeeper
+  command:
+    - "2181"
+  ports:
+    - "2181:2181"
+kafka:
+  image: wurstmeister/kafka
+  hostname: kafka
+  ports:
+    - "9092:9092"
+  links:
+    - zookeeper:zk
+  environment:
+    KAFKA_ADVERTISED_PORT: 9092
+    KAFKA_ADVERTISED_HOST_NAME: "kafka"
+  depends_on:
+    - zookeeper
+hbase:
+  image: kevinsvds/hbase
+  hostname: hbase
+  ports:
+   - "9090:9090"
+   - "9095:9095"
+   - "60000:60000"
+   - "60010:60010"
+   - "60020:60020"
+   - "60030:60030"
+  links:
+   - zookeeper
+  depends_on:
+    - zookeeper
+cuimg_push:
+  image: svebork/columbia_image_search:1.0
+  hostname: cuimg_push
+  stdin_open: true
+  tty: true
+  cap_add:
+    - IPC_LOCK
+  volumes:
+    - $repo_path:$indocker_repo_path
+  command: $docker_push_cmd
+  links:
+    - kafka
+  depends_on:
+    - zookeeper
+    - kafka
+cuimg_proc:
+  image: svebork/columbia_image_search:1.0
+  hostname: cuimg_proc
+  stdin_open: true
+  tty: true
+  cap_add:
+    - IPC_LOCK
+  volumes:
+    - $repo_path:$indocker_repo_path
+  command: $docker_proc_cmd
+  links:
+    - kafka
+    - hbase
+  depends_on:
+    - zookeeper
+    - kafka
+    - hbase
+cuimg_search:
+  image: svebork/columbia_image_search:1.0
+  hostname: cuimg_search
+  stdin_open: true
+  tty: true
+  cap_add:
+    - IPC_LOCK
+  volumes:
+    - $repo_path:$indocker_repo_path
+  command: $docker_search_cmd
+  links:
+    - hbase
+  depends_on:
+    - zookeeper
+    - hbase

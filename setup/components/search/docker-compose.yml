@@ -37,6 +37,11 @@ services:
     volumes:
       - $repo_path:$indocker_repo_path
       - cuimgsearch-volume:/data
+      # To add the /home/ubuntu/.aws/credentials file to the docker container, only needed if storer is s3
+      # See credentials.sample file in $repo_path/conf/aws_credentials/
+      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
+      #- cuimgsearch-${search_conf_name}-volume:/data
+
     ports:
       - $port_host:5000
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
@@ -47,4 +52,6 @@ services:
         max-file: "7"
 
 volumes:
+  # TODO: Can we use dynamic names for volumes i.e. use ${search_conf_name} ? Nope.
   cuimgsearch-volume:
+  #cuimgsearch-${search_conf_name}-volume:
