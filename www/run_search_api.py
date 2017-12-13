@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import sys
 import json
 import time
@@ -19,45 +21,48 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 @app.after_request
 def after_request(response):
-  response.headers.add('Access-Control-Allow-Headers', 'Keep-Alive,User-Agent,If-Modified-Since,Cache-Control,x-requested-with,Content-Type,origin,authorization,accept,client-security-token')
-  response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
-  return response
+    """ Adds appropriate headers to the HTTP response.
+
+    :type response: HTTP response object.
+    """
+    response.headers.add('Access-Control-Allow-Headers',
+                         'Keep-Alive,User-Agent,If-Modified-Since,Cache-Control,x-requested-with,Content-Type,origin,authorization,accept,client-security-token')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+    return response
+
 
 if __name__ == '__main__':
 
-  # Parse input parameters
-  parser = ArgumentParser()
-  parser.add_argument("-c", "--conf", dest="conf_file", required=True)
-  parser.add_argument("-p", "--port", dest="port", type=int, default=5000)
-  parser.add_argument("-e", "--endpoint", dest="endpoint", type=str, default="cuimgsearch")
-  options = parser.parse_args()
+    # Parse input parameters
+    parser = ArgumentParser()
+    parser.add_argument("-c", "--conf", dest="conf_file", required=True)
+    parser.add_argument("-p", "--port", dest="port", type=int, default=5000)
+    parser.add_argument("-e", "--endpoint", dest="endpoint", type=str, default="cuimgsearch")
+    options = parser.parse_args()
 
-  print "Setting conf file to: {}".format(options.conf_file)
-  global_conf = json.load(open(options.conf_file, 'rt'))
+    # Load config file
+    print("[API: log] Setting conf file to: {}".format(options.conf_file))
+    global_conf = json.load(open(options.conf_file, 'rt'))
 
+    # Initialize searcher object only once
+    while True:
+        try:
+            api.global_searcher = searcher_lopqhbase.SearcherLOPQHBase(global_conf)
+            break
+        except Exception as inst:
+            err_msg = "Failed to initialized searcher ({}): {}".format(type(inst), inst)
+            from cufacesearch.common.error import full_trace_error
+            full_trace_error(err_msg)
+            time.sleep(60)
+    api.global_start_time = datetime.now()
+    api.input_type = api.global_searcher.input_type
 
-  # Initialize searcher object only once
-  while True:
-    try:
-      api.global_searcher = searcher_lopqhbase.SearcherLOPQHBase(global_conf)
-      break
-    except Exception as inst:
-      err_msg = "Failed to initialized searcher ({}): {}".format(type(inst), inst)
-      from cufacesearch.common.error import full_trace_error
-      full_trace_error(err_msg)
-      time.sleep(60)
-  api.global_start_time = datetime.now()
-  api.input_type = api.global_searcher.input_type
-
-  searchapi.add_resource(api.APIResponder, '/'+options.endpoint+'/<string:mode>')
-
-
-  # Start API
-  print 'Starting Search API on port {}'.format(options.port)
-  sys.stdout.flush()
-
-  from gevent.wsgi import WSGIServer
-  http_server = WSGIServer(('', options.port), app)
-  http_server.serve_forever()
+    # Start API
+    searchapi.add_resource(api.APIResponder, '/'+options.endpoint+'/<string:mode>')
+    print("[API: log] Starting Search API on port {} with endpoint '{}'".format(options.port, options.endpoint))
+    sys.stdout.flush()
+    from gevent.wsgi import WSGIServer
+    http_server = WSGIServer(('', options.port), app)
+    http_server.serve_forever()
 
 
