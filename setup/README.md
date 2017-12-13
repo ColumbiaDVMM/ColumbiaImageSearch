@@ -1,6 +1,8 @@
 # Setup
 
 This folder contains the docker-compose files and some setup scripts to ease the setup process of the system.
+Install docker-compose on your system following the guidelines at: https://docs.docker.com/compose/install/ 
+
 
 ## All-in-one setup
 
