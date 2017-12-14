@@ -57,4 +57,4 @@ Apache License Version 2.0, see [LICENSE](LICENSE).
 ## Contact
 
 Please feel free to contact [me](mailto:svebor.karaman@columbia.edu) with any questions you may have.
-Also, please post any issue you encouter or request features on github.
+Also, please post any issue you encounter or request features on github.
