@@ -10,7 +10,7 @@ The package is divided into multiple sub-modules:
 - [common](./cufacesearch/common): some common resources, like configuration reader, error printing.
 - [detector](./cufacesearch/detector): detect faces in images.
 - [extractor](./cufacesearch/extractor): generic extraction process defined by a detector and featurizer.
-- [featurizer](./cufacesearch/featurizer): compute a discriminative feature from a face bounding box.
+- [featurizer](./cufacesearch/featurizer): compute a discriminative feature, from a face bounding box if provided.
 - [imgio](./cufacesearch/imgio): common methods to download images and get images infos.
 - [indexer](./cufacesearch/indexer): interaction with a database (currently HBase) to get new images and images metadata.
 - [ingester](./cufacesearch/ingester): ingest images from a data source (currently local folder or Kafka).
