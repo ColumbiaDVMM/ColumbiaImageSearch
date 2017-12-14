@@ -11,13 +11,14 @@ by the [DVMM lab](http://www.ee.columbia.edu/ln/dvmm/) of Columbia University fo
 This project can be used to build a searchable index of images that can scale to millions of images.
 It provides a RESTful API for querying the index to find similar images in less than a second.
 
-The images index is built by extracting features from the images. Two features extractions models are included:
+The images index is built by extracting features from the images. 
+Two feature extraction models are included:
 
 * A full image recognition model is based on the DeepSentibank feature representation 
 that was trained targeting the Adjective-Noun Pairs (ANP) of the 
 [Visual Sentiment Ontology](http://www.ee.columbia.edu/ln/dvmm/vso/download/sentibank.html).
-* A face detection and recognition model are currently the publicly available models from the [DLib](http://blog.dlib.net/) library, 
-see the blog post [DLib face recognition](http://blog.dlib.net/2017/02/high-quality-face-recognition-with-deep.html) 
+* A face detection and recognition model, that are the publicly available models from the [DLib](http://blog.dlib.net/) 
+library, see the blog post [DLib face recognition](http://blog.dlib.net/2017/02/high-quality-face-recognition-with-deep.html) 
 for more information about the models. 
 
 However, the package `cufacesearch` has been written in a modular way and using 
