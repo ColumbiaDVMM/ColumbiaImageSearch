@@ -206,7 +206,7 @@ class ExtractionProcessor(ConfReader):
     except Exception as inst:
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
 
-  def is_udpate_unprocessd(self, update_id):
+  def is_udpate_unprocessed(self, update_id):
     update_rows = self.indexer.get_rows_by_batch([update_id], table_name=self.indexer.table_updateinfos_name)
     if update_rows:
       for row in update_rows:
@@ -222,7 +222,7 @@ class ExtractionProcessor(ConfReader):
         msg_dict = json.loads(msg.value)
         update_id = msg_dict.keys()[0]
         # NB: Try to get update info and check it was really not processed yet.
-        if self.is_udpate_unprocessd(update_id):
+        if self.is_udpate_unprocessed(update_id):
           str_list_sha1s = msg_dict[update_id]
           list_sha1s = str_list_sha1s.split(',')
           print("[{}.get_batch_kafka: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
