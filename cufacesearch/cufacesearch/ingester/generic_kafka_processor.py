@@ -118,7 +118,7 @@ class GenericKafkaProcessor(ConfReader):
   def init_consumer(self):
     # Get topic
     #topic = self.get_required_param('consumer_topics')
-    print "[{}: log] Initializing consumer...".format(self.pp)
+    print("[{}: log] Initializing consumer...".format(self.pp))
     topic = self.get_param('consumer_topics')
     if topic is None:
       print "[{}: warning] Could not initialize consumer as no 'consumer_topics' was provided".format(self.pp)
@@ -161,7 +161,7 @@ class GenericKafkaProcessor(ConfReader):
 
 
   def init_producer(self):
-    print "[{}: log] Initializing producer...".format(self.pp)
+    print("[{}: log] Initializing producer...".format(self.pp))
     # Gather optional parameters
     dict_args = dict()
     dict_args = self.get_servers(dict_args, 'producer_servers')
