@@ -110,6 +110,7 @@ if __name__ == "__main__":
   conf[check_ingester_prefix + 'consumer_group'] = os.environ['extr_check_consumer_group']
   conf[check_ingester_prefix + 'consumer_options'] = consumer_options
   conf[check_ingester_prefix + 'verbose'] = verbose
+  conf[check_ingester_prefix + 'pp'] = "KafkaUpdateChecker"
   # Checker producer
   conf[check_ingester_prefix + 'producer_servers'] = kafka_servers
   conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']

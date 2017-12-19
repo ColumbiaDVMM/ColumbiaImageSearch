@@ -115,7 +115,10 @@ class GenericKafkaProcessor(ConfReader):
         print("[{}: warning] Commit failed, with error {}".format(self.pp, inst))
 
   def set_pp(self, pp="GenericKafkaProcessor"):
-    self.pp = pp
+    if pp is not None:
+      self.pp = pp
+    else:
+      self.pp ="GenericKafkaProcessor"
 
   def init_consumer(self):
     # Get topic
