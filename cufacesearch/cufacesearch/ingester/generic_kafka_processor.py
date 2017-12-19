@@ -114,8 +114,8 @@ class GenericKafkaProcessor(ConfReader):
         # maximum size of batches returned in poll() with max.poll.records.
         print("[{}: warning] Commit failed, with error {}".format(self.pp, inst))
 
-  def set_pp(self):
-    self.pp = "GenericKafkaProcessor"
+  def set_pp(self, pp="GenericKafkaProcessor"):
+    self.pp = pp
 
   def init_consumer(self):
     # Get topic
