@@ -85,16 +85,16 @@ class ExtractionProcessor(ConfReader):
       self.verbose = int(verbose)
 
     file_input = self.get_param("file_input")
-    print("[{}.get_batch_hbase: log] file_input: {}".format(self.pp, file_input))
+    print("[{}.ExtractionProcessor: log] file_input: {}".format(self.pp, file_input))
     if file_input:
       self.url_input = False
-    print("[{}.get_batch_hbase: log] url_input: {}".format(self.pp, self.url_input))
+    print("[{}.ExtractionProcessor: log] url_input: {}".format(self.pp, self.url_input))
 
     if self.url_input:
       self.img_column =  img_URL_column
     else:
       self.img_column = img_path_column
-    print("[{}.get_batch_hbase: log] img_column: {}".format(self.pp, self.img_column))
+    print("[{}.ExtractionProcessor: log] img_column: {}".format(self.pp, self.img_column))
 
     # Need to be build from extraction type and detection input + "_processed"
     self.extr_family_column = "ext"
