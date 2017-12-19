@@ -14,7 +14,7 @@ Check the [README.md](./all-in-one/README.md) in that folder for more details.
 ## Components setup
 
 In a production environment, each component (ingestion, processing, search) would be better run on separate machines
-and relying real cluster instances of Kafka and HBase.
+and relying on real cluster instances of Kafka and HBase.
 The folders in [components](./components) provide docker-compose files and sample environments files
 for that purpose.
 You might need to adjust some parameters (number of workers, number of threads etc.) to the hardware you use,
