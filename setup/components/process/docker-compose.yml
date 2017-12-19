@@ -38,3 +38,7 @@ services:
       options:
         max-size: "500k"
         max-file: "7"
+
+
+volumes:
+  cuimgsearch-proc-volume:
