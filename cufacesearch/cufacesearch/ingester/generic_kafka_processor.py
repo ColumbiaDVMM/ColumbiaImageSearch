@@ -17,12 +17,15 @@ class GenericKafkaProcessor(ConfReader):
   def __init__(self, global_conf_filename, prefix="", pid=None):
     # When running as deamon, save process id
     self.pid = pid
+    self.verbose = 1
 
     super(GenericKafkaProcessor, self).__init__(global_conf_filename, prefix)
 
     # Set print prefix
     self.set_pp()
     self.client_id = socket.gethostname() + '-' + self.pp
+
+    print('[{}: log] verbose level is: {}'.format(self.pp, self.verbose))
 
     # Initialize attributes
     self.consumer = None
@@ -115,6 +118,7 @@ class GenericKafkaProcessor(ConfReader):
   def init_consumer(self):
     # Get topic
     #topic = self.get_required_param('consumer_topics')
+    print "[{}: log] Initializing consumer...".format(self.pp)
     topic = self.get_param('consumer_topics')
     if topic is None:
       print "[{}: warning] Could not initialize consumer as no 'consumer_topics' was provided".format(self.pp)
@@ -157,6 +161,7 @@ class GenericKafkaProcessor(ConfReader):
 
 
   def init_producer(self):
+    print "[{}: log] Initializing producer...".format(self.pp)
     # Gather optional parameters
     dict_args = dict()
     dict_args = self.get_servers(dict_args, 'producer_servers')
