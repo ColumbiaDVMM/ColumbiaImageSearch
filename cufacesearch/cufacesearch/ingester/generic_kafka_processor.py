@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import sys
 import time
 import socket
@@ -94,8 +96,8 @@ class GenericKafkaProcessor(ConfReader):
       display_time = datetime.today().strftime('%Y/%m/%d-%H:%M.%S')
       avg_process_time = self.process_time / max(1, tot)
       print_msg = "[%s:%s] (%s:%d:%d) process count: %d, skipped: %d, failed: %d, time: %f"
-      print print_msg % (self.pp, display_time, msg.topic, msg.partition, msg.offset, self.process_count,
-                         self.process_skip, self.process_failed, avg_process_time)
+      print(print_msg % (self.pp, display_time, msg.topic, msg.partition, msg.offset, self.process_count,
+                         self.process_skip, self.process_failed, avg_process_time))
       sys.stdout.flush()
       self.last_display = tot
       # Commit manually offsets here to improve offsets saving?
@@ -110,7 +112,7 @@ class GenericKafkaProcessor(ConfReader):
         # than the configured session.timeout.ms, which typically implies that the poll loop is spending too much
         # time message processing. You can address this either by increasing the session timeout or by reducing the
         # maximum size of batches returned in poll() with max.poll.records.
-        print "[{}: warning] Commit failed, with error {}".format(self.pp, inst)
+        print("[{}: warning] Commit failed, with error {}".format(self.pp, inst))
 
   def set_pp(self):
     self.pp = "GenericKafkaProcessor"
@@ -121,7 +123,7 @@ class GenericKafkaProcessor(ConfReader):
     print("[{}: log] Initializing consumer...".format(self.pp))
     topic = self.get_param('consumer_topics')
     if topic is None:
-      print "[{}: warning] Could not initialize consumer as no 'consumer_topics' was provided".format(self.pp)
+      print("[{}: warning] Could not initialize consumer as no 'consumer_topics' was provided".format(self.pp))
       return
 
 
@@ -154,7 +156,7 @@ class GenericKafkaProcessor(ConfReader):
 
     # Instantiate consumer
     if self.verbose > 0:
-      print "[{}] Starting consumer for topic '{}' with parameters {}".format(self.pp, topic, dict_args)
+      print("[{}: log] Starting consumer for topic '{}' with parameters {}".format(self.pp, topic, dict_args))
       sys.stdout.flush()
 
     self.consumer = KafkaConsumer(topic, **dict_args)
@@ -171,4 +173,4 @@ class GenericKafkaProcessor(ConfReader):
       self.producer = KafkaProducer(**dict_args)
     except Exception as inst:
       # Would be OK for ingester that do not output to kafka...
-      print "[{}: warning] Could not initialize producer with arguments {}. Error was: {}".format(self.pp, dict_args, inst)
+      print("[{}: warning] Could not initialize producer with arguments {}. Error was: {}".format(self.pp, dict_args, inst))
