@@ -14,20 +14,20 @@ services:
       - input_type
       - verbose
       - "conf_name=${extr_conf_name}"
-      - "extr_type=${extr_type}"
-      - "extr_nb_threads=${extr_nb_threads}"
+      - extr_type
+      - extr_nb_threads
       # Kafka related environment variables
       - images_topic
       - kafka_servers
       - kafka_security
-      - "extr_check_consumer_group=${extr_check_consumer_group}"
-      - "extr_proc_consumer_group=${extr_proc_consumer_group}"
-      - "updates_topic=${updates_topic}"
+      - extr_check_consumer_group
+      - extr_proc_consumer_group
+      - updates_topic
       # Hbase related environment variables
       - hbase_host
-      - "table_sha1infos=${table_sha1infos}"
-      - "table_updateinfos=${table_updateinfos}"
-      - "batch_update_size=${batch_update_size}"
+      - table_sha1infos
+      - table_updateinfos
+      - batch_update_size
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
