@@ -24,7 +24,7 @@ class GenericKafkaProcessor(ConfReader):
     super(GenericKafkaProcessor, self).__init__(global_conf_filename, prefix)
 
     # Set print prefix
-    self.set_pp()
+    self.set_pp(pp=self.get_param("pp"))
     self.client_id = socket.gethostname() + '-' + self.pp
 
     print('[{}: log] verbose level is: {}'.format(self.pp, self.verbose))

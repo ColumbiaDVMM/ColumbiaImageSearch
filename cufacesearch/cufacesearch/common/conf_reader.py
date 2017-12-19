@@ -22,12 +22,15 @@ class ConfReader(object):
     self.prefix = prefix
     self.read_conf()
 
-  def set_pp(self):
+  def set_pp(self, pp=None):
     """ Sets pretty print name 'self.pp'.
 
     Should be overridden in any child class.
     """
-    self.pp = "ConfReader"
+    if pp:
+      self.pp = pp
+    else:
+      self.pp = "ConfReader"
 
   def read_conf(self):
     """ Read generic parameters from configuration file.

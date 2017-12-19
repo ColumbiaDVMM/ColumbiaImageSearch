@@ -120,6 +120,7 @@ if __name__ == "__main__":
   conf[proc_ingester_prefix + 'consumer_group'] = os.environ['extr_proc_consumer_group']
   conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
   conf[proc_ingester_prefix + 'verbose'] = verbose
+  conf[proc_ingester_prefix + 'pp'] = "KafkaUpdateIngester"
 
 
   if not os.path.exists(options.output_dir):
