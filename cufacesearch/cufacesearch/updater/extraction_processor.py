@@ -236,6 +236,7 @@ class ExtractionProcessor(ConfReader):
             if self.verbose > 4:
               print("[{}.get_batch_kafka: log] Yielding for update: {}".format(self.pp, update_id))
             yield rows_batch, update_id
+            self.ingester.consumer.commit()
             if self.verbose > 4:
               print("[{}.get_batch_kafka: log] After yielding for update: {}".format(self.pp, update_id))
             self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
