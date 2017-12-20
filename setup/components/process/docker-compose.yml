@@ -42,3 +42,4 @@ services:
 
 volumes:
   cuimgsearch-proc-volume:
+
