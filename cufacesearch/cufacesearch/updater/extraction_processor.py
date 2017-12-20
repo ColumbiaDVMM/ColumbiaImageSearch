@@ -85,16 +85,16 @@ class ExtractionProcessor(ConfReader):
       self.verbose = int(verbose)
 
     file_input = self.get_param("file_input")
-    print("[{}.get_batch_hbase: log] file_input: {}".format(self.pp, file_input))
+    print("[{}.ExtractionProcessor: log] file_input: {}".format(self.pp, file_input))
     if file_input:
       self.url_input = False
-    print("[{}.get_batch_hbase: log] url_input: {}".format(self.pp, self.url_input))
+    print("[{}.ExtractionProcessor: log] url_input: {}".format(self.pp, self.url_input))
 
     if self.url_input:
       self.img_column =  img_URL_column
     else:
       self.img_column = img_path_column
-    print("[{}.get_batch_hbase: log] img_column: {}".format(self.pp, self.img_column))
+    print("[{}.ExtractionProcessor: log] img_column: {}".format(self.pp, self.img_column))
 
     # Need to be build from extraction type and detection input + "_processed"
     self.extr_family_column = "ext"
@@ -206,7 +206,7 @@ class ExtractionProcessor(ConfReader):
     except Exception as inst:
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
 
-  def is_udpate_unprocessd(self, update_id):
+  def is_udpate_unprocessed(self, update_id):
     update_rows = self.indexer.get_rows_by_batch([update_id], table_name=self.indexer.table_updateinfos_name)
     if update_rows:
       for row in update_rows:
@@ -222,7 +222,7 @@ class ExtractionProcessor(ConfReader):
         msg_dict = json.loads(msg.value)
         update_id = msg_dict.keys()[0]
         # NB: Try to get update info and check it was really not processed yet.
-        if self.is_udpate_unprocessd(update_id):
+        if self.is_udpate_unprocessed(update_id):
           str_list_sha1s = msg_dict[update_id]
           list_sha1s = str_list_sha1s.split(',')
           print("[{}.get_batch_kafka: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
@@ -236,6 +236,7 @@ class ExtractionProcessor(ConfReader):
             if self.verbose > 4:
               print("[{}.get_batch_kafka: log] Yielding for update: {}".format(self.pp, update_id))
             yield rows_batch, update_id
+            self.ingester.consumer.commit()
             if self.verbose > 4:
               print("[{}.get_batch_kafka: log] After yielding for update: {}".format(self.pp, update_id))
             self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
