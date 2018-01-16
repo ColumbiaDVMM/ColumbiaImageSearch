@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import json
 import time
-import datetime
+from datetime import datetime, date
 import numpy as np
 from pyspark import SparkContext, SparkConf
 
@@ -37,7 +37,7 @@ def check_extr_claimed(extr_tuple_list, extr_type):
     return False
 
 
-def get_unprocessed_images(data):
+def get_unprocessed_images(data, extr_type):
     # Get images not processed for that extr_type and not yet claimed
     key = data[0]
     json_x = [json.loads(x) for x in data[1].split("\n")]
@@ -69,14 +69,14 @@ def build_batch_rdd(batch_udpate, extr_type, processed=True):
     # Create a batch_rdd to be stored in hbase table update_infos, and one batch to save the update_id for each image
     # Build update_id, should contain extraction type e.g. index_update_dlib_feat_dlib_face_2017-09-29_53-ec27
     spark_suffix = "_spark"+str(max_ts-int(time.time()*1000))+'_'+str(np.int32(np.random.random()*(10e6)))
-    update_id = "index_update_"+extr_type+"_"+datetime.date.today().isoformat()+spark_suffix
+    update_id = "index_update_"+extr_type+"_"+date.today().isoformat()+spark_suffix
     # Build batch of images
     list_key = []
     batch_images_out = []
     for x in batch_udpate:
         list_key.append(x)
         if processed:
-            batch_images_out.append((x, [x, extr_column_family, extr_type + processed_suffix, 1]))
+            batch_images_out.append((x, [x, extr_column_family, extr_type + processed_suffix, str(1)]))
         batch_images_out.append((x, [x, extr_column_family, extr_type + updateid_suffix, update_id]))
     batch_update_out = [(update_id, [update_id, "info", "list_sha1s", ','.join(list_key)]),
                         (update_id, [update_id, "info", "created", datetime.now().strftime('%Y-%m-%d:%H.%M.%S')])]
@@ -136,7 +136,7 @@ def create_unprocessed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sh
         hbase_man_updates_out.rdd2hbase(batch_update_rdd)
         hbase_man_sha1infos_out.rdd2hbase(batch_images_out_rdd)
         nb_batches += 1
-    print("Created {} unprocessed batches of {} images for extraction: {}".format(nb_batches, batch_update_size))
+    print("Created {} unprocessed batches of {} images for extraction: {}".format(nb_batches, batch_update_size, extr_type))
             
 
 if __name__ == '__main__':
@@ -158,5 +158,5 @@ if __name__ == '__main__':
     hbase_man_in = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name, columns_list=columns)
     hbase_man_updates_out = HbaseManager(sc, conf, hbase_host, tab_updates_name)
     hbase_man_sha1infos_out = HbaseManager(sc, conf, hbase_host, tab_sha1_infos_name)
-    create_processed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1infos_out)
-    create_unprocessed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1infos_out)
+    create_processed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1infos_out, extr_type)
+    create_unprocessed_updates(hbase_man_in, hbase_man_updates_out, hbase_man_sha1infos_out, extr_type)
