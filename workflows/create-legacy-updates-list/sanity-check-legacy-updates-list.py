@@ -34,10 +34,10 @@ def check_processed(update_tuple_list):
 def get_unprocessed_update(data, extr_type):
     key = data[0]
     # Check updates of that extr_type
-    if key.contains(extr_type):
+    if extr_type in key:
         json_x = [json.loads(x) for x in data[1].split("\n")]
         try:
-            update_tuple_list = get_tuple_list_colum_family(json_x, (info_column_family, ""))
+            update_tuple_list = get_tuple_list_colum_family(json_x, info_column_family)
             # Check that this update does NOT have the "processed" column
             if not check_processed(update_tuple_list):
                 print("[get_unprocessed_update: log] Found unprocessed update: {}".format(key))
@@ -56,7 +56,7 @@ def get_processed_update(data, extr_type):
     if extr_type in key:
         json_x = [json.loads(x) for x in data[1].split("\n")]
         try:
-            update_tuple_list = get_tuple_list_colum_family(json_x, (info_column_family, ""))
+            update_tuple_list = get_tuple_list_colum_family(json_x, info_column_family)
             # Check that this update has the "processed" column
             if check_processed(update_tuple_list):
                 print("[get_processed_update: log] Found processed update: {}".format(key))
