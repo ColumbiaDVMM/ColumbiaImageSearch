@@ -1,0 +1,8 @@
+{
+    "hbase_host": "zk04.xdata.data-tactics-corp.com:2181",
+    "tab_sha1_infos": "escorts_images_sha1_infos_from_ts_newformat",
+    "tab_updates": "escorts_images_updates_newformat",
+    "extr_type": "sbcmdline_feat_full_image",
+    "batch_update_processed_size": 8192,
+    "batch_update_unprocessed_size": 2048
+}

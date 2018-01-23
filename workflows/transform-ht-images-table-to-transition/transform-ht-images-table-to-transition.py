@@ -78,38 +78,42 @@ def get_dlibface_feat(json_x, key):
 
 def transform(data):
     key = data[0]
-    print key
-    json_x = [json.loads(x) for x in data[1].split("\n")]
     fields = []
-    # Get ads ids
-    ads_ids = get_ads_ids(json_x, key)
-    #print "ads_ids",ads_ids
-    if ads_ids:
-        for ad_id in ads_ids:
-            # build timestamp as we would get it from CDR or Kafka topic...
-            ts = datetime.utcnow().isoformat()+'Z'
-            fields.append((key, [key, "ad", str(ad_id), str(ts)]))
-    else: # old image that cannot be linked to any ad...
-        return []
-    # Get s3url
-    s3_url = get_s3url(json_x, key)
-    #print "s3_url",s3_url
-    if s3_url:
-        fields.append((key, [key, "info", "s3_url", s3_url]))
-    else: # consider an image without s3_url is invalid
-        return []
-    # Get image feature
-    sb_feat = get_sbimage_feat(json_x, key)
-    if sb_feat:
-        fields.append((key, [key, "ext", "sbcmdline_feat_full_image", sb_feat]))
-    # Get face feature
-    dlibface_feat_list = get_dlibface_feat(json_x, key)
-    # format here would be a list of tuple (dlib_feat_dlib_face_64_31_108_74, featB64)
-    if dlibface_feat_list:
-        for dlibface_feat_id, dlibface_feat_value in dlibface_feat_list:
-            # Should we add a fake score to dlibface_feat_id?
-            fields.append((key, [key, "ext", dlibface_feat_id, dlibface_feat_value]))
-    #print key, fields
+    try:
+        json_x = [json.loads(x) for x in data[1].split("\n")]
+
+        # Get ads ids
+        ads_ids = get_ads_ids(json_x, key)
+        #print "ads_ids",ads_ids
+        if ads_ids:
+            for ad_id in ads_ids:
+                # build timestamp as we would get it from CDR or Kafka topic...
+                ts = datetime.utcnow().isoformat()+'Z'
+                fields.append((key, [key, "ad", str(ad_id), str(ts)]))
+        else: # old image that cannot be linked to any ad...
+            print "Image with key {} cannot be linked to any ad. Discarding.".format(key)
+            return []
+        # Get s3url
+        s3_url = get_s3url(json_x, key)
+        #print "s3_url",s3_url
+        if s3_url:
+            fields.append((key, [key, "info", "s3_url", s3_url]))
+        else: # consider an image without s3_url is invalid
+            print "Image with key {} has no 's3_url'. Discarding.".format(key)
+            return []
+        # Get image feature
+        sb_feat = get_sbimage_feat(json_x, key)
+        if sb_feat:
+            fields.append((key, [key, "ext", "sbcmdline_feat_full_image", sb_feat]))
+        # Get face feature
+        dlibface_feat_list = get_dlibface_feat(json_x, key)
+        # format here would be a list of tuple (dlib_feat_dlib_face_64_31_108_74, featB64)
+        if dlibface_feat_list:
+            for dlibface_feat_id, dlibface_feat_value in dlibface_feat_list:
+                # Should we add a fake score to dlibface_feat_id?
+                fields.append((key, [key, "ext", dlibface_feat_id, dlibface_feat_value]))
+    except Exception as inst:
+        print "Transformation failed ({}) for key {}: {}".format(inst, key, fields)
     return fields
 
 def transform_table(hbase_man_in, hbase_man_out):

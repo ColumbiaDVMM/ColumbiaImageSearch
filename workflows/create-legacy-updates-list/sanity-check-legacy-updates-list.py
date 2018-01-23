@@ -68,22 +68,36 @@ def get_processed_update(data, extr_type):
     return False
 
 
+def mark_completeness(x, batch_size):
+    import json
+    list_sha1s_field = ("info", "list_sha1s")
+    json_x = [json.loads(y) for y in x.split("\n")]
+    list_sha1s_col = get_list_value(json_x, list_sha1s_field)[0].split(',')
+    if len(list_sha1s_col) == batch_size:
+        return (True, batch_size)
+    else:
+        return (False, len(list_sha1s_col))
+
+
+def check_updates_completeness(updates_rdd, batch_size):
+    marked_updates_rdd = updates_rdd.mapValues(lambda x: mark_completeness(x, batch_size))
+    nb_complete_updates = marked_updates_rdd.filter(lambda x: x[1][0]).count()
+    uncomplete_updates_rdd = marked_updates_rdd.filter(lambda x: not x[1][0])
+    iterator = uncomplete_updates_rdd.toLocalIterator()
+    uncomplete_updates_list = []
+    for x in iterator:
+        uncomplete_updates_list.append((x[0], x[1][1]))
+    return nb_complete_updates, uncomplete_updates_list
+
+
+
 def check_processed_updates(hbase_man_updates, extr_type, batch_size=8192):
     # Read all updates and count those that have been marked as processed
     in_rdd = hbase_man_updates.read_hbase_table()
-    out_rdd = in_rdd.filter(lambda row: get_processed_update(row, extr_type))
-    # Build batches
-    iterator = out_rdd.toLocalIterator()
-    nb_complete_updates = 0
-    uncomplete_updates_list = []
-    list_sha1s_field = ("info", "list_sha1s")
-    for x in iterator:
-        json_x = [json.loads(x) for x in x[1].split("\n")]
-        list_sha1s_col = get_list_value(json_x, list_sha1s_field)[0].split(',')
-        if len(list_sha1s_col) == batch_size:
-            nb_complete_updates += 1
-        else:
-            uncomplete_updates_list.append((x[0], len(list_sha1s_col)))
+    updates_rdd = in_rdd.filter(lambda row: get_processed_update(row, extr_type))
+
+    # Check completeness
+    nb_complete_updates, uncomplete_updates_list = check_updates_completeness(updates_rdd, batch_size)
 
     complete_msg = "Found {} processed batches of {} images for extraction: {}"
     print(complete_msg.format(nb_complete_updates, batch_size, extr_type))
@@ -94,19 +108,10 @@ def check_processed_updates(hbase_man_updates, extr_type, batch_size=8192):
 def check_unprocessed_updates(hbase_man_updates, extr_type, batch_size=2048):
     # Read all udpates and count those that have been not marked has processed (should we check "created"
     in_rdd = hbase_man_updates.read_hbase_table()
-    out_rdd = in_rdd.filter(lambda row: get_unprocessed_update(row, extr_type))
-    # Build batches
-    iterator = out_rdd.toLocalIterator()
-    nb_complete_updates = 0
-    uncomplete_updates_list = []
-    list_sha1s_field = ("info", "list_sha1s")
-    for x in iterator:
-        json_x = [json.loads(x) for x in x[1].split("\n")]
-        list_sha1s_col = get_list_value(json_x, list_sha1s_field)[0].split(',')
-        if len(list_sha1s_col) == batch_size:
-            nb_complete_updates += 1
-        else:
-            uncomplete_updates_list.append((x[0], len(list_sha1s_col)))
+    updates_rdd = in_rdd.filter(lambda row: get_unprocessed_update(row, extr_type))
+
+    # Check completeness
+    nb_complete_updates, uncomplete_updates_list = check_updates_completeness(updates_rdd, batch_size)
 
     complete_msg = "Found {} unprocessed batches of {} images for extraction: {}"
     print(complete_msg.format(nb_complete_updates, batch_size, extr_type))
