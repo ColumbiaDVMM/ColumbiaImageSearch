@@ -293,6 +293,7 @@ class HBaseIndexerMinimal(ConfReader):
               next_start_date = '_'.join(row[0].split('_')[-2:])
               if extr_type in row[0]:
                 if column_list_sha1s in row[1]:
+                  # TODO: We could have a marker to state that all extractions were performed instead of testing every update...
                   missing_extr_sha1s = self.get_missing_extr_sha1s(row[1][column_list_sha1s].split(','), extr_type)
                   if missing_extr_sha1s:
                     out_row_val = dict()

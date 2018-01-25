@@ -30,6 +30,7 @@ cd ${repo_path}
 # Initialize path environment variables
 source ~/.bashrc
 
+# TODO: python package should be renamed to "cuimgsearch"
 package_name="cufacesearch"
 
 # Start extraction checker

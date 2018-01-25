@@ -12,11 +12,9 @@ from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
 default_extr_check_prefix = "EXTR_"
 
-# This class simulates the way updates were generated from the spark workflows but reading from a kafka topic
-# Should be run as a single process to ensure data integrity
 
-# We could have a process that looks for updates that were created (or even started) a long time ago but not finished
-# and repush them to the updates topic...
+# This class simulates the way updates were generated from the spark workflows but reading from a kafka topic
+# Should be run as a single process to ensure data integrity, or all the to do comments should be implemented.
 
 class ExtractionChecker(ConfReader):
 
@@ -26,7 +24,6 @@ class ExtractionChecker(ConfReader):
     self.dict_sha1_infos = dict()
 
     super(ExtractionChecker, self).__init__(global_conf, prefix)
-
 
     self.featurizer_type = self.get_required_param("featurizer_type")
     self.detector_type = self.get_required_param("detector_type")
@@ -40,7 +37,7 @@ class ExtractionChecker(ConfReader):
 
     # Max delay
     self.max_delay = 3600
-    #self.max_delay = 600
+    # self.max_delay = 600
     max_delay = self.get_param("max_delay")
     if max_delay:
       self.max_delay = int(max_delay)
@@ -64,20 +61,17 @@ class ExtractionChecker(ConfReader):
 
     # Initialize indexer and ingester
     self.indexer = HBaseIndexerMinimal(self.global_conf, prefix=self.get_required_param("indexer_prefix"))
-    # TODO: could we easily defined a local file ingester that could be used as a drop-in replacement for the Kafka one?
-    #  beware of all implications downstream...
     self.ingester = GenericKafkaProcessor(self.global_conf, prefix=self.get_required_param("check_ingester_prefix"))
     self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
     self.ingester.pp = "ec"
     if self.pid:
       self.ingester.pp += str(self.pid)
 
-
   def set_pp(self):
     self.pp = "ExtractionChecker."
     self.pp += "-".join(self.list_extr_prefix)
     if self.pid:
-      self.pp += "."+str(self.pid)
+      self.pp += "." + str(self.pid)
 
   def store_img_infos(self, msg):
     strk = str(msg['sha1'])
@@ -88,7 +82,7 @@ class ExtractionChecker(ConfReader):
         self.dict_sha1_infos[strk][k] = json.dumps(msg[k])
       else:
         # discard 'img_buffer' (if it exists?...), and 'sha1'
-        #if k != "img_buffer" and k != "sha1":
+        # if k != "img_buffer" and k != "sha1":
         #  self.dict_sha1_infos[strk][k] = msg[k]
         # discard 'sha1'
         if k != "sha1":
@@ -109,7 +103,7 @@ class ExtractionChecker(ConfReader):
     # append unique processid to 'update_id' to make it safe to use with multiple consumers, even after a restart.
     # /!\ beware, it should not contain underscores
     tmp_update_id, _ = self.indexer.get_next_update_id(today=None, extr_type=self.extr_prefix)
-    update_id = tmp_update_id+'-'+self.ingester.pp+'-'+str(time.time())
+    update_id = tmp_update_id + '-' + self.ingester.pp + '-' + str(time.time())
     for sha1 in list_get_sha1s:
       dict_push[str(sha1)] = dict()
       try:
@@ -174,7 +168,8 @@ class ExtractionChecker(ConfReader):
         # Check which images have not been processed (or pushed in an update) yet
         unprocessed_rows = self.get_unprocessed_rows(list_sha1s_to_check)
         self.nb_imgs_check += len(list_sha1s_to_check)
-        if (time.time() - self.last_push) > self.max_delay/60 and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
+        if (
+                time.time() - self.last_push) > self.max_delay / 60 and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
           msg_log = "[{}: log] Found {}/{} unprocessed images"
           print msg_log.format(self.pp, self.nb_imgs_unproc, self.nb_imgs_check)
           self.nb_imgs_unproc_lastprint = self.nb_imgs_unproc
@@ -193,7 +188,8 @@ class ExtractionChecker(ConfReader):
 
         if list_sha1s_to_process:
           # Push them to HBase by batch of 'batch_update_size'
-          if len(list_sha1s_to_process) >= self.indexer.batch_update_size or ((time.time() - self.last_push) > self.max_delay and len(list_sha1s_to_process) > 0):
+          if len(list_sha1s_to_process) >= self.indexer.batch_update_size or (
+                  (time.time() - self.last_push) > self.max_delay and len(list_sha1s_to_process) > 0):
             # Trim here to push exactly a batch of 'batch_update_size'
             list_push = list_sha1s_to_process[:min(self.indexer.batch_update_size, len(list_sha1s_to_process))]
 
@@ -203,7 +199,8 @@ class ExtractionChecker(ConfReader):
             if dict_push:
               self.nb_imgs_unproc += len(dict_push.keys())
               push_msg = "[{}: at {}] Pushing update {} of {} images."
-              print push_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id, len(dict_push.keys()))
+              print push_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id,
+                                    len(dict_push.keys()))
               sys.stdout.flush()
 
               # Push images
@@ -214,7 +211,7 @@ class ExtractionChecker(ConfReader):
               dict_updates_db = dict()
               dict_updates_kafka = dict()
               dict_updates_db[update_id] = {self.indexer.column_list_sha1s: ','.join(dict_push.keys()),
-                                         'info:' + update_str_created: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}
+                                            'info:' + update_str_created: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}
               dict_updates_kafka[update_id] = ','.join(dict_push.keys())
               # Push them
               self.indexer.push_dict_rows(dict_updates_db, self.indexer.table_updateinfos_name)
@@ -241,6 +238,7 @@ class ExtractionChecker(ConfReader):
       fulltb = traceback.format_tb(exc_tb)
       raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
+
 class DaemonExtractionChecker(multiprocessing.Process):
   daemon = True
 
@@ -258,12 +256,10 @@ class DaemonExtractionChecker(multiprocessing.Process):
         ec.run()
       except Exception as inst:
         nb_death += 1
-        #exc_type, exc_obj, exc_tb = sys.exc_info()
-        #fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        # exc_type, exc_obj, exc_tb = sys.exc_info()
+        # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print "ExtractionChecker.{} died {}{}".format(self.pid, type(inst), inst)
-        time.sleep(10*nb_death)
-
-
+        time.sleep(10 * nb_death)
 
 
 if __name__ == "__main__":
