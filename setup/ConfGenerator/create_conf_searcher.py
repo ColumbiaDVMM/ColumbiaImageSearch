@@ -85,6 +85,14 @@ if __name__ == "__main__":
     conf[featurizer_prefix + 'sbcaffe_path'] = "/data/models/caffe_sentibank_train_iter_250000"
     conf[featurizer_prefix + 'imgmean_path'] = "/data/models/imagenet_mean.npy"
   # TODO: add sbcmdline for legacy data
+  elif extr_type == "sbcmdlineimg":
+    featurizer_prefix = "SBCMD_"
+    conf[search_prefix + 'featurizer_prefix'] = featurizer_prefix
+    conf[search_prefix + 'featurizer_type'] = "sbcmdline"
+    conf[search_prefix + 'detector_type'] = "full"
+    conf[featurizer_prefix + 'sbcaffe_path'] = "/data/models/caffe_sentibank_train_iter_250000"
+    # What should it be?
+    conf[featurizer_prefix + 'caffe_exec_path'] = "/home/ubuntu/caffe_cpu/build/tools/extract_nfeatures"
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))
 

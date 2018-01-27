@@ -288,6 +288,7 @@ class GenericSearcher(ConfReader):
         start_featurize = time.time()
         img = detect_load_fn(image)
         sha1 = get_SHA1_from_buffer(img)
+        print("[{}: log] sha1: {}".format(self.pp, sha1))
         # Still fill a dets list with the image sha1 to propagate down for the search results...
         # if image.startswith('http'):
         #   dets.append((sha1, image))

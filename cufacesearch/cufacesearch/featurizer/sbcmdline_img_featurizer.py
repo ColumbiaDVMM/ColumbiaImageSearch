@@ -102,7 +102,7 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
 
 
   def featurize(self, img, bbox=None, img_type="buffer", sha1=None):
-    """ Compute face feature of the face bounding box in 'd' in the image 'img'.
+    """ Compute sentibank features use command line caffe
 
     :param img: image (an image buffer to be read)
     :param bbox: bounding box dictionary
@@ -112,14 +112,14 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
     import subprocess as sub
 
     if sha1 == None:
-      # Does not work?
       # Compute sha1 if not provided...
-      from ..imgio.imgio import get_SHA1_from_data
-      sha1 = get_SHA1_from_data(img)
+      from ..imgio.imgio import get_SHA1_from_buffer
+      img.seek(0) # Is it needed?
+      sha1 = get_SHA1_from_buffer(img)
       # Seek back to properly write image to disk
       img.seek(0)
 
-    print sha1
+    print "[featurize: log] sha1: {}".format(sha1)
 
     img_files = [os.path.join(self.tmp_dir, 'imgs', sha1)]
     with open(img_files[0], 'wb') as fimg:
@@ -142,8 +142,11 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
     # os.system(command)
     os.remove(img_files[0])
     feats, ok_ids = read_binary_file(self.features_filename+'-fc7.dat', 'sbfeat', [sha1], self.read_dim, self.read_type)
+    # What is data?
     data, ok_ids = read_binary_file(self.features_filename + '-data.dat', 'data', [sha1], self.data_read_dim, self.read_type)
-    return feats[0], data[0]
+    # GenericSearcher expects self.featurizer.featurize to just return one feature...
+    #return feats[0], data[0]
+    return feats[0]
 
 
 
