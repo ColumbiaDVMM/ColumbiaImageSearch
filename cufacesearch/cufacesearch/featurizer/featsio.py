@@ -14,7 +14,7 @@ def get_feat_dtype(feat_type):
   if feat_type and (feat_type == "sbpycaffe" or feat_type == "sbcmdline" or feat_type == "float32"):
     return np.float32
   else:
-  # Only for dlib new data?
+    # Only for dlib new data?
     return np.float64
 
 def featB64decode(feat_B64, feat_type=None):
