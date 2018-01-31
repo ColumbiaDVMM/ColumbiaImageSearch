@@ -1,0 +1,8 @@
+{
+    "hbase_host": "zk04.xdata.data-tactics-corp.com:2181",
+    "tab_sha1_infos": "escorts_images_sha1_infos_from_ts_subsampled_newformat",
+    "extr_type": "dlib_feat_dlib_face",
+    "current_feat_numpy_type": "float32",
+    "target_feat_numpy_type": "float64",
+    "feat_dimension": 128
+}
