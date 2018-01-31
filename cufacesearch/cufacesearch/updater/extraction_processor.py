@@ -84,6 +84,11 @@ class ExtractionProcessor(ConfReader):
     if verbose:
       self.verbose = int(verbose)
 
+    self.ingestion_input = "kafka"
+    ingestion_input = self.get_param("ingestion_input")
+    if ingestion_input:
+      self.ingestion_input = ingestion_input
+
     file_input = self.get_param("file_input")
     print("[{}.ExtractionProcessor: log] file_input: {}".format(self.pp, file_input))
     if file_input:
@@ -254,10 +259,17 @@ class ExtractionProcessor(ConfReader):
       full_trace_error("[{}.get_batch_kafka: error] {}".format(self.pp, inst))
 
 
+  def get_batch(self):
+    if self.ingestion_input == "hbase":
+      for rows_batch, update_id in self.get_batch_hbase():
+        yield rows_batch, update_id
+    else:
+      for rows_batch, update_id in self.get_batch_kafka():
+        yield rows_batch, update_id
+
   def process_batch(self):
     # Get a new update batch
-    #for rows_batch, update_id in self.get_batch_hbase():
-    for rows_batch, update_id in self.get_batch_kafka():
+    for rows_batch, update_id in self.get_batch():
       try:
         start_update = time.time()
         print("[{}] Processing update {} of {} rows.".format(self.pp, update_id, len(rows_batch)))

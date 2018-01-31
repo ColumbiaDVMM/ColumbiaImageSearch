@@ -90,51 +90,60 @@ if __name__ == "__main__":
   if os.environ['input_type'] == "local":
     conf[extr_prefix + 'file_input'] = True
 
+  use_kafka = True
+  if os.environ['input_type'] == "hbase":
+    use_kafka = False
+    conf[extr_prefix + "ingestion_input"] = "hbase"
+
   # Generic ingestion settings
   verbose = os.getenv('verbose', 0)
   conf[extr_prefix + "verbose"] = int(verbose)
-  conf[extr_prefix + "max_delay"] = int(os.getenv('extr_check_max_delay', 3600))
   conf[extr_prefix + "nb_threads"] = int(os.getenv('extr_nb_threads', 1))
 
-  kafka_servers = json.loads(os.getenv('kafka_servers', '["kafka0.team-hg-memex.com:9093",\
-                                                         "kafka1.team-hg-memex.com:9093",\
-                                                         "kafka2.team-hg-memex.com:9093",\
-                                                         "kafka3.team-hg-memex.com:9093",\
-                                                         "kafka4.team-hg-memex.com:9093",\
-                                                         "kafka5.team-hg-memex.com:9093",\
-                                                         "kafka6.team-hg-memex.com:9093",\
-                                                         "kafka7.team-hg-memex.com:9093",\
-                                                         "kafka8.team-hg-memex.com:9093",\
-                                                         "kafka9.team-hg-memex.com:9093"]'))
-  #kafka_security = json.loads(os.getenv('kafka_security', "{\"security_protocol\": \"SSL\", \"ssl_cafile\": \"./data/keys/hg-kafka-ca-cert.pem\", \"ssl_certfile\": \"./data/keys/hg-kafka-client-cert.pem\", \"ssl_keyfile\": \"./data/keys/hg-kafka-client-key.pem\", \"ssl_check_hostname\": false}"))
-  env_kafka_security = os.getenv('kafka_security')
-  if env_kafka_security:
-    kafka_security = json.loads(env_kafka_security)
-    conf[check_ingester_prefix + 'consumer_security'] = kafka_security
-    conf[check_ingester_prefix + 'producer_security'] = kafka_security
-    conf[proc_ingester_prefix + 'consumer_security'] = kafka_security
+  if use_kafka:
+    conf[extr_prefix + "max_delay"] = int(os.getenv('extr_check_max_delay', 3600))
 
-  consumer_options = json.loads(os.getenv('kafka_consumer_options', "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 10, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
+    kafka_servers = json.loads(os.getenv('kafka_servers', '["kafka0.team-hg-memex.com:9093",\
+                                                           "kafka1.team-hg-memex.com:9093",\
+                                                           "kafka2.team-hg-memex.com:9093",\
+                                                           "kafka3.team-hg-memex.com:9093",\
+                                                           "kafka4.team-hg-memex.com:9093",\
+                                                           "kafka5.team-hg-memex.com:9093",\
+                                                           "kafka6.team-hg-memex.com:9093",\
+                                                           "kafka7.team-hg-memex.com:9093",\
+                                                           "kafka8.team-hg-memex.com:9093",\
+                                                           "kafka9.team-hg-memex.com:9093"]'))
+    #kafka_security = json.loads(os.getenv('kafka_security', "{\"security_protocol\": \"SSL\", \"ssl_cafile\": \"./data/keys/hg-kafka-ca-cert.pem\", \"ssl_certfile\": \"./data/keys/hg-kafka-client-cert.pem\", \"ssl_keyfile\": \"./data/keys/hg-kafka-client-key.pem\", \"ssl_check_hostname\": false}"))
+    env_kafka_security = os.getenv('kafka_security')
+    if env_kafka_security:
+      kafka_security = json.loads(env_kafka_security)
+      conf[check_ingester_prefix + 'consumer_security'] = kafka_security
+      conf[check_ingester_prefix + 'producer_security'] = kafka_security
+      conf[proc_ingester_prefix + 'consumer_security'] = kafka_security
 
-  # Checker consumer
-  conf[check_ingester_prefix + 'consumer_servers'] = kafka_servers
-  conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_topic']
-  conf[check_ingester_prefix + 'consumer_group'] = os.environ['extr_check_consumer_group']
-  conf[check_ingester_prefix + 'consumer_options'] = consumer_options
+    consumer_options = json.loads(os.getenv('kafka_consumer_options', "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 10, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
+
+    # Checker consumer
+    conf[check_ingester_prefix + 'consumer_servers'] = kafka_servers
+    conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_topic']
+    conf[check_ingester_prefix + 'consumer_group'] = os.environ['extr_check_consumer_group']
+    conf[check_ingester_prefix + 'consumer_options'] = consumer_options
+
+    conf[check_ingester_prefix + 'producer_servers'] = kafka_servers
+    conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
+
+    # Processor consumer
+    conf[proc_ingester_prefix + 'consumer_servers'] = kafka_servers
+    conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
+    conf[proc_ingester_prefix + 'consumer_group'] = os.environ['extr_proc_consumer_group']
+    conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
+
   conf[check_ingester_prefix + 'verbose'] = verbose
   conf[check_ingester_prefix + 'pp'] = "KafkaUpdateChecker"
   # Checker producer
-  conf[check_ingester_prefix + 'producer_servers'] = kafka_servers
-  conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
 
-  # Processor consumer
-  conf[proc_ingester_prefix + 'consumer_servers'] = kafka_servers
-  conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
-  conf[proc_ingester_prefix + 'consumer_group'] = os.environ['extr_proc_consumer_group']
-  conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
   conf[proc_ingester_prefix + 'verbose'] = verbose
   conf[proc_ingester_prefix + 'pp'] = "KafkaUpdateIngester"
-
 
   if not os.path.exists(options.output_dir):
     os.mkdir(options.output_dir)

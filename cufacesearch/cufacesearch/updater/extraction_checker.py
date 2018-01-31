@@ -60,9 +60,17 @@ class ExtractionChecker(ConfReader):
     self.set_pp()
 
     # Initialize indexer and ingester
-    self.indexer = HBaseIndexerMinimal(self.global_conf, prefix=self.get_required_param("indexer_prefix"))
-    self.ingester = GenericKafkaProcessor(self.global_conf, prefix=self.get_required_param("check_ingester_prefix"))
-    self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
+    self.indexer = HBaseIndexerMinimal(self.global_conf,
+                                       prefix=self.get_required_param("indexer_prefix"))
+    self.ingester = GenericKafkaProcessor(self.global_conf,
+                                          prefix=self.get_required_param("check_ingester_prefix"))
+    # This will not be set for HBase processing, but checker would keep dying here...
+    try:
+      self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
+    except Exception as inst:
+      print "Could not initialize checker, sleeping for {}s.".format(self.max_delay)
+      time.sleep(self.max_delay)
+      raise(inst)
     self.ingester.pp = "ec"
     if self.pid:
       self.ingester.pp += str(self.pid)

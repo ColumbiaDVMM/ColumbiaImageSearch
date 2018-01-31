@@ -89,5 +89,5 @@ class DLibFeaturizer(GenericFeaturizer):
     dlib_bbox = rectangle(d['left'], d['top'], d['right'], d['bottom'])
     shape = self.sp(img, dlib_bbox)
     # Return feature
-    # should we force features to be np.float32?
+    # should we force features to be np.float32 or np.float64?
     return self.facerec.compute_face_descriptor(img, shape)
