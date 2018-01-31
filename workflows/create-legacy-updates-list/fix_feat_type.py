@@ -24,7 +24,11 @@ def get_tuple_list_value_start(json_x, field_tuple):
     :param field_tuple: target (column_family, start of column_qualifier)
     :return: list of tuples (column_qualifier, value)
     """
-    return [(x["qualifier"], x["value"]) for x in json_x if x["columnFamily"] == field_tuple[0] and
+    # return [(x["qualifier"], x["value"]) for x in json_x if x["columnFamily"] == field_tuple[0] and
+    #         x["qualifier"].startswith(field_tuple[1])]
+    # Necessary?
+    return [(x["qualifier"].decode('utf-8'), x["value"].decode('utf-8'))
+            for x in json_x if x["columnFamily"] == field_tuple[0] and
             x["qualifier"].startswith(field_tuple[1])]
 
 
@@ -52,7 +56,14 @@ def update_one_feat(feat_b64):
     """
     import base64
     import numpy as np
-    feat = np.frombuffer(base64.b64decode(feat_b64), dtype=get_np_type(CURRENT_FEAT_NUMPY_TYPE))
+
+    try:
+        feat = np.frombuffer(base64.b64decode(feat_b64), dtype=get_np_type(CURRENT_FEAT_NUMPY_TYPE))
+    except Exception as inst:
+        err_msg = "[ERROR] Could not decode feature from value {}. {}"
+        print(err_msg.format(feat_b64, inst))
+        raise inst
+
     err_msg = "[ERROR] Feature does not have expected shape {} vs. {}"
     if feat.shape[-1] != FEAT_DIMENSION:
         raise ValueError(err_msg.format(feat.shape[-1], FEAT_DIMENSION)+' before transformation')
@@ -76,8 +87,10 @@ def fix_one_row(row):
     updated_values = []
     # Update each saved feature
     for tlv in extr_tuple_list_value:
-        if tlv[0] != EXTR_COLUMN_FAMILY+PROCESSED_SUFFIX and \
-                tlv[0] != EXTR_COLUMN_FAMILY+UPDATEID_SUFFIX:
+        #print(row[0], tlv)
+        # Encoding issue for this test?
+        if tlv[0] != EXTR_TYPE+PROCESSED_SUFFIX and \
+                tlv[0] != EXTR_TYPE+UPDATEID_SUFFIX:
             try:
                 updated_feat = update_one_feat(tlv[1])
                 # Add update feature
