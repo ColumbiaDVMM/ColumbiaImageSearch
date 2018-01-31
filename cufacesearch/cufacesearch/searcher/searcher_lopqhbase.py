@@ -68,6 +68,9 @@ class SearcherLOPQHBase(GenericSearcher):
       lopq_model = self.storer.load(self.build_model_str())
       if lopq_model is None:
         raise ValueError("Could not load model from storer.")
+      # if self.verbose > 1:
+      #   print("pca_mu.shape: {}".format(lopq_model.pca_mu.shape))
+      #   print("pca_P.shape: {}".format(lopq_model.pca_P.shape))
     except Exception as inst:
       if type(inst) != ValueError:
         full_trace_error(inst)
@@ -429,7 +432,16 @@ class SearcherLOPQHBase(GenericSearcher):
               if column_list_sha1s in update[1]:
                 list_sha1s = update[1][column_list_sha1s]
                 # Double check that this gets properly features of detections
-                samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
+                samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
+                                                                             self.build_extr_str())
+                # Legacy dlib features seems to be float32...
+                # Dirty fix for now
+                if features is not None and features[0].shape[-1] < 128:
+                  samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
+                                                                               self.build_extr_str(), "float32")
+                  if features:
+                    forced_msg = "Forced decoding of features as float32. Got {} samples, features with shape {}"
+                    print(forced_msg.format(len(samples_ids), features[0].shape))
                 codes_dict = self.compute_codes(samples_ids, features, codes_string)
                 update_compute_time = time.time() - start_compute
                 total_compute_time += update_compute_time
@@ -519,6 +531,13 @@ class SearcherLOPQHBase(GenericSearcher):
           if self.reranking:
             res_list_sha1s = [str(x.id).split('_')[0] for x in results]
             res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s, self.build_extr_str())
+            # Dirty fix for dlib features size issue
+            if res_features is not None and res_features[0].shape[-1] < 128:
+              res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s,
+                                                                                   self.build_extr_str(), "float32")
+              if res_features:
+                forced_msg = "Forced decoding of features as float32. Got {} samples, features with shape {}"
+                print(forced_msg.format(len(res_samples_ids), res_features[0].shape))
 
           tmp_img_sim = []
           tmp_dets_sim_ids = []

@@ -480,7 +480,7 @@ class HBaseIndexerMinimal(ConfReader):
     return rows
 
 
-  def get_features_from_sha1s(self, list_sha1s, extr_type):
+  def get_features_from_sha1s(self, list_sha1s, extr_type, feat_type_decode=None):
     from ..featurizer.featsio import featB64decode
 
     # Cannot use column filters here...
@@ -488,7 +488,8 @@ class HBaseIndexerMinimal(ConfReader):
     if "_".join(extr_type.split("_")[-2:]) != "full_image":
       has_detection = True
     # sbpycaffe is saved as np.float32 while dlib face features are np.float64
-    feat_type_decode = extr_type.split("_")[0]
+    if feat_type_decode is None:
+      feat_type_decode = extr_type.split("_")[0]
     # We need to get all extractions and parse them for matches with extr_type...
     # We could also read image infos if we need to filter things out based on format and/or image size
 
