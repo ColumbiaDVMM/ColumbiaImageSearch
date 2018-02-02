@@ -172,7 +172,8 @@ class HBaseIndexerMinimal(ConfReader):
         hbase_table = connection.table(table_name)
         # scan table from row_start, and accumulate in rows the information of the columns that are needed
         rows = []
-        for one_row in hbase_table.scan(row_start=row_start, columns=columns, batch_size=2):
+        #for one_row in hbase_table.scan(row_start=row_start, columns=columns, batch_size=2):
+        for one_row in hbase_table.scan(row_start=row_start, columns=columns, batch_size=maxrows):
           #print "one_row:",one_row[0]
           rows.extend((one_row,))
           if len(rows) >= maxrows:
@@ -204,7 +205,7 @@ class HBaseIndexerMinimal(ConfReader):
   #                                       inst=inst)
   #   return rows
 
-  def get_updates_from_date(self, start_date, extr_type="", maxrows=10, previous_err=0, inst=None):
+  def get_updates_from_date(self, start_date, extr_type="", maxrows=100, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
     self.check_errors(previous_err, "get_updates_from_date", inst)
@@ -224,7 +225,7 @@ class HBaseIndexerMinimal(ConfReader):
             out_rows = rows
           if out_rows:
             yield out_rows
-            # add '~' to exclude last row from next batch
+          # add '~' to exclude last row from next batch
           row_start = rows[-1][0]+'~'
         else:
           #print "[{}.get_updates_from_date: log] 'rows' was None.".format(self.pp)

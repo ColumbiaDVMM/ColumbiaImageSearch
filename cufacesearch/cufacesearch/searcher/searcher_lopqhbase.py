@@ -431,6 +431,7 @@ class SearcherLOPQHBase(GenericSearcher):
       start_date = self.get_latest_update_suffix()
 
     # Get all updates ids for the extraction type
+    # TODO: this scan makes the API unresponsive for ~2 minutes during the update process...
     for batch_updates in self.indexer.get_updates_from_date(start_date=start_date,
                                                             extr_type=self.build_extr_str()):
       for update in batch_updates:
