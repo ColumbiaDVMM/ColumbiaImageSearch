@@ -307,6 +307,11 @@ class HBaseIndexerMinimal(ConfReader):
                       out_rows.append((row[0], out_row_val))
                     else:
                       out_rows = [(row[0], out_row_val)]
+                  else:
+                    # We should mark as completed here
+                    update_completed_dict = {row[0]: {info_column_family + ':' + update_str_completed: str(1)}}
+                    self.push_dict_rows(dict_rows=update_completed_dict,
+                                        table_name=self.table_updateinfos_name)
                 else:
                   print "[get_missing_extr_updates_from_date: warning] update {} has no list of image.".format(row[0])
           if out_rows:
