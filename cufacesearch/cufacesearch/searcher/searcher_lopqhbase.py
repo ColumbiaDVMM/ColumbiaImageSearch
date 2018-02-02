@@ -483,7 +483,9 @@ class SearcherLOPQHBase(GenericSearcher):
                     log_msg = "[{}: log] Update {} codes computation done in {}s"
                     print(log_msg.format(self.pp, update_id, update_compute_time))
                 else:
+                  #index_update_dlib_feat_dlib_face_2017-12-18_83-ec25-1513640608.49
                   print("[{}: warning] Update {} has no features.".format(self.pp, update_id))
+                  continue
               else:
                 print("[{}: warning] Update {} has no list of images.".format(self.pp, update_id))
                 continue
