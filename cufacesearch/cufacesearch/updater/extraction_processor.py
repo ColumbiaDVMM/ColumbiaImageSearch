@@ -39,6 +39,7 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
     self.q_out = q_out
     self.url_input = url_input
     # If you have another way of getting the images based on SHA1
+    # TODO: This could be a parameter... Should be passed down from ExtractionProcessor
     # self.fallback_pattern = None
     self.fallback_pattern = "https://content.tellfinder.com/image/{}.jpeg"
 
@@ -198,6 +199,8 @@ class ExtractionProcessor(ConfReader):
       else:
         print("[{}.get_batch_hbase: log] No unprocessed update found.".format(self.pp))
         # Look for updates that have some unprocessed images
+        # TODO: wether we do that or not could be specified by a parameter
+        # as this induces slow down during update...
         for updates in self.indexer.get_missing_extr_updates_from_date("1970-01-01", extr_type=self.extr_prefix):
           try:
             for update_id, update_cols in updates:
