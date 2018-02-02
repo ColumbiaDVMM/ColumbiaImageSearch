@@ -11,9 +11,11 @@ from argparse import ArgumentParser
 from cufacesearch.common import column_list_sha1s
 from cufacesearch.common.error import full_trace_error
 from cufacesearch.common.conf_reader import ConfReader
-from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_started, update_str_processed, \
-                                                       img_buffer_column, img_URL_column, img_path_column
-from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, GenericExtractor, build_extr_str
+from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_started, \
+  update_str_processed, update_str_completed, info_column_family, img_buffer_column, \
+  img_URL_column, img_path_column
+from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, GenericExtractor, \
+  build_extr_str
 from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
 default_extr_proc_prefix = "EXTR_"
@@ -36,6 +38,7 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
     self.q_in = q_in
     self.q_out = q_out
     self.url_input = url_input
+    # If you have another way of getting the images based on SHA1
     # self.fallback_pattern = None
     self.fallback_pattern = "https://content.tellfinder.com/image/{}.jpeg"
 
@@ -229,7 +232,7 @@ class ExtractionProcessor(ConfReader):
     update_rows = self.indexer.get_rows_by_batch([update_id], table_name=self.indexer.table_updateinfos_name)
     if update_rows:
       for row in update_rows:
-        if "info:"+update_str_processed in row[1]:
+        if info_column_family+":"+update_str_processed in row[1]:
           return False
     return True
 
@@ -302,7 +305,7 @@ class ExtractionProcessor(ConfReader):
 
 
         # Mark batch as started to be process
-        update_started_dict = {update_id: {'info:' + update_str_started: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
+        update_started_dict = {update_id: {info_column_family + ':' + update_str_started: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
         self.indexer.push_dict_rows(dict_rows=update_started_dict, table_name=self.indexer.table_updateinfos_name)
 
         # Push images to queue
@@ -492,8 +495,14 @@ class ExtractionProcessor(ConfReader):
         self.indexer.push_dict_rows(dict_rows=dict_imgs, table_name=self.indexer.table_sha1infos_name)
 
         # Mark batch as processed
-        update_processed_dict = {update_id: {'info:' + update_str_processed: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
+        update_processed_dict = {update_id: {info_column_family + ':' + update_str_processed: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
         self.indexer.push_dict_rows(dict_rows=update_processed_dict, table_name=self.indexer.table_updateinfos_name)
+
+        # Mark as completed if all rows had an extraction
+        if len(rows_batch) == len(dict_imgs.keys()):
+          update_completed_dict = {update_id: {info_column_family + ':' + update_str_completed: str(1)}}
+          self.indexer.push_dict_rows(dict_rows=update_completed_dict,
+                                      table_name=self.indexer.table_updateinfos_name)
 
         # Cleanup
         del self.q_in
