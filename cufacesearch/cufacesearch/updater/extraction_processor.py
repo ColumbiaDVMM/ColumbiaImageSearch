@@ -23,8 +23,11 @@ default_extr_proc_prefix = "EXTR_"
 def build_batch(list_in, batch_size):
   l = len(list_in)
   ibs = int(batch_size)
-  for ndx in range(0, l, ibs):
-    yield list_in[ndx:min(ndx + ibs, l)]
+  if l > 0:
+    for ndx in range(0, l, ibs):
+      yield list_in[ndx:min(ndx + ibs, l)]
+  else:
+    yield []
 
 class ThreadedDownloaderBufferOnly(threading.Thread):
 
@@ -33,6 +36,9 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
     self.q_in = q_in
     self.q_out = q_out
     self.url_input = url_input
+    # self.fallback_pattern = None
+    self.fallback_pattern = "https://content.tellfinder.com/image/{}.jpeg"
+
 
   def run(self):
     from cufacesearch.imgio.imgio import get_buffer_from_URL, get_buffer_from_filepath, buffer_to_B64
@@ -46,7 +52,15 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
 
       try:
         if self.url_input:
-          img_buffer = get_buffer_from_URL(in_img)
+          try:
+            img_buffer = get_buffer_from_URL(in_img)
+          except Exception as inst:
+            if self.fallback_pattern is not None:
+              # Adding fallback to Tellfinder images here
+              # TODO: should we and how could we also update URL in DB?
+              img_buffer = get_buffer_from_URL(self.fallback_pattern.format(sha1))
+            else:
+              raise inst
         else:
           img_buffer = get_buffer_from_filepath(in_img)
         if img_buffer:
