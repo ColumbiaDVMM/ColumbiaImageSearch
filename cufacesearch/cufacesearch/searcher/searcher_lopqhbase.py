@@ -467,20 +467,23 @@ class SearcherLOPQHBase(GenericSearcher):
                                                                              self.build_extr_str())
                 # FIXME: Legacy dlib features seems to be float32...
                 # Dirty fix for now. Should run workflow fix_feat_type in legacy branch
-                if features is not None and features[0].shape[-1] < 128:
-                  samples_ids, features = self.indexer.get_features_from_sha1s(
-                    list_sha1s.split(','),
-                    self.build_extr_str(), "float32")
-                  if features:
-                    forced_msg = "Forced decoding of features as float32"
-                    forced_msg += ". Got {} samples, features with shape {}"
-                    print(forced_msg.format(len(samples_ids), features[0].shape))
-                codes_dict = self.compute_codes(samples_ids, features, codes_string)
-                update_compute_time = time.time() - start_compute
-                total_compute_time += update_compute_time
-                if self.verbose > 0:
-                  log_msg = "[{}: log] Update {} codes computation done in {}s"
-                  print(log_msg.format(self.pp, update_id, update_compute_time))
+                if features:
+                  if features[0].shape[-1] < 128:
+                    samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
+                                                                                 self.build_extr_str(),
+                                                                                 "float32")
+                    if features:
+                      forced_msg = "Forced decoding of features as float32"
+                      forced_msg += ". Got {} samples, features with shape {}"
+                      print(forced_msg.format(len(samples_ids), features[0].shape))
+                  codes_dict = self.compute_codes(samples_ids, features, codes_string)
+                  update_compute_time = time.time() - start_compute
+                  total_compute_time += update_compute_time
+                  if self.verbose > 0:
+                    log_msg = "[{}: log] Update {} codes computation done in {}s"
+                    print(log_msg.format(self.pp, update_id, update_compute_time))
+                else:
+                  print("[{}: warning] Update {} has no features.".format(self.pp, update_id))
               else:
                 print("[{}: warning] Update {} has no list of images.".format(self.pp, update_id))
                 continue
