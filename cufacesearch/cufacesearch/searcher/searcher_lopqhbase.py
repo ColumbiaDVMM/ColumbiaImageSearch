@@ -7,6 +7,8 @@ from datetime import datetime
 import lmdb
 import numpy as np
 
+#from thriftpy.thrift.transport.TTransport import TTransportException
+
 from generic_searcher import GenericSearcher
 from ..featurizer.generic_featurizer import get_feat_size
 from ..indexer.hbase_indexer_minimal import column_list_sha1s, update_str_processed
@@ -421,90 +423,94 @@ class SearcherLOPQHBase(GenericSearcher):
     start_load = time.time()
     total_compute_time = 0
 
-    # if self.searcher.nb_indexed == 0:
-    #   # We should try to load a concatenation of all unique codes that also contains a list of the corresponding updates...
-    #   # fill codes and self.indexed_updates
-    #   self.load_all_codes()
-    # TODO: try to get date of last update
-    start_date = "1970-01-01"
-    if not full_refresh:
-      start_date = self.get_latest_update_suffix()
+    try:
+      # if self.searcher.nb_indexed == 0:
+      #   # We should try to load a concatenation of all unique codes that also contains a list of the corresponding updates...
+      #   # fill codes and self.indexed_updates
+      #   self.load_all_codes()
+      # TODO: try to get date of last update
+      start_date = "1970-01-01"
+      if not full_refresh:
+        start_date = self.get_latest_update_suffix()
 
-    # Get all updates ids for the extraction type
-    # TODO: this scan makes the API unresponsive for ~2 minutes during the update process...
-    for batch_updates in self.indexer.get_updates_from_date(start_date=start_date,
-                                                            extr_type=self.build_extr_str()):
-      for update in batch_updates:
-        # print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
-        update_id = update[0]
-        if self.is_update_indexed(update_id):
-          print("[{}: log] Skipping update {} already indexed.".format(self.pp, update_id))
-          # What if the update was indexed with only partial extractions?
-          # TODO: If full_refresh we should check if indexing time is bigger than processing time...
-        else:
-          if "info:" + update_str_processed in update[1]:
-            print("[{}: log] Looking for codes of update {}".format(self.pp, update_id))
-            # Get this update codes
-            codes_string = self.build_codes_string(update_id)
-            try:
-              # Check for precomputed codes
-              codes_dict = self.storer.load(codes_string, silent=True)
-              if codes_dict is None:
-                raise ValueError('Could not load codes: {}'.format(codes_string))
-              # TODO: If full_refresh, check that we have as many codes as available features?
-            except Exception as inst:
-              # Update codes not available
-              if self.verbose > 1:
-                log_msg = "[{}: log] Update {} codes could not be loaded: {}"
-                print(log_msg.format(self.pp, update_id, inst))
-              # Compute codes for update not yet processed and save them
-              start_compute = time.time()
-              # Get detections (if any) and features...
-              if column_list_sha1s in update[1]:
-                list_sha1s = update[1][column_list_sha1s]
-                # Double check that this gets properly features of detections
-                samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
-                                                                             self.build_extr_str())
-                # FIXME: Legacy dlib features seems to be float32...
-                # Dirty fix for now. Should run workflow fix_feat_type in legacy branch
-                if features:
-                  if features[0].shape[-1] < 128:
-                    samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
-                                                                                 self.build_extr_str(),
-                                                                                 "float32")
-                    if features:
-                      forced_msg = "Forced decoding of features as float32"
-                      forced_msg += ". Got {} samples, features with shape {}"
-                      print(forced_msg.format(len(samples_ids), features[0].shape))
-                  codes_dict = self.compute_codes(samples_ids, features, codes_string)
-                  update_compute_time = time.time() - start_compute
-                  total_compute_time += update_compute_time
-                  if self.verbose > 0:
-                    log_msg = "[{}: log] Update {} codes computation done in {}s"
-                    print(log_msg.format(self.pp, update_id, update_compute_time))
-                else:
-                  #index_update_dlib_feat_dlib_face_2017-12-18_83-ec25-1513640608.49
-                  print("[{}: warning] Update {} has no features.".format(self.pp, update_id))
-                  continue
-              else:
-                print("[{}: warning] Update {} has no list of images.".format(self.pp, update_id))
-                continue
-
-            # Use new method add_codes_from_dict of searcher
-            self.searcher.add_codes_from_dict(codes_dict)
-            # TODO: indexed_updates should be made persistent too, and add indexing time
-            self.add_update(update_id)
-
+      # Get all updates ids for the extraction type
+      # TODO: this scan makes the API unresponsive for ~2 minutes during the update process...
+      for batch_updates in self.indexer.get_updates_from_date(start_date=start_date,
+                                                              extr_type=self.build_extr_str()):
+        for update in batch_updates:
+          # print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
+          update_id = update[0]
+          if self.is_update_indexed(update_id):
+            print("[{}: log] Skipping update {} already indexed.".format(self.pp, update_id))
+            # What if the update was indexed with only partial extractions?
+            # TODO: If full_refresh we should check if indexing time is bigger than processing time...
           else:
-            print("[{}: log] Skipping unprocessed update {}".format(self.pp, update_id))
-        # TODO: we could check that update processing time was older than indexing time, otherwise that means that
-        #    the update has been reprocessed and should be re-indexed.
+            if "info:" + update_str_processed in update[1]:
+              print("[{}: log] Looking for codes of update {}".format(self.pp, update_id))
+              # Get this update codes
+              codes_string = self.build_codes_string(update_id)
+              try:
+                # Check for precomputed codes
+                codes_dict = self.storer.load(codes_string, silent=True)
+                if codes_dict is None:
+                  raise ValueError('Could not load codes: {}'.format(codes_string))
+                # TODO: If full_refresh, check that we have as many codes as available features?
+              except Exception as inst:
+                # Update codes not available
+                if self.verbose > 1:
+                  log_msg = "[{}: log] Update {} codes could not be loaded: {}"
+                  print(log_msg.format(self.pp, update_id, inst))
+                # Compute codes for update not yet processed and save them
+                start_compute = time.time()
+                # Get detections (if any) and features...
+                if column_list_sha1s in update[1]:
+                  list_sha1s = update[1][column_list_sha1s]
+                  # Double check that this gets properly features of detections
+                  samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
+                                                                               self.build_extr_str())
+                  # FIXME: Legacy dlib features seems to be float32...
+                  # Dirty fix for now. Should run workflow fix_feat_type in legacy branch
+                  if features:
+                    if features[0].shape[-1] < 128:
+                      samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
+                                                                                   self.build_extr_str(),
+                                                                                   "float32")
+                      if features:
+                        forced_msg = "Forced decoding of features as float32"
+                        forced_msg += ". Got {} samples, features with shape {}"
+                        print(forced_msg.format(len(samples_ids), features[0].shape))
+                    codes_dict = self.compute_codes(samples_ids, features, codes_string)
+                    update_compute_time = time.time() - start_compute
+                    total_compute_time += update_compute_time
+                    if self.verbose > 0:
+                      log_msg = "[{}: log] Update {} codes computation done in {}s"
+                      print(log_msg.format(self.pp, update_id, update_compute_time))
+                  else:
+                    #index_update_dlib_feat_dlib_face_2017-12-18_83-ec25-1513640608.49
+                    print("[{}: warning] Update {} has no features.".format(self.pp, update_id))
+                    continue
+                else:
+                  print("[{}: warning] Update {} has no list of images.".format(self.pp, update_id))
+                  continue
 
-    total_load = time.time() - start_load
-    self.last_refresh = datetime.now()
+              # Use new method add_codes_from_dict of searcher
+              self.searcher.add_codes_from_dict(codes_dict)
+              # TODO: indexed_updates should be made persistent too, and add indexing time
+              self.add_update(update_id)
 
-    print("[{}: log] Total udpates computation time is: {}s".format(self.pp, total_compute_time))
-    print("[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load))
+            else:
+              print("[{}: log] Skipping unprocessed update {}".format(self.pp, update_id))
+          # TODO: we could check that update processing time was older than indexing time, otherwise that means that
+          #    the update has been reprocessed and should be re-indexed.
+
+      total_load = time.time() - start_load
+      self.last_refresh = datetime.now()
+
+      print("[{}: log] Total udpates computation time is: {}s".format(self.pp, total_compute_time))
+      print("[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load))
+
+    except Exception as inst:
+      print("[{}: error] Could not load codes. {}".format(self.pp, inst))
 
   # def load_all_codes(self):
   #   # load self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
@@ -565,18 +571,22 @@ class SearcherLOPQHBase(GenericSearcher):
           # If reranking, get features from hbase for detections using res.id
           #   we could also already get 's3_url' to avoid a second call to HBase later...
           if self.reranking:
-            res_list_sha1s = [str(x.id).split('_')[0] for x in results]
-            res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s,
-                                                                                 self.build_extr_str())
-            # FIXME: dirty fix for dlib features size issue.
-            # To be removed once workflow applied on all legacy data
-            if res_features is not None and res_features[0].shape[-1] < 128:
+            try:
+              res_list_sha1s = [str(x.id).split('_')[0] for x in results]
               res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s,
-                                                                                   self.build_extr_str(),
-                                                                                   "float32")
-              if res_features:
-                forced_msg = "Forced decoding of features as float32. Got {} samples, features with shape {}"
-                print(forced_msg.format(len(res_samples_ids), res_features[0].shape))
+                                                                                   self.build_extr_str())
+              # FIXME: dirty fix for dlib features size issue.
+              # To be removed once workflow applied on all legacy data
+              if res_features is not None and res_features[0].shape[-1] < 128:
+                res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s,
+                                                                                     self.build_extr_str(),
+                                                                                     "float32")
+                if res_features:
+                  forced_msg = "Forced decoding of features as float32. Got {} samples, features with shape {}"
+                  print(forced_msg.format(len(res_samples_ids), res_features[0].shape))
+            except Exception as inst:
+              err_msg = "[{}: error] Could not retrieve features for re-ranking. {}"
+              print(err_msg.format(self.pp, inst))
 
           tmp_img_sim = []
           tmp_dets_sim_ids = []
@@ -616,7 +626,12 @@ class SearcherLOPQHBase(GenericSearcher):
 
           # print tmp_img_sim
           if tmp_img_sim:
-            rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
+            rows = None
+            try:
+              rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
+            except Exception as inst:
+              err_msg = "[{}: error] Could not retrieve similar images info from indexer. {}"
+              print(err_msg.format(self.pp, inst))
             # rows should contain id, s3_url of images
             # print rows
             if not rows:
@@ -662,9 +677,13 @@ class SearcherLOPQHBase(GenericSearcher):
 
         # Reranking, get features from hbase for detections using res.id
         if self.reranking:
-          res_list_sha1s = [str(x.id) for x in results]
-          res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s,
+          try:
+            res_list_sha1s = [str(x.id) for x in results]
+            res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s,
                                                                                self.build_extr_str())
+          except Exception as inst:
+            err_msg = "[{}: error] Could not retrieve features for re-ranking. {}"
+            print(err_msg.format(self.pp, inst))
 
         tmp_img_sim = []
         tmp_sim_score = []
@@ -696,7 +715,12 @@ class SearcherLOPQHBase(GenericSearcher):
           tmp_sim_score = rerank_sim_score
 
         if tmp_img_sim:
-          rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
+          rows = None
+          try:
+            rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
+          except Exception as inst:
+            err_msg = "[{}: error] Could not retrieve similar images info from indexer. {}"
+            print(err_msg.format(self.pp, inst))
           # rows should contain id, s3_url of images
           # print rows
           sim_images.append(rows)
