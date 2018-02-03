@@ -65,6 +65,7 @@ class HBaseIndexerMinimal(ConfReader):
       if int(batch_update_size) > 0:
         self.batch_update_size = int(batch_update_size)
     from thriftpy.transport import TTransportException
+    self.pool = None
     try:
       # The timeout as parameter seems to cause issues?...
       self.pool = happybase.ConnectionPool(timeout=60000, size=self.nb_threads, host=self.hbase_host,

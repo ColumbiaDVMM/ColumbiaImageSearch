@@ -626,7 +626,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
           # print tmp_img_sim
           if tmp_img_sim:
-            rows = None
+            rows = []
             try:
               rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
             except Exception as inst:
@@ -715,7 +715,7 @@ class SearcherLOPQHBase(GenericSearcher):
           tmp_sim_score = rerank_sim_score
 
         if tmp_img_sim:
-          rows = None
+          rows = []
           try:
             rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
           except Exception as inst:
