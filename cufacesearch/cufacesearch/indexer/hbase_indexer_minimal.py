@@ -241,7 +241,7 @@ class HBaseIndexerMinimal(ConfReader):
         raise inst
 
 
-  def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=5, previous_err=0, inst=None):
+  def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=100, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
     self.check_errors(previous_err, "get_unprocessed_updates_from_date", inst)
@@ -278,7 +278,7 @@ class HBaseIndexerMinimal(ConfReader):
                                                     previous_err=previous_err+1, inst=inst)
     return rows
 
-  def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=5, previous_err=0, inst=None):
+  def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=100, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
     self.check_errors(previous_err, "get_missing_extr_updates_from_date", inst)
