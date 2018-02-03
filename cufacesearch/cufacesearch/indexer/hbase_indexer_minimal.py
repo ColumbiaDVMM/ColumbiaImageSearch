@@ -73,7 +73,7 @@ class HBaseIndexerMinimal(ConfReader):
     except TTransportException as inst:
       print_msg = "[{}.read_conf: error] Could not initalize connection to HBase. Are you connected to the VPN?"
       print print_msg.format(self.pp)
-      raise inst
+      #raise inst
 
       # # Extractions configuration (TO BE IMPLEMENTED)
       # self.extractions_types = self.get_param('extractions_types')
@@ -101,7 +101,7 @@ class HBaseIndexerMinimal(ConfReader):
       print_msg = "[{}.read_conf: error] Could not initalize connection to HBase ({}). Are you connected to the VPN?"
       print print_msg.format(self.pp, inst)
       sys.stdout.flush()
-      raise inst
+      #raise inst
 
   def check_errors(self, previous_err, function_name, inst=None):
     if previous_err >= max_errors:
