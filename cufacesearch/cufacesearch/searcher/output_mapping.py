@@ -148,7 +148,10 @@ class DictOutput():
             #print sim_images[i][j][jj]
             output[out_i][self.map['similar_'+input_type+'s']][self.map['image_sha1s']].append(sim_images[i][j][jj][0].strip())
             if sim_images[i][j][jj] > 1:
-              output[out_i][self.map['similar_'+input_type+'s']][self.map['cached_image_urls']].append(sim_images[i][j][jj][1][self.url_field].strip())
+              try:
+                output[out_i][self.map['similar_'+input_type+'s']][self.map['cached_image_urls']].append(sim_images[i][j][jj][1][self.url_field].strip())
+              except Exception:
+                output[out_i][self.map['similar_'+input_type+'s']][self.map['cached_image_urls']].append("")
 
             tmp_face_dict = dict()
             for tfi, tfcoord in enumerate(sim_det.split('_')[1:]):
