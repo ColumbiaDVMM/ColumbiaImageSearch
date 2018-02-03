@@ -190,7 +190,10 @@ class DictOutput():
           #print "sim_images[i][j]",sim_images[i][0][j]
           nb_images_similar += 1
           output[out_i][self.map['similar_images']][self.map['image_sha1s']].append(sim_images[i][0][j][0].strip())
-          output[out_i][self.map['similar_images']][self.map['cached_image_urls']].append(sim_images[i][0][j][1][self.url_field].strip())
+          try:
+            output[out_i][self.map['similar_images']][self.map['cached_image_urls']].append(sim_images[i][0][j][1][self.url_field].strip())
+          except Exception:
+            output[out_i][self.map['similar_images']][self.map['cached_image_urls']].append("")
           output[out_i][self.map['similar_images']][self.map['distances']].append(float(sim_score[i][0][j]))
 
       outp = OrderedDict([[self.map['number_images'], len(dets)],
