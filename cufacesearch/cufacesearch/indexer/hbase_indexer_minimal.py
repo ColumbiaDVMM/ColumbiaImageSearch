@@ -257,6 +257,10 @@ class HBaseIndexerMinimal(ConfReader):
 
     try:
       while continue_scan:
+        if self.verbose > 3:
+          log_msg = "[{}.get_unprocessed_updates_from_date: log] row_start is: {}"
+          print(log_msg.format(self.pp, row_start))
+
         tmp_rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start,
                                       columns=None, maxrows=maxrows, previous_err=0, inst=None)
         if tmp_rows:
