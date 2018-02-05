@@ -10,7 +10,7 @@ ImageMIMETypes['GIF'] = "image/gif"
 ImageMIMETypes['PNG'] = "image/png"
 ImageMIMETypes['JPEG'] = "image/jpeg"
 
-DEFAULT_RETRIES = 10
+DEFAULT_RETRIES = 3
 DEFAULT_BOF = 0.2
 DEFAULT_FL = [500, 502, 503, 504]
 SESSION = requests.Session()
