@@ -199,7 +199,9 @@ class ExtractionProcessor(ConfReader):
             else:
               print("[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
           else:
-            print("[{}.get_batch_hbase: log] Skipping update {} from another extraction type.".format(self.pp, update_id))
+            if self.verbose > 6:
+              log_msg = "[{}.get_batch_hbase: log] Skipping update {} from another extraction type."
+              print(log_msg.format(self.pp, update_id))
       else:
         print("[{}.get_batch_hbase: log] No unprocessed update found.".format(self.pp))
         # Look for updates that have some unprocessed images
