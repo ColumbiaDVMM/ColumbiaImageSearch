@@ -40,8 +40,10 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
     self.url_input = url_input
     # If you have another way of getting the images based on SHA1
     # TODO: This could be a parameter... Should be passed down from ExtractionProcessor
-    # self.fallback_pattern = None
-    self.fallback_pattern = "https://content.tellfinder.com/image/{}.jpeg"
+    self.fallback_pattern = None
+    # This is served by a DB, and we are hitting too heavily.
+    # Wait to see if Tellfinder can dump the missing images.
+    #self.fallback_pattern = "https://content.tellfinder.com/image/{}.jpeg"
 
 
   def run(self):
@@ -59,7 +61,7 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
           try:
             img_buffer = get_buffer_from_URL(in_img)
           except Exception as inst:
-            if self.fallback_pattern is not None:
+            if self.fallback_pattern:
               # Adding fallback to Tellfinder images here
               # TODO: should we and how could we also update URL in DB?
               img_buffer = get_buffer_from_URL(self.fallback_pattern.format(sha1))
