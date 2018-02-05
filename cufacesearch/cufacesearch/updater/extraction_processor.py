@@ -303,10 +303,17 @@ class ExtractionProcessor(ConfReader):
         threads = []
 
         # If we deleted an extractor at some point or for first batch
-        while len(self.extractors) < self.nb_threads:
-          self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
-                                                  self.extr_family_column, self.featurizer_prefix,
-                                                  self.global_conf))
+        nb_extr_to_create = self.nb_threads - len(self.extractors)
+        if nb_extr_to_create:
+          start_create_extractor = time.time()
+          while len(self.extractors) < self.nb_threads:
+
+            self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
+                                                    self.extr_family_column, self.featurizer_prefix,
+                                                    self.global_conf))
+          buff_msg = "[{}] Created {} extractors in {}s."
+          create_extr_time = time.time() - start_create_extractor
+          print(buff_msg.format(self.pp, nb_extr_to_create, create_extr_time))
 
 
         # Mark batch as started to be process
@@ -324,6 +331,7 @@ class ExtractionProcessor(ConfReader):
         q_in_dl = Queue(0)
         q_out_dl = Queue(0)
 
+        start_get_buffer = time.time()
         for img in rows_batch:
           # should decode base64
           if img_buffer_column in img[1]:
@@ -366,9 +374,9 @@ class ExtractionProcessor(ConfReader):
                 # Is that possible?
                 print("[{}: error] No error but no buffer either for image {}".format(self.pp, sha1))
 
-
-        buff_msg = "[{}] Got {}/{} image buffers for update {}."
-        print(buff_msg.format(self.pp, len(list_in), len(rows_batch), update_id))
+        get_buffer_time = time.time() - start_get_buffer
+        buff_msg = "[{}] Got {}/{} image buffers for update {} in {}s."
+        print(buff_msg.format(self.pp, len(list_in), len(rows_batch), update_id, get_buffer_time))
         sys.stdout.flush()
 
         q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
