@@ -167,7 +167,8 @@ class HBaseIndexerMinimal(ConfReader):
       return self.scan_with_prefix(table_name, row_prefix=row_prefix, columns=columns, maxrows=maxrows,
                                 previous_err=previous_err + 1, inst=inst)
 
-  def scan_from_row(self, table_name, row_start=None, columns=None, maxrows=10, previous_err=0, inst=None):
+  def scan_from_row(self, table_name, row_start=None, columns=None, maxrows=10, previous_err=0,
+                    inst=None):
     self.check_errors(previous_err, "scan_from_row", inst)
     try:
       with self.pool.connection(timeout=self.timeout) as connection:
@@ -265,6 +266,7 @@ class HBaseIndexerMinimal(ConfReader):
             print(log_msg.format(self.pp, nb_rows_scanned))
           for row_id, row_val in tmp_rows:
             last_row = row_id
+            start_date = '_'.join(last_row.split('_')[-2:])
             if info_column_family + ":" + update_str_processed not in row_val:
               if extr_type and extr_type not in row_id:
                 continue
@@ -280,10 +282,8 @@ class HBaseIndexerMinimal(ConfReader):
             continue_scan = False
           yield rows
 
-        else:
-          # Explore further
-          start_date = '_'.join(last_row.split('_')[-2:])
-          row_start = update_prefix + "_" + extr_type + "_" + start_date
+        # To explore further
+        row_start = update_prefix + "_" + extr_type + "_" + start_date
 
     except Exception as inst: # try to catch any exception
       full_trace_error("[get_unprocessed_updates_from_date: error] {}".format(inst))
