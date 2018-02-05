@@ -245,40 +245,45 @@ class HBaseIndexerMinimal(ConfReader):
   def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=100, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
+    continue_scan = True
     self.check_errors(previous_err, "get_unprocessed_updates_from_date", inst)
     # build row_start as index_update_YYYY-MM-DD
     row_start = update_prefix + "_" + extr_type + "_" + start_date
     #print row_start
     last_row = row_start
+
     try:
-      tmp_rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, columns=None,
-                                    maxrows=maxrows, previous_err=0, inst=None)
-      if tmp_rows:
-        for row_id, row_val in tmp_rows:
-          last_row = row_id
-          #if "info:"+update_str_processed not in row_val and "info:"+update_str_started not in row_val:
-          if "info:" + update_str_processed not in row_val:
-            #print "row:",row_id
-            if rows is None:
-              rows = [(row_id, row_val)]
-            else:
-              rows.append((row_id, row_val))
-      if rows:
-        if tmp_rows is None or len(tmp_rows) < maxrows:
-          # Looks like we really have nothing to process...
-          return rows
+      while continue_scan:
+        tmp_rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start,
+                                      columns=None, maxrows=maxrows, previous_err=0, inst=None)
+        if tmp_rows:
+          for row_id, row_val in tmp_rows:
+            last_row = row_id
+            #if "info:"+update_str_processed not in row_val and "info:"+update_str_started not in row_val:
+            if info_column_family + ":" + update_str_processed not in row_val:
+              #print "row:",row_id
+              if rows is None:
+                rows = [(row_id, row_val)]
+              else:
+                rows.append((row_id, row_val))
+
+        if rows:
+          if tmp_rows is None or len(tmp_rows) < maxrows:
+            # Looks like we reach the end of updates list
+            continue_scan = False
+          yield rows
+
         else:
           # Explore further
-          next_start_date = '_'.join(last_row.split('_')[-2:])
-          # Multiply maxrows to avoid maximum recursion depth issue...
-          return self.get_unprocessed_updates_from_date(next_start_date, extr_type=extr_type,
-                                                        maxrows=maxrows)
+          start_date = '_'.join(last_row.split('_')[-2:])
+          row_start = update_prefix + "_" + extr_type + "_" + start_date
+
     except Exception as inst: # try to catch any exception
       full_trace_error("[get_unprocessed_updates_from_date: error] {}".format(inst))
       self.refresh_hbase_conn("get_unprocessed_updates_from_date", sleep_time=4*previous_err)
-      return self.get_unprocessed_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
-                                                    previous_err=previous_err+1, inst=inst)
-    return rows
+      yield self.get_unprocessed_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
+                                                   previous_err=previous_err+1, inst=inst)
+
 
   def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=100, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
@@ -319,10 +324,10 @@ class HBaseIndexerMinimal(ConfReader):
                   print "[get_missing_extr_updates_from_date: warning] update {} has no list of image.".format(row[0])
           if out_rows:
             yield out_rows
-            # add '~' to exclude last row from next batch
+          # add '~' to exclude last row from next batch
           row_start = rows[-1][0]+'~'
         else:
-          print "[get_missing_extr_updates_from_date: log] No update with unprocessed images found."
+          # We have reached the end of the scan
           break
     except Exception as inst: # try to catch any exception
       print "[get_missing_extr_updates_from_date: error] {}".format(inst)
