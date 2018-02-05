@@ -42,13 +42,13 @@ class DaemonBatchExtractor(multiprocessing.Process):
       try:
         # The queue should already have items,but seems sometime to block forever...
         #batch = self.q_in.get(False)
-        if self.verbose > 3:
+        if self.verbose > 5:
           print "[{}] Looking for a batch at: {}".format(self.pp, datetime.now().isoformat())
           sys.stdout.flush()
         batch = self.q_in.get(timeout=self.qin_timeout)
       except Exception:
         # This may appear in the log when the following update is being processed.
-        if self.verbose > 3:
+        if self.verbose > 5:
           print "[{}] Did not get a batch. Leaving".format(self.pp)
           sys.stdout.flush()
         empty = True
