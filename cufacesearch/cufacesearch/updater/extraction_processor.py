@@ -209,6 +209,7 @@ class ExtractionProcessor(ConfReader):
                 list_sha1s = update_cols[column_list_sha1s].split(',')
                 log_msg = "[{}.get_batch_hbase: log] Update {} has {} images missing extractions."
                 print(log_msg.format(self.pp, update_id, len(list_sha1s)))
+                sys.stdout.flush()
                 # also get 'ext:' to check if extraction was already processed?
                 rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s,
                                                                      columns=[img_buffer_column,
@@ -224,6 +225,10 @@ class ExtractionProcessor(ConfReader):
             else:
               log_msg = "[{}.get_batch_hbase: log] Skipping update {} from another extraction type."
               print(log_msg.format(self.pp, update_id))
+        else:
+          log_msg = "[{}.get_batch_hbase: log] No updates with missing extractions found."
+          print(log_msg.format(self.pp))
+          sys.stdout.flush()
 
     except Exception as inst:
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
@@ -305,8 +310,11 @@ class ExtractionProcessor(ConfReader):
 
 
         # Mark batch as started to be process
-        update_started_dict = {update_id: {info_column_family + ':' + update_str_started: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
-        self.indexer.push_dict_rows(dict_rows=update_started_dict, table_name=self.indexer.table_updateinfos_name)
+        now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
+        dict_val = {info_column_family + ':' + update_str_started: now_str}
+        update_started_dict = {update_id: dict_val}
+        self.indexer.push_dict_rows(dict_rows=update_started_dict,
+                                    table_name=self.indexer.table_updateinfos_name)
 
         # Push images to queue
         list_in = []
