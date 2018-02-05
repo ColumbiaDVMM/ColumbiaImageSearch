@@ -180,12 +180,12 @@ class HBaseIndexerMinimal(ConfReader):
           rows.extend((one_row,))
           if len(rows) >= maxrows:
             return rows
-          if self.verbose:
-            print("[scan_from_row: log] got {} rows.".format(len(rows)))
+          if self.verbose > 5:
+            print("[{}.scan_from_row: log] got {} rows.".format(self.pp, len(rows)))
             sys.stdout.flush()
         return rows
     except Exception as inst:
-      print "scan_from_row", inst
+      print("[{}.scan_from_row: error] {}".format(self.pp, inst))
       # try to force longer sleep time...
       self.refresh_hbase_conn("scan_from_row", sleep_time=4*previous_err)
       return self.scan_from_row(table_name, row_start=row_start, columns=columns, maxrows=maxrows,
