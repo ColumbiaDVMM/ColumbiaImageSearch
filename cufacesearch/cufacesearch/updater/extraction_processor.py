@@ -388,7 +388,7 @@ class ExtractionProcessor(ConfReader):
         for i in range(self.nb_threads):
           q_in_size.append(self.q_in[i].qsize())
           q_in_size_tot += q_in_size[i]
-        if self.verbose > 3:
+        if self.verbose > 5:
           print("[{}] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
 
         # Start daemons...
@@ -433,7 +433,7 @@ class ExtractionProcessor(ConfReader):
                 time.sleep(1)
               else:
                 if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero():
-                  if self.verbose > 3:
+                  if self.verbose > 5:
                     end_msg = "[{}] Thread {}/{} (pid: {}) marked as finished because processing seems finished"
                     print(end_msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
                 else:
