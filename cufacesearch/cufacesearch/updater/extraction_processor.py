@@ -471,7 +471,7 @@ class ExtractionProcessor(ConfReader):
           q_out_size.append(self.q_out[i].qsize())
           q_out_size_tot += q_out_size[i]
 
-        if self.verbose > 3:
+        if self.verbose > 5:
           print("[{}: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
           sys.stdout.flush()
 
@@ -482,12 +482,12 @@ class ExtractionProcessor(ConfReader):
             print("[{}] Thread {} q_out_size: {}".format(self.pp, i+1, q_out_size[i]))
             sys.stdout.flush()
           while q_out_size[i]>0 and not self.q_out[i].empty():
-            if self.verbose > 5:
+            if self.verbose > 6:
               print("[{}] Thread {} q_out is not empty.".format(self.pp, i + 1))
               sys.stdout.flush()
             try:
               batch_out = self.q_out[i].get(True, 10)
-              if self.verbose > 3:
+              if self.verbose > 4:
                 print("[{}] Got batch of {} features from thread {} q_out.".format(self.pp, len(batch_out), i + 1))
                 sys.stdout.flush()
               for sha1, dict_out in batch_out:
@@ -504,7 +504,8 @@ class ExtractionProcessor(ConfReader):
 
         #if self.verbose > 0:
         print_msg = "[{}] Got features for {}/{} images in {}s."
-        print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), time.time() - start_process))
+        proc_time = time.time() - start_process
+        print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), proc_time))
         sys.stdout.flush()
 
         # Push them
