@@ -330,6 +330,8 @@ class HBaseIndexerMinimal(ConfReader):
               if update_completed_column in row[1]:
                 # Update has been marked as all extractions being performed
                 continue
+              # TODO: should we store in a set all checked updated for missing extractions
+              # so we only process them once in the life of the indexer?
               if self.verbose > 4:
                 log_msg = "[{}.get_missing_extr_updates_from_date: log] checking update {} for missing extractions"
                 print(log_msg.format(self.pp, row[0]))
