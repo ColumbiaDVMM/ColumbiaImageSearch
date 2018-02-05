@@ -176,7 +176,8 @@ class ExtractionProcessor(ConfReader):
     # modified get_unprocessed_updates_from_date to get updates that were started but never finished
     try:
       # needs to read update table rows starting with 'index_update_'+extr and not marked as indexed.
-      list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id, extr_type=self.extr_prefix)
+      list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id,
+                                                                    extr_type=self.extr_prefix)
       if list_updates:
         for update_id, update_cols in list_updates:
           if self.extr_prefix in update_id:

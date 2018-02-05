@@ -271,7 +271,8 @@ class HBaseIndexerMinimal(ConfReader):
           # Explore further
           next_start_date = '_'.join(last_row.split('_')[-2:])
           # Multiply maxrows to avoid maximum recursion depth issue...
-          return self.get_unprocessed_updates_from_date(next_start_date, extr_type=extr_type, maxrows=10*maxrows)
+          return self.get_unprocessed_updates_from_date(next_start_date, extr_type=extr_type,
+                                                        maxrows=maxrows)
     except Exception as inst: # try to catch any exception
       full_trace_error("[get_unprocessed_updates_from_date: error] {}".format(inst))
       self.refresh_hbase_conn("get_unprocessed_updates_from_date", sleep_time=4*previous_err)
