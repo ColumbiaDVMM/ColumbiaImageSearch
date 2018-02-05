@@ -250,7 +250,7 @@ class HBaseIndexerMinimal(ConfReader):
     continue_scan = True
     self.check_errors(previous_err, "get_unprocessed_updates_from_date", inst)
     # build row_start as index_update_YYYY-MM-DD
-    row_start = update_prefix + "_" + extr_type + "_" + start_date
+    row_start = update_prefix + extr_type + "_" + start_date
     #print row_start
     last_row = row_start
     nb_rows_scanned = 0
@@ -287,7 +287,7 @@ class HBaseIndexerMinimal(ConfReader):
           yield rows
 
         # To explore further
-        row_start = update_prefix + "_" + extr_type + "_" + start_date
+        row_start = update_prefix + extr_type + "_" + start_date
 
     except Exception as inst: # try to catch any exception
       full_trace_error("[get_unprocessed_updates_from_date: error] {}".format(inst))
