@@ -270,7 +270,10 @@ class HBaseIndexerMinimal(ConfReader):
             print(log_msg.format(self.pp, nb_rows_scanned))
           for row_id, row_val in tmp_rows:
             last_row = row_id
-            start_date = '_'.join(last_row.split('_')[-2:])
+            # This fails for update from spark...
+            #start_date = '_'.join(last_row.split('_')[-2:])
+            # Does this work for any type of update?
+            start_date = '_'.join(last_row.split('_')[6:])
             if info_column_family + ":" + update_str_processed not in row_val:
               if extr_type and extr_type not in row_id:
                 continue
