@@ -173,31 +173,25 @@ class ExtractionProcessor(ConfReader):
   def get_batch_hbase(self):
     # legacy implementation: better to have a kafka topic for batches to be processed to allow
     #       safe parallelization on different machines
-    # modified get_unprocessed_updates_from_date to get updates that were started but never finished
     try:
-      # needs to read update table rows starting with 'index_update_'+extr and not marked as indexed.
-      #list_updates = self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id,
-      #                                                              extr_type=self.extr_prefix)
-      #if list_updates:
-      #  for update_id, update_cols in list_updates:
       for updates in self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id,
                                                                     extr_type=self.extr_prefix):
         for update_id, update_cols in updates:
           if self.extr_prefix in update_id:
             list_sha1s = update_cols[column_list_sha1s].split(',')
-            print ("[{}.get_batch_hbase: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
+            log_msg = "[{}.get_batch_hbase: log] Update {} has {} images."
+            print (log_msg.format(self.pp, update_id, len(list_sha1s)))
             # also get 'ext:' to check if extraction was already processed?
-            rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
+            rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                 columns=[img_buffer_column,
+                                                                          self.img_column])
             #print "rows_batch", rows_batch
             if rows_batch:
-              if self.verbose > 4:
-                print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
               yield rows_batch, update_id
-              if self.verbose > 4:
-                print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
               self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
             else:
-              print("[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}".format(self.pp, update_id))
+              log_msg = "[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}"
+              print(log_msg.format(self.pp, update_id))
           else:
             if self.verbose > 6:
               log_msg = "[{}.get_batch_hbase: log] Skipping update {} from another extraction type."
@@ -207,7 +201,8 @@ class ExtractionProcessor(ConfReader):
         # Look for updates that have some unprocessed images
         # TODO: wether we do that or not could be specified by a parameter
         # as this induces slow down during update...
-        for updates in self.indexer.get_missing_extr_updates_from_date("1970-01-01", extr_type=self.extr_prefix):
+        for updates in self.indexer.get_missing_extr_updates_from_date("1970-01-01",
+                                                                       extr_type=self.extr_prefix):
           for update_id, update_cols in updates:
             if self.extr_prefix in update_id:
               if column_list_sha1s in update_cols:
@@ -215,13 +210,11 @@ class ExtractionProcessor(ConfReader):
                 log_msg = "[{}.get_batch_hbase: log] Update {} has {} images missing extractions."
                 print(log_msg.format(self.pp, update_id, len(list_sha1s)))
                 # also get 'ext:' to check if extraction was already processed?
-                rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=[img_buffer_column, self.img_column])
+                rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                     columns=[img_buffer_column,
+                                                                              self.img_column])
                 if rows_batch:
-                  if self.verbose > 4:
-                    print("[{}.get_batch_hbase: log] Yielding for update: {}".format(self.pp, update_id))
                   yield rows_batch, update_id
-                  if self.verbose > 4:
-                    print("[{}.get_batch_hbase: log] After yielding for update: {}".format(self.pp, update_id))
                 else:
                   log_msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
                   print(log_msg.format(self.pp, update_id))

@@ -38,6 +38,7 @@ class HBaseIndexerMinimal(ConfReader):
     # could be set in parameters
     self.column_list_sha1s = column_list_sha1s
     super(HBaseIndexerMinimal, self).__init__(global_conf_in, prefix)
+    print('[{}: log] verbose level is: {}'.format(self.pp, self.verbose))
 
   def set_pp(self):
     self.pp = "HBaseIndexerMinimal"
@@ -206,7 +207,7 @@ class HBaseIndexerMinimal(ConfReader):
   #                                       inst=inst)
   #   return rows
 
-  def get_updates_from_date(self, start_date, extr_type="", maxrows=100, previous_err=0, inst=None):
+  def get_updates_from_date(self, start_date, extr_type="", maxrows=200, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
     self.check_errors(previous_err, "get_updates_from_date", inst)
@@ -235,14 +236,14 @@ class HBaseIndexerMinimal(ConfReader):
       print "[{}.get_updates_from_date: error] {}".format(self.pp, inst)
       self.refresh_hbase_conn("get_updates_from_date")
       try:
-        for out_rows in self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
-                                        inst=inst):
-          yield out_rows
+        yield self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
+                                         previous_err=previous_err+1, inst=inst)
       except Exception as inst:
         raise inst
 
 
-  def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=100, previous_err=0, inst=None):
+  def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=200, previous_err=0,
+                                        inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
     continue_scan = True
@@ -251,23 +252,29 @@ class HBaseIndexerMinimal(ConfReader):
     row_start = update_prefix + "_" + extr_type + "_" + start_date
     #print row_start
     last_row = row_start
+    nb_rows_scanned = 0
 
     try:
       while continue_scan:
         tmp_rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start,
                                       columns=None, maxrows=maxrows, previous_err=0, inst=None)
         if tmp_rows:
+          nb_rows_scanned += len(tmp_rows)
+          if self.verbose > 2:
+            log_msg = "[{}.get_unprocessed_updates_from_date: log] Scanned {} rows so far."
+            print(log_msg.format(self.pp, nb_rows_scanned))
           for row_id, row_val in tmp_rows:
             last_row = row_id
-            #if "info:"+update_str_processed not in row_val and "info:"+update_str_started not in row_val:
             if info_column_family + ":" + update_str_processed not in row_val:
-              #print "row:",row_id
+              if extr_type and extr_type not in row_id:
+                continue
               if rows is None:
                 rows = [(row_id, row_val)]
               else:
                 rows.append((row_id, row_val))
 
         if rows:
+
           if tmp_rows is None or len(tmp_rows) < maxrows:
             # Looks like we reach the end of updates list
             continue_scan = False
@@ -285,7 +292,8 @@ class HBaseIndexerMinimal(ConfReader):
                                                    previous_err=previous_err+1, inst=inst)
 
 
-  def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=100, previous_err=0, inst=None):
+  def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=200,
+                                         previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
     self.check_errors(previous_err, "get_missing_extr_updates_from_date", inst)
@@ -321,7 +329,8 @@ class HBaseIndexerMinimal(ConfReader):
                     self.push_dict_rows(dict_rows=update_completed_dict,
                                         table_name=self.table_updateinfos_name)
                 else:
-                  print "[get_missing_extr_updates_from_date: warning] update {} has no list of image.".format(row[0])
+                  warn_msg = "[get_missing_extr_updates_from_date: warning] update {} has no list of image."
+                  print(warn_msg.format(row[0]))
           if out_rows:
             yield out_rows
           # add '~' to exclude last row from next batch
@@ -332,8 +341,9 @@ class HBaseIndexerMinimal(ConfReader):
     except Exception as inst: # try to catch any exception
       print "[get_missing_extr_updates_from_date: error] {}".format(inst)
       self.refresh_hbase_conn("get_missing_extr_updates_from_date")
-      yield self.get_missing_extr_updates_from_date(next_start_date, extr_type=extr_type, maxrows=maxrows, previous_err=previous_err+1,
-                                        inst=inst)
+      yield self.get_missing_extr_updates_from_date(next_start_date, extr_type=extr_type,
+                                                    maxrows=maxrows, previous_err=previous_err+1,
+                                                    inst=inst)
 
   def get_today_string(self):
     return datetime.today().strftime('%Y-%m-%d')
