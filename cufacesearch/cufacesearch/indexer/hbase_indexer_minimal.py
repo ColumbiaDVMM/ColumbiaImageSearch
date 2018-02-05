@@ -278,6 +278,8 @@ class HBaseIndexerMinimal(ConfReader):
                 rows = [(row_id, row_val)]
               else:
                 rows.append((row_id, row_val))
+        else:
+          continue_scan = False
 
         if rows:
 
