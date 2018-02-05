@@ -40,7 +40,7 @@ class GenericFeaturizer(ConfReader):
   def __init__(self, global_conf_in, prefix=""):
     super(GenericFeaturizer, self).__init__(global_conf_in, prefix)
 
-  def featurize(self, img, bbox=None, img_type="scikit"):
+  def featurize(self, img, bbox=None, img_type="scikit", sha1=None):
     """" This method takes an image (by default considering it was loaded from scikit...)
     and optionally an object (e.g. face) bounding box returned by a detector.
     It generates a feature vector representing of the image or object.

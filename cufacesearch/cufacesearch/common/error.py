@@ -6,3 +6,4 @@ def full_trace_error(err_msg):
   traceback.print_tb(exc_traceback, file=sys.stdout)
   print "*** print_exception:"
   traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stdout)
+  sys.stdout.flush()
