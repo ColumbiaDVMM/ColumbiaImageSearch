@@ -249,14 +249,14 @@ class HBaseIndexerMinimal(ConfReader):
     rows = None
     continue_scan = True
     self.check_errors(previous_err, "get_unprocessed_updates_from_date", inst)
-    # build row_start as index_update_YYYY-MM-DD
-    row_start = update_prefix + extr_type + "_" + start_date
-    #print row_start
-    last_row = row_start
     nb_rows_scanned = 0
+    update_suffix = extr_type + "_" + start_date
 
     try:
       while continue_scan:
+        # build row_start as index_update_YYYY-MM-DD
+        row_start = update_prefix + update_suffix
+
         if self.verbose > 3:
           log_msg = "[{}.get_unprocessed_updates_from_date: log] row_start is: {}"
           print(log_msg.format(self.pp, row_start))
@@ -273,7 +273,7 @@ class HBaseIndexerMinimal(ConfReader):
             # This fails for update from spark...
             #start_date = '_'.join(last_row.split('_')[-2:])
             # Does this work for any type of update?
-            start_date = '_'.join(last_row.split('_')[6:])
+            update_suffix = '_'.join(last_row.split('_')[2:])+'~'
             if info_column_family + ":" + update_str_processed not in row_val:
               if extr_type and extr_type not in row_id:
                 continue
@@ -285,14 +285,10 @@ class HBaseIndexerMinimal(ConfReader):
           continue_scan = False
 
         if rows:
-
           if tmp_rows is None or len(tmp_rows) < maxrows:
             # Looks like we reach the end of updates list
             continue_scan = False
           yield rows
-
-        # To explore further
-        row_start = update_prefix + extr_type + "_" + start_date
 
     except Exception as inst: # try to catch any exception
       full_trace_error("[get_unprocessed_updates_from_date: error] {}".format(inst))
@@ -303,47 +299,63 @@ class HBaseIndexerMinimal(ConfReader):
 
   def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=200,
                                          previous_err=0, inst=None):
+    # This induces that we keep reprocessing images that cannot be downloaded or processed every time
+    # we check for updates...
+    if not extr_type:
+      warn_msg = "[{}.get_missing_extr_updates_from_date: warning] extr_type was not specified."
+      print(warn_msg.format(self.pp))
+      return
+
     # start_date should be in format YYYY-MM-DD(_XX)
-    rows = None
     self.check_errors(previous_err, "get_missing_extr_updates_from_date", inst)
     # build row_start as index_update_YYYY-MM-DD
-    row_start = update_prefix + extr_type + "_" + start_date
+    update_suffix = extr_type + "_" + start_date
     next_start_date = start_date
 
     try:
       while True:
+        # build row_start as index_update_YYYY-MM-DD
+        row_start = update_prefix + update_suffix
+        if self.verbose > 3:
+          log_msg = "[{}.get_missing_extr_updates_from_date: log] row_start is: {}"
+          print(log_msg.format(self.pp, row_start))
+
         rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
         if rows:
-          out_rows = []
-          if extr_type:
-            # Filter out updates of other extractions type.
-            for row in rows:
-              next_start_date = '_'.join(row[0].split('_')[-2:])
-              if extr_type in row[0]:
-                if update_completed_column in row[1]:
-                  # Update has been marked as all extractions being performed
-                  continue
-                if column_list_sha1s in row[1]:
-                  missing_extr_sha1s = self.get_missing_extr_sha1s(row[1][column_list_sha1s].split(','), extr_type)
-                  if missing_extr_sha1s:
-                    out_row_val = dict()
-                    out_row_val[column_list_sha1s] = ','.join(missing_extr_sha1s)
-                    if out_rows:
-                      out_rows.append((row[0], out_row_val))
-                    else:
-                      out_rows = [(row[0], out_row_val)]
+          # Filter out updates of other extractions type
+          for row in rows:
+            out_rows = []
+            update_suffix = '_'.join(row[0].split('_')[2:]) + '~'
+            if extr_type in row[0]:
+              if update_completed_column in row[1]:
+                # Update has been marked as all extractions being performed
+                continue
+              if self.verbose > 4:
+                log_msg = "[{}.get_missing_extr_updates_from_date: log] checking update {} for missing extractions"
+                print(log_msg.format(self.pp, row[0]))
+              if column_list_sha1s in row[1]:
+                missing_extr_sha1s = self.get_missing_extr_sha1s(row[1][column_list_sha1s].split(','), extr_type)
+                if missing_extr_sha1s:
+                  if self.verbose > 5:
+                    log_msg = "[{}.get_missing_extr_updates_from_date: log] update {} has missing extractions"
+                    print(log_msg.format(self.pp, row[0]))
+                  out_row_val = dict()
+                  out_row_val[column_list_sha1s] = ','.join(missing_extr_sha1s)
+                  if out_rows:
+                    out_rows.append((row[0], out_row_val))
                   else:
-                    # We should mark as completed here
-                    update_completed_dict = {row[0]: {info_column_family + ':' + update_str_completed: str(1)}}
-                    self.push_dict_rows(dict_rows=update_completed_dict,
-                                        table_name=self.table_updateinfos_name)
+                    out_rows = [(row[0], out_row_val)]
                 else:
-                  warn_msg = "[get_missing_extr_updates_from_date: warning] update {} has no list of image."
-                  print(warn_msg.format(row[0]))
-          if out_rows:
-            yield out_rows
-          # add '~' to exclude last row from next batch
-          row_start = rows[-1][0]+'~'
+                  # We should mark as completed here
+                  update_completed_dict = {row[0]: {info_column_family + ':' + update_str_completed: str(1)}}
+                  self.push_dict_rows(dict_rows=update_completed_dict,
+                                      table_name=self.table_updateinfos_name)
+              else:
+                warn_msg = "[get_missing_extr_updates_from_date: warning] update {} has no images list"
+                print(warn_msg.format(row[0]))
+            if out_rows:
+              yield out_rows
+
         else:
           # We have reached the end of the scan
           break
@@ -489,7 +501,7 @@ class HBaseIndexerMinimal(ConfReader):
             batch_list_queries = list_queries[batch_start:min(batch_start+batch_size,len(list_queries))]
             rows.extend(hbase_table.rows(batch_list_queries, columns=columns))
             nb_batch += 1
-          if self.verbose:
+          if self.verbose > 5:
             print("[get_rows_by_batch: log] got {} rows using {} batches.".format(len(rows), nb_batch))
           return rows
         else:
