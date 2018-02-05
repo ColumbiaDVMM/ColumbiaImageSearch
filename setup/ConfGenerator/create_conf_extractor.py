@@ -98,6 +98,7 @@ if __name__ == "__main__":
   # Generic ingestion settings
   verbose = os.getenv('verbose', 0)
   conf[extr_prefix + "verbose"] = int(verbose)
+  conf[hbase_prefix + "verbose"] = int(verbose)
   conf[extr_prefix + "nb_threads"] = int(os.getenv('extr_nb_threads', 1))
 
   if use_kafka:
