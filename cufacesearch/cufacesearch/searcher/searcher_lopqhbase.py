@@ -12,6 +12,7 @@ import numpy as np
 from generic_searcher import GenericSearcher
 from ..featurizer.generic_featurizer import get_feat_size
 from ..indexer.hbase_indexer_minimal import column_list_sha1s, update_str_processed
+from ..storer.s3 import S3Storer
 from ..common.error import full_trace_error
 
 START_HDFS = '/user/'
@@ -85,6 +86,8 @@ class SearcherLOPQHBase(GenericSearcher):
       # Try to get it from public bucket e.g.:
       # https://s3-us-west-2.amazonaws.com/dig-cu-imagesearchindex/sbpycaffe_feat_full_image_lopq_pca-pca256-subq256-M8-V256_train100000
       if self.get_pretrained_model:
+        log_msg = "[{}: log] Trying to retrieve pre-trained model {} from s3"
+        print(log_msg.format(self.pp, self.build_model_str()))
         from ..common.dl import download_file
         import pickle
         try:
@@ -92,13 +95,24 @@ class SearcherLOPQHBase(GenericSearcher):
           # This can fail with a "retrieval incomplete: got only" ...
           download_file(base_model_path + self.build_model_str(), self.build_model_str())
           lopq_model = pickle.load(open(self.build_model_str(), 'rb'))
-          self.storer.save(self.build_model_str(), lopq_model)
+          # Avoid overwritting the model in s3 with s3storer using dig-cu-imagesearchindex bucket
+          is_s3_storer = isinstance(self.storer, S3Storer)
+          if is_s3_storer and self.storer.bucket_name == "dig-cu-imagesearchindex":
+            log_msg = "[{}: log] Skipping saving model {} back to s3"
+            print(log_msg.format(self.pp, self.build_model_str()))
+          else:
+            log_msg = "[{}: log] Saving model {} to storer"
+            print(log_msg.format(self.pp, self.build_model_str()))
+            self.storer.save(self.build_model_str(), lopq_model)
           log_msg = "[{}: log] Loaded pretrained model {} from s3"
           print(log_msg.format(self.pp, self.build_model_str()))
           self.loaded_pretrain_model = True
         except Exception as inst:
           log_msg = "[{}: log] Could not loaded pretrained model {} from s3: {}"
           print(log_msg.format(self.pp, self.build_model_str(), inst))
+      else:
+        log_msg = "[{}: log] Skipped retrieving pre-trained model from s3 as requested."
+        print(log_msg.format(self.pp, self.build_model_str()))
 
       if not self.loaded_pretrain_model:
         # This is from our modified LOPQ package...
