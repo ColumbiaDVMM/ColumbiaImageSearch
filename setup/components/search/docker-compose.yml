@@ -47,7 +47,7 @@ services:
 
     ports:
       - $port_host:5000
-    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && ls -al /data/index && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && ls -al /data/index || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
     logging:
       driver: "json-file"
       options:
