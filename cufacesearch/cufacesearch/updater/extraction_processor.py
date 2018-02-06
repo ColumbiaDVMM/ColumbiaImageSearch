@@ -143,8 +143,9 @@ class ExtractionProcessor(ConfReader):
     #for i in range(self.nb_threads):
     #  self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
     #                                  self.extr_family_column, self.featurizer_prefix, self.global_conf))
-    self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
-                                            self.extr_family_column, self.featurizer_prefix, self.global_conf))
+    self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
+                                            self.input_type, self.extr_family_column,
+                                            self.featurizer_prefix, self.global_conf))
 
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
     # What if the table has some other column families?...

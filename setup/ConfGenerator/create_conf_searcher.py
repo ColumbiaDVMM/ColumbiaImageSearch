@@ -43,23 +43,23 @@ if __name__ == "__main__":
   # Generic ingestion settings
   verbose = int(os.getenv('verbose', 0))
   conf[search_prefix + "verbose"] = verbose
-  conf[search_prefix + 'get_pretrained_model'] = False
 
   conf[search_prefix + 'storer_prefix'] = storer_prefix
   conf[search_prefix + 'indexer_prefix'] = hbase_prefix
+  conf[hbase_prefix + 'verbose'] = verbose
+  conf[storer_prefix + 'verbose'] = verbose
+  conf[search_prefix + 'get_pretrained_model'] = False
   # We only have this type of indexer for now...
   conf[search_prefix + 'indexer_type'] = "hbase_indexer_minimal"
   storer_type = os.environ['storer']
   if storer_type == "local":
     conf[search_prefix + 'storer_type'] = storer_type
     conf[storer_prefix + 'base_path'] = os.getenv('storer_base_path', '/data/index')
-    conf[storer_prefix + 'verbose'] = verbose
   if storer_type == "s3":
     conf[search_prefix + 'storer_type'] = storer_type
     # A file 'credentials' should exist in docker at /home/ubuntu/.aws/
     conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
     conf[storer_prefix + 'bucket_name'] = os.environ['aws_bucket_name']
-    conf[storer_prefix + 'verbose'] = verbose
 
   # Extraction settings
   extr_type = os.environ['extr_type']

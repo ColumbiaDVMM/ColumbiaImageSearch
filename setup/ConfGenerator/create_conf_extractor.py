@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # conf[featurizer_prefix + 'imgmean_path'] = "./data/models/imagenet_mean.npy"
     conf[featurizer_prefix + 'sbcaffe_path'] = "/data/models/caffe_sentibank_train_iter_250000"
     # What should it be?
-    conf[featurizer_prefix + 'caffe_exec_path'] = ""
+    conf[featurizer_prefix + 'caffe_exec_path'] = "/home/ubuntu/caffe_cpu/build/tools/extract_nfeatures"
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))
 
