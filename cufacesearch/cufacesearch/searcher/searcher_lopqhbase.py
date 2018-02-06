@@ -109,8 +109,9 @@ class SearcherLOPQHBase(GenericSearcher):
           self.loaded_pretrain_model = True
         except Exception as inst:
           log_msg = "[{}: log] Could not loaded pretrained model {} from s3: {}"
-          print(log_msg.format(self.pp, self.build_model_str(), inst))
-	  sys.stdout.flush()
+          #print(log_msg.format(self.pp, self.build_model_str(), inst))
+          full_trace_error(log_msg.format(self.pp, self.build_model_str(), inst))
+          sys.stdout.flush()
       else:
         log_msg = "[{}: log] Skipped retrieving pre-trained model from s3 as requested."
         print(log_msg.format(self.pp, self.build_model_str()))
