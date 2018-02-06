@@ -28,7 +28,7 @@ class GenericSearcher(ConfReader):
     self.nb_min_train = 10000
     self.save_train_features = False
     self.wait_for_nbtrain = True
-    self.get_pretrained_model = False
+
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
     self.indexed_updates = set()
@@ -51,6 +51,8 @@ class GenericSearcher(ConfReader):
     get_pretrained_model = self.get_param('get_pretrained_model')
     if get_pretrained_model:
       self.get_pretrained_model = get_pretrained_model
+    #log_msg = "[log: generic_init after super] get_pretrained_model: {}"
+    #print(log_msg.format(self.get_pretrained_model))
 
     wait_for_nbtrain = self.get_param('wait_for_nbtrain')
     if wait_for_nbtrain is not None:
