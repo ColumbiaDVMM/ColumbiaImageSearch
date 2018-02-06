@@ -102,7 +102,8 @@ class DaemonBatchExtractor(multiprocessing.Process):
         #  self.q_out.put(out_batch)
 
         # Try to mark as done anyway?
-        self.q_in.task_done()
+        # This can make things worst if error is task_done() called too many times...
+        #self.q_in.task_done()
 
     # Cleanup without waiting for GC
     del self.extractor

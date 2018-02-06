@@ -84,7 +84,7 @@ class ExtractionProcessor(ConfReader):
     self.extractor = None
     self.nb_empt = 0
     self.nb_err = 0
-    self.max_proc_time = 600 # in seconds?
+    self.max_proc_time = 1200 # in seconds. Increased for sbcmdline...
     self.url_input = True
 
     super(ExtractionProcessor, self).__init__(global_conf, prefix)
@@ -419,6 +419,7 @@ class ExtractionProcessor(ConfReader):
         # Wait for all tasks to be marked as done
         threads_finished = [0] * nb_threads_running
         deleted_extr = [0] * nb_threads_running
+        thread_msg = "[{}] Thread {}/{} (pid: {}) "
         while sum(threads_finished) < nb_threads_running:
           for i in range(nb_threads_running):
             if sum(threads_finished) == nb_threads_running:
@@ -437,20 +438,22 @@ class ExtractionProcessor(ConfReader):
               else:
                 if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero():
                   if self.verbose > 5:
-                    end_msg = "[{}] Thread {}/{} (pid: {}) marked as finished because processing seems finished"
-                    print(end_msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
+                    msg = thread_msg+"marked as finished because processing seems finished"
+                    print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
                 else:
                   if self.verbose > 0:
                     # In this cases does this happen...
-                    timeout_msg = "[{}] Thread {}/{} (pid: {}) force marked task as done because max_proc_time ({}) has passed."
-                    print(timeout_msg.format(self.pp, i+1, nb_threads_running, threads[i].pid, self.max_proc_time))
+                    msg = thread_msg+"force marked task as done as max_proc_time ({}) has passed."
+                    print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid,
+                                     self.max_proc_time))
                     sys.stdout.flush()
                     # Try to delete corresponding extractor to free memory?
                     # And reduce number of threads at the end of the loop
                   try:
                     self.q_in[i_q_in].task_done()
                     if deleted_extr[i] == 0:
-                      # since we pushed the extractor as self.extractors[i] in a loop of self.nb_threads we use i_q_in
+                      # we pushed the extractor as self.extractors[i] in a loop of self.nb_threads
+                      # we use i_q_in
                       del self.extractors[i_q_in]
                       deleted_extr[i] = 1
                   except Exception:
@@ -459,12 +462,13 @@ class ExtractionProcessor(ConfReader):
             else:
               if self.verbose > 2:
                 # We actually never gave something to process...
-                noproc_msg = "[{}] Thread {}/{} (pid: {}) marked as finished because no data was passed to it"
-                print(noproc_msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
+                msg = thread_msg+"marked as finished because no data was passed to it"
+                print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
               threads_finished[i] = 1
 
         # Cleanup threads to free memory before getting data back
-        # Daemon may still be running... and will actually be deleted only when they exit after not getting a batch
+        # Daemon may still be running...
+        # and will actually be deleted only when they exit after not getting a batch
         del threads
 
         # Gather results
@@ -491,7 +495,8 @@ class ExtractionProcessor(ConfReader):
             try:
               batch_out = self.q_out[i].get(True, 10)
               if self.verbose > 4:
-                print("[{}] Got batch of {} features from thread {} q_out.".format(self.pp, len(batch_out), i + 1))
+                msg = "[{}] Got batch of {} features from thread {} q_out."
+                print(msg.format(self.pp, len(batch_out), i + 1))
                 sys.stdout.flush()
               for sha1, dict_out in batch_out:
                 dict_imgs[sha1] = dict_out
