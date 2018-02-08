@@ -24,6 +24,7 @@ img_URL_column = info_column_family+":s3_url"
 img_path_column = info_column_family+":img_path"
 extraction_column_family = "ext"
 default_prefix = "HBI_"
+MAX_ROWS = 500
 
 class HBaseIndexerMinimal(ConfReader):
 
@@ -208,7 +209,7 @@ class HBaseIndexerMinimal(ConfReader):
   #                                       inst=inst)
   #   return rows
 
-  def get_updates_from_date(self, start_date, extr_type="", maxrows=200, previous_err=0, inst=None):
+  def get_updates_from_date(self, start_date, extr_type="", maxrows=MAX_ROWS, previous_err=0, inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
     self.check_errors(previous_err, "get_updates_from_date", inst)
@@ -243,7 +244,7 @@ class HBaseIndexerMinimal(ConfReader):
         raise inst
 
 
-  def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=200, previous_err=0,
+  def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=MAX_ROWS, previous_err=0,
                                         inst=None):
     # start_date should be in format YYYY-MM-DD(_XX)
     fn = "get_unprocessed_updates_from_date"
@@ -298,7 +299,7 @@ class HBaseIndexerMinimal(ConfReader):
                                                    previous_err=previous_err+1, inst=inst)
 
 
-  def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=200,
+  def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=MAX_ROWS,
                                          previous_err=0, inst=None):
     fn = "get_missing_extr_updates_from_date"
     # This induces that we keep reprocessing images that cannot be downloaded or processed every time
