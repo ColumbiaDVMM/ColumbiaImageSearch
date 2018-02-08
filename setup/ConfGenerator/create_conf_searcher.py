@@ -48,7 +48,8 @@ if __name__ == "__main__":
   conf[search_prefix + 'indexer_prefix'] = hbase_prefix
   conf[hbase_prefix + 'verbose'] = verbose
   conf[storer_prefix + 'verbose'] = verbose
-  conf[search_prefix + 'get_pretrained_model'] = False
+  # This overwrites what is set in 'searcher_lopqhbase.py'...
+  #conf[search_prefix + 'get_pretrained_model'] = False
   # We only have this type of indexer for now...
   conf[search_prefix + 'indexer_type'] = "hbase_indexer_minimal"
   storer_type = os.environ['storer']
