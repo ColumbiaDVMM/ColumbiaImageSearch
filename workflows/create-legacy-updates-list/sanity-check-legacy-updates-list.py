@@ -45,8 +45,8 @@ def get_unprocessed_update(data, extr_type):
         except Exception as inst:
             print("[get_unprocessed_update: error] key was {}. {}".format(key, inst))
     else:
-        print("[get_unprocessed_update: log] skipping update of another type than {}. Key was {}".format(extr_type,
-                                                                                                         key))
+        log_msg = "[get_unprocessed_update: log] skipping update of another type than {}. Key was {}"
+        print(log_msg.format(extr_type, key))
     return False
 
 
@@ -64,7 +64,8 @@ def get_processed_update(data, extr_type):
         except Exception as inst:
             print("[get_processed_update: error] key was {}. {}".format(key, inst))
     else:
-        print("[get_processed_update: log] skipping update of another type than {}. Key was {}".format(extr_type, key))
+        log_msg = "[get_processed_update: log] skipping update of another type than {}. Key was {}"
+        print(log_msg.format(extr_type, key))
     return False
 
 
@@ -97,12 +98,13 @@ def check_processed_updates(hbase_man_updates, extr_type, batch_size=8192):
     updates_rdd = in_rdd.filter(lambda row: get_processed_update(row, extr_type))
 
     # Check completeness
-    nb_complete_updates, uncomplete_updates_list = check_updates_completeness(updates_rdd, batch_size)
+    nb_complete_updates, uncomplete_updates_list = check_updates_completeness(updates_rdd,
+                                                                              batch_size)
 
     complete_msg = "Found {} processed batches of {} images for extraction: {}"
     print(complete_msg.format(nb_complete_updates, batch_size, extr_type))
-    uncomplete_msg = "Found {} processed batches of less than {} images for extraction: {}. {}"
-    print(uncomplete_msg.format(len(uncomplete_updates_list), batch_size, extr_type, uncomplete_updates_list))
+    uncomplete_msg = "Found {} processed batches of less than {} images for extraction: {}."
+    print(uncomplete_msg.format(len(uncomplete_updates_list), batch_size, extr_type))
 
 
 def check_unprocessed_updates(hbase_man_updates, extr_type, batch_size=2048):
@@ -111,12 +113,13 @@ def check_unprocessed_updates(hbase_man_updates, extr_type, batch_size=2048):
     updates_rdd = in_rdd.filter(lambda row: get_unprocessed_update(row, extr_type))
 
     # Check completeness
-    nb_complete_updates, uncomplete_updates_list = check_updates_completeness(updates_rdd, batch_size)
+    nb_complete_updates, uncomplete_updates_list = check_updates_completeness(updates_rdd,
+                                                                              batch_size)
 
     complete_msg = "Found {} unprocessed batches of {} images for extraction: {}"
     print(complete_msg.format(nb_complete_updates, batch_size, extr_type))
-    uncomplete_msg = "Found {} unprocessed batches of less than {} images for extraction: {}. {}"
-    print(uncomplete_msg.format(len(uncomplete_updates_list), batch_size, extr_type, uncomplete_updates_list))
+    uncomplete_msg = "Found {} unprocessed batches of less than {} images for extraction: {}."
+    print(uncomplete_msg.format(len(uncomplete_updates_list), batch_size, extr_type))
 
 if __name__ == '__main__':
     from hbase_manager import HbaseManager
