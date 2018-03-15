@@ -142,6 +142,7 @@ class GenericExtractor(object):
         for one_det in dets:
           # Compute detection feature
           one_feat = self.featurizer.featurize(img, one_det)
+          # TODO: should we force type to be featsio.get_feat_dtype(self.featurizer_type)
           # Fill out dictionary
           dict_out[self.extr_str_processed] = 1
           bbox_str = get_bbox_str(one_det)
@@ -150,6 +151,7 @@ class GenericExtractor(object):
     # Just featurize full image
     else:
       one_feat = self.featurizer.featurize(img_buffer)
+      # TODO: should we force type to be featsio.get_feat_dtype(self.featurizer_type)
       dict_out[self.extr_str] = normfeatB64encode(one_feat)
       dict_out[self.extr_str_processed] = 1
 

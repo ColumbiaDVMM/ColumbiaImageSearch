@@ -10,11 +10,10 @@ def normfeatB64encode(feat):
   return featB64encode(out_feat)
 
 def get_feat_dtype(feat_type):
-  # Looks like legacy dlib features are np.float32 too...
   if feat_type and (feat_type == "sbpycaffe" or feat_type == "sbcmdline" or feat_type == "float32"):
     return np.float32
   else:
-    # Only for dlib new data?
+    # Only for dlib face
     return np.float64
 
 def featB64decode(feat_B64, feat_type=None):
