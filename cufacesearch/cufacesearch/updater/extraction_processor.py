@@ -181,20 +181,26 @@ class ExtractionProcessor(ConfReader):
                                                                     extr_type=self.extr_prefix):
         for update_id, update_cols in updates:
           if self.extr_prefix in update_id:
-            list_sha1s = update_cols[column_list_sha1s].split(',')
-            log_msg = "[{}.get_batch_hbase: log] Update {} has {} images."
-            print (log_msg.format(self.pp, update_id, len(list_sha1s)))
-            # also get 'ext:' to check if extraction was already processed?
-            rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s,
-                                                                 columns=[img_buffer_column,
-                                                                          self.img_column])
-            #print "rows_batch", rows_batch
-            if rows_batch:
-              yield rows_batch, update_id
-              self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+            # double check update has not been processed somewhere else
+            if self.is_udpate_unprocessed(update_id):
+              list_sha1s = update_cols[column_list_sha1s].split(',')
+              log_msg = "[{}.get_batch_hbase: log] Update {} has {} images."
+              print(log_msg.format(self.pp, update_id, len(list_sha1s)))
+              # also get 'ext:' to check if extraction was already processed?
+              rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                   columns=[img_buffer_column,
+                                                                            self.img_column])
+              # print "rows_batch", rows_batch
+              if rows_batch:
+                yield rows_batch, update_id
+                self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+              else:
+                log_msg = "[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}"
+                print(log_msg.format(self.pp, update_id))
             else:
-              log_msg = "[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}"
+              log_msg = "[{}.get_batch_hbase: log] Update {} has already been processed, skipping."
               print(log_msg.format(self.pp, update_id))
+              continue
           else:
             if self.verbose > 6:
               log_msg = "[{}.get_batch_hbase: log] Skipping update {} from another extraction type."
@@ -237,7 +243,8 @@ class ExtractionProcessor(ConfReader):
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
 
   def is_udpate_unprocessed(self, update_id):
-    update_rows = self.indexer.get_rows_by_batch([update_id], table_name=self.indexer.table_updateinfos_name)
+    update_rows = self.indexer.get_rows_by_batch([update_id],
+                                                 table_name=self.indexer.table_updateinfos_name)
     if update_rows:
       for row in update_rows:
         if info_column_family+":"+update_str_processed in row[1]:
