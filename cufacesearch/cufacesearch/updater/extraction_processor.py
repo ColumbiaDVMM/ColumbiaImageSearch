@@ -19,6 +19,7 @@ from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, Gener
 from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
 default_extr_proc_prefix = "EXTR_"
+TIME_ELAPSED_FAILED = 3600
 
 # Look for and process batch of a given extraction that have not been processed yet.
 # Should be multi-threaded but single process...
@@ -182,23 +183,29 @@ class ExtractionProcessor(ConfReader):
         for update_id, update_cols in updates:
           if self.extr_prefix in update_id:
             # double check update has not been processed somewhere else
-            if self.is_udpate_unprocessed(update_id):
-              list_sha1s = update_cols[column_list_sha1s].split(',')
-              log_msg = "[{}.get_batch_hbase: log] Update {} has {} images."
-              print(log_msg.format(self.pp, update_id, len(list_sha1s)))
-              # also get 'ext:' to check if extraction was already processed?
-              rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s,
-                                                                   columns=[img_buffer_column,
-                                                                            self.img_column])
-              # print "rows_batch", rows_batch
-              if rows_batch:
-                yield rows_batch, update_id
-                self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+            if self.is_update_unprocessed(update_id):
+              # double check update was not marked as started recently i.e. by another process
+              if self.is_update_notstarted(update_id, max_delay=TIME_ELAPSED_FAILED):
+                list_sha1s = update_cols[column_list_sha1s].split(',')
+                log_msg = "[{}.get_batch_hbase: log] Update {} has {} images."
+                print(log_msg.format(self.pp, update_id, len(list_sha1s)))
+                # also get 'ext:' to check if extraction was already processed?
+                rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                     columns=[img_buffer_column,
+                                                                              self.img_column])
+                # print "rows_batch", rows_batch
+                if rows_batch:
+                  yield rows_batch, update_id
+                  self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+                else:
+                  log_msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
+                  print(log_msg.format(self.pp, update_id))
               else:
-                log_msg = "[{}.get_batch_hbase: log] Did not get any image buffers for the update: {}"
+                log_msg = "[{}.get_batch_hbase: log] Skipping update started recently: {}"
                 print(log_msg.format(self.pp, update_id))
+                continue
             else:
-              log_msg = "[{}.get_batch_hbase: log] Update {} has already been processed, skipping."
+              log_msg = "[{}.get_batch_hbase: log] Skipping already processed update: {}"
               print(log_msg.format(self.pp, update_id))
               continue
           else:
@@ -242,13 +249,41 @@ class ExtractionProcessor(ConfReader):
     except Exception as inst:
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
 
-  def is_udpate_unprocessed(self, update_id):
+
+  def is_update_unprocessed(self, update_id):
     update_rows = self.indexer.get_rows_by_batch([update_id],
                                                  table_name=self.indexer.table_updateinfos_name)
     if update_rows:
       for row in update_rows:
         if info_column_family+":"+update_str_processed in row[1]:
           return False
+    return True
+
+  def is_update_notstarted(self, update_id, max_delay=None):
+    """Check if an update was not started yet.
+
+    :param update_id: update id
+    :param max_delay: delay (in seconds) between marked start time and now to consider update failed
+    :return: boolean
+    """
+    update_rows = self.indexer.get_rows_by_batch([update_id],
+                                                 table_name=self.indexer.table_updateinfos_name)
+    if update_rows:
+      for row in update_rows:
+        if info_column_family+":"+update_str_started in row[1]:
+          if max_delay:
+            # check that started was mark recently, if not it may mean the update processing failed
+            start_str = row[1][info_column_family+":"+update_str_started]
+            # start time format is '%Y-%m-%d:%H.%M.%S'
+            start_dt = datetime.strptime(start_str, '%Y-%m-%d:%H.%M.%S')
+            now_dt = datetime.now()
+            diff_dt = now_dt - start_dt
+            if diff_dt.total_seconds() > max_delay:
+              return True
+            else:
+              return False
+          else:
+            return False
     return True
 
   def get_batch_kafka(self):
@@ -259,7 +294,7 @@ class ExtractionProcessor(ConfReader):
         msg_dict = json.loads(msg.value)
         update_id = msg_dict.keys()[0]
         # NB: Try to get update info and check it was really not processed yet.
-        if self.is_udpate_unprocessed(update_id):
+        if self.is_update_unprocessed(update_id):
           str_list_sha1s = msg_dict[update_id]
           list_sha1s = str_list_sha1s.split(',')
           print("[{}.get_batch_kafka: log] Update {} has {} images.".format(self.pp, update_id, len(list_sha1s)))
