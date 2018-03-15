@@ -407,17 +407,26 @@ class ExtractionProcessor(ConfReader):
           # Push downloaded images to list_in too
           nb_dl = 0
           while nb_dl < nb_imgs_dl:
-            sha1, buffer, push_back, inst = q_out_dl.get()
+            # This can block?
+            #sha1, buffer, push_back, inst = q_out_dl.get()
+            try:
+              sha1, buffer, push_back, inst = q_out_dl.get(True, 10)
+            except Exception as queue_err:
+              warn_msg = "[{}: error] Download queue out timed out: {}"
+              print(warn_msg.format(self.pp, queue_err))
+              break
             nb_dl += 1
             if inst:
               if self.verbose > 0:
-                print("[{}: log] Could not download image {}, error was: {}".format(self.pp, sha1, inst))
+                log_msg = "[{}: log] Could not download image {}, error was: {}"
+                print(log_msg.format(self.pp, sha1, inst))
             else:
               if buffer:
                 list_in.append((sha1, buffer, push_back))
               else:
                 # Is that possible?
-                print("[{}: error] No error but no buffer either for image {}".format(self.pp, sha1))
+                err_msg = "[{}: error] No error but no buffer either for image {}"
+                print(err_msg.format(self.pp, sha1))
 
         get_buffer_time = time.time() - start_get_buffer
         buff_msg = "[{}] Got {}/{} image buffers for update {} in {}s."
