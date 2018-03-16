@@ -147,7 +147,7 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
     :param bbox: bounding box dictionary
     :return: sentibank image feature
     """
-    
+
     if sha1 is None:
       # Compute sha1 if not provided...
       from ..imgio.imgio import get_SHA1_from_buffer
@@ -156,7 +156,8 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
       # Seek back to properly write image to disk
       img.seek(0)
 
-    print("[{}.featurize: log] sha1: {}".format(self.pp, sha1))
+    if self.verbose > 1:
+      print("[{}.featurize: log] Processing image: {}".format(self.pp, sha1))
 
     img_files = [os.path.join(self.tmp_dir, 'imgs', sha1)]
     with open(img_files[0], 'wb') as fimg:
@@ -170,24 +171,27 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
     command += ','.join(self.output_blobs) + ' '
     command += ','.join([self.features_filename+'-'+feat for feat in self.output_blobs]) + ' '
     command += str(1) + ' ' + self.device
-    print("[{}.compute_features: log] command {}.".format(self.pp, command))
-    sys.stdout.flush()
+    if self.verbose > 4:
+      print("[{}.featurize: log] command {}.".format(self.pp, command))
+      sys.stdout.flush()
     # Permission denied?
     try:
       # This can get stuck...
       #output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
       to_cmd = TimeoutCommand(command)
       to_cmd.run(TIMEOUT_COMMAND)
-      if to_cmd.get_return_code() == 0:
-        output = to_cmd.get_output()
-        error = to_cmd.get_error()
-        print("[{}.compute_features: log] output {}.".format(self.pp, output))
-        print("[{}.compute_features: log] error {}.".format(self.pp, error))
-        sys.stdout.flush()
+      if to_cmd.get_return_code() != 0:
+        err_msg = "Image {} featurization failed with return code: {}"
+        raise ValueError(err_msg.format(sha1, to_cmd.get_return_code()))
       else:
-        raise ValueError("Return code was {}".format(to_cmd.get_return_code()))
+        if self.verbose > 4:
+          output = to_cmd.get_output()
+          error = to_cmd.get_error()
+          print("[{}.featurize: log] output {}.".format(self.pp, output))
+          print("[{}.featurize: log] error {}.".format(self.pp, error))
+          sys.stdout.flush()
     except Exception as inst:
-      err_msg = "[{}.compute_features: error] {}.".format(self.pp, inst)
+      err_msg = "[{}.featurize: error] {}.".format(self.pp, inst)
       from ..common.error import full_trace_error
       full_trace_error(err_msg)
       raise inst
