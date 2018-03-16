@@ -2,7 +2,10 @@ from __future__ import print_function
 
 import os
 import sys
+import threading
+import subprocess as sub
 import numpy as np
+
 
 from .generic_featurizer import GenericFeaturizer
 from ..common.dl import download_file, mkpath
@@ -12,6 +15,7 @@ SENTIBANK_PROTOTXT = "sentibank.prototxt"
 SENTIBANK_FILE_SHA1 = "TOBECOMPUTED"
 SENTIBANK_URL = "https://www.dropbox.com/s/lv3p67m21kr3mrg/caffe_sentibank_train_iter_250000?dl=1"
 IMAGENET_MEAN_FILE = "imagenet_mean.binaryproto"
+TIMEOUT_COMMAND = 30
 
 
 def read_binary_file(data_fn, str_precomp, list_feats_id, read_dim, read_type):
@@ -26,6 +30,40 @@ def read_binary_file(data_fn, str_precomp, list_feats_id, read_dim, read_type):
         err_msg = "[read_binary_file: error] Could not read requested {} with id {}. {}"
         print(err_msg.format(str_precomp, list_feats_id[i], inst))
   return data, ok_ids
+
+
+class TimeoutCommand(object):
+    def __init__(self, cmd):
+        self.cmd = cmd
+        self.process = None
+        self.output = None
+        self.error = None
+        self.return_code = None
+
+    def run(self, timeout):
+        def target():
+            self.process = sub.Popen(self.cmd.split(' '), stdout=sub.PIPE, stderr=sub.PIPE)
+            self.output, self.error = self.process.communicate()
+
+        thread = threading.Thread(target=target)
+        thread.start()
+
+        thread.join(timeout)
+        if thread.is_alive():
+            print('Terminating process')
+            self.process.terminate()
+            thread.join()
+
+        self.return_code = self.process.returncode
+
+    def get_return_code(self):
+        return self.return_code
+
+    def get_output(self):
+        return self.output
+
+    def get_error(self):
+        return self.error
 
 
 class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
@@ -109,9 +147,7 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
     :param bbox: bounding box dictionary
     :return: sentibank image feature
     """
-    # We should probably batch this process...
-    import subprocess as sub
-
+    
     if sha1 is None:
       # Compute sha1 if not provided...
       from ..imgio.imgio import get_SHA1_from_buffer
@@ -138,10 +174,18 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
     sys.stdout.flush()
     # Permission denied?
     try:
-      output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
-      print("[{}.compute_features: log] output {}.".format(self.pp, output))
-      print("[{}.compute_features: log] error {}.".format(self.pp, error))
-      sys.stdout.flush()
+      # This can get stuck...
+      #output, error = sub.Popen(command.split(' '), stdout=sub.PIPE, stderr=sub.PIPE).communicate()
+      to_cmd = TimeoutCommand(command)
+      to_cmd.run(TIMEOUT_COMMAND)
+      if to_cmd.get_return_code() == 0:
+        output = to_cmd.get_output()
+        error = to_cmd.get_error()
+        print("[{}.compute_features: log] output {}.".format(self.pp, output))
+        print("[{}.compute_features: log] error {}.".format(self.pp, error))
+        sys.stdout.flush()
+      else:
+        raise ValueError("Return code was {}".format(to_cmd.get_return_code()))
     except Exception as inst:
       err_msg = "[{}.compute_features: error] {}.".format(self.pp, inst)
       from ..common.error import full_trace_error
