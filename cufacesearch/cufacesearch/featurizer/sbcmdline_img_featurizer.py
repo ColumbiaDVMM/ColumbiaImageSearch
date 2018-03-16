@@ -15,7 +15,7 @@ SENTIBANK_PROTOTXT = "sentibank.prototxt"
 SENTIBANK_FILE_SHA1 = "TOBECOMPUTED"
 SENTIBANK_URL = "https://www.dropbox.com/s/lv3p67m21kr3mrg/caffe_sentibank_train_iter_250000?dl=1"
 IMAGENET_MEAN_FILE = "imagenet_mean.binaryproto"
-TIMEOUT_COMMAND = 30
+TIMEOUT_COMMAND = 60
 
 
 def read_binary_file(data_fn, str_precomp, list_feats_id, read_dim, read_type):
@@ -156,8 +156,8 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
       # Seek back to properly write image to disk
       img.seek(0)
 
-    if self.verbose > 1:
-      print("[{}.featurize: log] Processing image: {}".format(self.pp, sha1))
+    #if self.verbose > 1:
+    print("[{}.featurize: log] Processing image: {}".format(self.pp, sha1))
 
     img_files = [os.path.join(self.tmp_dir, 'imgs', sha1)]
     with open(img_files[0], 'wb') as fimg:
@@ -181,6 +181,8 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
       to_cmd = TimeoutCommand(command)
       to_cmd.run(TIMEOUT_COMMAND)
       if to_cmd.get_return_code() != 0:
+        # https://docs.python.org/3/library/subprocess.html#subprocess.Popen.returncode
+        # -6 for SIGABRT
         err_msg = "Image {} featurization failed with return code: {}"
         raise ValueError(err_msg.format(sha1, to_cmd.get_return_code()))
       else:
