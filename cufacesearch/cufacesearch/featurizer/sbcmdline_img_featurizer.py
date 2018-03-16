@@ -49,9 +49,14 @@ class TimeoutCommand(object):
         thread.start()
 
         thread.join(timeout)
+        print('Joined thread.')
+        sys.stdout.flush()
         if thread.is_alive():
-            print('Terminating process')
-            self.process.terminate()
+            #print('Terminating process')
+            #self.process.terminate()
+            print('Process timed out. Killing it')
+            sys.stdout.flush()
+            self.process.kill()
             thread.join()
 
         self.return_code = self.process.returncode
