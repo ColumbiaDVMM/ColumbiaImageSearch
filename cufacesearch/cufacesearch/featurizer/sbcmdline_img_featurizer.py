@@ -183,8 +183,8 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
       if to_cmd.get_return_code() != 0:
         # https://docs.python.org/3/library/subprocess.html#subprocess.Popen.returncode
         # -6 for SIGABRT
-        err_msg = "Image {} featurization failed with return code: {}"
-        raise ValueError(err_msg.format(sha1, to_cmd.get_return_code()))
+        err_msg = "[{}.featurize: error] Image {} featurization failed with return code: {}"
+        raise ValueError(err_msg.format(self.pp, sha1, to_cmd.get_return_code()))
       else:
         if self.verbose > 4:
           output = to_cmd.get_output()
@@ -193,9 +193,9 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
           print("[{}.featurize: log] error {}.".format(self.pp, error))
           sys.stdout.flush()
     except Exception as inst:
-      err_msg = "[{}.featurize: error] {}.".format(self.pp, inst)
-      from ..common.error import full_trace_error
-      full_trace_error(err_msg)
+      # err_msg = "[{}.featurize: error] {}.".format(self.pp, inst)
+      # from ..common.error import full_trace_error
+      # full_trace_error(err_msg)
       raise inst
 
 
