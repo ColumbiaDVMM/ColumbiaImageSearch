@@ -184,7 +184,7 @@ class SentiBankCmdLineImgFeaturizer(GenericFeaturizer):
         # https://docs.python.org/3/library/subprocess.html#subprocess.Popen.returncode
         # -6 for SIGABRT
         err_msg = "Featurization process failed with return code: {}"
-        raise ValueError(err_msg.format(self.pp, sha1, to_cmd.get_return_code()))
+        raise ValueError(err_msg.format(to_cmd.get_return_code()))
       else:
         if self.verbose > 4:
           output = to_cmd.get_output()
