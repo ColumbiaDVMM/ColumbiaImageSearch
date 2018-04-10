@@ -152,6 +152,9 @@ class HBaseIndexerMinimal(ConfReader):
     #if self.check_updateinfocf():
     return self.updateinfocf + ":" + update_str_completed
 
+  def get_col_upcreate(self):
+    return self.updateinfocf + ":" + UPDATE_STR_CREATED
+
   def get_col_imgurl(self):
     return self.imginfocf + ":" + "s3_url"
 
@@ -163,6 +166,10 @@ class HBaseIndexerMinimal(ConfReader):
 
   def get_col_imgbuff(self):
     return self.imgbuffcf + ":" + self.imgbuffcname
+
+  def get_cols_listsha1s(self):
+    # TODO: should be built as self.updateinfocf + ":" + "list_sha1s"
+    return self.column_list_sha1s
 
 
   # # Rename to get_col_extrcheck(self, extraction) for consistency
