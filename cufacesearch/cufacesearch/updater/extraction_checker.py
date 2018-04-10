@@ -1,4 +1,3 @@
-import os
 import sys
 import json
 import time
@@ -7,7 +6,7 @@ import multiprocessing
 from datetime import datetime
 from argparse import ArgumentParser
 from cufacesearch.common.conf_reader import ConfReader
-from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, , update_str_created
+from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal
 from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
 DEFAULT_EXTR_CHECK_PREFIX = "EXTR_"
@@ -48,7 +47,7 @@ class ExtractionChecker(ConfReader):
 
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
     # TODO: we could add the 'ad' column family too here by default
-    self.tablesha1_col_families = {'info': dict(), self.extr_family_column: dict()}
+    #self.tablesha1_col_families = {'info': dict(), self.extr_family_column: dict()}
     self.list_extr_prefix = [self.featurizer_type, "feat", self.detector_type, self.input_type]
     self.extr_prefix = "_".join(self.list_extr_prefix)
     self.extr_prefix_base_column_name = self.extr_family_column + ":" + self.extr_prefix
@@ -75,7 +74,7 @@ class ExtractionChecker(ConfReader):
     if self.pid:
       self.ingester.pp += str(self.pid)
 
-  def set_pp(self):
+  def set_pp(self, pp=""):
     self.pp = "ExtractionChecker."
     self.pp += "-".join(self.list_extr_prefix)
     if self.pid:
@@ -136,8 +135,10 @@ class ExtractionChecker(ConfReader):
     if list_sha1s_to_check:
       # Check if the selected sha1 rows in HBase table 'sha1infos' have those check_column
       # This call will only return rows that DO have those check_column
+      fam = self.indexer.get_dictcf_sha1_table()
       sha1s_rows = self.indexer.get_columns_from_sha1_rows(list_sha1s_to_check, self.check_columns,
-                                                           families=self.tablesha1_col_families)
+                                                           families=fam)
+                                                           #families=self.tablesha1_col_families)
       if sha1s_rows:
         # TODO: only delete if really previously processed, i.e. if != from current update...
         found_sha1_rows = set([str(row[0]) for row in sha1s_rows])
@@ -213,15 +214,20 @@ class ExtractionChecker(ConfReader):
               sys.stdout.flush()
 
               # Push images
+              fam = self.indexer.get_dictcf_sha1_table()
               self.indexer.push_dict_rows(dict_push, self.indexer.table_sha1infos_name,
-                                          families=self.tablesha1_col_families)
+                                          families=fam)
 
               # Build updates dict
               dict_updates_db = dict()
               dict_updates_kafka = dict()
-              # TODO: use column_family from indexer
-              dict_updates_db[update_id] = {self.indexer.column_list_sha1s: ','.join(dict_push.keys()),
-                                            'info:' + update_str_created: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}
+              # changed to: using column_family from indexer
+              now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
+              #dict_updates_db[update_id] = {self.indexer.column_list_sha1s: ','.join(dict_push.keys()),
+              dict_updates_db[update_id] = {
+                self.indexer.get_cols_listsha1s(): ','.join(dict_push.keys()),
+                self.indexer.get_col_upcreate(): now_str}
+                                            #'info:' + update_str_created: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}
               dict_updates_kafka[update_id] = ','.join(dict_push.keys())
               # Push them
               self.indexer.push_dict_rows(dict_updates_db, self.indexer.table_updateinfos_name)
@@ -236,8 +242,8 @@ class ExtractionChecker(ConfReader):
               list_sha1s_to_process = [sha1 for sha1 in list_sha1s_to_process if sha1 not in list_push]
               self.cleanup_dict_infos(list_push)
             else:
-              no_push_msg = "[{}: at {}] Nothing to push for update {}"
-              print no_push_msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id)
+              msg = "[{}: at {}] Nothing to push for update {}"
+              print(msg.format(self.pp, datetime.now().strftime('%Y-%m-%d:%H.%M.%S'), update_id))
               sys.stdout.flush()
             self.last_push = time.time()
             # TODO: we should create a new update_id here, and let it claim the potential remaining images in 'list_sha1s_to_process'
@@ -252,7 +258,7 @@ class ExtractionChecker(ConfReader):
 class DaemonExtractionChecker(multiprocessing.Process):
   daemon = True
 
-  def __init__(self, conf, prefix=default_extr_check_prefix):
+  def __init__(self, conf, prefix=DEFAULT_EXTR_CHECK_PREFIX):
     super(DaemonExtractionChecker, self).__init__()
     self.conf = conf
     self.prefix = prefix
@@ -277,7 +283,7 @@ if __name__ == "__main__":
   # Get conf file
   parser = ArgumentParser()
   parser.add_argument("-c", "--conf", dest="conf_file", required=True)
-  parser.add_argument("-p", "--prefix", dest="prefix", default=default_extr_check_prefix)
+  parser.add_argument("-p", "--prefix", dest="prefix", default=DEFAULT_EXTR_CHECK_PREFIX)
   parser.add_argument("-d", "--deamon", dest="deamon", action="store_true", default=False)
   parser.add_argument("-w", "--workers", dest="workers", type=int, default=1)
   options = parser.parse_args()
