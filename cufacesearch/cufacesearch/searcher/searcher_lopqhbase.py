@@ -461,6 +461,7 @@ class SearcherLOPQHBase(GenericSearcher):
             # What if the update was indexed with only partial extractions?
             # TODO: If full_refresh we should check if indexing time is bigger than processing time...
           else:
+            # TODO: use column_family from indexer
             if "info:" + update_str_processed in update[1]:
               print("[{}: log] Looking for codes of update {}".format(self.pp, update_id))
               # Get this update codes

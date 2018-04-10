@@ -6,6 +6,7 @@ import base64
 hbim = HBaseIndexerMinimal('../conf/global_conf_test_get_face_hbase.json')
 
 list_sha1s = ['000000D29139258BD3716C94A68CFF54A8A7C033', '000001BF13372B9665A89ED25E8948FC7F99F7F1']
+# TODO: use column_family and column_name from indexer
 rows = hbim.get_columns_from_sha1_rows(list_sha1s, ['face', 'info:s3_url'])
 
 for sha1, data in rows:

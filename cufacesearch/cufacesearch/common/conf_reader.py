@@ -24,8 +24,6 @@ class ConfReader(object):
 
   def set_pp(self, pp=None):
     """ Sets pretty print name 'self.pp'.
-
-    Should be overridden in any child class.
     """
     if pp:
       self.pp = pp
@@ -42,10 +40,11 @@ class ConfReader(object):
     if verbose:
       self.verbose = int(verbose)
 
-  def get_param(self, param):
+  def get_param(self, param, default=None):
     """ Read parameter 'param' from configuration file.
 
     :param param: name of parameter to read (without prefix).
+    :param default_value (default=None): default value of parameter to read.
     :return: parameter 'param' value (None if not found)
     """
     key_param = self.prefix + param
@@ -54,8 +53,11 @@ class ConfReader(object):
         found_msg = '[{}.get_param: info] found {} with value {} in configuration'
         print(found_msg.format(self.pp, key_param, self.global_conf[key_param]))
       return self.global_conf[key_param]
+    if default is not None:
+      return default
     if self.verbose > 0:
-      print('[{}.get_param: info] could not find {} in configuration'.format(self.pp, key_param))
+      msg = '[{}.get_param: info] could not find {} in configuration and no default value provided'
+      print(msg.format(self.pp, key_param))
 
   def get_required_param(self, param):
     """ Read required parameter 'param' from configuration file.
