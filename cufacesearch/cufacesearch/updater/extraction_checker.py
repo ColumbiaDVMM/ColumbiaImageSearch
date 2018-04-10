@@ -7,18 +7,18 @@ import multiprocessing
 from datetime import datetime
 from argparse import ArgumentParser
 from cufacesearch.common.conf_reader import ConfReader
-from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, update_str_created
+from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal, , update_str_created
 from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 
-default_extr_check_prefix = "EXTR_"
+DEFAULT_EXTR_CHECK_PREFIX = "EXTR_"
 
 
 # This class simulates the way updates were generated from the spark workflows but reading from a kafka topic
-# Should be run as a single process to ensure data integrity, or all the to do comments should be implemented.
+# Should be run as a single process to ensure data integrity, or all the "TODO" comments should be implemented.
 
 class ExtractionChecker(ConfReader):
 
-  def __init__(self, global_conf, prefix=default_extr_check_prefix, pid=None):
+  def __init__(self, global_conf, prefix=DEFAULT_EXTR_CHECK_PREFIX, pid=None):
     self.list_extr_prefix = []
     self.pid = pid
     self.dict_sha1_infos = dict()
@@ -47,7 +47,7 @@ class ExtractionChecker(ConfReader):
     self.nb_imgs_unproc_lastprint = 0
 
     # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
-    # TODO: should we add the 'ad' column family too here by default
+    # TODO: we could add the 'ad' column family too here by default
     self.tablesha1_col_families = {'info': dict(), self.extr_family_column: dict()}
     self.list_extr_prefix = [self.featurizer_type, "feat", self.detector_type, self.input_type]
     self.extr_prefix = "_".join(self.list_extr_prefix)
@@ -123,6 +123,7 @@ class ExtractionChecker(ConfReader):
         continue
       # build column names properly i.e. appending 'info:'
       for k in tmp_dict:
+        # TODO: use column_family from indexer
         dict_push[str(sha1)]['info:' + k] = tmp_dict[k]
       dict_push[str(sha1)][self.batch_check_column] = update_id
     return dict_push, update_id
@@ -218,6 +219,7 @@ class ExtractionChecker(ConfReader):
               # Build updates dict
               dict_updates_db = dict()
               dict_updates_kafka = dict()
+              # TODO: use column_family from indexer
               dict_updates_db[update_id] = {self.indexer.column_list_sha1s: ','.join(dict_push.keys()),
                                             'info:' + update_str_created: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}
               dict_updates_kafka[update_id] = ','.join(dict_push.keys())

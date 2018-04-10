@@ -222,11 +222,13 @@ class APIResponder(Resource):
     return query_urls
 
   def get_image_str(self, row):
+    # TODO: use column_family and column_name from indexer
     return "<img src=\"{}\" title=\"{}\" class=\"img_blur\">".format(row[1]["info:s3_url"],row[0])
 
   def view_image_sha1(self, query, options=None):
     # Not really used anymore...
     query_sha1s = [str(x) for x in query.split(',')]
+    # TODO: use column_family and column_name from indexer
     rows = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, ["info:s3_url"])
     images_str = ""
     # TODO: change this to actually just produce a list of images to fill a new template

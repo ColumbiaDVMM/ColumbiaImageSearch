@@ -7,7 +7,7 @@ from cufacesearch.detector.generic_detector import get_detector, get_bbox_str
 from cufacesearch.featurizer.generic_featurizer import get_featurizer
 from cufacesearch.featurizer.featsio import normfeatB64encode
 from cufacesearch.imgio.imgio import get_buffer_from_B64
-from cufacesearch.indexer.hbase_indexer_minimal import extr_str_processed, img_buffer_column
+from cufacesearch.indexer.hbase_indexer_minimal import EXTR_STR_PROCESSED, img_buffer_column
 
 
 def build_extr_str(featurizer_type, detector_type, input_type):
@@ -15,7 +15,7 @@ def build_extr_str(featurizer_type, detector_type, input_type):
 
 
 def build_extr_str_processed(featurizer_type, dectector_type, input_type):
-  return build_extr_str(featurizer_type, dectector_type, input_type)+"_"+extr_str_processed
+  return build_extr_str(featurizer_type, dectector_type, input_type) + "_" + EXTR_STR_PROCESSED
 
 
 class DaemonBatchExtractor(multiprocessing.Process):
@@ -70,6 +70,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
             # Could this block???
             out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
             # We have downloaded the image and need to push the buffer to HBase
+            # Transition: we should never push back.
             if push_buffer:
               out_dict[img_buffer_column] = img_buffer_b64
             out_batch.append((sha1, out_dict))
@@ -121,9 +122,10 @@ class GenericExtractor(object):
     self.global_conf = global_conf
     self.detector = get_detector(self.detector_type)
     self.featurizer = get_featurizer(self.featurizer_type, self.global_conf, prefix=extr_prefix)
-    self.extr_str = str(self.extr_column+":"+build_extr_str(self.featurizer_type, self.detector_type, self.input_type))
-    self.extr_str_processed = str(self.extr_column+":"+build_extr_str_processed(self.featurizer_type,
-                                                                                self.detector_type, self.input_type))
+    tmp_str = build_extr_str(self.featurizer_type, self.detector_type, self.input_type)
+    self.extr_str = str(self.extr_column + ":" + tmp_str)
+    tmp_str = build_extr_str_processed(self.featurizer_type, self.detector_type, self.input_type)
+    self.extr_str_processed = str(self.extr_column + ":" + tmp_str)
 
   def init_out_dict(self):
     tmp_dict_out = dict()
