@@ -114,11 +114,11 @@ class GenericKafkaProcessor(ConfReader):
         # maximum size of batches returned in poll() with max.poll.records.
         print("[{}: warning] Commit failed, with error {}".format(self.pp, inst))
 
-  def set_pp(self, pp="GenericKafkaProcessor"):
+  def set_pp(self, pp=None):
     if pp is not None:
       self.pp = pp
     else:
-      self.pp ="GenericKafkaProcessor"
+      self.pp = "GenericKafkaProcessor"
 
   def init_consumer(self):
     # Get topic
@@ -126,7 +126,8 @@ class GenericKafkaProcessor(ConfReader):
     print("[{}: log] Initializing consumer...".format(self.pp))
     topic = self.get_param('consumer_topics')
     if topic is None:
-      print("[{}: warning] Could not initialize consumer as no 'consumer_topics' was provided".format(self.pp))
+      msg = "[{}: warning] Could not initialize consumer as no 'consumer_topics' was provided"
+      print(msg.format(self.pp))
       return
 
 

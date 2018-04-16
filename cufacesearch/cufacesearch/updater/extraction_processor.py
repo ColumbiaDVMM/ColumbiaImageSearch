@@ -9,7 +9,7 @@ import traceback
 from datetime import datetime
 from argparse import ArgumentParser
 # should column_list_sha1s be part of the list of columns retrieved from indexer?
-from cufacesearch.common import column_list_sha1s
+#from cufacesearch.common import column_list_sha1s
 from cufacesearch.common.error import full_trace_error
 from cufacesearch.common.conf_reader import ConfReader
 from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal
@@ -26,11 +26,11 @@ TIME_ELAPSED_FAILED = 3600
 # Look for and process batch of a given extraction that have not been processed yet.
 # Should be multi-threaded but single process...
 def build_batch(list_in, batch_size):
-  l = len(list_in)
+  nbli = len(list_in)
   ibs = int(batch_size)
-  if l > 0:
-    for ndx in range(0, l, ibs):
-      yield list_in[ndx:min(ndx + ibs, l)]
+  if nbli > 0:
+    for ndx in range(0, nbli, ibs):
+      yield list_in[ndx:min(ndx + ibs, nbli)]
   else:
     yield []
 
@@ -53,7 +53,7 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
     from cufacesearch.imgio.imgio import get_buffer_from_URL, get_buffer_from_filepath
     from cufacesearch.imgio.imgio import buffer_to_B64
 
-    while self.q_in.empty() == False:
+    while self.q_in.empty() is False:
       try:
         # The queue should already have items, no need to block
         (sha1, in_img, push_back) = self.q_in.get(False)
@@ -182,8 +182,8 @@ class ExtractionProcessor(ConfReader):
     self.ingester.pp = "ep"
 
 
-  def set_pp(self):
-    self.pp = "ExtractionProcessor"
+  def set_pp(self, pp="ExtractionProcessor"):
+    self.pp = pp
     if self.extractor:
       self.pp += "_"+self.extr_prefix
 
@@ -191,7 +191,7 @@ class ExtractionProcessor(ConfReader):
     from multiprocessing import JoinableQueue
     self.q_in = []
     self.q_out = []
-    for i in range(self.nb_threads):
+    for _ in range(self.nb_threads):
       self.q_in.append(JoinableQueue(0))
       self.q_out.append(JoinableQueue(0))
 
@@ -208,7 +208,8 @@ class ExtractionProcessor(ConfReader):
             if self.is_update_unprocessed(update_id):
               # double check update was not marked as started recently i.e. by another process
               if self.is_update_notstarted(update_id, max_delay=TIME_ELAPSED_FAILED):
-                list_sha1s = update_cols[column_list_sha1s].split(',')
+                #list_sha1s = update_cols[column_list_sha1s].split(',')
+                list_sha1s = update_cols[self.indexer.get_cols_listsha1s()].split(',')
                 msg = "[{}.get_batch_hbase: log] Update {} has {} images."
                 print(msg.format(self.pp, update_id, len(list_sha1s)))
                 # also get 'ext:' to check if extraction was already processed?
@@ -241,8 +242,8 @@ class ExtractionProcessor(ConfReader):
                                                                        extr_type=self.extr_prefix):
           for update_id, update_cols in updates:
             if self.extr_prefix in update_id:
-              if column_list_sha1s in update_cols:
-                list_sha1s = update_cols[column_list_sha1s].split(',')
+              if self.indexer.get_cols_listsha1s() in update_cols:
+                list_sha1s = update_cols[self.indexer.get_cols_listsha1s()].split(',')
                 msg = "[{}.get_batch_hbase: log] Update {} has {} images missing extractions."
                 print(msg.format(self.pp, update_id, len(list_sha1s)))
                 sys.stdout.flush()
@@ -307,10 +308,7 @@ class ExtractionProcessor(ConfReader):
             diff_dt = now_dt - start_dt
             if diff_dt.total_seconds() > max_delay:
               return True
-            else:
-              return False
-          else:
-            return False
+          return False
     return True
 
   def get_batch_kafka(self):
@@ -318,38 +316,44 @@ class ExtractionProcessor(ConfReader):
     img_cols = [self.indexer.get_col_imgbuff(), self.img_column]
     try:
       # Needs to read topic to get update_id and list of sha1s
-      for msg in self.ingester.consumer:
-        msg_dict = json.loads(msg.value)
-        update_id = msg_dict.keys()[0]
-        # NB: Try to get update info and check it was really not processed yet.
-        if self.is_update_unprocessed(update_id):
-          str_list_sha1s = msg_dict[update_id]
-          list_sha1s = str_list_sha1s.split(',')
-          msg = "[{}.get_batch_kafka: log] Update {} has {} images."
-          print(msg.format(self.pp, update_id, len(list_sha1s)))
-          if self.verbose > 3:
-            msg = "[{}.get_batch_kafka: log] Looking for colums: {}"
-            print(msg.format(self.pp, img_cols))
-          rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
-          #print "rows_batch", rows_batch
-          if rows_batch:
-            if self.verbose > 4:
-              print("[{}.get_batch_kafka: log] Yielding for update: {}".format(self.pp, update_id))
-            yield rows_batch, update_id
-            self.ingester.consumer.commit()
-            if self.verbose > 4:
-              msg = "[{}.get_batch_kafka: log] After yielding for update: {}"
+      if self.ingester.consumer:
+        for msg in self.ingester.consumer:
+          msg_dict = json.loads(msg.value)
+          update_id = msg_dict.keys()[0]
+          # NB: Try to get update info and check it was really not processed yet.
+          if self.is_update_unprocessed(update_id):
+            str_list_sha1s = msg_dict[update_id]
+            list_sha1s = str_list_sha1s.split(',')
+            msg = "[{}.get_batch_kafka: log] Update {} has {} images."
+            print(msg.format(self.pp, update_id, len(list_sha1s)))
+            if self.verbose > 3:
+              msg = "[{}.get_batch_kafka: log] Looking for columns: {}"
+              print(msg.format(self.pp, img_cols))
+            rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
+            #print "rows_batch", rows_batch
+            if rows_batch:
+              if self.verbose > 4:
+                print("[{}.get_batch_kafka: log] Yielding for update: {}".format(self.pp, update_id))
+              yield rows_batch, update_id
+              self.ingester.consumer.commit()
+              if self.verbose > 4:
+                msg = "[{}.get_batch_kafka: log] After yielding for update: {}"
+                print(msg.format(self.pp, update_id))
+              self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+            # Should we try to commit offset only at this point?
+            else:
+              msg = "[{}.get_batch_kafka: log] Did not get any image buffers for the update: {}"
               print(msg.format(self.pp, update_id))
-            self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
-          # Should we try to commit offset only at this point?
           else:
-            msg = "[{}.get_batch_kafka: log] Did not get any image buffers for the update: {}"
+            msg = "[{}.get_batch_kafka: log] Skipping already processed update: {}"
             print(msg.format(self.pp, update_id))
         else:
-          msg = "[{}.get_batch_kafka: log] Skipping already processed update: {}"
-          print(msg.format(self.pp, update_id))
+          print("[{}.get_batch_kafka: log] No update found.".format(self.pp))
+          # Fall back to checking HBase for unstarted/unfinished updates
+          for rows_batch, update_id in self.get_batch_hbase():
+            yield rows_batch, update_id
       else:
-        print("[{}.get_batch_kafka: log] No update found.".format(self.pp))
+        print("[{}.get_batch_kafka: log] No consumer found.".format(self.pp))
         # Fall back to checking HBase for unstarted/unfinished updates
         for rows_batch, update_id in self.get_batch_hbase():
           yield rows_batch, update_id
@@ -581,7 +585,7 @@ class ExtractionProcessor(ConfReader):
           if self.verbose > 4:
             print("[{}] Thread {} q_out_size: {}".format(self.pp, i+1, q_out_size[i]))
             sys.stdout.flush()
-          while q_out_size[i]>0 and not self.q_out[i].empty():
+          while q_out_size[i] > 0 and not self.q_out[i].empty():
             if self.verbose > 6:
               print("[{}] Thread {} q_out is not empty.".format(self.pp, i + 1))
               sys.stdout.flush()
@@ -597,7 +601,7 @@ class ExtractionProcessor(ConfReader):
               if self.verbose > 1:
                 print("[{}] Thread {} failed to get from q_out: {}".format(self.pp, i+1))
                 sys.stdout.flush()
-              pass
+              #pass
             if self.verbose > 4:
               print("[{}] Marking task done in q_out of thread {}.".format(self.pp, i + 1))
               sys.stdout.flush()

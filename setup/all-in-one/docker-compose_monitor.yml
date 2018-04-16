@@ -192,9 +192,15 @@ services:
       - "updates_topic=${updates_topic}"
       # Hbase related environment variables
       - hbase_host
-      - "table_sha1infos=${table_sha1infos}"
-      - "table_updateinfos=${table_updateinfos}"
-      - "batch_update_size=${batch_update_size}"
+      - table_sha1infos
+      - table_updateinfos
+      - batch_update_size
+      - column_list_sha1s
+      - extr_family_column
+      - image_info_column_family
+      - image_buffer_column_family
+      - image_buffer_column_name
+      - update_info_column_family
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
@@ -230,9 +236,15 @@ services:
       - "storer=${storer}"
       # Hbase related environment variables
       - hbase_host
-      - "table_sha1infos=${table_sha1infos}"
-      - "table_updateinfos=${table_updateinfos}"
-      - "batch_update_size=${batch_update_size}"
+      - table_sha1infos
+      - table_updateinfos
+      - batch_update_size
+      - column_list_sha1s
+      - extr_family_column
+      - image_info_column_family
+      - image_buffer_column_family
+      - image_buffer_column_name
+      - update_info_column_family
       # Search related environment variables
       - "model_type=${model_type}"
       - "nb_train=${nb_train}"

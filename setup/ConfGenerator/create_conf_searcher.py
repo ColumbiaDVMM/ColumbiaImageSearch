@@ -105,6 +105,19 @@ if __name__ == "__main__":
   # TODO: should we expose that parameter
   conf[hbase_prefix + 'pool_thread'] = 1
 
+  # Deal with newly exposed but optional parameters
+  if os.getenv('column_list_sha1s', False):
+    conf[hbase_prefix + 'column_list_sha1s'] = os.environ['column_list_sha1s']
+  if os.getenv('extr_family_column', False):
+    conf[hbase_prefix + 'extr_family_column'] = os.environ['extr_family_column']
+  if os.getenv('image_info_column_family', False):
+    conf[hbase_prefix + 'image_info_column_family'] = os.environ['image_info_column_family']
+  if os.getenv('image_buffer_column_family', False):
+    conf[hbase_prefix + 'image_buffer_column_family'] = os.environ['image_buffer_column_family']
+  if os.getenv('update_info_column_family', False):
+    conf[hbase_prefix + 'update_info_column_family'] = os.environ['update_info_column_family']
+
+
   # Local input settings
   # NB: confusing names between that input_type and the extraction input_type i.e. 'face' or 'image'
   if os.environ['input_type'] == "local":
