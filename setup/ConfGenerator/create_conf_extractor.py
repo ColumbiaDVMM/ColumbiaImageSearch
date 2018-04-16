@@ -86,6 +86,24 @@ if __name__ == "__main__":
   conf[hbase_prefix + 'batch_update_size'] = os.environ['batch_update_size']
   conf[hbase_prefix + 'pool_thread'] = 1
 
+  # Deal with newly exposed but optional parameters
+  if os.getenv('column_list_sha1s', False):
+    conf[hbase_prefix + 'column_list_sha1s'] = os.environ['column_list_sha1s']
+  if os.getenv('extr_family_column', False):
+    conf[hbase_prefix + 'extr_family_column'] = os.environ['extr_family_column']
+  if os.getenv('image_info_column_family', False):
+    conf[hbase_prefix + 'image_info_column_family'] = os.environ['image_info_column_family']
+  if os.getenv('image_buffer_column_family', False):
+    conf[hbase_prefix + 'image_buffer_column_family'] = os.environ['image_buffer_column_family']
+  if os.getenv('update_info_column_family', False):
+    conf[hbase_prefix + 'update_info_column_family'] = os.environ['update_info_column_family']
+
+  # extr_family_column = data
+  # image_info_column_family = data
+  # image_buffer_column_family = img
+  # image_buffer_column_name = img
+  # update_info_column_family = up
+
   # Local input settings
   if os.environ['input_type'] == "local":
     conf[extr_prefix + 'file_input'] = True
@@ -131,11 +149,14 @@ if __name__ == "__main__":
     conf[check_ingester_prefix + 'consumer_options'] = consumer_options
 
     conf[check_ingester_prefix + 'producer_servers'] = kafka_servers
-    conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
+    # This is now optional
+    if os.getenv('updates_topic', False):
+      conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
 
     # Processor consumer
     conf[proc_ingester_prefix + 'consumer_servers'] = kafka_servers
-    conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
+    if os.getenv('updates_topic', False):
+      conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
     conf[proc_ingester_prefix + 'consumer_group'] = os.environ['extr_proc_consumer_group']
     conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
 

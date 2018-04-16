@@ -222,45 +222,48 @@ class SearcherLOPQHBase(GenericSearcher):
       while not done:
         for batch_updates in self.indexer.get_updates_from_date(start_date=start_date,
                                                                 extr_type=self.build_extr_str()):
-          for update in batch_updates:
-            # for update in updates:
-            try:
-              # We could check if update has been processed, but if not we won't get features anyway
-              update_id = update[0]
-              if column_list_sha1s in update[1]:
-                if update_id not in seen_updates:
-                  list_sha1s = update[1][column_list_sha1s]
-                  samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','), self.build_extr_str())
-                  if features:
-                    # Apply PCA to features here to save memory
-                    if lopq_pca_model:
-                      np_features = lopq_pca_model.apply_PCA(np.asarray(features))
-                    else:
-                      np_features = np.asarray(features)
-                    log_msg = "[{}: log] Got features {} from update {}"
-                    print(log_msg.format(self.pp, np_features.shape, update_id))
-                    sys.stdout.flush()
-                    # just appending like this does not account for duplicates...
-                    # train_features.extend(np_features)
-                    nb_saved_feats = self.save_feats_to_lmbd(feats_db, samples_ids, np_features)
-                    seen_updates.add(update_id)
-                  else:
-                    if self.verbose > 3:
-                      log_msg = "[{}: log] Did not get features from update {}"
-                      print(log_msg.format(self.pp, update_id))
+          #for update in batch_updates:
+          for updates in batch_updates:
+            for update in updates:
+              try:
+                # We could check if update has been processed, but if not we won't get features anyway
+                update_id = update[0]
+                #if column_list_sha1s in update[1]:
+                if self.indexer.get_cols_listsha1s() in update[1]:
+                  if update_id not in seen_updates:
+                    sha1s = update[1][self.indexer.get_cols_listsha1s()]
+                    sids, features = self.indexer.get_features_from_sha1s(sha1s.split(','),
+                                                                          self.build_extr_str())
+                    if features:
+                      # Apply PCA to features here to save memory
+                      if lopq_pca_model:
+                        np_features = lopq_pca_model.apply_PCA(np.asarray(features))
+                      else:
+                        np_features = np.asarray(features)
+                      log_msg = "[{}: log] Got features {} from update {}"
+                      print(log_msg.format(self.pp, np_features.shape, update_id))
                       sys.stdout.flush()
-                  if nb_saved_feats >= nb_features:
-                    done = True
-                    break
-              else:
-                warn_msg = "[{}: warning] Update {} has no list of images associated to it."
-                print(warn_msg.format(self.pp, update_id))
+                      # just appending like this does not account for duplicates...
+                      # train_features.extend(np_features)
+                      nb_saved_feats = self.save_feats_to_lmbd(feats_db, sids, np_features)
+                      seen_updates.add(update_id)
+                    else:
+                      if self.verbose > 3:
+                        log_msg = "[{}: log] Did not get features from update {}"
+                        print(log_msg.format(self.pp, update_id))
+                        sys.stdout.flush()
+                    if nb_saved_feats >= nb_features:
+                      done = True
+                      break
+                else:
+                  warn_msg = "[{}: warning] Update {} has no list of images associated to it."
+                  print(warn_msg.format(self.pp, update_id))
+                  sys.stdout.flush()
+              except Exception as inst:
+                from cufacesearch.common.error import full_trace_error
+                err_msg = "[{}: error] Failed to get features: {} {}"
+                full_trace_error(err_msg.format(self.pp, type(inst), inst))
                 sys.stdout.flush()
-            except Exception as inst:
-              from cufacesearch.common.error import full_trace_error
-              err_msg = "[{}: error] Failed to get features: {} {}"
-              full_trace_error(err_msg.format(self.pp, type(inst), inst))
-              sys.stdout.flush()
             else:
               if self.verbose > 4:
                 print("[{}: log] Got {} training samples so far...".format(self.pp, nb_saved_feats))
@@ -312,8 +315,8 @@ class SearcherLOPQHBase(GenericSearcher):
         lopq_model.fit(train_np, verbose=True)
         # save model
         self.storer.save(self.build_model_str(), lopq_model)
-        print("[{}.train_model: info] Trained lopq model in {}s.".format(self.pp,
-                                                                         time.time() - start_train))
+        msg = "[{}.train_model: info] Trained lopq model in {}s."
+        print(msg.format(self.pp, time.time() - start_train))
         return lopq_model
       else:
         msg = "[{}.train_model: error] Could not train model, not enough training samples."

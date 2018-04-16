@@ -138,7 +138,10 @@ class HBaseIndexerMinimal(ConfReader):
 
   # Expose all column names
   def get_dictcf_sha1_table(self):
-    return {self.imginfocf: dict(), self.extrcf: dict()}
+    return {self.imginfocf: dict(), self.extrcf: dict(), self.imgbuffcf: dict()}
+
+  def get_dictcf_update_table(self):
+    return {self.updateinfocf: dict()}
 
   def get_col_upproc(self):
     #if self.check_updateinfocf():
@@ -168,8 +171,10 @@ class HBaseIndexerMinimal(ConfReader):
     return self.imgbuffcf + ":" + self.imgbuffcname
 
   def get_cols_listsha1s(self):
-    # TODO: should be built as self.updateinfocf + ":" + "list_sha1s"
-    return self.column_list_sha1s
+    # built as self.updateinfocf + ":" + "list_sha1s"
+    #return self.column_list_sha1s
+    #return self.updateinfocf + ":" + "list_sha1s"
+    return self.updateinfocf + ":" + self.column_list_sha1s
 
 
   # # Rename to get_col_extrcheck(self, extraction) for consistency
@@ -244,8 +249,9 @@ class HBaseIndexerMinimal(ConfReader):
     return None
 
   # TODO: use column_family from indexer? How to decide which one?
-  # Should we not set a default parameter
-  def get_create_table(self, table_name, conn=None, families={'info': dict()}):
+  # Should we not set a default parameter?
+  #def get_create_table(self, table_name, conn=None, families={'info': dict()}):
+  def get_create_table(self, table_name, conn=None, families=None):
     try:
       if conn is None:
         from happybase.connection import Connection
@@ -262,6 +268,9 @@ class HBaseIndexerMinimal(ConfReader):
         if type(inst) == TTransportException:
           raise inst
         else:
+          if families is None:
+            msg = "[{}.get_create_table: ERROR] table {} does not exist and 'families' not provided"
+            raise ValueError(msg.format(self.pp, table_name))
           msg = "[{}.get_create_table: info] table {} does not exist (yet): {}{}"
           print(msg.format(self.pp, table_name, type(inst), inst))
           conn.create_table(table_name, families)
