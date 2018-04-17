@@ -229,9 +229,9 @@ class SearcherLOPQHBase(GenericSearcher):
               # We could check if update has been processed, but if not we won't get features anyway
               update_id = update[0]
               #if column_list_sha1s in update[1]:
-              if self.indexer.get_cols_listsha1s() in update[1]:
+              if self.indexer.get_col_listsha1s() in update[1]:
                 if update_id not in seen_updates:
-                  sha1s = update[1][self.indexer.get_cols_listsha1s()]
+                  sha1s = update[1][self.indexer.get_col_listsha1s()]
                   sids, features = self.indexer.get_features_from_sha1s(sha1s.split(','),
                                                                         self.build_extr_str())
                   if features:
@@ -492,8 +492,8 @@ class SearcherLOPQHBase(GenericSearcher):
                 # Get detections (if any) and features...
                 # if column_list_sha1s in update[1]:
                 #   list_sha1s = update[1][column_list_sha1s]
-                if self.indexer.get_cols_listsha1s() in update[1]:
-                  list_sha1s = update[1][self.indexer.get_cols_listsha1s()]
+                if self.indexer.get_col_listsha1s() in update[1]:
+                  list_sha1s = update[1][self.indexer.get_col_listsha1s()]
                   # Double check that this gets properly features of detections
                   samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
                                                                                self.build_extr_str())

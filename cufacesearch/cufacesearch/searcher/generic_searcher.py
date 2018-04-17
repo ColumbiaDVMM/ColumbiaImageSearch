@@ -2,7 +2,7 @@ from __future__ import print_function
 
 from output_mapping import DictOutput
 from ..common.conf_reader import ConfReader
-from ..indexer.hbase_indexer_minimal import img_path_column, img_URL_column
+#from ..indexer.hbase_indexer_minimal import img_path_column, img_URL_column
 
 default_prefix = "GESEARCH_"
 
@@ -168,8 +168,9 @@ class GenericSearcher(ConfReader):
     self.indexer_type = self.get_required_param('indexer_type')
     tmp_prefix = self.get_param("indexer_prefix")
     if self.indexer_type == "hbase_indexer_minimal":
-      from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal, default_prefix as hbi_default_prefix
-      prefix = hbi_default_prefix
+      from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal
+      from ..indexer.hbase_indexer_minimal import DEFAULT_HBASEINDEXER_PREFIX
+      prefix = DEFAULT_HBASEINDEXER_PREFIX
       if tmp_prefix:
         prefix = tmp_prefix
       self.indexer = HBaseIndexerMinimal(self.global_conf, prefix=prefix)

@@ -209,7 +209,7 @@ class ExtractionProcessor(ConfReader):
               # double check update was not marked as started recently i.e. by another process
               if self.is_update_notstarted(update_id, max_delay=TIME_ELAPSED_FAILED):
                 #list_sha1s = update_cols[column_list_sha1s].split(',')
-                list_sha1s = update_cols[self.indexer.get_cols_listsha1s()].split(',')
+                list_sha1s = update_cols[self.indexer.get_col_listsha1s()].split(',')
                 msg = "[{}.get_batch_hbase: log] Update {} has {} images."
                 print(msg.format(self.pp, update_id, len(list_sha1s)))
                 # also get 'ext:' to check if extraction was already processed?
@@ -242,8 +242,8 @@ class ExtractionProcessor(ConfReader):
                                                                        extr_type=self.extr_prefix):
           for update_id, update_cols in updates:
             if self.extr_prefix in update_id:
-              if self.indexer.get_cols_listsha1s() in update_cols:
-                list_sha1s = update_cols[self.indexer.get_cols_listsha1s()].split(',')
+              if self.indexer.get_col_listsha1s() in update_cols:
+                list_sha1s = update_cols[self.indexer.get_col_listsha1s()].split(',')
                 msg = "[{}.get_batch_hbase: log] Update {} has {} images missing extractions."
                 print(msg.format(self.pp, update_id, len(list_sha1s)))
                 sys.stdout.flush()
