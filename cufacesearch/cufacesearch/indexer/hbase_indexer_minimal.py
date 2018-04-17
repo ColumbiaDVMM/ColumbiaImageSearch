@@ -472,9 +472,6 @@ class HBaseIndexerMinimal(ConfReader):
             out_rows = []
             update_suffix = '_'.join(row[0].split('_')[2:]) + '~'
             if extr_type in row[0]:
-              # changed to: self.column_update_completed
-              #if update_completed_column in row[1]:
-              #if self.column_update_completed in row[1]:
               if self.get_col_upcomp() in row[1]:
                 # Update has been marked as all extractions being performed
                 continue
@@ -483,8 +480,6 @@ class HBaseIndexerMinimal(ConfReader):
               if self.verbose > 4:
                 msg = "[{}.{}: log] checking update {} for missing extractions"
                 print(msg.format(self.pp, fname, row[0]))
-              # if column_list_sha1s in row[1]:
-              #   tmp_list_sha1s = row[1][column_list_sha1s].split(',')
               if self.get_col_listsha1s() in row[1]:
                 tmp_list_sha1s = row[1][self.get_col_listsha1s()].split(',')
                 missing_extr_sha1s = self.get_missing_extr_sha1s(tmp_list_sha1s, extr_type)
@@ -503,10 +498,6 @@ class HBaseIndexerMinimal(ConfReader):
                     msg = "[{}.{}: log] update {} has no missing extractions"
                     print(msg.format(self.pp, fname, row[0]))
                   # We should mark as completed here
-                  # changed to: self.column_update_completed
-                  #update_completed_dict = {row[0]:
-                  # {info_column_family + ':' + update_str_completed: str(1)}}
-                  #update_completed_dict = {row[0]: {self.column_update_completed: str(1)}}
                   update_completed_dict = {row[0]: {self.get_col_upcomp(): str(1)}}
                   self.push_dict_rows(dict_rows=update_completed_dict,
                                       table_name=self.table_updateinfos_name)
