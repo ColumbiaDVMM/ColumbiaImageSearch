@@ -28,25 +28,12 @@ class GenericSearcher(ConfReader):
     self.nb_min_train = 10000
     self.save_train_features = False
     self.wait_for_nbtrain = True
+    self.file_input = False
 
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
     self.indexed_updates = set()
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
-
-    # To deal with local file ingestion
-    self.file_input = False
-    file_input = self.get_param('file_input')
-    if file_input:
-      self.file_input = True
-
-    if self.file_input:
-      self.img_column = img_path_column
-    else:
-      self.img_column = img_URL_column
-
-    # TODO: Also add feature column for re-ranking (can we use prefix filter?)
-    self.needed_output_columns = [self.img_column]
 
     get_pretrained_model = self.get_param('get_pretrained_model')
     if get_pretrained_model:
@@ -54,9 +41,10 @@ class GenericSearcher(ConfReader):
     #log_msg = "[log: generic_init after super] get_pretrained_model: {}"
     #print(log_msg.format(self.get_pretrained_model))
 
-    wait_for_nbtrain = self.get_param('wait_for_nbtrain')
-    if wait_for_nbtrain is not None:
-      self.wait_for_nbtrain = wait_for_nbtrain
+    self.wait_for_nbtrain = bool(self.get_param('wait_for_nbtrain', default=True))
+    # wait_for_nbtrain = self.get_param('wait_for_nbtrain')
+    # if wait_for_nbtrain is not None:
+    #   self.wait_for_nbtrain = wait_for_nbtrain
 
     # Initialize attributes from conf
     # TODO: rename model_type in searcher type?
@@ -72,6 +60,20 @@ class GenericSearcher(ConfReader):
     # Have some parameters to discard images of dimensions lower than some values?...
     # Have some parameters to discard detections with scores lower than some values?...
 
+    # Initialize everything
+    self.init_detector()
+    self.init_featurizer()
+    self.init_storer()
+    self.init_indexer()
+
+    # To deal with local file ingestion
+    self.img_column = self.indexer.get_col_imgurl()
+    if self.file_input:
+      self.img_column = self.indexer.get_col_imgpath()
+
+    # TODO: Also add feature column for re-ranking (can we use prefix filter?)
+    self.needed_output_columns = [self.img_column]
+
     # Initialize dict output for formatting
     if self.dict_output_type:
       self.do = DictOutput(self.dict_output_type)
@@ -79,11 +81,6 @@ class GenericSearcher(ConfReader):
       self.do = DictOutput()
     self.do.url_field = self.img_column
 
-    # Initialize everything
-    self.init_detector()
-    self.init_featurizer()
-    self.init_storer()
-    self.init_indexer()
     self.init_searcher()
 
     # Test the performance of the trained model?
@@ -128,6 +125,7 @@ class GenericSearcher(ConfReader):
     verbose = self.get_param('verbose')
     if verbose:
       self.verbose = int(verbose)
+    self.file_input = bool(self.get_param('file_input', default=False))
 
   def get_model_params(self):
     raise NotImplementedError("[{}] get_model_params is not implemented".format(self.pp))

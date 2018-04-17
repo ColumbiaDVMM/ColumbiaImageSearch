@@ -8,10 +8,9 @@ import lmdb
 import numpy as np
 
 #from thriftpy.thrift.transport.TTransport import TTransportException
-
+#from ..indexer.hbase_indexer_minimal import column_list_sha1s, update_str_processed
 from generic_searcher import GenericSearcher
 from ..featurizer.generic_featurizer import get_feat_size
-from ..indexer.hbase_indexer_minimal import column_list_sha1s, update_str_processed
 from ..storer.s3 import S3Storer
 from ..common.error import full_trace_error
 
@@ -222,48 +221,49 @@ class SearcherLOPQHBase(GenericSearcher):
       while not done:
         for batch_updates in self.indexer.get_updates_from_date(start_date=start_date,
                                                                 extr_type=self.build_extr_str()):
-          #for update in batch_updates:
-          for updates in batch_updates:
-            for update in updates:
-              try:
-                # We could check if update has been processed, but if not we won't get features anyway
-                update_id = update[0]
-                #if column_list_sha1s in update[1]:
-                if self.indexer.get_cols_listsha1s() in update[1]:
-                  if update_id not in seen_updates:
-                    sha1s = update[1][self.indexer.get_cols_listsha1s()]
-                    sids, features = self.indexer.get_features_from_sha1s(sha1s.split(','),
-                                                                          self.build_extr_str())
-                    if features:
-                      # Apply PCA to features here to save memory
-                      if lopq_pca_model:
-                        np_features = lopq_pca_model.apply_PCA(np.asarray(features))
-                      else:
-                        np_features = np.asarray(features)
-                      log_msg = "[{}: log] Got features {} from update {}"
-                      print(log_msg.format(self.pp, np_features.shape, update_id))
-                      sys.stdout.flush()
-                      # just appending like this does not account for duplicates...
-                      # train_features.extend(np_features)
-                      nb_saved_feats = self.save_feats_to_lmbd(feats_db, sids, np_features)
-                      seen_updates.add(update_id)
+          # for updates in batch_updates:
+          #  for update in updates:
+
+          for update in batch_updates:
+            try:
+              # We could check if update has been processed, but if not we won't get features anyway
+              update_id = update[0]
+              #if column_list_sha1s in update[1]:
+              if self.indexer.get_cols_listsha1s() in update[1]:
+                if update_id not in seen_updates:
+                  sha1s = update[1][self.indexer.get_cols_listsha1s()]
+                  sids, features = self.indexer.get_features_from_sha1s(sha1s.split(','),
+                                                                        self.build_extr_str())
+                  if features:
+                    # Apply PCA to features here to save memory
+                    if lopq_pca_model:
+                      np_features = lopq_pca_model.apply_PCA(np.asarray(features))
                     else:
-                      if self.verbose > 3:
-                        log_msg = "[{}: log] Did not get features from update {}"
-                        print(log_msg.format(self.pp, update_id))
-                        sys.stdout.flush()
-                    if nb_saved_feats >= nb_features:
-                      done = True
-                      break
-                else:
-                  warn_msg = "[{}: warning] Update {} has no list of images associated to it."
-                  print(warn_msg.format(self.pp, update_id))
-                  sys.stdout.flush()
-              except Exception as inst:
-                from cufacesearch.common.error import full_trace_error
-                err_msg = "[{}: error] Failed to get features: {} {}"
-                full_trace_error(err_msg.format(self.pp, type(inst), inst))
+                      np_features = np.asarray(features)
+                    log_msg = "[{}: log] Got features {} from update {}"
+                    print(log_msg.format(self.pp, np_features.shape, update_id))
+                    sys.stdout.flush()
+                    # just appending like this does not account for duplicates...
+                    # train_features.extend(np_features)
+                    nb_saved_feats = self.save_feats_to_lmbd(feats_db, sids, np_features)
+                    seen_updates.add(update_id)
+                  else:
+                    if self.verbose > 3:
+                      log_msg = "[{}: log] Did not get features from update {}"
+                      print(log_msg.format(self.pp, update_id))
+                      sys.stdout.flush()
+                  if nb_saved_feats >= nb_features:
+                    done = True
+                    break
+              else:
+                warn_msg = "[{}: warning] Update {} has no list of images associated to it."
+                print(warn_msg.format(self.pp, update_id))
                 sys.stdout.flush()
+            except Exception as inst:
+              from cufacesearch.common.error import full_trace_error
+              err_msg = "[{}: error] Failed to get features: {} {}"
+              full_trace_error(err_msg.format(self.pp, type(inst), inst))
+              sys.stdout.flush()
             else:
               if self.verbose > 4:
                 print("[{}: log] Got {} training samples so far...".format(self.pp, nb_saved_feats))
@@ -414,6 +414,11 @@ class SearcherLOPQHBase(GenericSearcher):
     else:
       return update_id in self.indexed_updates
 
+  def is_update_processed(self, update_cols):
+    if self.indexer.get_col_upproc() in update_cols:
+      return True
+    return False
+
   def get_latest_update_suffix(self):
     if self.last_indexed_update is None:
       if self.lopq_searcher == "LOPQSearcherLMDB":
@@ -465,7 +470,9 @@ class SearcherLOPQHBase(GenericSearcher):
             # TODO: If full_refresh we should check if indexing time is bigger than processing time...
           else:
             # TODO: use column_family from indexer
-            if "info:" + update_str_processed in update[1]:
+            #if "info:" + update_str_processed in update[1]:
+            if self.is_update_processed(update[1]):
+
               print("[{}: log] Looking for codes of update {}".format(self.pp, update_id))
               # Get this update codes
               codes_string = self.build_codes_string(update_id)
@@ -483,8 +490,10 @@ class SearcherLOPQHBase(GenericSearcher):
                 # Compute codes for update not yet processed and save them
                 start_compute = time.time()
                 # Get detections (if any) and features...
-                if column_list_sha1s in update[1]:
-                  list_sha1s = update[1][column_list_sha1s]
+                # if column_list_sha1s in update[1]:
+                #   list_sha1s = update[1][column_list_sha1s]
+                if self.indexer.get_cols_listsha1s() in update[1]:
+                  list_sha1s = update[1][self.indexer.get_cols_listsha1s()]
                   # Double check that this gets properly features of detections
                   samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
                                                                                self.build_extr_str())
