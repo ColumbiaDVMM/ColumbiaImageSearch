@@ -262,7 +262,7 @@ class ExtractionChecker(ConfReader):
               # Build HBase updates dict
               dict_updates_db = dict()
               now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
-              list_sha1s_col = self.indexer.get_cols_listsha1s()
+              list_sha1s_col = self.indexer.get_col_listsha1s()
               dict_updates_db[update_id] = {list_sha1s_col: ','.join(dict_push.keys()),
                                             self.indexer.get_col_upcreate(): now_str}
               # Push it
