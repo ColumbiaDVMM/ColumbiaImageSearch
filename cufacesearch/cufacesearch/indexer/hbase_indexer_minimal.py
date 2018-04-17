@@ -7,7 +7,7 @@ from datetime import datetime
 import happybase
 from ..common.conf_reader import ConfReader
 from ..common.error import full_trace_error
-from ..common import update_prefix, column_list_sha1s
+from ..common import update_prefix #, column_list_sha1s
 
 from thriftpy.transport import TTransportException
 #TTransportException = happybase._thriftpy.transport.TTransportException
@@ -21,6 +21,7 @@ update_str_completed = "completed"
 # Before transition:
 EXTR_STR_PROCESSED = "processed"
 UPDATE_INFOCF = "info"
+UPDATE_LISTSHA1CNAME = "list_sha1s"
 IMG_INFOCF = "info"
 IMG_BUFFCF = "info"
 IMG_BUFFCNAME = "img_buffer"
@@ -80,12 +81,13 @@ class HBaseIndexerMinimal(ConfReader):
     self.batch_update_size = UPDATE_BATCH_SIZE
 
     # Column families and names
-    self.column_list_sha1s = None
+    #self.column_list_sha1s = None
     self.extrcf = None
     self.imginfocf = None
     self.imgbuffcf = None
     self.imgbuffcname = None
     self.updateinfocf = None
+    self.updatelistsha1scname = None
 
     super(HBaseIndexerMinimal, self).__init__(global_conf_in, prefix)
     self.set_pp(pp="HBaseIndexerMinimal")
@@ -174,7 +176,7 @@ class HBaseIndexerMinimal(ConfReader):
     # built as self.updateinfocf + ":" + "list_sha1s"
     #return self.column_list_sha1s
     #return self.updateinfocf + ":" + "list_sha1s"
-    return self.updateinfocf + ":" + self.column_list_sha1s
+    return self.updateinfocf + ":" + self.updatelistsha1scname
 
 
   # # Rename to get_col_extrcheck(self, extraction) for consistency
@@ -208,7 +210,8 @@ class HBaseIndexerMinimal(ConfReader):
     self.batch_update_size = int(self.get_param('batch_update_size', default=UPDATE_BATCH_SIZE))
 
     # Can all columns be set similarly? And is this change effective everywhere?
-    self.column_list_sha1s = self.get_param("column_list_sha1s", default=column_list_sha1s)
+    #self.column_list_sha1s = self.get_param("column_list_sha1s", default=column_list_sha1s)
+    self.updatelistsha1scname = self.get_param("column_list_sha1s", default=UPDATE_LISTSHA1CNAME)
     self.extrcf = self.get_param("extr_family_column", default=EXTR_CF)
     self.imginfocf = self.get_param("image_info_column_family", default=IMG_INFOCF)
     self.imgbuffcf = self.get_param("image_buffer_column_family", default=IMG_BUFFCF)
@@ -382,6 +385,8 @@ class HBaseIndexerMinimal(ConfReader):
       try:
         yield self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
                                          previous_err=previous_err+1, inst=this_inst)
+      #   return self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
+      #                                     previous_err=previous_err+1, inst=this_inst)
       except Exception as new_inst:
         raise new_inst
 
@@ -486,15 +491,17 @@ class HBaseIndexerMinimal(ConfReader):
               if self.verbose > 4:
                 msg = "[{}.{}: log] checking update {} for missing extractions"
                 print(msg.format(self.pp, fn, row[0]))
-              if column_list_sha1s in row[1]:
-                tmp_list_sha1s = row[1][column_list_sha1s].split(',')
+              # if column_list_sha1s in row[1]:
+              #   tmp_list_sha1s = row[1][column_list_sha1s].split(',')
+              if self.get_cols_listsha1s() in row[1]:
+                tmp_list_sha1s = row[1][self.get_cols_listsha1s()].split(',')
                 missing_extr_sha1s = self.get_missing_extr_sha1s(tmp_list_sha1s, extr_type)
                 if missing_extr_sha1s:
                   if self.verbose > 5:
                     msg = "[{}.{}: log] update {} has missing extractions"
                     print(msg.format(self.pp, fn, row[0]))
                   out_row_val = dict()
-                  out_row_val[column_list_sha1s] = ','.join(missing_extr_sha1s)
+                  out_row_val[self.get_cols_listsha1s()] = ','.join(missing_extr_sha1s)
                   if out_rows:
                     out_rows.append((row[0], out_row_val))
                   else:
@@ -573,7 +580,7 @@ class HBaseIndexerMinimal(ConfReader):
     """
     # Build update dictionary
     dict_updates = dict()
-    dict_updates[update_id] = {self.column_list_sha1s: ','.join(list_sha1s)}
+    dict_updates[update_id] = {self.get_cols_listsha1s(): ','.join(list_sha1s)}
     # Push it
     self.push_dict_rows(dict_updates, self.table_updateinfos_name)
 
