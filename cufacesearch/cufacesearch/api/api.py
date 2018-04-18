@@ -6,7 +6,8 @@ from datetime import datetime
 from flask import Markup, flash, request, render_template, make_response
 from flask_restful import Resource
 
-from ..imgio.imgio import ImageMIMETypes, get_SHA1_img_type_from_B64, get_SHA1_img_info_from_buffer, buffer_to_B64
+from ..imgio.imgio import ImageMIMETypes, get_SHA1_img_type_from_B64, get_SHA1_img_info_from_buffer, \
+  buffer_to_B64
 from ..detector.utils import build_bbox_str_list
 
 
@@ -19,6 +20,8 @@ global_start_time = None
 input_type = "image"
 
 class APIResponder(Resource):
+  """Rest API class.
+  """
 
   def __init__(self):
     self.searcher = global_searcher
@@ -31,13 +34,29 @@ class APIResponder(Resource):
     self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height", "max_returned"]
 
   def get(self, mode):
+    """Get request. Will be fulfilled based on ``mode`` value in list:
+     - ``byURL``
+     - ``bySHA1``
+     - ``byPATH``
+     - ``byB64``
+     - ``view_image_sha1``
+     - ``view_similar_byURL``
+     - ``view_similar_byB64``
+     - ``view_similar_byPATH``
+     - ``view_similar_bySHA1``
+
+    :param mode: mode of the request
+    :type mode: string
+    :return: response (JSON)
+    :rtype: dict
+    """
     query = request.args.get('data')
     #query = unicode(request.args.get('data'), "utf8")
     options = request.args.get('options')
     if query:
-      print "[get] received parameters: {}".format(request.args.keys())
-      print "[get] received data: "+query.encode('ascii','ignore')
-      print "[get] received options: {}".format(options)
+      print("[get] received parameters: {}".format(request.args.keys()))
+      print("[get] received data: "+query.encode('ascii','ignore'))
+      print("[get] received options: {}".format(options))
       return self.process_query(mode, query, options)
     else:
       return self.process_mode(mode)

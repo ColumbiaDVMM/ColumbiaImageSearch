@@ -7,6 +7,12 @@ default_image_dl_timeout = 1
 
 # Could be moved to a factory
 def get_detector(detector_type):
+  """Get detector of ``detector_type``
+
+  :param detector_type:
+  :type detector_type: string
+  :return: detector
+  """
   #if detector_type == "dlib_detector":
   if detector_type == "dlib":
     import dlib_detector
@@ -22,20 +28,19 @@ def get_bbox_str(bbox):
 
 
 class GenericFaceDetector(object):
+  """Generic face detector. To be inherited by any other detector.
+  """
 
   def __init__(self):
     pass
 
   def load_image_from_buffer(self, img_buffer):
-    """ Load an image from a buffer.
+    """ Load an image from a buffer. Can deal with GIF and alpha channel
 
-    Deal with GIF and alpha channel.
-
-    Args:
-      img_buffer (buffer): image buffer
-
-    Returns:
-      image (numpy.array): the loaded image
+    :param img_buffer: image buffer
+    :type img_buffer: buffer
+    :returns: the loaded image
+    :rtype: :class:`numpy.ndarray`
     """
     img = skio.imread(img_buffer)
     # Deal with GIF
@@ -70,6 +75,17 @@ class GenericFaceDetector(object):
   def detect_from_url(self, img_url, up_sample=default_upsampling, image_dl_timeout=default_image_dl_timeout,
                       with_infos=True):
     """ Run face detection in image at URL 'img_url'.
+
+    :param img_url: full URL of the image to process
+    :type img_url: string
+    :param up_sample: number of upsampling before detection to allow small faces detection [optional]
+    :type up_sample: int
+    :param image_dl_timeout: timeout in seconds for image download. [optional]
+    :type image_dl_timeout: int
+    :param with_infos: wether or not we also get image info. [optional]
+    :type with_infos: bool
+    :returns: (optionally image infos), loaded image, and the detections as a list of dict with keys "left", "top", "right", "bottom"
+    :rtype: tuple
 
     Args:
       img_url (str): full URL of the image to process
