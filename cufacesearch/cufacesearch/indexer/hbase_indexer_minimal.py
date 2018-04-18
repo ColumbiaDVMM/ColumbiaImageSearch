@@ -63,6 +63,8 @@ IMG_PATHCNAME = "img_path"
 
 
 class HBaseIndexerMinimal(ConfReader):
+  """Indexing image and update information using HBase as backend.
+  """
 
   def __init__(self, global_conf_in, prefix=DEFAULT_HBASEINDEXER_PREFIX):
     self.last_refresh = datetime.now()
@@ -91,79 +93,90 @@ class HBaseIndexerMinimal(ConfReader):
 
   # Expose all column names so they can be defined in configuration.
   def get_dictcf_sha1_table(self):
-    """Get dictionary of column families for image table.
+    """Get dictionary of column families for images table.
 
-    :return (dict): dictionary of column families
+    :return: dictionary of column families
+    :rtype: dict
     """
     return {self.imginfocf: dict(), self.extrcf: dict(), self.imgbuffcf: dict()}
 
   def get_dictcf_update_table(self):
-    """Get dictionary of column families for update table.
+    """Get dictionary of column families for updates table.
 
-    :return (dict): dictionary of column families
+    :return: dictionary of column families
+    :rtype: dict
     """
     return {self.updateinfocf: dict()}
 
   def get_col_upproc(self):
-    """Get full column (i.e. column_family:column_name) for storing update processing end date.
+    """Get full column (i.e. ``column_family:column_name``) for storing update processing end date.
 
-    :return (str): column update processed
+    :return: column update processed
+    :rtype: string
     """
     return self.updateinfocf + ":" + UPDATE_STR_PROCESSED
 
   def get_col_upstart(self):
-    """Get full column (i.e. column_family:column_name) for storing update processing start date.
+    """Get full column (i.e. ``column_family:column_name``) for storing update processing start date.
 
-    :return (str): column update started
+    :return: column update started
+    :rtype: string
     """
     return self.updateinfocf + ":" + UPDATE_STR_STARTED
 
   def get_col_upcomp(self):
-    """Get full column (i.e. column_family:column_name) for storing update completion status.
+    """Get full column (i.e. ``column_family:column_name``) for storing update completion status.
 
-    :return (str): column update completed
+    :return: column update completed
+    :rtype: string
     """
     return self.updateinfocf + ":" + UPDATE_STR_COMPLETED
 
   def get_col_upcreate(self):
-    """Get full column (i.e. column_family:column_name) for storing update creation date.
+    """Get full column (i.e. ``column_family:column_name``) for storing update creation date.
 
-    :return (str): column update completed
+    :return: column update completed
+    :rtype: string
     """
     return self.updateinfocf + ":" + UPDATE_STR_CREATED
 
   def get_col_imgurl(self):
-    """Get full column (i.e. column_family:column_name) for storing image URL.
+    """Get full column (i.e. ``column_family:column_name``) for storing image URL.
 
-    :return (str): column image URL
+    :return: column image URL
+    :rtype: string
     """
     return self.imginfocf + ":" + IMG_URLCNAME
 
   def get_col_imgurlbak(self):
-    """Get full column (i.e. column_family:column_name) for storing image URL (backup).
+    """Get full column (i.e. ``column_family:column_name``) for storing image URL (backup).
 
-    :return (str): column image URL (backup)
+    :return: column image URL (backup)
+    :rtype: string
     """
     return self.imginfocf + ":" + IMG_URLBACKUPCNAME
 
   def get_col_imgpath(self):
-    """Get full column (i.e. column_family:column_name) for storing image path.
+    """Get full column (i.e. ``column_family:column_name``) for storing image path.
 
-    :return (str): column image path
+    :return: column image path
+    :rtype: string
     """
     return self.imginfocf + ":" + IMG_PATHCNAME
 
   def get_col_imgbuff(self):
-    """Get full column (i.e. column_family:column_name) for storing image buffer.
+    """Get full column (i.e. ``column_family:column_name``) for storing image buffer.
 
-    :return (str): column image buffer
+    :return: column image buffer
+    :rtype: string
     """
     return self.imgbuffcf + ":" + self.imgbuffcname
 
   def get_col_listsha1s(self):
-    """Get full column (i.e. column_family:column_name) for storing update images sha1 list.
+    """Get full column (i.e. ``column_family:column_name``) for storing update images sha1 list.
 
-    :return (str): column sha1 list
+    :return: column sha1 list
+    :rtype: string
     """
     return self.updateinfocf + ":" + self.updatelistsha1scname
 
@@ -171,19 +184,21 @@ class HBaseIndexerMinimal(ConfReader):
     """Reads configuration parameters from self.global_conf.
 
     Required parameters are:
-    - 'host'
-    - 'table_sha1infos'
+
+    - ``host``
+    - ``table_sha1infos``
 
     Optional parameters are:
-    - 'table_updateinfos'
-    - 'pool_thread'
-    - 'batch_update_size'
-    - 'column_list_sha1s'
-    - 'extr_family_column'
-    - 'image_info_column_family'
-    - 'image_buffer_column_family'
-    - 'image_buffer_column_name'
-    - 'update_info_column_family'
+
+    - ``table_updateinfos``
+    - ``pool_thread``
+    - ``batch_update_size``
+    - ``column_list_sha1s``
+    - ``extr_family_column``
+    - ``image_info_column_family``
+    - ``image_buffer_column_family``
+    - ``image_buffer_column_name``
+    - ``update_info_column_family``
     """
     super(HBaseIndexerMinimal, self).read_conf()
     # HBase conf
@@ -239,7 +254,7 @@ class HBaseIndexerMinimal(ConfReader):
     :param nb_err: number of errors caught in function "function_name"
     :param function_name: name of the function for which we want to check the error count.
     :param inst: error instance.
-    :return:
+    :raises Exception: if nb_err >= MAX_ERRORS
     """
     if nb_err >= MAX_ERRORS:
       msg = "[{}: error] function {} reached maximum number of error {}. Error {} was: {}"
@@ -250,10 +265,13 @@ class HBaseIndexerMinimal(ConfReader):
     """Get HBase table "table_name", creating it if it does not exist yet.
 
     :param table_name: name of the table to create.
-    :param conn: happybase connection object
-    :param families: dictionary of column families
-      (see get_dictcf_sha1_table and get_dictcf_update_table)
-    :return:
+    :type table_name: string
+    :param conn: happybase connection
+    :type conn: :class:`happybase.Connection`
+    :param families: dictionary of column families (see ``get_dictcf_sha1_table`` and ``get_dictcf_update_table``)
+    :type families: dict
+    :return: table
+    :rtype: :class:`happybase.Table`
     """
     # try:
     if conn is None:
@@ -294,12 +312,19 @@ class HBaseIndexerMinimal(ConfReader):
     """Scan table "table_name" starting a row "row_start" and retrieving columns "columns".
 
     :param table_name: name of table to scan
+    :type table_name: string
     :param row_start: starting row
+    :type row_start: string
     :param columns: columns to retrieve
+    :type columns: list
     :param maxrows: maximum number of rows to return
+    :type maxrows: int
     :param perr: number of errors caught so far
+    :type perr: int
     :param inst: error instance caught
+    :type inst: Exception
     :return: rows list
+    :rtype: list
     """
     self.check_errors(perr, "scan_from_row", inst)
     try:
@@ -323,14 +348,21 @@ class HBaseIndexerMinimal(ConfReader):
                                 perr=perr + 1, inst=err_inst)
 
   def get_updates_from_date(self, start_date, extr_type="", maxrows=MAX_ROWS, perr=0, inst=None):
-    """Get updates of "extr_type" from self.table_updateinfos_name starting from first updates with
-    "start_date" in their row key.
+    """Get updates of ``extr_type`` from ``self.table_updateinfos_name`` starting from first update
+    after row key build using ``extr_type`` and ``start_date`` as:
 
-    :param start_date: data from which updates should be retrieved.
+    - ``update_prefix + extr_type + "_" + start_date``
+
+    :param start_date: date (formatted as YYYY-MM-DD) from which updates should be retrieved
+    :type start_date: string
     :param extr_type: extraction type
+    :type extr_type: string
     :param maxrows: maximum number of rows to return
-    :param perr: previous errors count
-    :param inst: last error instance
+    :type maxrows: int
+    :param perr: number of errors caught so far
+    :type perr: int
+    :param inst: error instance caught
+    :type inst: Exception
     :yeild: list of rows of updates.
     """
     # start_date should be in format YYYY-MM-DD(_XX)
