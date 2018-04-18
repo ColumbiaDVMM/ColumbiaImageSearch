@@ -164,6 +164,27 @@ def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=DEFAULT_
   else:
     raise ValueError("Incorrect status code: {}".format(req.status_code))
 
+
+def load_image_from_buffer(img_buffer):
+  """Load an image from a buffer. Can deal with GIF and alpha channel
+
+  :param img_buffer: image buffer
+  :type img_buffer: buffer
+  :returns: the loaded image
+  :rtype: :class:`numpy.ndarray`
+  """
+  import numpy as np
+  from skimage import io as skio
+  img = skio.imread(img_buffer)
+  # Deal with GIF
+  if len(img.shape) == 4:
+    # Get first 'frame' of GIF
+    img = np.squeeze(img[1, :, :, :])
+  # Deal with alpha channel in PNG
+  if img.shape[-1] == 4:
+    img = img[:, :, :3]
+  return img
+
 # Should we use boto3 to download from s3?
 # http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Bucket.download_fileobj
 # Should we write a get_buffer_from_S3(key) or get_buffer_from_S3(bucket, key) ?

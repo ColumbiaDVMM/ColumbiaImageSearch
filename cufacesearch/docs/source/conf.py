@@ -299,7 +299,8 @@ texinfo_documents = [
 #intersphinx_mapping = {'https://docs.python.org/': None}
 intersphinx_mapping = {'python': ('https://docs.python.org/', None),
                        'happybase': ('https://happybase.readthedocs.io/en/latest/', None),
-                       'numpy': ('https://docs.scipy.org/doc/numpy/', None)}
+                       'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+                       'skimage': ('http://scikit-image.org/docs/stable/', None)}
 
 
 

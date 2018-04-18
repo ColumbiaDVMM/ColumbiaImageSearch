@@ -185,7 +185,7 @@ class GenericSearcher(ConfReader):
     if detector_type:
       self.detector_type = detector_type
       if self.detector_type != "full":
-        from ..detector.generic_detector import get_detector
+        from ..detector.utils import get_detector
         self.detector = get_detector(self.detector_type)
 
   def init_featurizer(self):

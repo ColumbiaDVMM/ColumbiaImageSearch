@@ -1,26 +1,35 @@
-from .generic_detector import GenericFaceDetector, default_upsampling
+"""
+Face detection using DLib_.
 
-class DLibFaceDetector(GenericFaceDetector):
+.. _DLib: http://dlib.net/
+
+"""
+
+from ..detector.generic_detector import GenericDetector, DEFAULT_UPSAMPLING
+
+class DLibFaceDetector(GenericDetector):
+  """Face detector using the `DLib face detection model`_
+
+  .. _`DLib face detection model`: http://dlib.net/python/index.html?highlight=get_frontal_face_detector#dlib.get_frontal_face_detector
+
+  """
 
   def __init__(self):
+    super(DLibFaceDetector).__init__()
     import dlib
     self.detector = dlib.get_frontal_face_detector()
 
-  # v1 without score. Deprecated
-  # def detect_from_img_noscore(self, img, up_sample=default_upsampling):
-  #   return [{
-  #     "left": d.left(),
-  #     "top": d.top(),
-  #     "right": d.right(),
-  #     "bottom": d.bottom()
-  #   } for d in self.detector(img, up_sample)]
+  def detect_from_img(self, img, up_sample=DEFAULT_UPSAMPLING):
+    """Detect face in ``img``
 
-  def detect_from_img(self, img, up_sample=default_upsampling):
-    dets, scores, idx = self.detector.run(img, up_sample, 0)
-    return [{
-      "left": d.left(),
-      "top": d.top(),
-      "right": d.right(),
-      "bottom": d.bottom(),
-      "score": scores[i]
-    } for i, d in enumerate(dets)]
+    :param img: image
+    :type img: :class:`numpy.ndarray`
+    :param up_sample: up sampling factor
+    :type up_sample: int
+    :return: list of detection dictionary with keys: ``left``, ``top``, ``right``, ``bottom``,
+     ``score``
+    :rtype: list
+    """
+    dets, scores, _ = self.detector.run(img, up_sample, 0)
+    return [{"left": d.left(), "top": d.top(), "right": d.right(), "bottom": d.bottom(),
+             "score": scores[i]} for i, d in enumerate(dets)]
