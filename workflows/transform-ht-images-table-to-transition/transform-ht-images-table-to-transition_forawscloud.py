@@ -111,7 +111,7 @@ if __name__ == '__main__':
   MAPPINGS = JOB_CONF["mappings"]
   # see mx_ht_images_details_111k
   # escorts_images_sha1_infos_from_ts_subsampled_newformat => ht_images_infos_merged_subsampled
-  # discard ad:*. ext:sbcmdline (at least for real transform)
+  # discard ad:*. ext:sbcmdline (at least for real transform). just do not put them in mappings
   # mappings should be an array of arrays like:
   # ["ext:dlib*", "data:dlib*"]
   # ["ext:sbpycaffe*", "data:sbpycaffe*"]
