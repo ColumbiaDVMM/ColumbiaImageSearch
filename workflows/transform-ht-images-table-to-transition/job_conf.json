@@ -1,0 +1,9 @@
+{
+    "hbase_host": "zk01.xdata.data-tactics-corp.com:2181",
+    "tab_name_in": "escorts_images_sha1_infos_from_ts_subsampled_newformat",
+    "tab_name_out": "ht_images_infos_merged_subsampled",
+    "tab_out_families": {"data": {}, "img": {}},
+    "mappings": [["ext:dlib*", "data:dlib*"],
+                 ["ext:sbpycaffe*", "data:sbpycaffe*"],
+                 ["info:s3_url", "data:s3_url"]]
+}
