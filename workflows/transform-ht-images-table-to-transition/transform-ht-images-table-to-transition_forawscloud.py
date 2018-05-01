@@ -66,6 +66,8 @@ def transform(data):
 
     for one_map in MAPPINGS:
       cf_out, qf_out = one_map[1].split(':')
+      if cf_out not in TAB_OUT_FAMILIES:
+        raise ValueError("Error: column family {} is not in {}".format(cf_out, TAB_OUT_FAMILIES))
       # Filtered mapping
       if one_map[0].endswith("*"):
         # Read mapping
@@ -135,3 +137,5 @@ if __name__ == '__main__':
   HBASE_MAN_IN = HbaseManager(SC, CONF, HBASE_HOST_SPARK, TAB_NAME_IN)
   HBASE_MAN_OUT = HbaseManager(SC, CONF, HBASE_HOST_SPARK, TAB_NAME_OUT)
   transform_table()
+
+  print("Transformation completed.")
