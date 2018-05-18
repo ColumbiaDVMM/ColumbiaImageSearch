@@ -193,10 +193,24 @@ class ExtractionChecker(ConfReader):
           # Accumulate images infos
           for msg_json in self.ingester.consumer:
             msg = json.loads(msg_json.value)
-            list_check_sha1s.append(str(msg['sha1']))
-
-            # Store other fields to be able to push them too
-            self.store_img_infos(msg)
+            # msg could now contain keys 'sha1' or 'list_sha1s'
+            # should we check that we can't have both or other keys?...
+            if 'sha1' in msg:
+              list_check_sha1s.append(str(msg['sha1']))
+              # Store other fields to be able to push them too
+              self.store_img_infos(msg)
+            elif 'list_sha1s' in msg:
+              for sha1 in msg['list_sha1s']:
+                list_check_sha1s.append(str(sha1))
+                # We won't have any additional infos no?
+                # But we should still build a dict for each sample for consistency...
+                tmp_dict = dict()
+                tmp_dict['sha1'] = str(sha1)
+                # will basically push an empty dict to self.dict_sha1_infos, so self.get_dict_push
+                # works properly later on...
+                self.store_img_infos(tmp_dict)
+            else:
+              print('Unknown keys in msg: {}'.format(msg.keys()))
 
             if len(list_check_sha1s) >= self.indexer.batch_update_size:
               break

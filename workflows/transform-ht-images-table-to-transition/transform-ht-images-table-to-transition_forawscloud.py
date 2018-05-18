@@ -80,7 +80,7 @@ def transform(data):
         # Prepare mapping output
         for qf_va in list_qf_va:
           fields.append((key, [key, cf_out, qf_va[0], qf_va[1]]))
-      else:  # Exact mapping
+      else: # Exact mapping
         if qf_out.endswith("*"):
           raise ValueError("Incorrect mapping definition: {}".format(one_map))
         val = get_value(json_x, key, one_map[0].split(':'))

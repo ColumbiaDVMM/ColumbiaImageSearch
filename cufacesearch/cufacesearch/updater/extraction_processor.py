@@ -195,10 +195,53 @@ class ExtractionProcessor(ConfReader):
       self.q_in.append(JoinableQueue(0))
       self.q_out.append(JoinableQueue(0))
 
+
+  def is_update_unprocessed(self, update_id):
+    update_rows = self.indexer.get_rows_by_batch([update_id],
+                                                 table_name=self.indexer.table_updateinfos_name)
+    if update_rows:
+      for row in update_rows:
+        # changed to: self.column_update_processed
+        #if info_column_family+":"+update_str_processed in row[1]:
+        #if self.column_update_processed in row[1]:
+        if self.indexer.get_col_upproc() in row[1]:
+          return False
+    return True
+
+  def is_update_notstarted(self, update_id, max_delay=None):
+    """Check if an update was not started yet.
+
+    :param update_id: update id
+    :param max_delay: delay (in seconds) between marked start time and now to consider update failed
+    :return: boolean
+    """
+    update_rows = self.indexer.get_rows_by_batch([update_id],
+                                                 table_name=self.indexer.table_updateinfos_name)
+    if update_rows:
+      for row in update_rows:
+        # changed to: self.column_update_started
+        #if info_column_family+":"+update_str_started in row[1]:
+        #if self.column_update_started in row[1]:
+        if self.indexer.get_col_upstart() in row[1]:
+          if max_delay:
+            # check that started was mark recently, if not it may mean the update processing failed
+            # changed to: define self.column_update_started
+            #start_str = row[1][info_column_family+":"+update_str_started]
+            #start_str = row[1][self.column_update_started]
+            start_str = row[1][self.indexer.get_col_upstart()]
+            # start time format is '%Y-%m-%d:%H.%M.%S'
+            start_dt = datetime.strptime(start_str, '%Y-%m-%d:%H.%M.%S')
+            now_dt = datetime.now()
+            diff_dt = now_dt - start_dt
+            if diff_dt.total_seconds() > max_delay:
+              return True
+          return False
+    return True
+
   def get_batch_hbase(self):
     # legacy implementation: better to have a kafka topic for batches to be processed to allow
     #       safe parallelization on different machines
-    img_cols = [self.indexer.get_col_imgbuff(), self.img_column]
+    img_cols = [self.indexer.get_col_imgbuff(), self.indexer.get_col_imgurlbak(), self.img_column]
     try:
       for updates in self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id,
                                                                     extr_type=self.extr_prefix):
@@ -269,51 +312,10 @@ class ExtractionProcessor(ConfReader):
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
 
 
-  def is_update_unprocessed(self, update_id):
-    update_rows = self.indexer.get_rows_by_batch([update_id],
-                                                 table_name=self.indexer.table_updateinfos_name)
-    if update_rows:
-      for row in update_rows:
-        # changed to: self.column_update_processed
-        #if info_column_family+":"+update_str_processed in row[1]:
-        #if self.column_update_processed in row[1]:
-        if self.indexer.get_col_upproc() in row[1]:
-          return False
-    return True
-
-  def is_update_notstarted(self, update_id, max_delay=None):
-    """Check if an update was not started yet.
-
-    :param update_id: update id
-    :param max_delay: delay (in seconds) between marked start time and now to consider update failed
-    :return: boolean
-    """
-    update_rows = self.indexer.get_rows_by_batch([update_id],
-                                                 table_name=self.indexer.table_updateinfos_name)
-    if update_rows:
-      for row in update_rows:
-        # changed to: self.column_update_started
-        #if info_column_family+":"+update_str_started in row[1]:
-        #if self.column_update_started in row[1]:
-        if self.indexer.get_col_upstart() in row[1]:
-          if max_delay:
-            # check that started was mark recently, if not it may mean the update processing failed
-            # changed to: define self.column_update_started
-            #start_str = row[1][info_column_family+":"+update_str_started]
-            #start_str = row[1][self.column_update_started]
-            start_str = row[1][self.indexer.get_col_upstart()]
-            # start time format is '%Y-%m-%d:%H.%M.%S'
-            start_dt = datetime.strptime(start_str, '%Y-%m-%d:%H.%M.%S')
-            now_dt = datetime.now()
-            diff_dt = now_dt - start_dt
-            if diff_dt.total_seconds() > max_delay:
-              return True
-          return False
-    return True
 
   def get_batch_kafka(self):
     # Read from a kafka topic to allow safer parallelization on different machines
-    img_cols = [self.indexer.get_col_imgbuff(), self.img_column]
+    img_cols = [self.indexer.get_col_imgbuff(), self.indexer.get_col_imgurlbak(), self.img_column]
     try:
       # Needs to read topic to get update_id and list of sha1s
       if self.ingester.consumer:
@@ -429,6 +431,9 @@ class ExtractionProcessor(ConfReader):
             if self.img_column in img[1]:
               q_in_dl.put((img[0], img[1][self.img_column], self.push_back))
               nb_imgs_dl += 1
+            elif self.indexer.get_col_imgurlbak() in img[1]:
+              q_in_dl.put((img[0], img[1][self.indexer.get_col_imgurlbak()], self.push_back))
+              nb_imgs_dl += 1
             else:
               # TODO: check for img_backup_URL_column here?
               msg = "[{}: warning] No buffer and no URL/path for image {} !"
@@ -472,8 +477,8 @@ class ExtractionProcessor(ConfReader):
                 print(msg.format(self.pp, sha1))
 
         get_buffer_time = time.time() - start_get_buffer
-        msg = "[{}] Got {}/{} image buffers for update {} in {}s."
-        print(msg.format(self.pp, len(list_in), len(rows_batch), update_id, get_buffer_time))
+        msg = "[{}] Got {}/{} image buffers ({} downloaded) for update {} in {}s."
+        print(msg.format(self.pp, len(list_in), len(rows_batch), nb_dl, update_id, get_buffer_time))
         sys.stdout.flush()
 
         q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
