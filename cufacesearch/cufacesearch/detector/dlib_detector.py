@@ -15,7 +15,7 @@ class DLibFaceDetector(GenericDetector):
   """
 
   def __init__(self):
-    super(DLibFaceDetector).__init__()
+    super(DLibFaceDetector, self).__init__()
     import dlib
     self.detector = dlib.get_frontal_face_detector()
 

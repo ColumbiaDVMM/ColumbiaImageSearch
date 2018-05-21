@@ -80,10 +80,10 @@ if __name__ == "__main__":
     raise ValueError("Unknown extraction type: {}".format(extr_type))
 
   # HBase settings
-  conf[hbase_prefix + 'host'] =  os.environ['hbase_host']
-  conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos']
-  conf[hbase_prefix + 'table_updateinfos'] = os.environ['table_updateinfos']
-  conf[hbase_prefix + 'batch_update_size'] = os.environ['batch_update_size']
+  conf[hbase_prefix + 'host'] = os.environ['hbase_host'].strip()
+  conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos'].strip()
+  conf[hbase_prefix + 'table_updateinfos'] = os.environ['table_updateinfos'].strip()
+  conf[hbase_prefix + 'batch_update_size'] = int(os.environ['batch_update_size'])
   conf[hbase_prefix + 'pool_thread'] = 1
 
   # Deal with newly exposed but optional parameters

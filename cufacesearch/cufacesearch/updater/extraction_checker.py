@@ -182,6 +182,7 @@ class ExtractionChecker(ConfReader):
     return unprocessed_rows
 
   def run(self, daemon=False):
+    i = 0
     try:
       list_sha1s_to_process = []
       # TODO: create update_id here
@@ -193,6 +194,9 @@ class ExtractionChecker(ConfReader):
           # Accumulate images infos
           for msg_json in self.ingester.consumer:
             msg = json.loads(msg_json.value)
+            # i += 1
+            # print((i, len(list_check_sha1s), msg))
+
             # msg could now contain keys 'sha1' or 'list_sha1s'
             # should we check that we can't have both or other keys?...
             if 'sha1' in msg:
