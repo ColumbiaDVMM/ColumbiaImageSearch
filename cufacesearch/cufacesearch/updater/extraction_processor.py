@@ -4,6 +4,7 @@ import sys
 import time
 import json
 import math
+import cStringIO
 import threading
 import traceback
 from datetime import datetime
@@ -19,6 +20,7 @@ from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal
 from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, GenericExtractor
 from cufacesearch.extractor.generic_extractor import build_extr_str
 from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
+from cufacesearch.imgio.imgio import buffer_to_B64
 
 DEFAULT_EXTR_PROC_PREFIX = "EXTR_"
 TIME_ELAPSED_FAILED = 3600
@@ -51,7 +53,6 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
 
   def run(self):
     from cufacesearch.imgio.imgio import get_buffer_from_URL, get_buffer_from_filepath
-    from cufacesearch.imgio.imgio import buffer_to_B64
 
     while self.q_in.empty() is False:
       try:
@@ -133,7 +134,11 @@ class ExtractionProcessor(ConfReader):
     prefix_in_indexer = self.get_param("in_indexer_prefix", default=False)
     if prefix_in_indexer:
       self.in_indexer = HBaseIndexerMinimal(self.global_conf, prefix=prefix_in_indexer)
+      insha1tab = self.in_indexer.table_sha1infos_name
+      insha1cfs = self.in_indexer.get_dictcf_sha1_table()
+      print("[{}] 'in_indexer' sha1 table {} columns are: {}".format(self.pp, insha1tab, insha1cfs))
     else:
+      print("[{}] empty 'in_indexer_prefix', using out_indexer as in_indexer too.".format(self.pp))
       self.in_indexer = self.out_indexer
 
     # Initialize extractors only once (just one first)
@@ -374,18 +379,18 @@ class ExtractionProcessor(ConfReader):
         self.init_queues()
         threads = []
 
-        # If we deleted an extractor at some point or for first batch
+        # If we have deleted an extractor at some point or for first batch
         nb_extr_to_create = self.nb_threads - len(self.extractors)
         if nb_extr_to_create:
           start_create_extractor = time.time()
-          while len(self.extractors) < self.nb_threads:
+          while len(self.extractors) < min(self.nb_threads, len(rows_batch)):
             # DONE: use 'out_indexer'
             self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
                                                     self.input_type, self.out_indexer.extrcf,
                                                     self.featurizer_prefix, self.global_conf))
           msg = "[{}] Created {} extractors in {}s."
           create_extr_time = time.time() - start_create_extractor
-          print(msg.format(self.pp, nb_extr_to_create, create_extr_time))
+          print(msg.format(self.pp, len(self.extractors), create_extr_time))
 
 
         # Mark batch as started to be process
@@ -415,7 +420,9 @@ class ExtractionProcessor(ConfReader):
           # should decode base64
           #if img_buffer_column in img[1]:
           if self.in_indexer.get_col_imgbuff() in img[1]:
-            tup = (img[0], img[1][self.in_indexer.get_col_imgbuff()], False)
+            # That's messy...
+            b64buffer = buffer_to_B64(cStringIO.StringIO(img[1][self.in_indexer.get_col_imgbuff()]))
+            tup = (img[0], b64buffer, False)
             list_in.append(tup)
           else:
             # need to re-download, accumulate a list of URLs to download
@@ -432,6 +439,7 @@ class ExtractionProcessor(ConfReader):
               continue
 
         # Download missing images
+        nb_dl = 0
         if nb_imgs_dl > 0:
           threads_dl = []
           for i in range(min(self.nb_threads, nb_imgs_dl)):
@@ -444,7 +452,6 @@ class ExtractionProcessor(ConfReader):
           q_in_dl.join()
 
           # Push downloaded images to list_in too
-          nb_dl = 0
           while nb_dl < nb_imgs_dl:
             # This can block?
             #sha1, buffer, push_back, inst = q_out_dl.get()
