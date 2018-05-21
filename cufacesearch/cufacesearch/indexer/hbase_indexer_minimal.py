@@ -341,9 +341,9 @@ class HBaseIndexerMinimal(ConfReader):
             sys.stdout.flush()
         return rows
     except Exception as err_inst:
-      print("[{}.scan_from_row: error] {}".format(self.pp, err_inst))
+      #print("[{}.scan_from_row: error] {}".format(self.pp, err_inst))
       # try to force longer sleep time...
-      self.refresh_hbase_conn("scan_from_row", sleep_time=4 * perr)
+      self.refresh_hbase_conn("scan_from_row", sleep_time=10 * perr)
       return self.scan_from_row(table_name, row_start=row_start, columns=columns, maxrows=maxrows,
                                 perr=perr + 1, inst=err_inst)
 

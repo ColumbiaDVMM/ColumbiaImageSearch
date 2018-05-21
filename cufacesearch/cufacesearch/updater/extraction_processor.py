@@ -373,8 +373,8 @@ class ExtractionProcessor(ConfReader):
 
   def process_batch(self):
     # Get a new update batch
-    for rows_batch, update_id in self.get_batch():
-      try:
+    try:
+      for rows_batch, update_id in self.get_batch():
         start_update = time.time()
         print("[{}] Processing update {} of {} rows.".format(self.pp, update_id, len(rows_batch)))
         sys.stdout.flush()
@@ -660,10 +660,10 @@ class ExtractionProcessor(ConfReader):
         if sum(thread_creation_failed) > 0 or sum(deleted_extr) > 0:
            raise ValueError("Something went wrong. Trying to restart clean")
 
-      except Exception as inst:
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        fulltb = traceback.format_tb(exc_tb)
-        raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
+    except Exception as inst:
+      exc_type, exc_obj, exc_tb = sys.exc_info()
+      fulltb = traceback.format_tb(exc_tb)
+      raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
     self.nb_empt = 0
