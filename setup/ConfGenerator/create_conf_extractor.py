@@ -84,7 +84,7 @@ if __name__ == "__main__":
   conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos'].strip()
   conf[hbase_prefix + 'table_updateinfos'] = os.environ['table_updateinfos'].strip()
   conf[hbase_prefix + 'batch_update_size'] = int(os.environ['batch_update_size'])
-  conf[hbase_prefix + 'pool_thread'] = 1
+  conf[hbase_prefix + 'pool_thread'] = int(os.getenv('pool_thread', 1))
 
   # Deal with newly exposed but optional parameters
   if os.getenv('column_list_sha1s', False):
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     conf[in_hbase_prefix + 'table_sha1infos'] = os.environ['table_in_imagesinfos'].strip()
     # Should we allow different HBase hosts?
     conf[in_hbase_prefix + 'host'] = os.environ['hbase_host'].strip()
-    conf[in_hbase_prefix + 'pool_thread'] = 1
+    conf[in_hbase_prefix + 'pool_thread'] = int(os.getenv('table_in_pool_thread', 1))
 
     # Deal with newly exposed but optional parameters
     if os.getenv('table_in_imgbuffercf', False):
