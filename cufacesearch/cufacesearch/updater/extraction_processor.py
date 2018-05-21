@@ -124,55 +124,31 @@ class ExtractionProcessor(ConfReader):
 
 
     # Initialize indexer
-    self.indexer = HBaseIndexerMinimal(self.global_conf,
-                                       prefix=self.get_required_param("indexer_prefix"))
+    # We now have two indexers:
+    # - one "in_indexer" for TF table with buffer, img URLs etc...
+    # - one "out_indexer" for our table with extractions etc
+    # NB: they could be the same if tables are merged...
+    self.out_indexer = HBaseIndexerMinimal(self.global_conf,
+                                           prefix=self.get_required_param("indexer_prefix"))
+    prefix_in_indexer = self.get_param("in_indexer_prefix", default=False)
+    if prefix_in_indexer:
+      self.in_indexer = HBaseIndexerMinimal(self.global_conf, prefix=prefix_in_indexer)
+    else:
+      self.in_indexer = self.out_indexer
 
     # Initialize extractors only once (just one first)
     self.extractors = []
-    # for i in range(self.nb_threads):
-    #  self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type, self.input_type,
-    #                                  self.extr_family_column, self.featurizer_prefix, self.global_conf))
-    # # Should we pass other columns?
-    # self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
-    #                                         self.input_type, self.extr_family_column,
-    #                                         self.featurizer_prefix, self.global_conf))
-    # Can we group first arguments as extr_conf?
+    # DONE: use 'out_indexer'
     self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
-                                            self.input_type, self.indexer.extrcf,
+                                            self.input_type, self.out_indexer.extrcf,
                                             self.featurizer_prefix, self.global_conf))
 
-    # When was this used?
-    # Beware, the self.extr_family_column should be added to the indexer families parameter in get_create_table...
-    # What if the table has some other column families?...
-    # we should get all valid and unique column families...
-    # including potentially dynamic column family name self.extr_family_column...
-    # but then we should detect incompatible column families for already existing tables...
-    # would an error be thrown? here? later when trying to write?
-    #self.tablesha1_col_families = {'info': dict(), self.extr_family_column: dict()}
-    #self.tablesha1_col_families = self.indexer.get_dictcf_sha1_table()
-    # TODO: get all columns from indexer
-    # TODO: How could we deal with "img_backup_URL_column"
+    # DONE: use 'in_indexer'
     if self.url_input:
-      #self.img_column = img_URL_column
-      self.img_column = self.indexer.get_col_imgurl()
+      self.img_column = self.in_indexer.get_col_imgurl()
     else:
-      #self.img_column = img_path_column
-      self.img_column = self.indexer.get_col_imgpath()
+      self.img_column = self.in_indexer.get_col_imgpath()
     print("[{}.ExtractionProcessor: log] img_column: {}".format(self.pp, self.img_column))
-    # # Need to be build from extraction type and detection input + "_processed"
-    # # TODO: are all methods dealing with extractions able to take into account these changes?
-    # self.extr_family_column = self.get_param("extr_family_column", default=EXTR_CF)
-    #
-    # # Could all the other columns be set similarly? And this change be effective everywhere?
-    # self.update_info_column_family = update_info_column_family
-    # self.img_info_column_family = img_info_column_family
-    # tmp_update_info_column_family = self.get_param("update_info_column_family")
-    # if tmp_update_info_column_family:
-    #   self.update_info_column_family = tmp_update_info_column_family
-    # self.column_update_processed = self.update_info_column_family+ ":" + update_str_processed
-    # self.column_update_started = self.update_info_column_family + ":" + update_str_started
-    # self.column_update_completed = self.update_info_column_family + ":" + update_str_completed
-
 
     self.last_update_date_id = ''
 
@@ -196,15 +172,19 @@ class ExtractionProcessor(ConfReader):
       self.q_out.append(JoinableQueue(0))
 
 
+  # Should these two methods be in indexer?
   def is_update_unprocessed(self, update_id):
-    update_rows = self.indexer.get_rows_by_batch([update_id],
-                                                 table_name=self.indexer.table_updateinfos_name)
+    """Check if an update was not processed yet.
+
+    :param update_id: update id
+    :return: boolean
+    """
+    # DONE: use out_indexer
+    update_rows = self.out_indexer.get_rows_by_batch([update_id],
+                                                     table_name=self.out_indexer.table_updateinfos_name)
     if update_rows:
       for row in update_rows:
-        # changed to: self.column_update_processed
-        #if info_column_family+":"+update_str_processed in row[1]:
-        #if self.column_update_processed in row[1]:
-        if self.indexer.get_col_upproc() in row[1]:
+        if self.out_indexer.get_col_upproc() in row[1]:
           return False
     return True
 
@@ -215,20 +195,18 @@ class ExtractionProcessor(ConfReader):
     :param max_delay: delay (in seconds) between marked start time and now to consider update failed
     :return: boolean
     """
-    update_rows = self.indexer.get_rows_by_batch([update_id],
-                                                 table_name=self.indexer.table_updateinfos_name)
+    # DONE: use out_indexer
+    update_rows = self.out_indexer.get_rows_by_batch([update_id],
+                                                     table_name=self.out_indexer.table_updateinfos_name)
     if update_rows:
       for row in update_rows:
         # changed to: self.column_update_started
         #if info_column_family+":"+update_str_started in row[1]:
         #if self.column_update_started in row[1]:
-        if self.indexer.get_col_upstart() in row[1]:
+        # DONE: use out_indexer
+        if self.out_indexer.get_col_upstart() in row[1]:
           if max_delay:
-            # check that started was mark recently, if not it may mean the update processing failed
-            # changed to: define self.column_update_started
-            #start_str = row[1][info_column_family+":"+update_str_started]
-            #start_str = row[1][self.column_update_started]
-            start_str = row[1][self.indexer.get_col_upstart()]
+            start_str = row[1][self.out_indexer.get_col_upstart()]
             # start time format is '%Y-%m-%d:%H.%M.%S'
             start_dt = datetime.strptime(start_str, '%Y-%m-%d:%H.%M.%S')
             now_dt = datetime.now()
@@ -240,23 +218,27 @@ class ExtractionProcessor(ConfReader):
 
   def get_batch_hbase(self):
     # legacy implementation: better to have a kafka topic for batches to be processed to allow
-    #       safe parallelization on different machines
-    img_cols = [self.indexer.get_col_imgbuff(), self.indexer.get_col_imgurlbak(), self.img_column]
+    # safe and efficient parallelization on different machines
+    # DONE: use in_indexer
+    img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
+                self.img_column]
     try:
-      for updates in self.indexer.get_unprocessed_updates_from_date(self.last_update_date_id,
-                                                                    extr_type=self.extr_prefix):
+      # DONE: use out_indexer
+      for updates in self.out_indexer.get_unprocessed_updates_from_date(self.last_update_date_id,
+                                                                        extr_type=self.extr_prefix):
         for update_id, update_cols in updates:
           if self.extr_prefix in update_id:
             # double check update has not been processed somewhere else
             if self.is_update_unprocessed(update_id):
               # double check update was not marked as started recently i.e. by another process
               if self.is_update_notstarted(update_id, max_delay=TIME_ELAPSED_FAILED):
-                #list_sha1s = update_cols[column_list_sha1s].split(',')
-                list_sha1s = update_cols[self.indexer.get_col_listsha1s()].split(',')
+                # DONE: use out_indexer
+                list_sha1s = update_cols[self.out_indexer.get_col_listsha1s()].split(',')
                 msg = "[{}.get_batch_hbase: log] Update {} has {} images."
                 print(msg.format(self.pp, update_id, len(list_sha1s)))
                 # also get 'ext:' to check if extraction was already processed?
-                rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
+                # DONE: use in_indexer
+                rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
                 # print "rows_batch", rows_batch
                 if rows_batch:
                   yield rows_batch, update_id
@@ -281,17 +263,21 @@ class ExtractionProcessor(ConfReader):
         # Look for updates that have some unprocessed images
         # TODO: wether we do that or not could be specified by a parameter
         # as this induces slow down during update...
-        for updates in self.indexer.get_missing_extr_updates_from_date("1970-01-01",
-                                                                       extr_type=self.extr_prefix):
+        # DONE: use out_indexer
+        for updates in self.out_indexer.get_missing_extr_updates_from_date("1970-01-01",
+                                                                           extr_type=self.extr_prefix):
           for update_id, update_cols in updates:
             if self.extr_prefix in update_id:
-              if self.indexer.get_col_listsha1s() in update_cols:
-                list_sha1s = update_cols[self.indexer.get_col_listsha1s()].split(',')
+              # DONE: use out_indexer
+              if self.out_indexer.get_col_listsha1s() in update_cols:
+                list_sha1s = update_cols[self.out_indexer.get_col_listsha1s()].split(',')
                 msg = "[{}.get_batch_hbase: log] Update {} has {} images missing extractions."
                 print(msg.format(self.pp, update_id, len(list_sha1s)))
                 sys.stdout.flush()
                 # also get 'ext:' to check if extraction was already processed?
-                rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
+                # DONE: use in_indexer
+                rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                        columns=img_cols)
                 if rows_batch:
                   yield rows_batch, update_id
                 else:
@@ -315,7 +301,9 @@ class ExtractionProcessor(ConfReader):
 
   def get_batch_kafka(self):
     # Read from a kafka topic to allow safer parallelization on different machines
-    img_cols = [self.indexer.get_col_imgbuff(), self.indexer.get_col_imgurlbak(), self.img_column]
+    # DONE: use in_indexer
+    img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
+                self.img_column]
     try:
       # Needs to read topic to get update_id and list of sha1s
       if self.ingester.consumer:
@@ -331,11 +319,13 @@ class ExtractionProcessor(ConfReader):
             if self.verbose > 3:
               msg = "[{}.get_batch_kafka: log] Looking for columns: {}"
               print(msg.format(self.pp, img_cols))
-            rows_batch = self.indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
+            # DONE: use in_indexer
+            rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
             #print "rows_batch", rows_batch
             if rows_batch:
               if self.verbose > 4:
-                print("[{}.get_batch_kafka: log] Yielding for update: {}".format(self.pp, update_id))
+                msg = "[{}.get_batch_kafka: log] Yielding for update: {}"
+                print(msg.format(self.pp, update_id))
               yield rows_batch, update_id
               self.ingester.consumer.commit()
               if self.verbose > 4:
@@ -389,11 +379,9 @@ class ExtractionProcessor(ConfReader):
         if nb_extr_to_create:
           start_create_extractor = time.time()
           while len(self.extractors) < self.nb_threads:
-            # self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
-            #                                         self.input_type, self.extr_family_column,
-            #                                         self.featurizer_prefix, self.global_conf))
+            # DONE: use 'out_indexer'
             self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
-                                                    self.input_type, self.indexer.extrcf,
+                                                    self.input_type, self.out_indexer.extrcf,
                                                     self.featurizer_prefix, self.global_conf))
           msg = "[{}] Created {} extractors in {}s."
           create_extr_time = time.time() - start_create_extractor
@@ -405,10 +393,12 @@ class ExtractionProcessor(ConfReader):
         # changed to: self.column_update_started
         #dict_val = {info_column_family + ':' + update_str_started: now_str}
         #dict_val = {self.column_update_started: now_str}
-        dict_val = {self.indexer.get_col_upstart(): now_str}
+        # DONE: use out_indexer
+        dict_val = {self.out_indexer.get_col_upstart(): now_str}
         update_started_dict = {update_id: dict_val}
-        self.indexer.push_dict_rows(dict_rows=update_started_dict,
-                                    table_name=self.indexer.table_updateinfos_name)
+        # DONE: use out_indexer
+        self.out_indexer.push_dict_rows(dict_rows=update_started_dict,
+                                        table_name=self.out_indexer.table_updateinfos_name)
 
         # Push images to queue
         list_in = []
@@ -419,11 +409,13 @@ class ExtractionProcessor(ConfReader):
         q_out_dl = Queue(0)
 
         start_get_buffer = time.time()
+        # DONE: use in_indexer in all this scope
+        # How could we transfer URL from in table to out table if they are different?...
         for img in rows_batch:
           # should decode base64
           #if img_buffer_column in img[1]:
-          if self.indexer.get_col_imgbuff() in img[1]:
-            tup = (img[0], img[1][self.indexer.get_col_imgbuff()], False)
+          if self.in_indexer.get_col_imgbuff() in img[1]:
+            tup = (img[0], img[1][self.in_indexer.get_col_imgbuff()], False)
             list_in.append(tup)
           else:
             # need to re-download, accumulate a list of URLs to download
@@ -431,11 +423,10 @@ class ExtractionProcessor(ConfReader):
             if self.img_column in img[1]:
               q_in_dl.put((img[0], img[1][self.img_column], self.push_back))
               nb_imgs_dl += 1
-            elif self.indexer.get_col_imgurlbak() in img[1]:
-              q_in_dl.put((img[0], img[1][self.indexer.get_col_imgurlbak()], self.push_back))
+            elif self.in_indexer.get_col_imgurlbak() in img[1]:
+              q_in_dl.put((img[0], img[1][self.in_indexer.get_col_imgurlbak()], self.push_back))
               nb_imgs_dl += 1
             else:
-              # TODO: check for img_backup_URL_column here?
               msg = "[{}: warning] No buffer and no URL/path for image {} !"
               print(msg.format(self.pp, img[0]))
               continue
@@ -619,26 +610,23 @@ class ExtractionProcessor(ConfReader):
         sys.stdout.flush()
 
         # Push them
-        self.indexer.push_dict_rows(dict_rows=dict_imgs,
-                                    table_name=self.indexer.table_sha1infos_name)
+        # DONE: use out_indexer
+        self.out_indexer.push_dict_rows(dict_rows=dict_imgs,
+                                        table_name=self.out_indexer.table_sha1infos_name)
 
         # Mark batch as processed
-        # changed to: self.column_update_processed
-        #update_processed_dict = {update_id: {info_column_family + ':' + update_str_processed: datetime.now().strftime('%Y-%m-%d:%H.%M.%S')}}
         now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
-        #update_processed_dict = {update_id: {self.column_update_processed: now_str}}
-        update_processed_dict = {update_id: {self.indexer.get_col_upproc(): now_str}}
-        self.indexer.push_dict_rows(dict_rows=update_processed_dict,
-                                    table_name=self.indexer.table_updateinfos_name)
+        # DONE: use out_indexer
+        update_processed_dict = {update_id: {self.out_indexer.get_col_upproc(): now_str}}
+        self.out_indexer.push_dict_rows(dict_rows=update_processed_dict,
+                                        table_name=self.out_indexer.table_updateinfos_name)
 
         # Mark as completed if all rows had an extraction
         if len(rows_batch) == len(dict_imgs.keys()):
-          # changed to: self.column_update_completed
-          #update_completed_dict = {update_id: {info_column_family + ':' + update_str_completed: str(1)}}
-          #update_completed_dict = {update_id: {self.column_update_completed: str(1)}}
-          update_completed_dict = {update_id: {self.indexer.get_col_upcomp(): str(1)}}
-          self.indexer.push_dict_rows(dict_rows=update_completed_dict,
-                                      table_name=self.indexer.table_updateinfos_name)
+          # DONE: use out_indexer
+          update_completed_dict = {update_id: {self.out_indexer.get_col_upcomp(): str(1)}}
+          self.out_indexer.push_dict_rows(dict_rows=update_completed_dict,
+                                          table_name=self.out_indexer.table_updateinfos_name)
 
         # Cleanup
         del self.q_in

@@ -146,7 +146,7 @@ class HBaseIndexerMinimal(ConfReader):
     :return: column image URL
     :rtype: string
     """
-    return self.imginfocf + ":" + IMG_URLCNAME
+    return self.imginfocf + ":" + self.imgurlcname
 
   def get_col_imgurlbak(self):
     """Get full column (i.e. ``column_family:column_name``) for storing image URL (backup).
@@ -214,11 +214,11 @@ class HBaseIndexerMinimal(ConfReader):
     self.batch_update_size = int(self.get_param('batch_update_size', default=UPDATE_BATCH_SIZE))
 
     # Can all columns be set similarly? And is this change effective everywhere?
-    #self.column_list_sha1s = self.get_param("column_list_sha1s", default=column_list_sha1s)
     self.updatelistsha1scname = self.get_param("column_list_sha1s", default=UPDATE_LISTSHA1CNAME)
     self.extrcf = self.get_param("extr_family_column", default=EXTR_CF)
     self.imginfocf = self.get_param("image_info_column_family", default=IMG_INFOCF)
     self.imgbuffcf = self.get_param("image_buffer_column_family", default=IMG_BUFFCF)
+    self.imgurlcname = self.get_param("image_url_column_name", default=IMG_URLCNAME)
     self.imgbuffcname = self.get_param("image_buffer_column_name", default=IMG_BUFFCNAME)
     self.updateinfocf = self.get_param("update_info_column_family", default=UPDATE_INFOCF)
 

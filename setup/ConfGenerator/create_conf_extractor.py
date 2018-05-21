@@ -93,16 +93,31 @@ if __name__ == "__main__":
     conf[hbase_prefix + 'extr_family_column'] = os.environ['extr_family_column']
   if os.getenv('image_info_column_family', False):
     conf[hbase_prefix + 'image_info_column_family'] = os.environ['image_info_column_family']
+  if os.getenv('image_url_column_name', False):
+    conf[hbase_prefix + 'image_url_column_name'] = os.environ['image_url_column_name']
   if os.getenv('image_buffer_column_family', False):
     conf[hbase_prefix + 'image_buffer_column_family'] = os.environ['image_buffer_column_family']
   if os.getenv('update_info_column_family', False):
     conf[hbase_prefix + 'update_info_column_family'] = os.environ['update_info_column_family']
 
-  # extr_family_column = data
-  # image_info_column_family = data
-  # image_buffer_column_family = img
-  # image_buffer_column_name = img
-  # update_info_column_family = up
+  # "In" HBase settings if any
+  if os.getenv('table_in_imagesinfos', False):
+    in_hbase_prefix = 'IN'+hbase_prefix
+    conf[extr_prefix + 'in_indexer_prefix'] = in_hbase_prefix
+    conf[in_hbase_prefix + 'table_sha1infos'] = os.environ['table_in_imagesinfos'].strip()
+    # Should we allow different HBase hosts?
+    conf[in_hbase_prefix + 'host'] = os.environ['hbase_host'].strip()
+    conf[in_hbase_prefix + 'pool_thread'] = 1
+
+    # Deal with newly exposed but optional parameters
+    if os.getenv('table_in_imgbuffercf', False):
+      conf[in_hbase_prefix + 'image_buffer_column_family'] = os.environ['table_in_imgbuffercf']
+    if os.getenv('table_in_imgbuffercname', False):
+      conf[in_hbase_prefix + 'image_buffer_column_name'] = os.environ['table_in_imgbuffercname']
+    if os.getenv('table_in_imginfocf', False):
+      conf[in_hbase_prefix + 'image_info_column_family'] = os.environ['table_in_imginfocf']
+    if os.getenv('table_in_imgurlcname', False):
+      conf[in_hbase_prefix + 'image_url_column_name'] = os.environ['table_in_imgurlcname']
 
   # Local input settings
   if os.environ['input_type'] == "local":
