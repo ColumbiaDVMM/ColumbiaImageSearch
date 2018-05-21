@@ -205,6 +205,7 @@ class HBaseIndexerMinimal(ConfReader):
     self.hbase_host = str(self.get_required_param('host'))
     # Get table of images and updates
     self.table_sha1infos_name = str(self.get_required_param('table_sha1infos'))
+    # Optional for "IN" indexer for example
     self.table_updateinfos_name = str(self.get_param('table_updateinfos'))
     if self.verbose > 0:
       msg = "[{}.read_conf: info] HBase tables name: {} (sha1infos), {} (updateinfos)"
