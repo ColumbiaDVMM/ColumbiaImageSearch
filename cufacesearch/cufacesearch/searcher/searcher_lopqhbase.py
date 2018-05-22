@@ -70,6 +70,7 @@ class SearcherLOPQHBase(GenericSearcher):
     """
     try:
       # Try to load pretrained model from storer
+      # This can fail with error "exceptions.MemoryError" ?
       lopq_model = self.storer.load(self.build_model_str())
       if lopq_model is None:
         raise ValueError("Could not load model from storer.")
@@ -90,8 +91,10 @@ class SearcherLOPQHBase(GenericSearcher):
         from ..common.dl import download_file
         import pickle
         try:
+          # TODO: fallback bucket_name could be loaded dynamically from conf file...
           base_model_path = "https://s3-us-west-2.amazonaws.com/dig-cu-imagesearchindex/"
           # This can fail with a "retrieval incomplete: got only" ...
+          # Or can stall... why?
           download_file(base_model_path + self.build_model_str(), self.build_model_str())
           lopq_model = pickle.load(open(self.build_model_str(), 'rb'))
           # Avoid overwritting the model in s3 with s3storer using dig-cu-imagesearchindex bucket

@@ -59,6 +59,7 @@ if __name__ == "__main__":
   if storer_type == "s3":
     conf[search_prefix + 'storer_type'] = storer_type
     # NB: a file 'credentials' should exist in docker at /home/ubuntu/.aws/
+    # There should be a file /home/ubuntu/.aws/credentials.sample in the docker
     conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
     conf[storer_prefix + 'bucket_name'] = os.environ['aws_bucket_name']
 
