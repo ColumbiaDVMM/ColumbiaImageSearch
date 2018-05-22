@@ -7,12 +7,13 @@ def reporthook(count, block_size, total_size):
   """
   From http://blog.moleculea.com/2012/10/04/urlretrieve-progres-indicator/
   """
-  global start_time
+  global start_time, last_time
   if count == 0:
     start_time = time.time()
     return
+  last_time = time.time()
   duration = (time.time() - start_time) or 0.01
-  if duration > 1:
+  if last_time - start_time > 1:
     progress_size = int(count * block_size)
     speed = int(progress_size / (1024 * duration))
     percent = int(count * block_size * 100 / total_size)
