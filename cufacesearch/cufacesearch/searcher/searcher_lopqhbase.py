@@ -147,16 +147,15 @@ class SearcherLOPQHBase(GenericSearcher):
       if self.lopq_searcher == "LOPQSearcherLMDB":
         from lopq.search import LOPQSearcherLMDB
         # TODO: should we get path from a parameter? and/or add model_str to it?
-        # self.searcher = LOPQSearcherLMDB(lopq_model, lmdb_path='./lmdb_index/', id_lambda=str)
-        # self.updates_env = lmdb.open('./lmdb_updates/', map_size=1024 * 1000000 * 1, writemap=True, map_async=True, max_dbs=1)
         # path are inside the docker container only...
         self.searcher = LOPQSearcherLMDB(lopq_model,
                                          lmdb_path='/data/lmdb_index_' + self.build_model_str(),
                                          id_lambda=str)
         # How could we properly set the size of this?
+        up_map_size = 1024 * 1000000 * 1
+        # Again (see lopq.search LOPQSearcherLMDB), should we use writemap=True or not
         self.updates_env = lmdb.open('/data/lmdb_updates_' + self.build_model_str(),
-                                     map_size=1024 * 1000000 * 1,
-                                     writemap=True, map_async=True, max_dbs=1)
+                                     map_size=up_map_size, writemap=True, map_async=True, max_dbs=1)
         self.updates_index_db = self.updates_env.open_db("updates")
       elif self.lopq_searcher == "LOPQSearcher":
         from lopq.search import LOPQSearcher
