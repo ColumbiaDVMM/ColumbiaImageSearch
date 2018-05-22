@@ -58,7 +58,7 @@ if __name__ == "__main__":
     conf[storer_prefix + 'base_path'] = os.getenv('storer_base_path', '/data/index')
   if storer_type == "s3":
     conf[search_prefix + 'storer_type'] = storer_type
-    # A file 'credentials' should exist in docker at /home/ubuntu/.aws/
+    # NB: a file 'credentials' should exist in docker at /home/ubuntu/.aws/
     conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
     conf[storer_prefix + 'bucket_name'] = os.environ['aws_bucket_name']
 
@@ -85,14 +85,13 @@ if __name__ == "__main__":
     #conf[featurizer_prefix + 'imgmean_path'] = "./data/models/imagenet_mean.npy"
     conf[featurizer_prefix + 'sbcaffe_path'] = "/data/models/caffe_sentibank_train_iter_250000"
     conf[featurizer_prefix + 'imgmean_path'] = "/data/models/imagenet_mean.npy"
-  # TODO: add sbcmdline for legacy data
+  # Deprecated: sbcmdline was for legacy data
   elif extr_type == "sbcmdlineimg":
     featurizer_prefix = "SBCMD_"
     conf[search_prefix + 'featurizer_prefix'] = featurizer_prefix
     conf[search_prefix + 'featurizer_type'] = "sbcmdline"
     conf[search_prefix + 'detector_type'] = "full"
     conf[featurizer_prefix + 'sbcaffe_path'] = "/data/models/caffe_sentibank_train_iter_250000"
-    # What should it be?
     conf[featurizer_prefix + 'caffe_exec_path'] = "/home/ubuntu/caffe_cpu/build/tools/extract_nfeatures"
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))
@@ -102,7 +101,7 @@ if __name__ == "__main__":
   conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos']
   conf[hbase_prefix + 'table_updateinfos'] = os.environ['table_updateinfos']
   conf[hbase_prefix + 'batch_update_size'] = int(os.environ['batch_update_size'])
-  # TODO: should we expose that parameter
+  # TODO: should we expose that parameter in docker-compose.yml?
   conf[hbase_prefix + 'pool_thread'] = 1
 
   # Deal with newly exposed but optional parameters
@@ -119,6 +118,7 @@ if __name__ == "__main__":
 
 
   # Local input settings
+  # TODO: this should be optional
   # NB: confusing names between that input_type and the extraction input_type i.e. 'face' or 'image'
   if os.environ['input_type'] == "local":
     conf[search_prefix + 'file_input'] = True
