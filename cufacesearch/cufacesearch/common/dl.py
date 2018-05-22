@@ -12,7 +12,7 @@ def reporthook(count, block_size, total_size):
     start_time = time.time()
     last_time = time.time()
     return
-  if time.time() - last_time > 1:
+  if time.time() - last_time > 1 or count * block_size / total_size == 1:
     last_time = time.time()
     duration = (time.time() - start_time) or 0.01
     progress_size = int(count * block_size)
@@ -20,7 +20,7 @@ def reporthook(count, block_size, total_size):
     percent = int(count * block_size * 100 / total_size)
     # Seems to get stuck after 10 seconds of downloading...
     #sys.stdout.write("\r...%d%%, %d MB, %d KB/s, %d seconds passed" %
-    sys.stdout.write("\n%d%%, %d MB, %d KB/s, %d seconds passed" %
+    sys.stdout.write("%d%%, %d MB, %d KB/s, %d seconds passed\n" %
                      (percent, progress_size / (1024 * 1024), speed, duration))
     sys.stdout.flush()
 
