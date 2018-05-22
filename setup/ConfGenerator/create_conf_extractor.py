@@ -25,6 +25,7 @@ if __name__ == "__main__":
   # - table_sha1infos (required)
   # - table_updateinfos (required)
   # - batch_update_size (required)
+  # TODO: Update IN and OUT hbase parameters
   # TODO: report this list in the docs.
   # Make sure the docker-compose propagate all these variables down, so we can generate conf files in docker...
 
