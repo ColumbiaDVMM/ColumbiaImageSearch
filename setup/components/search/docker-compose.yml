@@ -42,7 +42,7 @@ services:
     volumes:
       - $repo_path:$indocker_repo_path
       - cuimgsearch-volume:/data
-      # To add the /home/ubuntu/.aws/credentials file to the docker container, only needed if storer is s3
+      # To add the /home/ubuntu/.aws/credentials file to the docker container, needed if storer is s3
       # See credentials.sample file in $repo_path/conf/aws_credentials/
       - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
       #- cuimgsearch-${search_conf_name}-volume:/data
