@@ -14,25 +14,27 @@ services:
       - input_type
       - verbose
       - "conf_name=${search_conf_name}"
-      - "extr_type=${extr_type}"
-      - "storer=${storer}"
+      - extr_type
+      - storer
       # Hbase related environment variables
       - hbase_host
-      - "table_sha1infos=${table_sha1infos}"
-      - "table_updateinfos=${table_updateinfos}"
-      - "batch_update_size=${batch_update_size}"
+      - table_sha1infos
+      - table_updateinfos
+      - batch_update_size
+      - extr_family_column
+      - image_info_column_family
       # Search related environment variables
-      - "model_type=${model_type}"
-      - "nb_train=${nb_train}"
-      - "nb_min_train=${nb_min_train}"
-      - "lopq_V=${lopq_V}"
-      - "lopq_M=${lopq_M}"
-      - "lopq_subq=${lopq_subq}"
-      - "reranking=${reranking}"
+      - model_type
+      - nb_train
+      - nb_min_train
+      - lopq_V
+      - lopq_M
+      - lopq_subq
+      - reranking
       # If model_type is lopq_pca:
-      - "nb_train_pca=${nb_train_pca}"
-      - "nb_min_train_pca=${nb_min_train_pca}"
-      - "lopq_pcadims=${lopq_pcadims}"
+      - nb_train_pca
+      - nb_min_train_pca
+      - lopq_pcadims
       # If storer is s3
       - aws_profile
       - aws_bucket_name
