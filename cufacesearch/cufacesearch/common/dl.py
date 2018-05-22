@@ -12,13 +12,15 @@ def reporthook(count, block_size, total_size):
     start_time = time.time()
     return
   duration = (time.time() - start_time) or 0.01
-  progress_size = int(count * block_size)
-  speed = int(progress_size / (1024 * duration))
-  percent = int(count * block_size * 100 / total_size)
-  #sys.stdout.write("\r...%d%%, %d MB, %d KB/s, %d seconds passed" %
-  sys.stdout.write("%d%%, %d MB, %d KB/s, %d seconds passed" %
-                   (percent, progress_size / (1024 * 1024), speed, duration))
-  sys.stdout.flush()
+  if duration > 1:
+    progress_size = int(count * block_size)
+    speed = int(progress_size / (1024 * duration))
+    percent = int(count * block_size * 100 / total_size)
+    # Seems to get stuck after 10 seconds of downloading...
+    #sys.stdout.write("\r...%d%%, %d MB, %d KB/s, %d seconds passed" %
+    sys.stdout.write("\n%d%%, %d MB, %d KB/s, %d seconds passed" %
+                     (percent, progress_size / (1024 * 1024), speed, duration))
+    sys.stdout.flush()
 
 def download_file(url, local_path):
   """ Download file from 'url' to the directory of 'local_path'
