@@ -38,6 +38,8 @@ services:
       # If storer is s3
       - aws_profile
       - aws_bucket_name
+      - aws_region
+      - aws_prefix
     # need to add a volume that store the search index data
     volumes:
       - $repo_path:$indocker_repo_path
