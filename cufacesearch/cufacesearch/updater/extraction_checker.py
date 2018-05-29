@@ -93,7 +93,7 @@ class ExtractionChecker(ConfReader):
     # Need to be build from extraction type and extraction input + "_batchid"
     self.batch_check_column = extr_prefix_base_column_name + "_updateid"
     self.check_columns = [extr_check_column, self.batch_check_column]
-    print(self.check_columns)
+    #print(self.check_columns)
 
 
   def set_pp(self, pp=""):
@@ -127,6 +127,7 @@ class ExtractionChecker(ConfReader):
         pass
 
   def get_dict_push(self, list_get_sha1s, daemon=False):
+    #TODO: is this needed for every get_dict_push call?
     self.set_check_columns()
     # TODO: also pass current update_id, and move the creation of update id out of this method
     #  this method should actually be used to 'claim' an image as soon as we can.
@@ -165,7 +166,7 @@ class ExtractionChecker(ConfReader):
       # Check if the selected sha1 rows in HBase table 'sha1infos' have those check_column
       # This call will only return rows that DO have those check_column
       fam = self.indexer.get_dictcf_sha1_table()
-      if self.verbose > 0:
+      if self.verbose > 6:
         print("[{}.get_unprocessed_rows: log] fam: {}".format(self.pp, fam))
       sha1s_rows = self.indexer.get_columns_from_sha1_rows(list_check_sha1s, self.check_columns,
                                                            families=fam)
