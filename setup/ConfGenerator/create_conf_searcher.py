@@ -60,10 +60,13 @@ if __name__ == "__main__":
     conf[search_prefix + 'storer_type'] = storer_type
     # NB: a file 'credentials' should exist in docker at /home/ubuntu/.aws/
     # There should be a file /home/ubuntu/.aws/credentials.sample in the docker
-    conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
     conf[storer_prefix + 'bucket_name'] = os.environ['aws_bucket_name']
+    if os.getenv('aws_profile', False):
+      conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
     if os.getenv('aws_region', False):
       conf[storer_prefix + 'aws_region'] = os.environ['aws_region']
+    if os.getenv('aws_prefix', False):
+      conf[storer_prefix + 'aws_prefix'] = os.environ['aws_prefix']
 
   # Extraction settings
   extr_type = os.environ['extr_type']
@@ -120,10 +123,10 @@ if __name__ == "__main__":
     conf[hbase_prefix + 'update_info_column_family'] = os.environ['update_info_column_family']
 
 
-  # Local input settings
-  # TODO: this should be optional
+  # Check for local input settings
   # NB: confusing names between that input_type and the extraction input_type i.e. 'face' or 'image'
-  if os.environ['input_type'] == "local":
+  #if os.environ['input_type'] == "local":
+  if os.getenv('input_type', 'notlocal') == 'local':
     conf[search_prefix + 'file_input'] = True
 
   # Search parameters

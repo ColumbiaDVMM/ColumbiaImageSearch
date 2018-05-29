@@ -20,7 +20,8 @@ class S3Storer(GenericStorer):
     self.bucket_name = self.get_required_param('bucket_name')
     self.region = self.get_param('aws_region', default=None)
     self.aws_profile = self.get_param('aws_profile', default=None)
-
+    # we can define a prefix, i.e. folder in a bucket as a parameter
+    self.aws_prefix = self.get_param('aws_prefix', default='')
     self.session = None
 
     try:
@@ -35,43 +36,53 @@ class S3Storer(GenericStorer):
     try:
       self.s3.meta.client.head_bucket(Bucket=self.bucket_name)
     except botocore.exceptions.ClientError as e:
-      err_msg = "[{}: error] Could not check bucket {} using profile {} in region {}"
+      err_msg = "[{}: error] Could not check bucket '{}' using profile '{}' in region '{}'"
       full_trace_error(err_msg.format(self.pp, self.bucket_name, self.aws_profile, self.region))
       raise e
     self.bucket = self.s3.Bucket(self.bucket_name)
     if self.verbose > 0:
-      msg = "[{}: log] Initialized with bucket '{}' and profile '{}'."
-      print(msg.format(self.pp, self.bucket_name, self.aws_profile))
+      msg = "[{}: log] Initialized with bucket '{}' and profile '{}' in region '{}'."
+      print(msg.format(self.pp, self.bucket_name, self.aws_profile, self.region))
 
   def save(self, key, obj):
     # Pickle and save to s3 bucket
     buffer = sio.StringIO(pickle.dumps(obj))
-    self.bucket.upload_fileobj(buffer, key)
+    save_key = key
+    if self.aws_prefix:
+      save_key = '/'.join([self.aws_prefix, key])
+    self.bucket.upload_fileobj(buffer, save_key)
     if self.verbose > 1:
-      print("[{}: log] Saved file: {}".format(self.pp, key))
+      print("[{}: log] Saved file: {}".format(self.pp, save_key))
 
   def load(self, key, silent=False):
     # Load a pickle object from s3 bucket
     try:
       buffer = sio.StringIO()
-      self.bucket.download_fileobj(key, buffer)
+      load_key = key
+      if self.aws_prefix:
+        load_key = '/'.join([self.aws_prefix, key])
+      self.bucket.download_fileobj(load_key, buffer)
       # buffer has been filled, offset is at the end, seek to beginning for unpickling
       buffer.seek(0)
       obj = pickle.load(buffer)
       if self.verbose > 1:
-        print("[{}: log] Loaded file: {}".format(self.pp, key))
+        print("[{}: log] Loaded file: {}".format(self.pp, load_key))
       return obj
     except Exception as e:
       if self.verbose > 1 and not silent:
         err_msg = "[{}: error ({}: {})] Could not load object with key: {}"
-        print(err_msg.format(self.pp, type(e), e, key))
+        print(err_msg.format(self.pp, type(e), e, load_key))
 
   def list_prefix(self, prefix_path):
+    if self.aws_prefix:
+      prefix_path = '/'.join([self.aws_prefix, prefix_path])
     for obj in self.bucket.objects.filter(Prefix=prefix_path):
       yield obj
 
   # This would be used to load all codes
   def get_all_from_prefix(self, prefix_path):
+    if self.aws_prefix:
+      prefix_path = '/'.join([self.aws_prefix, prefix_path])
     for obj in self.list_prefix(prefix_path):
       yield self.load(obj.key)
 
