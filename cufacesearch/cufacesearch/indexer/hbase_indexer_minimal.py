@@ -741,10 +741,14 @@ class HBaseIndexerMinimal(ConfReader):
             # parse to get id, sha1 + detection_box
             sid = str(row[0])+"_"+"_".join(key.split("_")[4:8])
           # Get feature
-          feat = featB64decode(row[1][key], feat_type_decode)
-          # Add sample id and feature
-          samples_id.append(sid)
-          feats.append(feat)
+          try:
+            feat = featB64decode(row[1][key], feat_type_decode)
+            # Add sample id and feature
+            samples_id.append(sid)
+            feats.append(feat)
+          except Exception as inst:
+            full_trace_error("Failed to get feature for image {}".format(row[0]))
+            raise inst
     if self.verbose > 0:
       print("[{}: info] Got {} rows and {} features.".format(self.pp, len(rows), len(samples_id)))
     return samples_id, feats
