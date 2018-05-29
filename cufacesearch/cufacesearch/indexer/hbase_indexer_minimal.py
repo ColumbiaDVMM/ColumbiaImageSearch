@@ -732,7 +732,8 @@ class HBaseIndexerMinimal(ConfReader):
     feats = []
     for row in rows:
       for key in row[1]:
-        notinfocol = not key.endswith("_updateid") and not key.endswith(EXTR_STR_PROCESSED)
+        notinfocol = not key.endswith("_updateid") and \
+                     not key.endswith(EXTR_STR_PROCESSED) and not key.endswith(EXTR_STR_FAILED)
         if key.startswith(self.extrcf + ":" + extr_type) and notinfocol:
           # Get sample id
           if not has_detection:
@@ -747,8 +748,10 @@ class HBaseIndexerMinimal(ConfReader):
             samples_id.append(sid)
             feats.append(feat)
           except Exception as inst:
-            full_trace_error("Failed to get feature for image {}".format(row[0]))
-            raise inst
+            msg = "[{}.get_features_from_sha1s: log] Failed to get feature for image {}"
+            print(msg.format(self.pp, row[0]))
+            #full_trace_error(msg.format(self.pp, row[0]))
+            #raise inst
     if self.verbose > 0:
       print("[{}: info] Got {} rows and {} features.".format(self.pp, len(rows), len(samples_id)))
     return samples_id, feats
