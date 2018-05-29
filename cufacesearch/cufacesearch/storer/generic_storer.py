@@ -22,10 +22,7 @@ class GenericStorer(ConfReader):
 
   def __init__(self, global_conf_in, prefix=default_prefix):
     super(GenericStorer, self).__init__(global_conf_in, prefix)
-    self.set_pp()
-
-  def set_pp(self):
-    self.pp = "GenericStorer"
+    self.set_pp(pp="GenericStorer")
 
   def setup(self):
     pass

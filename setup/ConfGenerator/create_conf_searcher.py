@@ -62,6 +62,8 @@ if __name__ == "__main__":
     # There should be a file /home/ubuntu/.aws/credentials.sample in the docker
     conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
     conf[storer_prefix + 'bucket_name'] = os.environ['aws_bucket_name']
+    if os.getenv('aws_region', False):
+      conf[storer_prefix + 'aws_region'] = os.environ['aws_region']
 
   # Extraction settings
   extr_type = os.environ['extr_type']
