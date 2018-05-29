@@ -18,8 +18,10 @@ UPDATE_LISTSHA1CNAME = "list_sha1s"
 IMG_INFOCF = "info"
 IMG_BUFFCF = "info"
 IMG_BUFFCNAME = "img_buffer"
+IMG_URLCNAME = "s3_url"
 EXTR_CF = "ext"
 DEFAULT_HBASEINDEXER_PREFIX = "HBI_"
+SKIP_FAILED = False
 # Maximum number of retries before actually raising error
 MAX_ERRORS = 3
 # Reading a lot of data from HBase at once can be unstable
@@ -33,11 +35,11 @@ UPDATE_BATCH_SIZE = 1000
 
 # Not yet exposed in configuration
 EXTR_STR_PROCESSED = "processed"
+EXTR_STR_FAILED= "failed"
 UPDATE_STR_PROCESSED = "processed"
 UPDATE_STR_STARTED = "started"
 UPDATE_STR_CREATED = "created"
 UPDATE_STR_COMPLETED = "completed"
-IMG_URLCNAME = "s3_url"
 IMG_URLBACKUPCNAME = "location"
 IMG_PATHCNAME = "img_path"
 
@@ -83,6 +85,7 @@ class HBaseIndexerMinimal(ConfReader):
     self.imgbuffcname = None
     self.updateinfocf = None
     self.updatelistsha1scname = None
+    self.skipfailed = None
 
     super(HBaseIndexerMinimal, self).__init__(global_conf_in, prefix)
     self.set_pp(pp="HBaseIndexerMinimal")
@@ -213,6 +216,7 @@ class HBaseIndexerMinimal(ConfReader):
 
     self.nb_threads = int(self.get_param('pool_thread', default=1))
     self.batch_update_size = int(self.get_param('batch_update_size', default=UPDATE_BATCH_SIZE))
+    self.skipfailed = self.get_param("skip_failed", default=SKIP_FAILED)
 
     # Can all columns be set similarly? And is this change effective everywhere?
     self.updatelistsha1scname = self.get_param("column_list_sha1s", default=UPDATE_LISTSHA1CNAME)
@@ -222,7 +226,6 @@ class HBaseIndexerMinimal(ConfReader):
     self.imgurlcname = self.get_param("image_url_column_name", default=IMG_URLCNAME)
     self.imgbuffcname = self.get_param("image_buffer_column_name", default=IMG_BUFFCNAME)
     self.updateinfocf = self.get_param("update_info_column_family", default=UPDATE_INFOCF)
-
 
   def refresh_hbase_conn(self, calling_function, sleep_time=0):
     """Refresh connection to HBase.
@@ -515,7 +518,8 @@ class HBaseIndexerMinimal(ConfReader):
                 print(msg.format(self.pp, fname, row[0]))
               if self.get_col_listsha1s() in row[1]:
                 tmp_list_sha1s = row[1][self.get_col_listsha1s()].split(',')
-                missing_extr_sha1s = self.get_missing_extr_sha1s(tmp_list_sha1s, extr_type)
+                missing_extr_sha1s = self.get_missing_extr_sha1s(tmp_list_sha1s, extr_type,
+                                                                 skip_failed=self.skipfailed)
                 if missing_extr_sha1s:
                   if self.verbose > 5:
                     msg = "[{}.{}: log] update {} has missing extractions"
@@ -531,9 +535,10 @@ class HBaseIndexerMinimal(ConfReader):
                     msg = "[{}.{}: log] update {} has no missing extractions"
                     print(msg.format(self.pp, fname, row[0]))
                   # We should mark as completed here
-                  update_completed_dict = {row[0]: {self.get_col_upcomp(): str(1)}}
-                  self.push_dict_rows(dict_rows=update_completed_dict,
-                                      table_name=self.table_updateinfos_name)
+                  if not self.skipfailed:
+                    update_completed_dict = {row[0]: {self.get_col_upcomp(): str(1)}}
+                    self.push_dict_rows(dict_rows=update_completed_dict,
+                                        table_name=self.table_updateinfos_name)
               else:
                 msg = "[{}.{}: warning] update {} has no images list"
                 print(msg.format(self.pp, fname, row[0]))
@@ -744,7 +749,7 @@ class HBaseIndexerMinimal(ConfReader):
       print("[{}: info] Got {} rows and {} features.".format(self.pp, len(rows), len(samples_id)))
     return samples_id, feats
 
-  def get_missing_extr_sha1s(self, list_sha1s, extr_type):
+  def get_missing_extr_sha1s(self, list_sha1s, extr_type, skip_failed=False):
     """Get list of images sha1 for which "extr_type" was not computed.
 
     :param list_sha1s: list of images sha1
@@ -755,7 +760,10 @@ class HBaseIndexerMinimal(ConfReader):
     sha1s_w_extr = set()
     for row in rows:
       for key in row[1]:
-        if key.startswith(self.extrcf + ":" + extr_type) and key.endswith(EXTR_STR_PROCESSED):
+        kstart = key.startswith(self.extrcf + ":" + extr_type)
+        kfailed = (skip_failed and key.endswith(EXTR_STR_FAILED) and row[1][key]==1)
+        kend = key.endswith(EXTR_STR_PROCESSED) or kfailed
+        if kstart and kend:
           sha1s_w_extr.add(str(row[0]))
     return list(set(list_sha1s) - sha1s_w_extr)
 

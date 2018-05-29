@@ -14,43 +14,41 @@ class S3Storer(GenericStorer):
 
   def __init__(self, global_conf_in, prefix=default_prefix):
     super(S3Storer, self).__init__(global_conf_in, prefix)
+    self.set_pp(pp="S3Storer")
 
-    # This assumes you have the corresponding profile in ~/.aws/credentials
-    # We could first look for the file ~/.aws/credentials
-    #  and if not try to copy from conf/aws_credentials.sample assuming it was filled with the proper values?
-    self.aws_profile = self.get_param('aws_profile')
+    # This assumes you have set the corresponding profile in ~/.aws/credentials
     self.bucket_name = self.get_required_param('bucket_name')
+    self.region = self.get_param('aws_region', default=None)
+    self.aws_profile = self.get_param('aws_profile', default=None)
 
     self.session = None
+
     try:
       self.setup()
     except botocore.exceptions.ProfileNotFound:
       raise ValueError("Could not find AWS profile: {}".format(self.aws_profile))
 
-  def set_pp(self):
-    self.pp = "S3Storer"
-
   def setup(self):
-    self.session = boto3.Session(profile_name=self.aws_profile)
+    self.session = boto3.Session(profile_name=self.aws_profile, region_name=self.region)
     self.s3 = self.session.resource('s3')
     # Try to access first to make sure
     try:
       self.s3.meta.client.head_bucket(Bucket=self.bucket_name)
     except botocore.exceptions.ClientError as e:
-      err_msg = "[{}: error] Could not check bucket {} using profile {}"
-      full_trace_error(err_msg.format(self.pp, self.bucket_name, self.aws_profile))
+      err_msg = "[{}: error] Could not check bucket {} using profile {} in region {}"
+      full_trace_error(err_msg.format(self.pp, self.bucket_name, self.aws_profile, self.region))
       raise e
     self.bucket = self.s3.Bucket(self.bucket_name)
     if self.verbose > 0:
-      print "[{}: log] Initialized with bucket '{}' and profile '{}'.".format(self.pp, self.bucket_name, self.aws_profile)
+      msg = "[{}: log] Initialized with bucket '{}' and profile '{}'."
+      print(msg.format(self.pp, self.bucket_name, self.aws_profile))
 
   def save(self, key, obj):
     # Pickle and save to s3 bucket
     buffer = sio.StringIO(pickle.dumps(obj))
     self.bucket.upload_fileobj(buffer, key)
     if self.verbose > 1:
-      print "[{}: log] Saved file: {}".format(self.pp, key)
-
+      print("[{}: log] Saved file: {}".format(self.pp, key))
 
   def load(self, key, silent=False):
     # Load a pickle object from s3 bucket
@@ -61,12 +59,12 @@ class S3Storer(GenericStorer):
       buffer.seek(0)
       obj = pickle.load(buffer)
       if self.verbose > 1:
-        print "[{}: log] Loaded file: {}".format(self.pp, key)
+        print("[{}: log] Loaded file: {}".format(self.pp, key))
       return obj
     except Exception as e:
       if self.verbose > 1 and not silent:
         err_msg = "[{}: error ({}: {})] Could not load object with key: {}"
-        print err_msg.format(self.pp, type(e), e, key)
+        print(err_msg.format(self.pp, type(e), e, key))
 
   def list_prefix(self, prefix_path):
     for obj in self.bucket.objects.filter(Prefix=prefix_path):

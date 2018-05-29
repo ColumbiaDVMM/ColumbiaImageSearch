@@ -88,6 +88,8 @@ if __name__ == "__main__":
   conf[hbase_prefix + 'pool_thread'] = int(os.getenv('pool_thread', 1))
 
   # Deal with newly exposed but optional parameters
+  if os.getenv('skip_failed', False):
+    conf[hbase_prefix + 'skip_failed'] = os.environ['skip_failed']
   if os.getenv('column_list_sha1s', False):
     conf[hbase_prefix + 'column_list_sha1s'] = os.environ['column_list_sha1s']
   if os.getenv('extr_family_column', False):

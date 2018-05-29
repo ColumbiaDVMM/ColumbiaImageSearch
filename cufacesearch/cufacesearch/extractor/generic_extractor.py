@@ -7,16 +7,17 @@ from ..detector.utils import get_detector, get_bbox_str
 from ..featurizer.generic_featurizer import get_featurizer
 from ..featurizer.featsio import normfeatB64encode
 from ..imgio.imgio import get_buffer_from_B64
-from ..indexer.hbase_indexer_minimal import EXTR_STR_PROCESSED
+from ..indexer.hbase_indexer_minimal import EXTR_STR_PROCESSED, EXTR_STR_FAILED
 
 
 def build_extr_str(featurizer_type, detector_type, input_type):
   return "_".join([featurizer_type, "feat", detector_type, input_type])
 
-
 def build_extr_str_processed(featurizer_type, dectector_type, input_type):
   return build_extr_str(featurizer_type, dectector_type, input_type) + "_" + EXTR_STR_PROCESSED
 
+def build_extr_str_failed(featurizer_type, dectector_type, input_type):
+  return build_extr_str(featurizer_type, dectector_type, input_type) + "_" + EXTR_STR_FAILED
 
 class DaemonBatchExtractor(multiprocessing.Process):
 
@@ -71,14 +72,19 @@ class DaemonBatchExtractor(multiprocessing.Process):
             out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
             # We have downloaded the image and need to push the buffer to HBase
             # Transition: we should never push back.
-            if push_buffer:
-              #out_dict[img_buffer_column] = img_buffer_b64
-              out_dict[self.indexer.get_col_imgbuff()] = img_buffer_b64
+            # Also buffer is really buffer not b64 encoded...
+            # if push_buffer:
+            #   #out_dict[img_buffer_column] = img_buffer_b64
+            #   out_dict[self.indexer.get_col_imgbuff()] = img_buffer_b64
             out_batch.append((sha1, out_dict))
           except Exception as inst:
             err_msg = "[{}: warning] Extraction failed for img {} with error ({}): {}"
-            print err_msg.format(self.pp, sha1, type(inst), inst)
+            print(err_msg.format(self.pp, sha1, type(inst), inst))
             sys.stdout.flush()
+            # Mark this image as corrupted
+            # But how and when could it be overwritten if we manage to run the extraction later?
+            out_dict = self.extractor.failed_out_dict()
+            out_batch.append((sha1, out_dict))
         #---
 
         # Push batch out
@@ -96,7 +102,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
       except Exception as inst:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fulltb = traceback.format_tb(exc_tb)
-        print "[{}: {}] {} ({})".format(self.pp, type(inst), inst, ''.join(fulltb))
+        print("[{}: {}] {} ({})".format(self.pp, type(inst), inst, ''.join(fulltb)))
         sys.stdout.flush()
 
         # Try to push whatever we have so far?
@@ -127,11 +133,18 @@ class GenericExtractor(object):
     self.extr_str = str(self.extr_column + ":" + tmp_str)
     tmp_str = build_extr_str_processed(self.featurizer_type, self.detector_type, self.input_type)
     self.extr_str_processed = str(self.extr_column + ":" + tmp_str)
+    tmp_str = build_extr_str_failed(self.featurizer_type, self.detector_type, self.input_type)
+    self.extr_str_failed = str(self.extr_column + ":" + tmp_str)
 
   def init_out_dict(self):
     tmp_dict_out = dict()
     # Will stay '0' for an extractor with a detector where no detection were found
     tmp_dict_out[self.extr_str_processed] = 0
+    return tmp_dict_out
+
+  def failed_out_dict(self):
+    tmp_dict_out = dict()
+    tmp_dict_out[self.extr_str_failed] = 1
     return tmp_dict_out
 
   def process_buffer(self, img_buffer):
