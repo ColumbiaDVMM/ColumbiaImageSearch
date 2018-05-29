@@ -761,7 +761,7 @@ class HBaseIndexerMinimal(ConfReader):
     for row in rows:
       for key in row[1]:
         kstart = key.startswith(self.extrcf + ":" + extr_type)
-        kfailed = (skip_failed and key.endswith(EXTR_STR_FAILED) and row[1][key]==1)
+        kfailed = (skip_failed and key.endswith(EXTR_STR_FAILED) and row[1][key]==str(1))
         kend = key.endswith(EXTR_STR_PROCESSED) or kfailed
         if kstart and kend:
           sha1s_w_extr.add(str(row[0]))
