@@ -542,7 +542,8 @@ class SearcherLOPQHBase(GenericSearcher):
       print("[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load))
 
     except Exception as inst:
-      print("[{}: error] Could not load codes. {}".format(self.pp, inst))
+      full_trace_error("[{}: error] Could not load codes. {}".format(self.pp, inst))
+      #print("[{}: error] Could not load codes. {}".format(self.pp, inst))
 
   # def load_all_codes(self):
   #   # load self.indexed_updates, self.searcher.index and self.searcher.nb_indexed
