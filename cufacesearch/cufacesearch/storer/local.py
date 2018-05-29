@@ -3,7 +3,6 @@ import glob
 import cPickle as pickle
 from cufacesearch.storer.generic_storer import GenericStorer
 from cufacesearch.common.dl import mkpath
-from cufacesearch.common.error import full_trace_error
 
 default_prefix = "LOCALST_"
 
@@ -22,7 +21,7 @@ class LocalStorer(GenericStorer):
     # create base path dir
     mkpath(self.base_path)
     if self.verbose > 0:
-      print "[{}: log] Initialized with base_path '{}'".format(self.pp, self.base_path)
+      print("[{}: log] Initialized with base_path '{}'".format(self.pp, self.base_path))
 
   def get_full_path(self, key):
     return os.path.join(self.base_path, key)
@@ -41,12 +40,12 @@ class LocalStorer(GenericStorer):
       full_path = self.get_full_path(key)
       obj = pickle.load(open(full_path, 'rb'))
       if self.verbose > 1:
-        print "[{}: log] Loaded file: {}".format(self.pp, full_path)
+        print("[{}: log] Loaded file: {}".format(self.pp, full_path))
       return obj
     except Exception as e:
       if self.verbose > 0 and not silent:
         err_msg = "[{}: error ({}: {})] Could not load object from path: {}"
-        print err_msg.format(self.pp, type(e), e, full_path)
+        print(err_msg.format(self.pp, type(e), e, full_path))
 
 
   def list_prefix(self, prefix_path):
