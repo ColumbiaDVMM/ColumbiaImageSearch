@@ -3,10 +3,12 @@ import botocore
 # TODO: use botocore to properly catch exceptions as below...
 # except botocore.exceptions.ClientError as e:
 # error_code = int(e.response['Error']['Code'])
+# Are cStringIO.StringIO and io.BytesIO compatible enough for our usage?...
 try:
-  import cStringIO as sio
+  import cStringIO.StringIO as sio
 except: # python 3
-  import io as sio
+  # io.StringIO only accept true strings...
+  import io.BytesIO as sio
 try:
   import cPickle as pickle
 except: # python 3
@@ -52,7 +54,8 @@ class S3Storer(GenericStorer):
 
   def save(self, key, obj):
     # Pickle and save to s3 bucket
-    buffer = sio.StringIO(pickle.dumps(obj))
+    #buffer = sio.StringIO(pickle.dumps(obj))
+    buffer = sio(pickle.dumps(obj))
     save_key = key
     if self.aws_prefix:
       save_key = '/'.join([self.aws_prefix, key])
@@ -63,7 +66,8 @@ class S3Storer(GenericStorer):
   def load(self, key, silent=False):
     # Load a pickle object from s3 bucket
     try:
-      buffer = sio.StringIO()
+      #buffer = sio.StringIO()
+      buffer = sio()
       load_key = key
       if self.aws_prefix:
         load_key = '/'.join([self.aws_prefix, key])
