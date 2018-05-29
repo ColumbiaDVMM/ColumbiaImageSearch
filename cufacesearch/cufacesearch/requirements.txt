@@ -10,3 +10,4 @@ requests
 gevent
 kafka-python
 elasticsearch
+cStringIO
