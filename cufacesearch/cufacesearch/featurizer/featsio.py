@@ -19,6 +19,7 @@ def get_feat_dtype(feat_type):
 def featB64decode(feat_B64, feat_type=None):
   # we need to provide dtype as by default it seems to be np.float64
   # but sentibank features are actually np.float32...
+  # can get an 'Incorrect padding' error?
   return np.frombuffer(base64.b64decode(feat_B64), dtype=get_feat_dtype(feat_type))
 
 def parse_feat_line(line):
