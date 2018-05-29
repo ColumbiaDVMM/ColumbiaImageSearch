@@ -139,12 +139,12 @@ class GenericExtractor(object):
   def init_out_dict(self):
     tmp_dict_out = dict()
     # Will stay '0' for an extractor with a detector where no detection were found
-    tmp_dict_out[self.extr_str_processed] = 0
+    tmp_dict_out[self.extr_str_processed] = str(0)
     return tmp_dict_out
 
   def failed_out_dict(self):
     tmp_dict_out = dict()
-    tmp_dict_out[self.extr_str_failed] = 1
+    tmp_dict_out[self.extr_str_failed] = str(1)
     return tmp_dict_out
 
   def process_buffer(self, img_buffer):
@@ -160,7 +160,7 @@ class GenericExtractor(object):
           one_feat = self.featurizer.featurize(img, one_det)
           # TODO: should we force type to be featsio.get_feat_dtype(self.featurizer_type)
           # Fill out dictionary
-          dict_out[self.extr_str_processed] = 1
+          dict_out[self.extr_str_processed] = str(1)
           bbox_str = get_bbox_str(one_det)
           # Encode the feature with base64
           dict_out[self.extr_str + "_" + bbox_str] = normfeatB64encode(one_feat)
@@ -169,8 +169,7 @@ class GenericExtractor(object):
       one_feat = self.featurizer.featurize(img_buffer)
       # TODO: should we force type to be featsio.get_feat_dtype(self.featurizer_type)
       dict_out[self.extr_str] = normfeatB64encode(one_feat)
-      dict_out[self.extr_str_processed] = 1
+      dict_out[self.extr_str_processed] = str(1)
 
-    dict_out[self.extr_str_processed] = str(dict_out[self.extr_str_processed])
     # Return dict ready to be pushed to DB
     return dict_out
