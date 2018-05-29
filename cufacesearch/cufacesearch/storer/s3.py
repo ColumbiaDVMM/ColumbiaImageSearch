@@ -3,7 +3,10 @@ import botocore
 # TODO: use botocore to properly catch exceptions as below...
 # except botocore.exceptions.ClientError as e:
 # error_code = int(e.response['Error']['Code'])
-import cStringIO as sio
+try:
+  import cStringIO as sio
+except: # python 3
+  import io as sio
 import cPickle as pickle
 from .generic_storer import GenericStorer
 from cufacesearch.common.error import full_trace_error
