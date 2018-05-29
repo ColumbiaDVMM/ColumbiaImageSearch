@@ -11,14 +11,12 @@ class LocalStorer(GenericStorer):
 
   def __init__(self, global_conf_in, prefix=default_prefix):
     super(LocalStorer, self).__init__(global_conf_in, prefix)
+    self.set_pp(pp="LocalStorer")
     self.base_path = self.get_required_param('base_path')
     # Be sure base_path ends by "/" for mkpath
     if self.base_path[-1] != "/":
       self.base_path = self.base_path+"/"
     self.setup()
-
-  def set_pp(self):
-    self.pp = "LocalStorer"
 
   def setup(self):
     # create base path dir
