@@ -5,10 +5,10 @@ import botocore
 # error_code = int(e.response['Error']['Code'])
 # Are cStringIO.StringIO and io.BytesIO compatible enough for our usage?...
 try:
-  import cStringIO.StringIO as sio
+  from cStringIO import StringIO as sio
 except: # python 3
   # io.StringIO only accept true strings...
-  import io.BytesIO as sio
+  from io import BytesIO as sio
 try:
   import cPickle as pickle
 except: # python 3
