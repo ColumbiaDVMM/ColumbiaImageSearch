@@ -7,7 +7,10 @@ try:
   import cStringIO as sio
 except: # python 3
   import io as sio
-import cPickle as pickle
+try:
+  import cPickle as pickle
+except: # python 3
+  import pickle
 from .generic_storer import GenericStorer
 from cufacesearch.common.error import full_trace_error
 
