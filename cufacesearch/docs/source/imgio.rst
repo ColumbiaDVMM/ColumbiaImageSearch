@@ -1,5 +1,6 @@
 Image I/O
 =========
 
-.. automodule:: cufacesearch.imgio
+.. automodule:: cufacesearch.imgio.imgio
    :members:
+

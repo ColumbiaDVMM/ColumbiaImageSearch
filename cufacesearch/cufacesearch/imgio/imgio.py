@@ -21,6 +21,13 @@ SESSION.mount('https://', HTTPAdapter(max_retries=RETRIES_SETTINGS))
 
 
 def get_SHA1_from_data(data):
+  """Compute image SHA1.
+
+  :param data: image buffer
+  :type data: buffer
+  :return: image SHA1
+  :rtype: str
+  """
   sha1hash = None
   import hashlib
   try:
@@ -28,15 +35,19 @@ def get_SHA1_from_data(data):
     sha1.update(data)
     sha1hash = sha1.hexdigest().upper()
   except:
-    print "Could not read data to compute SHA1."
+    print("Could not read data to compute SHA1.")
   return sha1hash
 
 
 def get_image_size_and_format(input_data):
-  # adapted from https://github.com/scardine/image_size
-  """
-  Return (width, height, format) for a given img file content stream.
-  No external dependencies except the struct module from core.
+  """Return (`width`, `height`, `format`) for a given img file content stream.
+  No external dependencies except the struct module from core, adapted from
+  https://github.com/scardine/image_size.
+
+  :param input_data: image buffer
+  :type input_data: buffer
+  :return: (width, height, format)
+  :rtype: tuple
   """
   import struct
 
@@ -101,15 +112,38 @@ def get_image_size_and_format(input_data):
 
 
 def get_SHA1_img_type_from_B64(base64str):
+  """Get SHA1 and image type from base64 encoded image buffer.
+
+  :param base64str: base64 encoded image buffer
+  :type base64str: str
+  :return: (sha1, image type)
+  :rtype: tuple
+  """
   img_buffer = get_buffer_from_B64(base64str)
   sha1, img_type, _, _ = get_SHA1_img_info_from_buffer(img_buffer)
   return sha1, img_type
 
+
 def get_SHA1_from_buffer(img_buffer):
+  """Get SHA1 from image buffer.
+
+  :param img_buffer: image buffer
+  :type img_buffer: buffer
+  :return: sha1
+  :rtype: str
+  """
   img_buffer.seek(0)
   return get_SHA1_from_data(img_buffer.read())
 
+
 def get_SHA1_img_info_from_buffer(img_buffer):
+  """Get SHA1 and image info from image buffer.
+
+  :param img_buffer: image buffer
+  :type img_buffer: buffer
+  :return: (sha1, image type, width, height)
+  :rtype: type
+  """
   width, height, img_type = get_image_size_and_format(img_buffer)
   img_buffer.seek(0)
   sha1 = get_SHA1_from_data(img_buffer.read())
@@ -117,6 +151,13 @@ def get_SHA1_img_info_from_buffer(img_buffer):
 
 
 def buffer_to_B64(img_buffer):
+  """Encode image buffer as base64 string.
+
+  :param img_buffer: image buffer
+  :type img_buffer: buffer
+  :return: base64 string of image buffer
+  :rtype: str
+  """
   import base64
   # make sure buffer is at beginning
   img_buffer.seek(0)
@@ -126,16 +167,48 @@ def buffer_to_B64(img_buffer):
 
 
 def get_buffer_from_B64(base64str):
+  """Decode base64 encoded image buffer as buffer.
+
+  :param base64str: base64 encoded image buffer
+  :type base64str: str
+  :return: image buffer
+  :rtype: buffer
+  """
+  # TODO: change that for python3 compatibility
   from cStringIO import StringIO
   import base64
   return StringIO(base64.b64decode(base64str))
 
+
 def get_buffer_from_filepath(filepath):
+  """Read image from `filepath` and return buffer.
+
+  :param filepath: image path
+  :type filepath: str
+  :return: image buffer
+  :rtype: buffer
+  """
+  # TODO: change that for python3 compatibility
   from cStringIO import StringIO
   with open(filepath, 'rb') as f_in:
     return StringIO(f_in.read())
 
+
 def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=DEFAULT_RETRIES):
+  """Get image buffer from URL `img_url`.
+
+  :param img_url: image URL
+  :param img_url: str
+  :param verbose: verbose level (optional, default:0)
+  :type verbose: int
+  :param image_dl_timeout: timeout in seconds (optional, default:4)
+  :type image_dl_timeout: int
+  :param retries: number of retries (optional, default:`DEFAULT_RETRIES`)
+  :type retries: int
+  :return: image buffer
+  :rtype: buffer
+  """
+
   # Sometime fails with a timeout, now using retries
   #   see: https://stackoverflow.com/questions/15431044/can-i-set-max-retries-for-requests-request
   # SSLError: [Errno 1] _ssl.c:510:

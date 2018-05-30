@@ -1,4 +1,9 @@
 def full_trace_error(err_msg):
+  """Print error message `err_msg` and full trace of the error.
+
+  :param err_msg: Error message
+  :type err_msg: str
+  """
   import sys, traceback
   print(err_msg)
   exc_type, exc_value, exc_traceback = sys.exc_info()

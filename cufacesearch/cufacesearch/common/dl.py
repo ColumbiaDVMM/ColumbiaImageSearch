@@ -4,8 +4,16 @@ import time
 from six.moves import urllib
 
 def reporthook(count, block_size, total_size):
-  """
-  From http://blog.moleculea.com/2012/10/04/urlretrieve-progres-indicator/
+  """Report download progress every second.
+
+  Modified from http://blog.moleculea.com/2012/10/04/urlretrieve-progres-indicator/
+
+  :param count: number of blocks downloaded so far
+  :type count: int
+  :param block_size: size of a block
+  :type block_size: int
+  :param total_size: total file size
+  :type total_size: int
   """
   global start_time, last_time
   if count == 0:
@@ -18,17 +26,17 @@ def reporthook(count, block_size, total_size):
     progress_size = int(count * block_size)
     speed = int(progress_size / (1024 * duration))
     percent = int(count * block_size * 100 / total_size)
-    # Seems to get stuck after 10 seconds of downloading...
-    #sys.stdout.write("\r...%d%%, %d MB, %d KB/s, %d seconds passed" %
     sys.stdout.write("%d%%, %d MB, %d KB/s, %d seconds passed\n" %
                      (percent, progress_size / (1024 * 1024), speed, duration))
     sys.stdout.flush()
 
 def download_file(url, local_path):
-  """ Download file from 'url' to the directory of 'local_path'
+  """ Download file from `url` to the directory of `local_path`
 
   :param url: url of model to download
+  :type url: str
   :param local_path: final local path of model
+  :type local_path: str
   """
   print "Downloading file from: {}".format(url)
   out_dir = os.path.dirname(local_path)
