@@ -8,11 +8,14 @@ import os
 import dlib
 
 def download_model(url, local_path, bz2_file):
-  """ Download model from 'url' to the directory of 'local_path' and unzip to 'local_path'.
+  """ Download model from `url` to the directory of `local_path` and unzip to `local_path`.
 
   :param url: url of model to download
+  :type url: str
   :param local_path: final local path of unzipped model
+  :type local_path: str
   :param bz2_file: bz2 local filename
+  :type bz2_file: str
   """
   import urllib
   print "Downloading model from: {}".format(url)
@@ -28,10 +31,12 @@ def download_model(url, local_path, bz2_file):
 
 
 def unzip_model(bz2_model_path, local_path):
-  """ Unzip dlib model from 'bz2_model_path' to 'local_path'.
+  """ Unzip dlib model from `bz2_model_path` to `local_path`.
 
   :param bz2_model_path: input file to unzip.
+  :type bz2_model_path: str
   :param local_path: output path.
+  :type local_path: str
   """
   print "Unzipping file: {}".format(bz2_model_path)
   import bz2
@@ -42,11 +47,20 @@ def unzip_model(bz2_model_path, local_path):
 
 
 class DLibFeaturizer(GenericFeaturizer):
+  """Face featurizer using DLib."""
 
   def __init__(self, global_conf_in, prefix="DLIBFEAT_"):
+    """DLibFeaturizer constructor.
+
+    :param global_conf_in: configuration file or dictionary
+    :type global_conf_in: str, dict
+    :param prefix: prefix in configuration
+    :type prefix: str
+    """
     super(DLibFeaturizer, self).__init__(global_conf_in, prefix)
+    self.set_pp(pp="DLibFeaturizer")
     if self.verbose > 0:
-      print "[DLibFeaturizer.log] global_conf: {}".format(self.global_conf)
+      print("[{}.log] global_conf: {}".format(self.pp, self.global_conf))
 
     # Get shape predictor
     pred_path = self.get_required_param('pred_path')
@@ -62,7 +76,7 @@ class DLibFeaturizer(GenericFeaturizer):
     # Get recognizer model
     rec_path = self.get_required_param('rec_path')
     if not pred_path:
-      raise ValueError('[DLibFeaturizer: error] pred_path was not set in config file.')
+      raise ValueError('[{}: error] pred_path was not set in config file.'.format(self.pp))
     # Test if file exits there
     if not os.path.exists(rec_path):
       # Download file if not
@@ -70,15 +84,16 @@ class DLibFeaturizer(GenericFeaturizer):
     # Initialize recognizer model
     self.facerec = dlib.face_recognition_model_v1(str(rec_path))
 
-  def set_pp(self):
-    self.pp = "DLibFeaturizer"
 
-  def featurize(self, img, d):
-    """ Compute face feature of the face bounding box in 'd' in the image 'img'.
+  def featurize(self, img, bbox):
+    """ Compute face feature of the face bounding box in `bbox` in the image `img`.
 
-    :param img: image (a scikit-image)
-    :param d: bounding box dictionary
+    :param img: image
+    :type img: :class:`numpy.ndarray`
+    :param bbox: bounding box dictionary
+    :type bbox: dict
     :return: face feature
+    :rtype: :class:`numpy.ndarray`
     """
     # Deal with B&W images
     if len(img.shape)==2:
@@ -86,7 +101,7 @@ class DLibFeaturizer(GenericFeaturizer):
       img = skimage.color.gray2rgb(img)
     # Build dlib rectangle from bounding box
     from dlib import rectangle
-    dlib_bbox = rectangle(d['left'], d['top'], d['right'], d['bottom'])
+    dlib_bbox = rectangle(bbox['left'], bbox['top'], bbox['right'], bbox['bottom'])
     shape = self.sp(img, dlib_bbox)
     # Return feature
     # should we force features to be np.float32 or np.float64?

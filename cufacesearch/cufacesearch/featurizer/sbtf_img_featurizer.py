@@ -1,3 +1,5 @@
+#Deprecated
+
 tfsentibank_file_sha1 = "TOBECOMPUTED"
 imagenet_mean_npy_urldlpath = "https://www.dropbox.com/s/s5oqp801tgiktra/imagenet_mean.npy?dl=1"
 tfsentibank_npy_urldlpath = "https://www.dropbox.com/s/3d938qmtm6kngoo/tfdeepsentibank.npy?dl=1"

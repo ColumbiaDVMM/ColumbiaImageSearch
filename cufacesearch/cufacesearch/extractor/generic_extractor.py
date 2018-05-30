@@ -1,3 +1,6 @@
+"""The classes in that module can process image with any valid combination of detector and
+featurizer."""
+
 import sys
 import time
 from datetime import datetime
@@ -20,10 +23,18 @@ def build_extr_str_failed(featurizer_type, dectector_type, input_type):
   return build_extr_str(featurizer_type, dectector_type, input_type) + "_" + EXTR_STR_FAILED
 
 class DaemonBatchExtractor(multiprocessing.Process):
+  """Daemon extractor."""
 
   daemon = True
 
   def __init__(self, extractor, q_in, q_out, verbose=0):
+    """Daemon extractor constructor.
+
+    :param extractor: extractor object
+    :param q_in: input queue
+    :param q_out: output queue
+    :param verbose: verbose level (default=0)
+    """
     super(DaemonBatchExtractor, self).__init__()
     self.extractor = extractor
     self.pp_str = build_extr_str(self.extractor.featurizer_type, self.extractor.detector_type, self.extractor.input_type)
@@ -34,6 +45,8 @@ class DaemonBatchExtractor(multiprocessing.Process):
     self.qin_timeout = 5
 
   def run(self):
+    """Process input queue and push results to output queue.
+    """
     empty = False
     self.pp = "DaemonBatchExtractor.{}.{}".format(self.pp_str, self.pid)
     # Unreliable...
@@ -120,8 +133,26 @@ class DaemonBatchExtractor(multiprocessing.Process):
 
 
 class GenericExtractor(object):
+  """GenericExtractor class.
+  """
 
-  def __init__(self, detector_type, featurizer_type, input_type, extr_column, extr_prefix, global_conf):
+  def __init__(self, detector_type, featurizer_type, input_type, extr_column, extr_prefix,
+               global_conf):
+    """Extractor constructor.
+
+    :param detector_type: detector type
+    :type detector_type: str
+    :param featurizer_type: featurizer type
+    :type featurizer_type: str
+    :param input_type: input type
+    :type input_type: str
+    :param extr_column: extraction column
+    :type extr_column: str
+    :param extr_prefix: extraction prefix
+    :type extr_prefix: str
+    :param global_conf: configuration filename or dictionary
+    :type global_conf: str, dict
+    """
     self.detector_type = detector_type
     self.featurizer_type = featurizer_type
     self.input_type = input_type
@@ -137,17 +168,34 @@ class GenericExtractor(object):
     self.extr_str_failed = str(self.extr_column + ":" + tmp_str)
 
   def init_out_dict(self):
+    """Create output dictionary.
+
+    :return: dictionary
+    :rtype: dict
+    """
     tmp_dict_out = dict()
     # Will stay '0' for an extractor with a detector where no detection were found
     tmp_dict_out[self.extr_str_processed] = str(0)
     return tmp_dict_out
 
   def failed_out_dict(self):
+    """Create failed dictionary.
+
+    :return: dictionary
+    :rtype: dict
+    """
     tmp_dict_out = dict()
     tmp_dict_out[self.extr_str_failed] = str(1)
     return tmp_dict_out
 
   def process_buffer(self, img_buffer):
+    """Process image buffer.
+
+    :param img_buffer: image buffer
+    :type img_buffer: :class:`numpy.ndarray`
+    :return: dictionary
+    :rtype: dict
+    """
     dict_out = self.init_out_dict()
 
     # If extraction needs detection first
