@@ -467,15 +467,11 @@ class SearcherLOPQHBase(GenericSearcher):
         for update in batch_updates:
           # print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
           update_id = update[0]
-          if self.is_update_indexed(update_id):
+          if self.is_update_indexed(update_id) and not full_refresh:
             print("[{}: log] Skipping update {} already indexed.".format(self.pp, update_id))
-            # What if the update was indexed with only partial extractions?
-            # TODO: If full_refresh we should check if indexing time is bigger than processing time...
-          else:
-            # TODO: use column_family from indexer
-            #if "info:" + update_str_processed in update[1]:
-            if self.is_update_processed(update[1]):
 
+          else:
+            if self.is_update_processed(update[1]):
               print("[{}: log] Looking for codes of update {}".format(self.pp, update_id))
               # Get this update codes
               codes_string = self.build_codes_string(update_id)
@@ -483,13 +479,27 @@ class SearcherLOPQHBase(GenericSearcher):
                 # Check for precomputed codes
                 codes_dict = self.storer.load(codes_string, silent=True)
                 if codes_dict is None:
-                  raise ValueError('Could not load codes: {}'.format(codes_string))
-                # TODO: If full_refresh, check that we have as many codes as available features?
+                  msg = "[{}: log] Could not load codes from {} for update {}."
+                  raise ValueError(msg.format(self.pp, codes_string, update_id))
+                # If full_refresh, check that we have as many codes as available features
+                if full_refresh:
+                  if self.indexer.get_col_listsha1s() in update[1]:
+                    list_sha1s = update[1][self.indexer.get_col_listsha1s()].split(',')
+                    sids, _ = self.indexer.get_features_from_sha1s(list_sha1s,
+                                                                   self.build_extr_str())
+                    if len(sids) > len(codes_dict):
+                      msg = "[{}: log] Update {} has {} new features."
+                      diff_count = len(sids) - len(codes_dict)
+                      raise ValueError(msg.format(self.pp, update_id, diff_count))
+                    else:
+                      msg = "[{}: log] Skipping update {} already indexed with all {} features."
+                      print(msg.format(self.pp, update_id, len(sids)))
               except Exception as inst:
                 # Update codes not available
                 if self.verbose > 1:
-                  log_msg = "[{}: log] Update {} codes could not be loaded: {}"
-                  print(log_msg.format(self.pp, update_id, inst))
+                  # log_msg = "[{}: log] Update {} codes could not be loaded: {}"
+                  # print(log_msg.format(self.pp, update_id, inst))
+                  print(inst)
                 # Compute codes for update not yet processed and save them
                 start_compute = time.time()
                 # Get detections (if any) and features...
@@ -502,6 +512,7 @@ class SearcherLOPQHBase(GenericSearcher):
                                                                                self.build_extr_str())
                   # FIXME: Legacy dlib features seems to be float32...
                   # Dirty fix for now. Should run workflow fix_feat_type in legacy branch
+                  # We could check size is as expected using get_feat_size()
                   if features:
                     if features[0].shape[-1] < 128:
                       samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
@@ -529,7 +540,6 @@ class SearcherLOPQHBase(GenericSearcher):
               self.searcher.add_codes_from_dict(codes_dict)
               # TODO: indexed_updates should be made persistent too, and add indexing time
               self.add_update(update_id)
-
             else:
               print("[{}: log] Skipping unprocessed update {}".format(self.pp, update_id))
           # TODO: we could check that update processing time was older than indexing time, otherwise that means that
@@ -543,7 +553,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
     except Exception as inst:
       full_trace_error("[{}: error] Could not load codes. {}".format(self.pp, inst))
-      #print("[{}: error] Could not load codes. {}".format(self.pp, inst))
+      #load_codesprint("[{}: error] Could not load codes. {}".format(self.pp, inst))
 
   # def load_all_codes(self):
   #   # load self.indexed_updates, self.searcher.index and self.searcher.nb_indexed

@@ -174,7 +174,8 @@ class APIResponder(Resource):
     options_dict, errors = self.get_options_dict(options)
     # get the image URLs/paths from HBase and search
     # TODO: should we actually try to get features?
-    rows_imgs = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s, columns=[self.searcher.img_column])
+    rows_imgs = self.searcher.indexer.get_columns_from_sha1_rows(query_sha1s,
+                                                                 columns=[self.searcher.img_column])
     # TODO: what shoudl we do if we get less rows_imgs than query_sha1s?
     query_imgs = [row[1][self.searcher.img_column] for row in rows_imgs]
     if self.searcher.file_input:
@@ -195,9 +196,10 @@ class APIResponder(Resource):
 
   def refresh(self):
     # Force check if new images are available in HBase
-    # Could be called if data needs to be as up-to-date as it can be...
+    # Could be called if data needs to be as up-to-date as it can be but may take a while
     if self.searcher:
       self.searcher.load_codes(full_refresh=True)
+    # Likely to timeout before this message is sent
     return {'refresh': 'just run a full refresh'}
 
   def status(self):
