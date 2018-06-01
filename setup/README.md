@@ -1,7 +1,8 @@
 # Setup
 
 This folder contains the docker-compose files and some setup scripts to ease the setup process of the system.
-Install docker-compose on your system following the guidelines at: https://docs.docker.com/compose/install/ 
+Install docker-compose on your system following the guidelines at: https://docs.docker.com/compose/install/
+Under Ubuntu 14.04, the script [setup_machine.sh](setup_machine.sh) can install all requirements
 
 
 ## All-in-one setup
