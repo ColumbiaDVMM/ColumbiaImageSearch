@@ -30,8 +30,9 @@ def get_storer(storer_type, global_conf_in, prefix):
   else:
     raise ValueError("[{}: error] Unknown 'storer' {}.".format("get_storer", storer_type))
 
+
 class GenericStorer(ConfReader):
-  """GenericStorer class to be inherited by actual storer.
+  """GenericStorer class to be inherited by actual storer
   """
 
   def __init__(self, global_conf_in, prefix=default_prefix):
@@ -39,17 +40,41 @@ class GenericStorer(ConfReader):
     self.set_pp(pp="GenericStorer")
 
   def setup(self):
-    pass
+    """Setup storer
+
+    :raises NotImplementedError: if not implemented
+    """
+    raise NotImplementedError()
 
   # Storer need to implement these methods
   def save(self, key, obj):
+    """Save object ``obj`` to ``key``
+
+    :param key: location to save
+    :type key: str
+    :param obj: object
+    :type obj: object
+    :raises NotImplementedError: if not implemented
+    """
     raise NotImplementedError()
 
   def load(self, key):
+    """Load object at ``key``
+
+    :param key: location
+    :type key: str
+    :raises NotImplementedError: if not implemented
+    """
     raise NotImplementedError()
 
   # This would be used to load all codes
   def get_all_from_prefix(self, prefix_path):
+    """Get all objects in ``prefix_path`` (generator)
+
+    :param prefix_path: prefix path
+    :type prefix_path: str
+    :raises NotImplementedError: if not implemented
+    """
     raise NotImplementedError()
 
   # Should we add a get_latest to get the latest model ?

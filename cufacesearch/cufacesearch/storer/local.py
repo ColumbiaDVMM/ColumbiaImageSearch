@@ -7,11 +7,11 @@ from cufacesearch.common.dl import mkpath
 default_prefix = "LOCALST_"
 
 class LocalStorer(GenericStorer):
-  """LocalStorer class.
+  """LocalStorer class
   """
 
   def __init__(self, global_conf_in, prefix=default_prefix):
-    """LocalStorer constructor.
+    """LocalStorer constructor
 
     :param global_conf_in: configuration file or dictionary
     :type global_conf_in: str, dict
@@ -27,7 +27,7 @@ class LocalStorer(GenericStorer):
     self.setup()
 
   def setup(self):
-    """Setup LocalStorer.
+    """Setup LocalStorer
     """
     # create base path dir
     mkpath(self.base_path)
@@ -35,7 +35,7 @@ class LocalStorer(GenericStorer):
       print("[{}: log] Initialized with base_path '{}'".format(self.pp, self.base_path))
 
   def get_full_path(self, key):
-    """Get full path for location ``key``.
+    """Get full path for location ``key``
 
     :param key: location
     :type key: str
@@ -45,12 +45,12 @@ class LocalStorer(GenericStorer):
     return os.path.join(self.base_path, key)
 
   def save(self, key, obj):
-    """Save object ``obj`` at location ``key``.
+    """Save object ``obj`` at location ``key``
 
     :param key: location to save
     :type key: str
     :param obj: object to save, will be pickled.
-    :type obj: Object
+    :type obj: object
     """
     # Pickle and save to disk
     full_path = self.get_full_path(key)
@@ -83,7 +83,7 @@ class LocalStorer(GenericStorer):
 
 
   def list_prefix(self, prefix_path):
-    """List all files in ``prefix_path``.
+    """List all files in ``prefix_path``
 
     :param prefix_path: prefix path
     :type prefix_path: str
@@ -94,7 +94,7 @@ class LocalStorer(GenericStorer):
 
   # This would be used to load all codes
   def get_all_from_prefix(self, prefix_path):
-    """Get all objects in ``prefix_path``.
+    """Get all objects in ``prefix_path``
 
     :param prefix_path: prefix path
     :type prefix_path: str

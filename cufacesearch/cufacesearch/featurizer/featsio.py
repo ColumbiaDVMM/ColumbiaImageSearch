@@ -22,11 +22,12 @@ def normfeatB64encode(feat):
   return featB64encode(out_feat)
 
 def get_feat_dtype(feat_type):
-  """Get numpy feature type.
+  """Get numpy feature type
 
   :param feat_type: feature type
   :type feat_type: str
-  :return: :class:`numpy.dtype`
+  :return: feature type
+  :rtype: :class:`numpy.dtype`
   """
   if feat_type and (feat_type == "sbpycaffe" or feat_type == "sbcmdline" or feat_type == "float32"):
     return np.float32
@@ -35,13 +36,14 @@ def get_feat_dtype(feat_type):
     return np.float64
 
 def featB64decode(feat_B64, feat_type=None):
-  """Decode base64 encoded feature.
+  """Decode base64 encoded feature
 
   :param feat_B64: base64 encoded feature
   :type feat_B64: str
   :param feat_type: feature type
   :type feat_type: str
-  :return: :class:`numpy.ndarray`
+  :return: feature
+  :rtype: :class:`numpy.ndarray`
   """
   # we need to provide dtype as by default it seems to be np.float64
   # but sentibank features are actually np.float32...

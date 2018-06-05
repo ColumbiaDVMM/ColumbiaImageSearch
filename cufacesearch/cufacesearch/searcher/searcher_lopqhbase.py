@@ -20,15 +20,18 @@ default_prefix = "SEARCHLOPQ_"
 
 
 class SearcherLOPQHBase(GenericSearcher):
-  """SearcherLOPQHBase.
+  """SearcherLOPQHBase
   """
 
   def __init__(self, global_conf_in, prefix=default_prefix):
-    """
+    """SearcherLOPQHBase constructor
 
-    :param global_conf_in:
-    :param prefix:
+    :param global_conf_in: configuration file or dictionary
+    :type global_conf_in: str, dict
+    :param prefix: prefix in configuration
+    :type prefix: str
     """
+    self.set_pp(pp="SearcherLOPQHBase")
     # number of processors to use for parallel computation of codes
     self.num_procs = 8  # could be read from configuration
     self.model_params = None
@@ -42,10 +45,22 @@ class SearcherLOPQHBase(GenericSearcher):
     self.lopq_searcher = "LOPQSearcherLMDB"
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
 
-  def get_model_params(self):
-    """
 
-    :return:
+  def get_model_params(self):
+    """Reads model parameters from configuration
+
+    Required parameters:
+
+    - ``lopq_V``
+    - ``lopq_M``
+    - ``lopq_subq``
+    - ``lopq_pcadims``
+    - ``nb_train_pca``
+
+    Optional parameters:
+
+    - ``nb_min_train_pca``
+    - ``lopq_searcher``
     """
     V = self.get_required_param('lopq_V')
     M = self.get_required_param('lopq_M')
@@ -54,21 +69,18 @@ class SearcherLOPQHBase(GenericSearcher):
     self.model_params = {'V': V, 'M': M, 'subq': subq}
     if self.model_type == "lopq_pca":
       # Number of dimensions to keep after PCA
-      pca = self.get_required_param('lopq_pcadims')
-      self.model_params['pca'] = pca
-      nb_train_pca = self.get_required_param('nb_train_pca')
-      self.nb_train_pca = nb_train_pca
+      self.model_params['pca'] = self.get_required_param('lopq_pcadims')
+      self.nb_train_pca = self.get_required_param('nb_train_pca')
       nb_min_train_pca = self.get_param('nb_min_train_pca')
       if nb_min_train_pca:
         self.nb_min_train_pca = nb_min_train_pca
-    lopq_searcher = self.get_param('lopq_searcher')
-    if lopq_searcher:
-      self.lopq_searcher = lopq_searcher
+    self.lopq_searcher = self.get_param('lopq_searcher', default="LOPQSearcherLMDB")
 
   def build_pca_model_str(self):
-    """
+    """Build PCA model string
 
-    :return:
+    :return: PCA model string
+    :rtype: str
     """
     # Use feature type, self.nb_train_pca and pca_dims
     if self.pca_model_str is None:
@@ -77,11 +89,8 @@ class SearcherLOPQHBase(GenericSearcher):
       self.pca_model_str += "_train" + str(self.nb_train_pca)
     return self.pca_model_str
 
-  def set_pp(self):
-    self.pp = "SearcherLOPQHBase"
-
   def init_searcher(self):
-    """ Initialize LOPQ model and searcher from `global_conf` value.
+    """ Initialize LOPQ model and searcher from configuration values
     """
     try:
       # Try to load pretrained model from storer
@@ -183,12 +192,16 @@ class SearcherLOPQHBase(GenericSearcher):
     # NB: an empty lopq_model would make sense only if we just want to detect...
 
   def get_feats_from_lmbd(self, feats_db, nb_features, dtype):
-    """
+    """Get features from LMBD database
 
-    :param feats_db:
-    :param nb_features:
-    :param dtype:
-    :return:
+    :param feats_db: features database
+    :type feats_db: str
+    :param nb_features: number fo features
+    :type nb_features: int
+    :param dtype: numpy type
+    :type dtype: :class:`numpy.dtype`
+    :return: features
+    :rtype: :class:`numpy.ndarray`
     """
     nb_saved_feats = self.get_nb_saved_feats(feats_db)
     nb_feats_to_read = min(nb_saved_feats, nb_features)
@@ -209,13 +222,18 @@ class SearcherLOPQHBase(GenericSearcher):
     return feats
 
   def save_feats_to_lmbd(self, feats_db, samples_ids, np_features, max_feats=0):
-    """
+    """Save features to LMDB database
 
-    :param feats_db:
-    :param samples_ids:
-    :param np_features:
-    :param max_feats:
-    :return:
+    :param feats_db: features database name
+    :type feats_db: str
+    :param samples_ids: samples ids
+    :type samples_ids: list
+    :param np_features: features
+    :type np_features: :class:`numpy.ndarray`
+    :param max_feats: maximum number of features to store in database
+    :type max_feats: int
+    :return: total number of features in database
+    :rtype: int
     """
     with self.save_feat_env.begin(db=feats_db, write=True) as txn:
       for i, sid in enumerate(samples_ids):
@@ -226,21 +244,27 @@ class SearcherLOPQHBase(GenericSearcher):
     return nb_feats
 
   def get_nb_saved_feats(self, feats_db):
-    """
+    """Get number of features in LMBD database ``feats_db``
 
-    :param feats_db:
-    :return:
+    :param feats_db: features database name
+    :type feats_db: str
+    :return: number of features
+    :rtype: int
     """
     with self.save_feat_env.begin(db=feats_db, write=False) as txn:
       return txn.stat()['entries']
 
   def get_train_features(self, nb_features, lopq_pca_model=None, nb_min_train=None):
-    """
+    """Get training features
 
-    :param nb_features:
-    :param lopq_pca_model:
-    :param nb_min_train:
-    :return:
+    :param nb_features: number of features
+    :type nb_features: int
+    :param lopq_pca_model: whether model is lopq_pca_model
+    :type lopq_pca_model: bool
+    :param nb_min_train: minimum
+    :type nb_min_train: int
+    :return: features
+    :rtype: :class:`numpy.ndarray`
     """
     if nb_min_train is None:
       nb_min_train = nb_features
@@ -340,9 +364,10 @@ class SearcherLOPQHBase(GenericSearcher):
     return self.get_feats_from_lmbd(feats_db, nb_features_to_read, dtype)
 
   def train_index(self):
-    """
+    """Train search index
 
-    :return:
+    :return: search index
+    :rtype: LOPQModel, LOPQModelPCA
     """
 
     if self.model_type == "lopq":
@@ -424,12 +449,16 @@ class SearcherLOPQHBase(GenericSearcher):
   # technically we could even explore different configurations...
 
   def compute_codes(self, det_ids, data, codes_path=None):
-    """
+    """Compute codes for features in ``data`` corresponding to samples ``det_ids``
 
-    :param det_ids:
-    :param data:
-    :param codes_path:
-    :return:
+    :param det_ids: samples ids
+    :type det_ids: list
+    :param data: features
+    :type data: :class:`numpy.ndarray`
+    :param codes_path: path to use to save codes using storer
+    :type codes_path: str
+    :return: codes dictionary
+    :rtype: dict
     """
     # Compute codes for each update batch and save them
     from lopq.utils import compute_codes_parallel
@@ -451,10 +480,10 @@ class SearcherLOPQHBase(GenericSearcher):
     return codes_dict
 
   def add_update(self, update_id):
-    """
+    """Add update id ``update_id`` to the database or list of update ids
 
-    :param update_id:
-    :return:
+    :param update_id: update id
+    :type update_id: str
     """
     if self.lopq_searcher == "LOPQSearcherLMDB":
       # Use another LMDB to store updates indexed?
@@ -465,10 +494,12 @@ class SearcherLOPQHBase(GenericSearcher):
     self.last_indexed_update = update_id
 
   def is_update_indexed(self, update_id):
-    """
+    """Check whether update ``update_id`` has already been indexed
 
-    :param update_id:
-    :return:
+    :param update_id: update id
+    :type update_id: str
+    :return: True (if indexed), False (if not)
+    :rtype: bool
     """
     if self.lopq_searcher == "LOPQSearcherLMDB":
       with self.updates_env.begin(db=self.updates_index_db, write=False) as txn:
@@ -481,19 +512,23 @@ class SearcherLOPQHBase(GenericSearcher):
       return update_id in self.indexed_updates
 
   def is_update_processed(self, update_cols):
-    """
+    """Check whether update columns ``update_cols`` contain the flag indicating that the update
+    has been processed
 
-    :param update_cols:
-    :return:
+    :param update_cols: update columns dictionary
+    :type update_cols: dict
+    :return: True (if processed), False (if not)
+    :rtype: bool
     """
     if self.indexer.get_col_upproc() in update_cols:
       return True
     return False
 
   def get_latest_update_suffix(self):
-    """
+    """Get latest update suffix
 
-    :return:
+    :return: latest update suffix
+    :rtype: str
     """
     if self.last_indexed_update is None:
       if self.lopq_searcher == "LOPQSearcherLMDB":
@@ -513,10 +548,10 @@ class SearcherLOPQHBase(GenericSearcher):
     return suffix
 
   def load_codes(self, full_refresh=False):
-    """
+    """Load codes
 
-    :param full_refresh:
-    :return:
+    :param full_refresh: wheter to perform a full refresh or not
+    :type full_refresh: bool
     """
     # Calling this method can also perfom an update of the index
     if not self.searcher:
@@ -643,13 +678,18 @@ class SearcherLOPQHBase(GenericSearcher):
   #   pass
 
   def search_from_feats(self, dets, feats, options_dict=dict()):
-    """
+    """Search the index using features ``feats`` of samples ``dets``
 
-    :param dets:
-    :param feats:
-    :param options_dict:
-    :return:
+    :param dets: list of query samples, images or list of detections in each image
+    :type dets: list
+    :param feats: list of features
+    :type feats: list
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :return: formatted output
+    :rtype: collections.OrderedDict
     """
+    # NB: dets is a list of list
     import time
     start_search = time.time()
     all_sim_images = []

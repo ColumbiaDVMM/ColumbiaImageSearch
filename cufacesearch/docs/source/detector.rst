@@ -7,14 +7,14 @@ Utils
 .. automodule:: cufacesearch.detector.utils
    :members:
 
-Generic detector
+Generic Detector
 ----------------
 
 .. automodule:: cufacesearch.detector.generic_detector
    :members: GenericDetector
-   :special-members: init
+   :special-members: __init__
 
-DLib detector
+DLib Detector
 -------------
 
 .. automodule:: cufacesearch.detector.dlib_detector

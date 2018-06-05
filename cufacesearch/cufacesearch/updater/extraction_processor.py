@@ -28,11 +28,13 @@ TIME_ELAPSED_FAILED = 3600
 # Look for and process batch of a given extraction that have not been processed yet.
 # Should be multi-threaded but single process...
 def build_batch(list_in, batch_size):
-  """
+  """Build a batch of ``batch_size`` samples from list ``list_in``
 
-  :param list_in:
-  :param batch_size:
-  :return:
+  :param list_in: input list
+  :type list_in: list
+  :param batch_size: batch size
+  :type batch_size: int
+  :yield: batch of size ``batch_size``
   """
   nbli = len(list_in)
   ibs = int(batch_size)
@@ -43,11 +45,21 @@ def build_batch(list_in, batch_size):
     yield []
 
 class ThreadedDownloaderBufferOnly(threading.Thread):
-  """
+  """ThreadedDownloaderBufferOnly class
 
+  Multi-threaded download images from the web or load from disk.
   """
 
   def __init__(self, q_in, q_out, url_input=True):
+    """ThreadedDownloaderBufferOnly constructor
+
+    :param q_in: input queue
+    :type q_in: :class:`Queue.Queue`
+    :param q_out: output queue
+    :type q_out: :class:`Queue.Queue`
+    :param url_input: whether input are URLs (or files)
+    :type url_input: bool
+    """
     threading.Thread.__init__(self)
     self.q_in = q_in
     self.q_out = q_out
@@ -61,9 +73,7 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
 
 
   def run(self):
-    """
-
-    :return:
+    """Perform download from web or loading from disk
     """
     from cufacesearch.imgio.imgio import get_buffer_from_URL, get_buffer_from_filepath
 
@@ -98,14 +108,16 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
       self.q_in.task_done()
 
 class ExtractionProcessor(ConfReader):
-  """ExtractionProcessor class.
+  """ExtractionProcessor class
   """
 
   def __init__(self, global_conf, prefix=DEFAULT_EXTR_PROC_PREFIX):
-    """
+    """ExtractionProcessor constructor
 
-    :param global_conf:
-    :param prefix:
+    :param global_conf_in: configuration file or dictionary
+    :type global_conf_in: str, dict
+    :param prefix: prefix in configuration
+    :type prefix: str
     """
     self.extractor = None
     self.nb_empt = 0
@@ -184,19 +196,17 @@ class ExtractionProcessor(ConfReader):
 
 
   def set_pp(self, pp="ExtractionProcessor"):
-    """
+    """Set pretty name
 
-    :param pp:
-    :return:
+    :param pp: pretty name prefix
+    :type pp: str
     """
     self.pp = pp
     if self.extractor:
       self.pp += "_"+self.extr_prefix
 
   def init_queues(self):
-    """
-
-    :return:
+    """Initialize queues list ``self.q_in`` and ``self.q_out``
     """
     from multiprocessing import JoinableQueue
     self.q_in = []
@@ -208,7 +218,7 @@ class ExtractionProcessor(ConfReader):
 
   # Should these two methods be in indexer?
   def is_update_unprocessed(self, update_id):
-    """Check if an update was not processed yet.
+    """Check if an update was not processed yet
 
     :param update_id: update id
     :type update_id: str
@@ -225,7 +235,7 @@ class ExtractionProcessor(ConfReader):
     return True
 
   def is_update_notstarted(self, update_id, max_delay=None):
-    """Check if an update was not started yet.
+    """Check if an update was not started yet
 
     :param update_id: update id
     :type update_id: str
@@ -256,9 +266,9 @@ class ExtractionProcessor(ConfReader):
     return True
 
   def get_batch_hbase(self):
-    """
+    """Get one batch of images from HBase
 
-    :return:
+    :yield: tuple (rows_batch, update_id)
     """
     # legacy implementation: better to have a kafka topic for batches to be processed to allow
     # safe and efficient parallelization on different machines
@@ -343,9 +353,9 @@ class ExtractionProcessor(ConfReader):
 
 
   def get_batch_kafka(self):
-    """
+    """Get one batch of images from Kafka
 
-    :return:
+    :yield: tuple (rows_batch, update_id)
     """
     # Read from a kafka topic to allow safer parallelization on different machines
     # DONE: use in_indexer
@@ -401,9 +411,9 @@ class ExtractionProcessor(ConfReader):
 
 
   def get_batch(self):
-    """
+    """Get one batch of images
 
-    :return:
+    :yield: tuple (rows_batch, update_id)
     """
     if self.ingestion_input == "hbase":
       for rows_batch, update_id in self.get_batch_hbase():
@@ -413,9 +423,9 @@ class ExtractionProcessor(ConfReader):
         yield rows_batch, update_id
 
   def process_batch(self):
-    """
+    """Process one batch of images
 
-    :return:
+    :raises Exception: if something goes really wrong
     """
     # Get a new update batch
     try:
@@ -711,9 +721,7 @@ class ExtractionProcessor(ConfReader):
       raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
-    """
-
-    :return:
+    """Run processor
     """
     self.nb_empt = 0
     self.nb_err = 0

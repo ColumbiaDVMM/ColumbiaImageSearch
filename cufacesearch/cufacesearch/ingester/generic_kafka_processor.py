@@ -15,11 +15,11 @@ from ..common.conf_reader import ConfReader
 base_path_keys = "../../data/keys/hg-kafka-"
 
 class GenericKafkaProcessor(ConfReader):
-  """GenericKafkaProcessor.
+  """GenericKafkaProcessor
   """
 
   def __init__(self, global_conf_filename, prefix="", pid=None):
-    """GenericKafkaProcessor constructor.
+    """GenericKafkaProcessor constructor
 
     :param global_conf_filename: configuration file or dictionary
     :type global_conf_filename: str, dict
@@ -60,7 +60,7 @@ class GenericKafkaProcessor(ConfReader):
     self.init_producer()
 
   def get_param_type(self, param_key):
-    """Get type of parameter ``param_key``.
+    """Get type of parameter ``param_key``
 
     :param param_key: name of parameter
     :type param_key: str
@@ -77,7 +77,7 @@ class GenericKafkaProcessor(ConfReader):
     raise ValueError("[{}] Unknown parameter: {}".format(self.pp, spk))
 
   def get_servers(self, dict_args, server_param):
-    """Get (list of) Kafka server(s) and fill dictionary of arguments.
+    """Get (list of) Kafka server(s) and fill dictionary of arguments
 
     :param dict_args: dictionary of arguments
     :type dict_args: dict
@@ -94,7 +94,7 @@ class GenericKafkaProcessor(ConfReader):
     return dict_args
 
   def get_security(self, dict_args, security_param):
-    """Get security information and fill dictionary of arguments.
+    """Get security information and fill dictionary of arguments
 
     :param dict_args: dictionary of arguments
     :type dict_args: dict
@@ -114,7 +114,7 @@ class GenericKafkaProcessor(ConfReader):
     return dict_args
 
   def toc_process_ok(self, start_process, end_time=time.time()):
-    """Log one process completed.
+    """Log one process completed
 
     :param start_process: start time of process (in seconds since epoch)
     :type start_process: int
@@ -122,33 +122,36 @@ class GenericKafkaProcessor(ConfReader):
     :type end_time: int
     """
     # Can end_time be smaller than start_process??
+    # NB: time.time() is evaluated when building the doc. How to avoid that?
     self.process_time += abs(end_time - start_process)
     self.process_count += 1
 
   def toc_process_skip(self, start_process, end_time=time.time()):
-    """Log one skipped process.
+    """Log one skipped process
 
     :param start_process: start time of process (in seconds since epoch)
     :type start_process: int
     :param end_time: end time of process, default now (in seconds since epoch)
     :type end_time: int
     """
+    # NB: time.time() is evaluated when building the doc. How to avoid that?
     self.process_time += abs(end_time - start_process)
     self.process_skip += 1
 
   def toc_process_failed(self, start_process, end_time=time.time()):
-    """Log one process failed.
+    """Log one process failed
 
     :param start_process: start time of process (in seconds since epoch)
     :type start_process: int
     :param end_time: end time of process, default now (in seconds since epoch)
     :type end_time: int
     """
+    # NB: time.time() is evaluated when building the doc. How to avoid that?
     self.process_time += abs(end_time - start_process)
     self.process_failed += 1
 
   def print_stats(self, msg):
-    """Print statistics of ingester.
+    """Print statistics of ingester
 
     :param msg: current message
     """
@@ -177,7 +180,7 @@ class GenericKafkaProcessor(ConfReader):
         print("[{}: warning] Commit failed, with error {}".format(self.pp, inst))
 
   def set_pp(self, pp=None):
-    """Set pretty print name.
+    """Set pretty print name
 
     :param pp: pretty print name, default will be `GenericKafkaProcessor`
     :type pp: str
@@ -188,7 +191,7 @@ class GenericKafkaProcessor(ConfReader):
       self.pp = "GenericKafkaProcessor"
 
   def init_consumer(self):
-    """Initialize self.consumer.
+    """Initialize ``self.consumer``
     """
     # Get topic
     #topic = self.get_required_param('consumer_topics')
@@ -236,7 +239,7 @@ class GenericKafkaProcessor(ConfReader):
 
 
   def init_producer(self):
-    """Initialize self.producer.
+    """Initialize ``self.producer``
     """
     print("[{}: log] Initializing producer...".format(self.pp))
     # Gather optional parameters

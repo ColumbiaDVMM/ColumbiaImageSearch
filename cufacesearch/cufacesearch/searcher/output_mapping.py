@@ -77,15 +77,22 @@ class DictOutput():
 
   def format_output(self, dets, sim_images, sim_dets, sim_score, options_dict=dict(),
                     input_type="image"):
-    """Format output.
+    """Format search output
 
-    :param dets:
-    :param sim_images:
-    :param sim_dets:
-    :param sim_score:
-    :param options_dict:
-    :param input_type:
-    :return:
+    :param dets: list of query samples, images or list of detections in each image
+    :type dets: list
+    :param sim_images: list of similar images
+    :type sim_images: list
+    :param sim_dets: list of similar detections (only used if ``input_type`` is not "image")
+    :type sim_dets: list
+    :param sim_score: list of similarity scores (actually distances...)
+    :type sim_score: list
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :param input_type: input type ("image" or something else that requires detection e.g. "face")
+    :type input_type: str
+    :return: formatted output
+    :rtype: collections.OrderedDict
     """
     import time
     from collections import OrderedDict
@@ -174,7 +181,7 @@ class DictOutput():
             output[out_i][self.map['similar_'+input_type+'s']][self.map['distances']].append(sim_score[i][j][jj])
 
       outp = OrderedDict([[self.map['number_images'], len(images_query)],
-                          [self.map['number_'+input_type+'s'], nb_faces_query], # this would overwrite number_images if input_type is image...
+                          [self.map['number_'+input_type+'s'], nb_faces_query],
                           [self.map['number_similar_'+input_type+'s'], nb_faces_similar],
                           [self.map['all_similar_'+input_type+'s'], output]])
 

@@ -19,11 +19,11 @@ DEFAULT_EXTR_CHECK_PREFIX = "EXTR_"
 # or all the "TODO" comments should be implemented.
 
 class ExtractionChecker(ConfReader):
-  """ExtractionChecker class.
+  """ExtractionChecker class
   """
 
   def __init__(self, global_conf, prefix=DEFAULT_EXTR_CHECK_PREFIX, pid=None):
-    """ExtractionChecker constructor.
+    """ExtractionChecker constructor
 
     :param global_conf_in: configuration file or dictionary
     :type global_conf_in: str, dict
@@ -98,7 +98,7 @@ class ExtractionChecker(ConfReader):
       self.ingester.pp += str(self.pid)
 
   def set_check_columns(self):
-    """Set columns to be checked in indexer.
+    """Set columns to be checked in indexer
     """
     # changed to: get column family from indexer
     extr_prefix_base_column_name = self.indexer.extrcf + ":" + self.extr_prefix
@@ -110,7 +110,7 @@ class ExtractionChecker(ConfReader):
 
 
   def set_pp(self, pp=""):
-    """Set pretty name.
+    """Set pretty name
     """
     self.pp = "ExtractionChecker"
     self.pp += "-".join(self.list_extr_prefix)
@@ -118,11 +118,13 @@ class ExtractionChecker(ConfReader):
       self.pp += "." + str(self.pid)
 
   def store_img_infos(self, msg):
-    """
+    """Store information about the images of ``msg`` in ``self.dict_sha1_infos``
 
-    :param msg:
-    :return:
+    :param msg: Kafka record
+    :type msg: collections.namedtuple
     """
+    # msg is technically a ConsumerRecord that is a collections.namedtuple, see:
+    # https://github.com/dpkp/kafka-python/blob/master/kafka/consumer/fetcher.py#L30
     strk = str(msg['sha1'])
     self.dict_sha1_infos[strk] = dict()
     for key in msg:
@@ -139,10 +141,10 @@ class ExtractionChecker(ConfReader):
           self.dict_sha1_infos[strk][key] = msg[key]
 
   def cleanup_dict_infos(self, list_del_sha1s):
-    """
+    """Remove images ``list_del_sha1s`` from ``self.dict_sha1_infos``
 
-    :param list_del_sha1s:
-    :return:
+    :param list_del_sha1s: list of images sha1 to remove
+    :type list_del_sha1s: list
     """
     for sha1 in list_del_sha1s:
       try:
@@ -152,11 +154,14 @@ class ExtractionChecker(ConfReader):
         pass
 
   def get_dict_push(self, list_get_sha1s, daemon=False):
-    """
+    """Get dictionary to be pushed to HBase for images in ``list_get_sha1s``
 
-    :param list_get_sha1s:
-    :param daemon:
-    :return:
+    :param list_get_sha1s: list of images
+    :type list_get_sha1s: list
+    :param daemon: whether the checker is running in daemon mode
+    :type daemon: bool
+    :return: (dict_push, update_id)
+    :rtype: tuple
     """
     #TODO: is this needed for every get_dict_push call?
     self.set_check_columns()
@@ -189,10 +194,12 @@ class ExtractionChecker(ConfReader):
     return dict_push, update_id
 
   def get_unprocessed_rows(self, list_check_sha1s):
-    """
+    """Get the subset of the list of sha1s ``list_check_sha1s`` that have not been processed yet
 
-    :param list_check_sha1s:
-    :return:
+    :param list_check_sha1s: list of images sha1 to check
+    :type list_check_sha1s: list
+    :return: set of unprocessed images
+    :rtype: set
     """
     # TODO: also pass current update_id and only delete if != from current update...
 
@@ -219,10 +226,11 @@ class ExtractionChecker(ConfReader):
     return unprocessed_rows
 
   def run(self, daemon=False):
-    """
+    """Run extraction checker
 
-    :param daemon:
-    :return:
+    :param daemon: whether we are running in daemon mode
+    :type daemon: bool
+    :raises Exception: if check fails
     """
     i = 0
     try:
@@ -363,6 +371,8 @@ class ExtractionChecker(ConfReader):
 
 
 class DaemonExtractionChecker(multiprocessing.Process):
+  """DaemonExtractionChecker class
+  """
   daemon = True
 
   def __init__(self, conf, prefix=DEFAULT_EXTR_CHECK_PREFIX):
@@ -371,9 +381,7 @@ class DaemonExtractionChecker(multiprocessing.Process):
     self.prefix = prefix
 
   def run(self):
-    """
-
-    :return:
+    """Run DaemonExtractionChecker
     """
     nb_death = 0
     while True:

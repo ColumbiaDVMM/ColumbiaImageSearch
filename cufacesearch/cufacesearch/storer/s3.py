@@ -23,7 +23,7 @@ class S3Storer(GenericStorer):
   """
 
   def __init__(self, global_conf_in, prefix=default_prefix):
-    """S3Storer constructor.
+    """S3Storer constructor
 
     :param global_conf_in: configuration file or dictionary
     :type global_conf_in: str, dict
@@ -47,7 +47,7 @@ class S3Storer(GenericStorer):
       raise ValueError("Could not find AWS profile: {}".format(self.aws_profile))
 
   def setup(self):
-    """Setup S3Storer.
+    """Setup S3Storer
     """
     self.session = boto3.Session(profile_name=self.aws_profile, region_name=self.region)
     self.s3 = self.session.resource('s3')
@@ -64,12 +64,12 @@ class S3Storer(GenericStorer):
       print(msg.format(self.pp, self.bucket_name, self.aws_profile, self.region))
 
   def save(self, key, obj):
-    """Save object ``obj`` at location ``key``.
+    """Save object ``obj`` at location ``key``
 
     :param key: location to save
     :type key: str
     :param obj: object to save, will be pickled.
-    :type obj: Object
+    :type obj: object
     """
     # Pickle and save to s3 bucket
     #buffer = sio.StringIO(pickle.dumps(obj))
@@ -111,7 +111,7 @@ class S3Storer(GenericStorer):
         print(err_msg.format(self.pp, type(e), e, load_key))
 
   def list_prefix(self, prefix_path):
-    """List all files in ``prefix_path``.
+    """List all files in ``prefix_path``
 
     :param prefix_path: prefix path
     :type prefix_path: str
@@ -124,7 +124,7 @@ class S3Storer(GenericStorer):
 
   # This would be used to load all codes
   def get_all_from_prefix(self, prefix_path):
-    """Get all objects in ``prefix_path``.
+    """Get all objects in ``prefix_path``
 
     :param prefix_path: prefix path
     :type prefix_path: str

@@ -1,14 +1,21 @@
 Searcher
 ========
 
-.. automodule:: cufacesearch.searcher
-   :members:
+Generic Searcher
+----------------
 
 .. automodule:: cufacesearch.searcher.generic_searcher
    :members:
 
-.. automodule:: cufacesearch.searcher.output_mapping
-   :members:
+Searcher LOPQ HBase
+-------------------
 
 .. automodule:: cufacesearch.searcher.searcher_lopqhbase
    :members:
+
+Output Mapping
+--------------
+
+.. automodule:: cufacesearch.searcher.output_mapping
+   :members:
+

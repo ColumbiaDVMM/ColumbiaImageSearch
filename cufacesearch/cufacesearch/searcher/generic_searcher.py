@@ -2,16 +2,23 @@ from __future__ import print_function
 
 from output_mapping import DictOutput
 from ..common.conf_reader import ConfReader
-#from ..indexer.hbase_indexer_minimal import img_path_column, img_URL_column
 
 default_prefix = "GESEARCH_"
 
 
 class GenericSearcher(ConfReader):
-  """GenericSearcher class.
+  """GenericSearcher class
   """
 
   def __init__(self, global_conf_in, prefix=default_prefix):
+    """GenericSearcher constructor
+
+    :param global_conf_in: configuration file or dictionary
+    :type global_conf_in: str, dict
+    :param prefix: prefix in configuration
+    :type prefix: str
+    """
+
     # Initialize attributes default values
     self.model_params = dict()
     self.input_type = "image"
@@ -40,13 +47,8 @@ class GenericSearcher(ConfReader):
     get_pretrained_model = self.get_param('get_pretrained_model')
     if get_pretrained_model:
       self.get_pretrained_model = get_pretrained_model
-    #log_msg = "[log: generic_init after super] get_pretrained_model: {}"
-    #print(log_msg.format(self.get_pretrained_model))
 
     self.wait_for_nbtrain = bool(self.get_param('wait_for_nbtrain', default=True))
-    # wait_for_nbtrain = self.get_param('wait_for_nbtrain')
-    # if wait_for_nbtrain is not None:
-    #   self.wait_for_nbtrain = wait_for_nbtrain
 
     # Initialize attributes from conf
     # TODO: rename model_type in searcher type?
@@ -94,7 +96,9 @@ class GenericSearcher(ConfReader):
     self.load_codes()
 
   def read_conf(self):
-    """Read configuration values:
+    """Read configuration values
+
+    Optional parameters are:
 
     - ``sim_limit``
     - ``quota``
@@ -108,7 +112,6 @@ class GenericSearcher(ConfReader):
     - ``reranking``
     - ``verbose``
     - ``file_input``
-
     """
     # these parameters may be overwritten by web call
     self.sim_limit = self.get_param('sim_limit', default=100)
@@ -206,7 +209,9 @@ class GenericSearcher(ConfReader):
     return model_string+"_codes/"+update_id
 
   def init_indexer(self):
-    """Initialize indexer from configuration values.
+    """Initialize indexer from configuration values
+
+    Gets required parameter ``indexer_type``
     """
     # Get indexed type from conf file
     self.indexer_type = self.get_required_param('indexer_type')
@@ -222,7 +227,7 @@ class GenericSearcher(ConfReader):
       raise ValueError("[{}: error] unknown 'indexer' {}.".format(self.pp, self.indexer_type))
 
   def init_detector(self):
-    """Initialize ``detector`` (if needed) from configuration values.
+    """Initialize ``detector`` (if needed) from configuration values
     """
     # A detector is not required
     detector_type = self.get_param('detector_type')
@@ -233,7 +238,9 @@ class GenericSearcher(ConfReader):
         self.detector = get_detector(self.detector_type)
 
   def init_featurizer(self):
-    """Initialize ``featurizer`` from configuration values.
+    """Initialize ``featurizer`` from configuration values
+
+    Gets required parameter ``featurizer_type``
     """
     self.featurizer_type = self.get_required_param('featurizer_type')
     tmp_prefix = self.get_param("featurizer_prefix")
@@ -241,20 +248,18 @@ class GenericSearcher(ConfReader):
     self.featurizer = get_featurizer(self.featurizer_type, self.global_conf, tmp_prefix)
 
   def init_storer(self):
-    """Initialize ``storer`` from configuration values.
+    """Initialize ``storer`` from configuration values
+
+    Gets required parameter ``storer_type``
     """
     from ..storer.generic_storer import get_storer, default_prefix as storer_default_prefix
     storer_type = self.get_required_param("storer_type")
     print("[{}.init_storer: log] storer_type: {}".format(self.pp, storer_type))
-    # try to get prefix from conf
-    prefix = storer_default_prefix
-    tmp_prefix = self.get_param("storer_prefix")
-    if tmp_prefix:
-      prefix = tmp_prefix
+    prefix = self.get_param("storer_prefix", default=storer_default_prefix)
     self.storer = get_storer(storer_type, self.global_conf, prefix=prefix)
 
   def check_ratio(self):
-    """Check if we need to set the ratio based on top_feature."""
+    """Check if we need to set the ratio based on top_feature"""
     if self.top_feature > 0:
       self.ratio = self.top_feature * 1.0 / len(self.searcher.nb_indexed)
       log_msg = "[{}.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
@@ -299,7 +304,7 @@ class GenericSearcher(ConfReader):
     return self._search_from_any_list(image_list, detect_load_fn, options_dict, push_img=True)
 
   def search_imageB64_list(self, imageB64_list, options_dict=dict()):
-    """Search from a list of base64 encoded images.
+    """Search from a list of base64 encoded images
 
     :param imageB64_list: list of base64 encoded images
     :type imageB64_list: list
@@ -319,7 +324,7 @@ class GenericSearcher(ConfReader):
     return self._search_from_any_list(imageB64_list, detect_load_fn, options_dict, push_img=False)
 
   def _search_from_any_list(self, image_list, detect_load_fn, options_dict, push_img=False):
-    """Search from any list of images.
+    """Search from any list of images
 
     :param image_list: list of images
     :type image_list: list
@@ -395,17 +400,18 @@ class GenericSearcher(ConfReader):
   def init_searcher(self):
     raise NotImplementedError('init_searcher')
 
-  def add_features(self, feats, ids=None):
-    raise NotImplementedError('add_features')
-
   def train_index(self):
     raise NotImplementedError('train_index')
 
-  def save_index(self):
-    raise NotImplementedError('save_index')
-
-  def load_index(self):
-    raise NotImplementedError('load_index')
-
   def search_from_feats(self, dets, feats, options_dict=dict()):
     raise NotImplementedError('search_from_feats')
+
+# #DEPRECATED
+#   def save_index(self):
+#     raise NotImplementedError('save_index')
+#
+#   def load_index(self):
+#     raise NotImplementedError('load_index')
+#
+#   def add_features(self, feats, ids=None):
+#     raise NotImplementedError('add_features')

@@ -69,6 +69,13 @@ class HBaseIndexerMinimal(ConfReader):
   """
 
   def __init__(self, global_conf_in, prefix=DEFAULT_HBASEINDEXER_PREFIX):
+    """HBaseIndexerMinimal constructor.
+
+    :param global_conf_in: configuration file or dictionary
+    :type global_conf_in: str, dict
+    :param prefix: prefix in configuration
+    :type prefix: str
+    """
     self.last_refresh = datetime.now()
     self.transport_type = 'buffered' # this is happybase default
 
@@ -231,21 +238,25 @@ class HBaseIndexerMinimal(ConfReader):
     """Refresh connection to HBase.
 
     :param calling_function: name of function calling
+    :type calling_function: str
     :param sleep_time: time to sleep before refreshing.
+    :type sleep_time: int
     """
     # NB: This can take up to 4 seconds sometimes...
     try:
       start_refresh = time.time()
-      dt_iso = datetime.utcnow().isoformat()
-      msg = "[{}.{}: {}] Trying to refresh connection pool."
-      print(msg.format(self.pp, calling_function, dt_iso))
-      sys.stdout.flush()
+      if self.verbose > 2:
+        dt_iso = datetime.utcnow().isoformat()
+        msg = "[{}.{}: {}] Trying to refresh connection pool."
+        print(msg.format(self.pp, calling_function, dt_iso))
+        sys.stdout.flush()
       time.sleep(sleep_time)
       self.pool = happybase.ConnectionPool(timeout=60000, size=self.nb_threads,
                                            host=self.hbase_host, transport=self.transport_type)
-      msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
-      print(msg.format(self.pp, time.time() - start_refresh))
-      sys.stdout.flush()
+      if self.verbose > 1:
+        msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
+        print(msg.format(self.pp, time.time() - start_refresh))
+        sys.stdout.flush()
     except TTransportException as inst:
       msg = "[{}.read_conf: error] Could not initialize connection to HBase ({})"
       print(msg.format(self.pp, inst))
@@ -256,14 +267,16 @@ class HBaseIndexerMinimal(ConfReader):
     Raise error if that is the case.
 
     :param nb_err: number of errors caught in function "function_name"
+    :type nb_err: int
     :param function_name: name of the function for which we want to check the error count.
+    :type function_name: str
     :param inst: error instance.
+    :type inst: Exception
     :raises Exception: if nb_err >= MAX_ERRORS
     """
     if nb_err >= MAX_ERRORS:
       msg = "[{}: error] function {} reached maximum number of error {}. Error {} was: {}"
       raise Exception(msg.format(self.pp, function_name, MAX_ERRORS, type(inst), inst))
-    #return None
 
   def get_create_table(self, table_name, conn=None, families=None):
     """Get HBase table "table_name", creating it if it does not exist yet.
@@ -405,14 +418,18 @@ class HBaseIndexerMinimal(ConfReader):
                                         inst=None):
     """Get unprocessed updates of type "extr_type" from "start_date".
 
-    :param start_date: start date
+    :param start_date: start date (format YYYY-MM-DD[_XX])
+    :type start_date: str
     :param extr_type: extraction type
+    :type extr_type: str
     :param maxrows: maximum number of rows
+    :type maxrows: int
     :param perr: previous errors count
+    :type perr: int
     :param inst: last error instance
-    :return:
+    :type inst: Exception
+    :yield: list of rows
     """
-    # start_date should be in format YYYY-MM-DD(_XX)
     fname = "get_unprocessed_updates_from_date"
     rows = None
     continue_scan = True
@@ -472,12 +489,17 @@ class HBaseIndexerMinimal(ConfReader):
                                          perr=0, inst=None):
     """Get updates with missing extraction from "start_date".
 
-    :param start_date: start date
+    :param start_date: start date (format YYYY-MM-DD[_XX])
+    :type start_date: str
     :param extr_type: extraction type
+    :type extr_type: str
     :param maxrows: maximum number of rows
+    :type maxrows: int
     :param perr: previous errors count
+    :type perr: int
     :param inst: last error instance
-    :return:
+    :type inst: Exception
+    :yield: list of rows
     """
     fname = "get_missing_extr_updates_from_date"
     # This induces that we keep reprocessing images that cannot be downloaded/processed every time
@@ -554,11 +576,12 @@ class HBaseIndexerMinimal(ConfReader):
       yield self.get_missing_extr_updates_from_date(next_start_date, extr_type=extr_type,
                                                     maxrows=maxrows, perr=perr + 1, inst=err_inst)
 
-  # TODO: move date tools to common
+  # TODO: move to common
   def get_today_string(self):
     """Get today date formatted as '%Y-%m-%d'
 
     :return: today string
+    :rtype: str
     """
     return datetime.today().strftime('%Y-%m-%d')
 
@@ -566,8 +589,11 @@ class HBaseIndexerMinimal(ConfReader):
     """Get next valid update id for "extr_type".
 
     :param today: today string
+    :type today: str
     :param extr_type: extraction type
+    :type extr_type: str
     :return: update_id, today string
+    :rtype: tuple
     """
     # get today's date as in format YYYY-MM-DD
     if today is None:
@@ -585,16 +611,22 @@ class HBaseIndexerMinimal(ConfReader):
 
 
   def push_dict_rows(self, dict_rows, table_name, families=None, perr=0, inst=None):
-    """Push a dictionary to the HBase 'table_name' assuming keys are the row keys and
+    """Push a dictionary to the HBase ``table_name`` assuming keys are the row keys and
     each entry is a valid dictionary containing the column names and values.
 
-    :param dict_rows: input dictionary to be pushed.
-    :param table_name: name of the HBase table where to push the data.
+    :param dict_rows: input dictionary to be pushed
+    :type dict_rows: dict
+    :param table_name: name of the HBase table where to push the data
+    :type table_name: str
     :param families: all families of the table (if we need to create the table)
+    :type families: dict
     :param perr: previous errors count
+    :type perr: int
     :param inst: last error instance
-    :return: None
+    :type inst: Exception
+    :return: True (success), None (failure)
     """
+    # Should we give an example of properly formed 'dict_rows' in doc?
     self.check_errors(perr, "push_dict_rows", inst)
     batch_size = 10
     if perr > 0:
@@ -641,15 +673,22 @@ class HBaseIndexerMinimal(ConfReader):
 
   def get_rows_by_batch(self, list_queries, table_name, families=None, columns=None, perr=0,
                         inst=None):
-    """Get rows with keys "list_queries" from "table_name".
+    """Get rows with keys ``list_queries`` from ``table_name``
 
     :param list_queries: list of row keys
+    :type list_queries: list
     :param table_name: table name
+    :type table_name: str
     :param families: column families (in case we need to create the table)
+    :type families: dict
     :param columns: columns to retrieve
+    :type columns: list
     :param perr: previous errors count
+    :type perr: int
     :param inst: last error instance
-    :return:
+    :type inst: Exception
+    :return: list of rows (only with ``columns`` values if specified)
+    :rtype: list
     """
     self.check_errors(perr, "get_rows_by_batch", inst)
     try:
@@ -684,14 +723,20 @@ class HBaseIndexerMinimal(ConfReader):
                                     perr=perr+1, inst=err_inst)
 
   def get_columns_from_sha1_rows(self, list_sha1s, columns, families=None, perr=0, inst=None):
-    """Get columns "columns" for images in "list_sha1s".
+    """Get columns ``columns`` for images in ``list_sha1s``
 
     :param list_sha1s: list of images sha1
+    :type list_sha1s: list
     :param columns: columns to retrieve
+    :type columns: list
     :param families: column families (in case we need to create the table)
+    :type families: dict
     :param perr: previous errors count
+    :type perr: int
     :param inst: last error instance
-    :return: rows of images filled with requested columns
+    :type inst: Exception:return: rows of images filled with requested columns
+    :return: list of rows (only with ``columns`` values)
+    :rtype: list
     """
     rows = None
     self.check_errors(perr, "get_columns_from_sha1_rows", inst)
@@ -711,9 +756,13 @@ class HBaseIndexerMinimal(ConfReader):
     """ Get features of "extr_type" for images in "list_sha1s"
 
     :param list_sha1s: list of images sha1
-    :param extr_type: extraction type.
+    :type list_sha1s: list
+    :param extr_type: extraction type
+    :type extr_type: str
     :param feat_type_decode: type of feature (to know how to decode in featB64decode)
+    :type feat_type_decode: str
     :return: (samples_id, feats) tuple of list of sample ids and corresponding features
+    :rtype: tuple
     """
     from ..featurizer.featsio import featB64decode
 
@@ -761,8 +810,11 @@ class HBaseIndexerMinimal(ConfReader):
     """Get list of images sha1 for which "extr_type" was not computed.
 
     :param list_sha1s: list of images sha1
-    :param extr_type: extraction type.
+    :type list_sha1s: list
+    :param extr_type: extraction type
+    :type extr_type: str
     :return: list of sha1 without extraction
+    :rtype: list
     """
     rows = self.get_columns_from_sha1_rows(list_sha1s, columns=[self.extrcf])
     sha1s_w_extr = set()
