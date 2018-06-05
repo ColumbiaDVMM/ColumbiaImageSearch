@@ -475,6 +475,8 @@ class SearcherLOPQHBase(GenericSearcher):
 
     # Save
     if codes_path:
+      if self.verbose > 1:
+        print("Saving {} codes".format(len(codes_dict)))
       self.storer.save(codes_path, codes_dict)
 
     return codes_dict
