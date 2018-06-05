@@ -470,13 +470,16 @@ class SearcherLOPQHBase(GenericSearcher):
 
     # Build dict output
     codes_dict = dict()
+    count_codes = 0
     for i, code in enumerate(codes):
+      count_codes += 1
       codes_dict[det_ids[i]] = [code.coarse, code.fine]
 
     # Save
     if codes_path:
       if self.verbose > 1:
-        print("[{}.compute_codes: log] Saving {} codes".format(self.pp, len(codes_dict)))
+        msg = "[{}.compute_codes: log] Saving {}/{} codes"
+        print(msg.format(self.pp, len(codes_dict), count_codes))
       self.storer.save(codes_path, codes_dict)
 
     return codes_dict
