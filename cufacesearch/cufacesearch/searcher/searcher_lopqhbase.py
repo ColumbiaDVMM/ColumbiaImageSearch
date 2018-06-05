@@ -462,8 +462,8 @@ class SearcherLOPQHBase(GenericSearcher):
     """
     # Compute codes for each update batch and save them
     from lopq.utils import compute_codes_parallel
-    msg = "[{}.compute_codes: info] Computing codes for {} {}s."
-    print(msg.format(self.pp, len(det_ids), self.input_type))
+    msg = "[{}.compute_codes: info] Computing codes for {} {}s from features of shape {}"
+    print(msg.format(self.pp, len(det_ids), self.input_type, data.shape))
 
     # That keeps the ordering intact, but output is a chain
     codes = compute_codes_parallel(data, self.searcher.model, self.num_procs)
@@ -476,7 +476,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # Save
     if codes_path:
       if self.verbose > 1:
-        print("Saving {} codes".format(len(codes_dict)))
+        print("[{}.compute_codes: log] Saving {} codes".format(self.pp, len(codes_dict)))
       self.storer.save(codes_path, codes_dict)
 
     return codes_dict
@@ -594,6 +594,7 @@ class SearcherLOPQHBase(GenericSearcher):
                 if codes_dict is None:
                   msg = "[{}: log] Could not load codes from {} for update {}."
                   raise ValueError(msg.format(self.pp, codes_string, update_id))
+                self.add_update(update_id)
                 # If full_refresh, check that we have as many codes as available features
                 if full_refresh:
                   if self.indexer.get_col_listsha1s() in update[1]:
