@@ -20,8 +20,15 @@ default_prefix = "SEARCHLOPQ_"
 
 
 class SearcherLOPQHBase(GenericSearcher):
+  """SearcherLOPQHBase.
+  """
 
   def __init__(self, global_conf_in, prefix=default_prefix):
+    """
+
+    :param global_conf_in:
+    :param prefix:
+    """
     # number of processors to use for parallel computation of codes
     self.num_procs = 8  # could be read from configuration
     self.model_params = None
@@ -36,6 +43,10 @@ class SearcherLOPQHBase(GenericSearcher):
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
 
   def get_model_params(self):
+    """
+
+    :return:
+    """
     V = self.get_required_param('lopq_V')
     M = self.get_required_param('lopq_M')
     subq = self.get_required_param('lopq_subq')
@@ -55,6 +66,10 @@ class SearcherLOPQHBase(GenericSearcher):
       self.lopq_searcher = lopq_searcher
 
   def build_pca_model_str(self):
+    """
+
+    :return:
+    """
     # Use feature type, self.nb_train_pca and pca_dims
     if self.pca_model_str is None:
       # We could add some additional info: model parameters, number of samples used for training...
@@ -168,6 +183,13 @@ class SearcherLOPQHBase(GenericSearcher):
     # NB: an empty lopq_model would make sense only if we just want to detect...
 
   def get_feats_from_lmbd(self, feats_db, nb_features, dtype):
+    """
+
+    :param feats_db:
+    :param nb_features:
+    :param dtype:
+    :return:
+    """
     nb_saved_feats = self.get_nb_saved_feats(feats_db)
     nb_feats_to_read = min(nb_saved_feats, nb_features)
     feats = None
@@ -187,6 +209,14 @@ class SearcherLOPQHBase(GenericSearcher):
     return feats
 
   def save_feats_to_lmbd(self, feats_db, samples_ids, np_features, max_feats=0):
+    """
+
+    :param feats_db:
+    :param samples_ids:
+    :param np_features:
+    :param max_feats:
+    :return:
+    """
     with self.save_feat_env.begin(db=feats_db, write=True) as txn:
       for i, sid in enumerate(samples_ids):
         txn.put(bytes(sid), np_features[i, :].tobytes())
@@ -196,10 +226,22 @@ class SearcherLOPQHBase(GenericSearcher):
     return nb_feats
 
   def get_nb_saved_feats(self, feats_db):
+    """
+
+    :param feats_db:
+    :return:
+    """
     with self.save_feat_env.begin(db=feats_db, write=False) as txn:
       return txn.stat()['entries']
 
   def get_train_features(self, nb_features, lopq_pca_model=None, nb_min_train=None):
+    """
+
+    :param nb_features:
+    :param lopq_pca_model:
+    :param nb_min_train:
+    :return:
+    """
     if nb_min_train is None:
       nb_min_train = nb_features
     if lopq_pca_model:
@@ -298,6 +340,10 @@ class SearcherLOPQHBase(GenericSearcher):
     return self.get_feats_from_lmbd(feats_db, nb_features_to_read, dtype)
 
   def train_index(self):
+    """
+
+    :return:
+    """
 
     if self.model_type == "lopq":
       train_np = self.get_train_features(self.nb_train, nb_min_train=self.nb_min_train)
@@ -378,6 +424,13 @@ class SearcherLOPQHBase(GenericSearcher):
   # technically we could even explore different configurations...
 
   def compute_codes(self, det_ids, data, codes_path=None):
+    """
+
+    :param det_ids:
+    :param data:
+    :param codes_path:
+    :return:
+    """
     # Compute codes for each update batch and save them
     from lopq.utils import compute_codes_parallel
     msg = "[{}.compute_codes: info] Computing codes for {} {}s."
@@ -398,6 +451,11 @@ class SearcherLOPQHBase(GenericSearcher):
     return codes_dict
 
   def add_update(self, update_id):
+    """
+
+    :param update_id:
+    :return:
+    """
     if self.lopq_searcher == "LOPQSearcherLMDB":
       # Use another LMDB to store updates indexed?
       with self.updates_env.begin(db=self.updates_index_db, write=True) as txn:
@@ -407,6 +465,11 @@ class SearcherLOPQHBase(GenericSearcher):
     self.last_indexed_update = update_id
 
   def is_update_indexed(self, update_id):
+    """
+
+    :param update_id:
+    :return:
+    """
     if self.lopq_searcher == "LOPQSearcherLMDB":
       with self.updates_env.begin(db=self.updates_index_db, write=False) as txn:
         found_update = txn.get(bytes(update_id))
@@ -418,11 +481,20 @@ class SearcherLOPQHBase(GenericSearcher):
       return update_id in self.indexed_updates
 
   def is_update_processed(self, update_cols):
+    """
+
+    :param update_cols:
+    :return:
+    """
     if self.indexer.get_col_upproc() in update_cols:
       return True
     return False
 
   def get_latest_update_suffix(self):
+    """
+
+    :return:
+    """
     if self.last_indexed_update is None:
       if self.lopq_searcher == "LOPQSearcherLMDB":
         # Try to get in from DB
@@ -441,6 +513,11 @@ class SearcherLOPQHBase(GenericSearcher):
     return suffix
 
   def load_codes(self, full_refresh=False):
+    """
+
+    :param full_refresh:
+    :return:
+    """
     # Calling this method can also perfom an update of the index
     if not self.searcher:
       info_msg = "[{}.load_codes: info] Not loading codes as searcher is not initialized."
@@ -465,7 +542,6 @@ class SearcherLOPQHBase(GenericSearcher):
       for batch_updates in self.indexer.get_updates_from_date(start_date=start_date,
                                                               extr_type=self.build_extr_str()):
         for update in batch_updates:
-          # print "[{}: log] batch length: {}, update length: {}".format(self.pp, len(batch_updates),len(update))
           update_id = update[0]
           if self.is_update_indexed(update_id) and not full_refresh:
             print("[{}: log] Skipping update {} already indexed.".format(self.pp, update_id))
@@ -484,16 +560,16 @@ class SearcherLOPQHBase(GenericSearcher):
                 # If full_refresh, check that we have as many codes as available features
                 if full_refresh:
                   if self.indexer.get_col_listsha1s() in update[1]:
-                    list_sha1s = update[1][self.indexer.get_col_listsha1s()].split(',')
-                    sids, _ = self.indexer.get_features_from_sha1s(list_sha1s,
+                    list_sha1s = update[1][self.indexer.get_col_listsha1s()]
+                    sids, _ = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
                                                                    self.build_extr_str())
                     if len(sids) > len(codes_dict):
                       msg = "[{}: log] Update {} has {} new features."
                       diff_count = len(sids) - len(codes_dict)
                       raise ValueError(msg.format(self.pp, update_id, diff_count))
                     else:
-                      msg = "[{}: log] Skipping update {} already indexed with all {} features."
-                      print(msg.format(self.pp, update_id, len(sids)))
+                      msg = "[{}: log] Skipping update {} already indexed with all {}/{} features."
+                      print(msg.format(self.pp, update_id, len(codes_dict), len(sids)))
               except Exception as inst:
                 # Update codes not available
                 if self.verbose > 1:
@@ -567,6 +643,13 @@ class SearcherLOPQHBase(GenericSearcher):
   #   pass
 
   def search_from_feats(self, dets, feats, options_dict=dict()):
+    """
+
+    :param dets:
+    :param feats:
+    :param options_dict:
+    :return:
+    """
     import time
     start_search = time.time()
     all_sim_images = []

@@ -28,6 +28,12 @@ TIME_ELAPSED_FAILED = 3600
 # Look for and process batch of a given extraction that have not been processed yet.
 # Should be multi-threaded but single process...
 def build_batch(list_in, batch_size):
+  """
+
+  :param list_in:
+  :param batch_size:
+  :return:
+  """
   nbli = len(list_in)
   ibs = int(batch_size)
   if nbli > 0:
@@ -37,6 +43,9 @@ def build_batch(list_in, batch_size):
     yield []
 
 class ThreadedDownloaderBufferOnly(threading.Thread):
+  """
+
+  """
 
   def __init__(self, q_in, q_out, url_input=True):
     threading.Thread.__init__(self)
@@ -52,6 +61,10 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
 
 
   def run(self):
+    """
+
+    :return:
+    """
     from cufacesearch.imgio.imgio import get_buffer_from_URL, get_buffer_from_filepath
 
     while self.q_in.empty() is False:
@@ -85,8 +98,15 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
       self.q_in.task_done()
 
 class ExtractionProcessor(ConfReader):
+  """ExtractionProcessor class.
+  """
 
   def __init__(self, global_conf, prefix=DEFAULT_EXTR_PROC_PREFIX):
+    """
+
+    :param global_conf:
+    :param prefix:
+    """
     self.extractor = None
     self.nb_empt = 0
     self.nb_err = 0
@@ -164,11 +184,20 @@ class ExtractionProcessor(ConfReader):
 
 
   def set_pp(self, pp="ExtractionProcessor"):
+    """
+
+    :param pp:
+    :return:
+    """
     self.pp = pp
     if self.extractor:
       self.pp += "_"+self.extr_prefix
 
   def init_queues(self):
+    """
+
+    :return:
+    """
     from multiprocessing import JoinableQueue
     self.q_in = []
     self.q_out = []
@@ -182,7 +211,9 @@ class ExtractionProcessor(ConfReader):
     """Check if an update was not processed yet.
 
     :param update_id: update id
-    :return: boolean
+    :type update_id: str
+    :return: boolean indicated if update ``update_id`` is unprocessed
+    :rtype: bool
     """
     # DONE: use out_indexer
     update_rows = self.out_indexer.get_rows_by_batch([update_id],
@@ -197,8 +228,11 @@ class ExtractionProcessor(ConfReader):
     """Check if an update was not started yet.
 
     :param update_id: update id
+    :type update_id: str
     :param max_delay: delay (in seconds) between marked start time and now to consider update failed
+    :type max_delay: int
     :return: boolean
+    :rtype: bool
     """
     # DONE: use out_indexer
     update_rows = self.out_indexer.get_rows_by_batch([update_id],
@@ -222,6 +256,10 @@ class ExtractionProcessor(ConfReader):
     return True
 
   def get_batch_hbase(self):
+    """
+
+    :return:
+    """
     # legacy implementation: better to have a kafka topic for batches to be processed to allow
     # safe and efficient parallelization on different machines
     # DONE: use in_indexer
@@ -305,6 +343,10 @@ class ExtractionProcessor(ConfReader):
 
 
   def get_batch_kafka(self):
+    """
+
+    :return:
+    """
     # Read from a kafka topic to allow safer parallelization on different machines
     # DONE: use in_indexer
     img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
@@ -359,6 +401,10 @@ class ExtractionProcessor(ConfReader):
 
 
   def get_batch(self):
+    """
+
+    :return:
+    """
     if self.ingestion_input == "hbase":
       for rows_batch, update_id in self.get_batch_hbase():
         yield rows_batch, update_id
@@ -367,6 +413,10 @@ class ExtractionProcessor(ConfReader):
         yield rows_batch, update_id
 
   def process_batch(self):
+    """
+
+    :return:
+    """
     # Get a new update batch
     try:
       for rows_batch, update_id in self.get_batch():
@@ -661,6 +711,10 @@ class ExtractionProcessor(ConfReader):
       raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
+    """
+
+    :return:
+    """
     self.nb_empt = 0
     self.nb_err = 0
     while True:

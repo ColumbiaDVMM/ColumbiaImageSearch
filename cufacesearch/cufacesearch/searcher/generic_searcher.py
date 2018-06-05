@@ -8,6 +8,8 @@ default_prefix = "GESEARCH_"
 
 
 class GenericSearcher(ConfReader):
+  """GenericSearcher class.
+  """
 
   def __init__(self, global_conf_in, prefix=default_prefix):
     # Initialize attributes default values
@@ -92,10 +94,24 @@ class GenericSearcher(ConfReader):
     self.load_codes()
 
   def read_conf(self):
+    """Read configuration values:
+
+    - ``sim_limit``
+    - ``quota``
+    - ``near_dup``
+    - ``near_dup_th``
+    - ``ratio``
+    - ``top_feature``
+    - ``input_type``
+    - ``nb_train``
+    - ``nb_min_train``
+    - ``reranking``
+    - ``verbose``
+    - ``file_input``
+
+    """
     # these parameters may be overwritten by web call
-    self.sim_limit = self.get_param('sim_limit')
-    if self.sim_limit is None:
-      self.sim_limit = 100
+    self.sim_limit = self.get_param('sim_limit', default=100)
     tmp_quota = self.get_param('quota')
     if tmp_quota:
       if tmp_quota < self.sim_limit:
@@ -131,6 +147,11 @@ class GenericSearcher(ConfReader):
     raise NotImplementedError("[{}] get_model_params is not implemented".format(self.pp))
 
   def get_model_params_str(self):
+    """Build model parameters string.
+
+    :return: model parameters string
+    :rtype: str
+    """
     model_params_str = ''
     for p in self.model_params:
       model_params_str += "-"+str(p)+str(self.model_params[p])
@@ -139,6 +160,11 @@ class GenericSearcher(ConfReader):
 
 
   def build_extr_str(self):
+    """Build extraction string.
+
+    :return: extraction string
+    :rtype: str
+    """
     if self.extr_str is None:
       # use generic extractor 'build_extr_str'
       from cufacesearch.extractor.generic_extractor import build_extr_str
@@ -147,10 +173,21 @@ class GenericSearcher(ConfReader):
     return self.extr_str
 
   def get_train_features_str(self):
+    """Build train features filename.
+
+    :return: train features filename
+    :rtype: str
+    """
     extr_str = self.build_extr_str()
     return "train_features_{}_{}.pkl".format(extr_str, self.nb_train)
 
   def build_model_str(self):
+    """Build model string.
+
+    :return: model string
+    :rtype: str
+    """
+
     model_params_str = self.get_model_params_str()
     if self.model_str is None:
       # We could add some additional info, like model parameters, number of samples used for training...
@@ -158,11 +195,18 @@ class GenericSearcher(ConfReader):
     return self.model_str
 
   def build_codes_string(self, update_id):
+    """Build codes filename for update ``update_id``.
+
+    :param update_id: update identifier
+    :type update_id: str
+    :return: codes string
+    :rtype: str
+    """
     model_string = self.build_model_str()
     return model_string+"_codes/"+update_id
 
   def init_indexer(self):
-    """ Initialize HBase Indexer from `global_conf` value.
+    """Initialize indexer from configuration values.
     """
     # Get indexed type from conf file
     self.indexer_type = self.get_required_param('indexer_type')
@@ -178,7 +222,7 @@ class GenericSearcher(ConfReader):
       raise ValueError("[{}: error] unknown 'indexer' {}.".format(self.pp, self.indexer_type))
 
   def init_detector(self):
-    """ Initialize detector based on 'detector' in 'global_conf' value.
+    """Initialize ``detector`` (if needed) from configuration values.
     """
     # A detector is not required
     detector_type = self.get_param('detector_type')
@@ -189,7 +233,7 @@ class GenericSearcher(ConfReader):
         self.detector = get_detector(self.detector_type)
 
   def init_featurizer(self):
-    """ Initialize Feature Extractor from `global_conf` value.
+    """Initialize ``featurizer`` from configuration values.
     """
     self.featurizer_type = self.get_required_param('featurizer_type')
     tmp_prefix = self.get_param("featurizer_prefix")
@@ -197,7 +241,7 @@ class GenericSearcher(ConfReader):
     self.featurizer = get_featurizer(self.featurizer_type, self.global_conf, tmp_prefix)
 
   def init_storer(self):
-    """ Initialize storer from `global_conf` value.
+    """Initialize ``storer`` from configuration values.
     """
     from ..storer.generic_storer import get_storer, default_prefix as storer_default_prefix
     storer_type = self.get_required_param("storer_type")
@@ -210,14 +254,23 @@ class GenericSearcher(ConfReader):
     self.storer = get_storer(storer_type, self.global_conf, prefix=prefix)
 
   def check_ratio(self):
-    '''Check if we need to set the ratio based on top_feature.'''
+    """Check if we need to set the ratio based on top_feature."""
     if self.top_feature > 0:
       self.ratio = self.top_feature * 1.0 / len(self.searcher.nb_indexed)
       log_msg = "[{}.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
       print(log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed)))
 
-  # TODO: rename as search_imageURL_list, write similar method for search_imageFiles_list
+
   def search_imageURL_list(self, image_list, options_dict=dict()):
+    """Search from a list of images URLs.
+
+    :param image_list: list of images URLs
+    :type image_list: list
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :return: formatted output of search results
+    :rtype: OrderedDict
+    """
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_URL' function
     if self.detector is None:
       from ..imgio.imgio import get_buffer_from_URL
@@ -227,6 +280,15 @@ class GenericSearcher(ConfReader):
     return self._search_from_any_list(image_list, detect_load_fn, options_dict, push_img=True)
 
   def search_image_path_list(self, image_list, options_dict=dict()):
+    """Search from a list of images paths.
+
+    :param image_list: list of images paths
+    :type image_list: list
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :return: formatted output of search results
+    :rtype: OrderedDict
+    """
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_file' function
     # NB: path would be path from within the docker...
     if self.detector is None:
@@ -237,6 +299,16 @@ class GenericSearcher(ConfReader):
     return self._search_from_any_list(image_list, detect_load_fn, options_dict, push_img=True)
 
   def search_imageB64_list(self, imageB64_list, options_dict=dict()):
+    """Search from a list of base64 encoded images.
+
+    :param imageB64_list: list of base64 encoded images
+    :type imageB64_list: list
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :return: formatted output of search results
+    :rtype: OrderedDict
+    """
+
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_B64' function
     if self.detector is None:
       from ..imgio.imgio import get_buffer_from_B64
@@ -247,6 +319,17 @@ class GenericSearcher(ConfReader):
     return self._search_from_any_list(imageB64_list, detect_load_fn, options_dict, push_img=False)
 
   def _search_from_any_list(self, image_list, detect_load_fn, options_dict, push_img=False):
+    """Search from any list of images.
+
+    :param image_list: list of images
+    :type image_list: list
+    :param detect_load_fn: detection or loading function
+    :type detect_load_fn: function
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :return: formatted output of search results
+    :rtype: OrderedDict
+    """
     dets = []
     feats = []
     import time

@@ -753,7 +753,8 @@ class HBaseIndexerMinimal(ConfReader):
             #full_trace_error(msg.format(self.pp, row[0]))
             #raise inst
     if self.verbose > 0:
-      print("[{}: info] Got {} rows and {} features.".format(self.pp, len(rows), len(samples_id)))
+      msg = "[{}: info] Got {}/{} rows and {} features."
+      print(msg.format(self.pp, len(rows), len(list_sha1s), len(samples_id)))
     return samples_id, feats
 
   def get_missing_extr_sha1s(self, list_sha1s, extr_type, skip_failed=False):

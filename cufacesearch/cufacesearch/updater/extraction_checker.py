@@ -19,8 +19,19 @@ DEFAULT_EXTR_CHECK_PREFIX = "EXTR_"
 # or all the "TODO" comments should be implemented.
 
 class ExtractionChecker(ConfReader):
+  """ExtractionChecker class.
+  """
 
   def __init__(self, global_conf, prefix=DEFAULT_EXTR_CHECK_PREFIX, pid=None):
+    """ExtractionChecker constructor.
+
+    :param global_conf_in: configuration file or dictionary
+    :type global_conf_in: str, dict
+    :param prefix: prefix in configuration
+    :type prefix: str
+    :param pid: process id
+    :type pid: int
+    """
     self.list_extr_prefix = []
     self.pid = pid
     self.dict_sha1_infos = dict()
@@ -87,6 +98,8 @@ class ExtractionChecker(ConfReader):
       self.ingester.pp += str(self.pid)
 
   def set_check_columns(self):
+    """Set columns to be checked in indexer.
+    """
     # changed to: get column family from indexer
     extr_prefix_base_column_name = self.indexer.extrcf + ":" + self.extr_prefix
     extr_check_column = extr_prefix_base_column_name + "_processed"
@@ -97,12 +110,19 @@ class ExtractionChecker(ConfReader):
 
 
   def set_pp(self, pp=""):
+    """Set pretty name.
+    """
     self.pp = "ExtractionChecker"
     self.pp += "-".join(self.list_extr_prefix)
     if self.pid:
       self.pp += "." + str(self.pid)
 
   def store_img_infos(self, msg):
+    """
+
+    :param msg:
+    :return:
+    """
     strk = str(msg['sha1'])
     self.dict_sha1_infos[strk] = dict()
     for key in msg:
@@ -119,6 +139,11 @@ class ExtractionChecker(ConfReader):
           self.dict_sha1_infos[strk][key] = msg[key]
 
   def cleanup_dict_infos(self, list_del_sha1s):
+    """
+
+    :param list_del_sha1s:
+    :return:
+    """
     for sha1 in list_del_sha1s:
       try:
         del self.dict_sha1_infos[str(sha1)]
@@ -127,6 +152,12 @@ class ExtractionChecker(ConfReader):
         pass
 
   def get_dict_push(self, list_get_sha1s, daemon=False):
+    """
+
+    :param list_get_sha1s:
+    :param daemon:
+    :return:
+    """
     #TODO: is this needed for every get_dict_push call?
     self.set_check_columns()
     # TODO: also pass current update_id, and move the creation of update id out of this method
@@ -158,6 +189,11 @@ class ExtractionChecker(ConfReader):
     return dict_push, update_id
 
   def get_unprocessed_rows(self, list_check_sha1s):
+    """
+
+    :param list_check_sha1s:
+    :return:
+    """
     # TODO: also pass current update_id and only delete if != from current update...
 
     unprocessed_rows = set(list_check_sha1s)
@@ -183,6 +219,11 @@ class ExtractionChecker(ConfReader):
     return unprocessed_rows
 
   def run(self, daemon=False):
+    """
+
+    :param daemon:
+    :return:
+    """
     i = 0
     try:
       list_sha1s_to_process = []
@@ -330,6 +371,10 @@ class DaemonExtractionChecker(multiprocessing.Process):
     self.prefix = prefix
 
   def run(self):
+    """
+
+    :return:
+    """
     nb_death = 0
     while True:
       try:

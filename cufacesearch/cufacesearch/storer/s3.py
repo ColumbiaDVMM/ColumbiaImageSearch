@@ -19,8 +19,17 @@ from cufacesearch.common.error import full_trace_error
 default_prefix = "S3ST_"
 
 class S3Storer(GenericStorer):
+  """S3Storer class.
+  """
 
   def __init__(self, global_conf_in, prefix=default_prefix):
+    """S3Storer constructor.
+
+    :param global_conf_in: configuration file or dictionary
+    :type global_conf_in: str, dict
+    :param prefix: prefix in configuration
+    :type prefix: str
+    """
     super(S3Storer, self).__init__(global_conf_in, prefix)
     self.set_pp(pp="S3Storer")
 
@@ -38,6 +47,8 @@ class S3Storer(GenericStorer):
       raise ValueError("Could not find AWS profile: {}".format(self.aws_profile))
 
   def setup(self):
+    """Setup S3Storer.
+    """
     self.session = boto3.Session(profile_name=self.aws_profile, region_name=self.region)
     self.s3 = self.session.resource('s3')
     # Try to access first to make sure
@@ -53,6 +64,13 @@ class S3Storer(GenericStorer):
       print(msg.format(self.pp, self.bucket_name, self.aws_profile, self.region))
 
   def save(self, key, obj):
+    """Save object ``obj`` at location ``key``.
+
+    :param key: location to save
+    :type key: str
+    :param obj: object to save, will be pickled.
+    :type obj: Object
+    """
     # Pickle and save to s3 bucket
     #buffer = sio.StringIO(pickle.dumps(obj))
     buffer = sio(pickle.dumps(obj))
@@ -64,6 +82,15 @@ class S3Storer(GenericStorer):
       print("[{}: log] Saved file: {}".format(self.pp, save_key))
 
   def load(self, key, silent=False):
+    """Load from location ``key``
+
+    :param key: location
+    :type key: str
+    :param silent: whether load fails silently
+    :type silent: bool
+    :return: loaded object
+    :rtype: Object
+    """
     # Load a pickle object from s3 bucket
     try:
       #buffer = sio.StringIO()
@@ -84,6 +111,12 @@ class S3Storer(GenericStorer):
         print(err_msg.format(self.pp, type(e), e, load_key))
 
   def list_prefix(self, prefix_path):
+    """List all files in ``prefix_path``.
+
+    :param prefix_path: prefix path
+    :type prefix_path: str
+    :yield: one file path
+    """
     if self.aws_prefix:
       prefix_path = '/'.join([self.aws_prefix, prefix_path])
     for obj in self.bucket.objects.filter(Prefix=prefix_path):
@@ -91,6 +124,12 @@ class S3Storer(GenericStorer):
 
   # This would be used to load all codes
   def get_all_from_prefix(self, prefix_path):
+    """Get all objects in ``prefix_path``.
+
+    :param prefix_path: prefix path
+    :type prefix_path: str
+    :yield: object
+    """
     if self.aws_prefix:
       prefix_path = '/'.join([self.aws_prefix, prefix_path])
     for obj in self.list_prefix(prefix_path):
