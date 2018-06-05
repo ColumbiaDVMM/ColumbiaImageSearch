@@ -15,6 +15,7 @@ from ..storer.s3 import S3Storer
 from ..common.error import full_trace_error
 
 START_HDFS = '/user/'
+DATE_DB_FORMAT = '%Y-%M-%d %H:%m:%S.%f'
 
 default_prefix = "SEARCHLOPQ_"
 
@@ -515,7 +516,8 @@ class SearcherLOPQHBase(GenericSearcher):
       with self.updates_env.begin(db=self.updates_index_db, write=False) as txn:
         found_update = txn.get(bytes(update_id))
         if found_update:
-          return found_update
+          # found_update is a string at this point
+          return datetime.strptime(found_update, DATE_DB_FORMAT)
         else:
           msg = "[{}.get_update_date_db: error] update {} is not in database"
           raise ValueError(msg.format(self.pp, update_id))
