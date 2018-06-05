@@ -1,7 +1,7 @@
 """Flask API to expose the search index.
 """
 
-
+import sys
 import time
 import json
 from datetime import datetime
