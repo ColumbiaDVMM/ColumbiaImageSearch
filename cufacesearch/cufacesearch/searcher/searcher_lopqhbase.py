@@ -632,8 +632,8 @@ class SearcherLOPQHBase(GenericSearcher):
                   except:
                     pass
                   if self.indexer.get_col_listsha1s() in update[1]:
-                    list_sha1s = set(update[1][self.indexer.get_col_listsha1s()].split(','))
-                    sids, _ = self.indexer.get_features_from_sha1s(list_sha1s,
+                    set_sha1s = set(update[1][self.indexer.get_col_listsha1s()].split(','))
+                    sids, _ = self.indexer.get_features_from_sha1s(list(set_sha1s),
                                                                    self.build_extr_str())
                     if len(set(sids)) > len(codes_dict):
                       msg = "[{}: log] Update {} has {} new features."
@@ -642,7 +642,7 @@ class SearcherLOPQHBase(GenericSearcher):
                     else:
                       msg = "[{}: log] Skipping update {} already indexed with all {}/{} features."
                       print(msg.format(self.pp, update_id, len(codes_dict), len(set(sids))))
-                      # For full_image extraction, if len(set(sids)) == len(list_sha1s)
+                      # For full_image extraction, if len(set(sids)) == len(set_sha1s)
                       # we will never have to check that update again
                       # For detection based, if all list_sha1s have been processed we should never
                       # have to check that update again
