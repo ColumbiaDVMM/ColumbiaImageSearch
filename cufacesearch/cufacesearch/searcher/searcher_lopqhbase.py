@@ -477,9 +477,9 @@ class SearcherLOPQHBase(GenericSearcher):
 
     # Save
     if codes_path:
-      if self.verbose > 1:
-        msg = "[{}.compute_codes: log] Saving {}/{} codes"
-        print(msg.format(self.pp, len(codes_dict), count_codes))
+      if self.verbose > 1 and len(codes_dict) < len(det_ids):
+        msg = "[{}.compute_codes: log] Saving only {} of {} codes. det_ids: {}"
+        print(msg.format(self.pp, len(codes_dict), count_codes, det_ids))
       self.storer.save(codes_path, codes_dict)
 
     return codes_dict
