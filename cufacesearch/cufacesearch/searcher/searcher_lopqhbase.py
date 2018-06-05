@@ -454,7 +454,7 @@ class SearcherLOPQHBase(GenericSearcher):
     :param det_ids: samples ids
     :type det_ids: list
     :param data: features
-    :type data: :class:`numpy.ndarray`
+    :type data: list(:class:`numpy.ndarray`)
     :param codes_path: path to use to save codes using storer
     :type codes_path: str
     :return: codes dictionary
@@ -463,7 +463,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # Compute codes for each update batch and save them
     from lopq.utils import compute_codes_parallel
     msg = "[{}.compute_codes: info] Computing codes for {} {}s from features of shape {}"
-    print(msg.format(self.pp, len(det_ids), self.input_type, data.shape))
+    print(msg.format(self.pp, len(det_ids), self.input_type, len(data)))
 
     # That keeps the ordering intact, but output is a chain
     codes = compute_codes_parallel(data, self.searcher.model, self.num_procs)
