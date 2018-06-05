@@ -666,6 +666,9 @@ class SearcherLOPQHBase(GenericSearcher):
                       # If all sha1s have been processed, no need to ever check that update again
                       # Store that information as future date_db to avoid ever checking again...
                       if not missing_extr and self.lopq_searcher == "LOPQSearcherLMDB":
+                        if self.verbose > 1:
+                          msg = "[{}: log] Mark update {} to be skipped."
+                          print(msg.format(self.pp, update_id))
                         self.add_update(update_id, date_db=dtn.replace(year=9999))
 
               except Exception as inst:
