@@ -485,19 +485,43 @@ class SearcherLOPQHBase(GenericSearcher):
 
     return codes_dict
 
-  def add_update(self, update_id):
+  def add_update(self, update_id, date_db=datetime.now()):
     """Add update id ``update_id`` to the database or list of update ids
 
     :param update_id: update id
     :type update_id: str
+    :param date_db: datetime to save for that update
+    :type date_db: datetime
     """
     if self.lopq_searcher == "LOPQSearcherLMDB":
       # Use another LMDB to store updates indexed?
       with self.updates_env.begin(db=self.updates_index_db, write=True) as txn:
-        txn.put(bytes(update_id), bytes(datetime.now()))
+        txn.put(bytes(update_id), bytes(date_db))
     else:
       self.indexed_updates.add(update_id)
     self.last_indexed_update = update_id
+
+  def get_update_date_db(self, update_id):
+    """Get update id ``update_id`` saved date in database
+
+    :param update_id: update id
+    :type update_id: str
+    :raises TypeError: if self.lopq_searcher is not "LOPQSearcherLMDB"
+    :raises ValueError: if ``update_id`` is not in database
+    """
+    if self.lopq_searcher == "LOPQSearcherLMDB":
+      with self.updates_env.begin(db=self.updates_index_db, write=False) as txn:
+        found_update = txn.get(bytes(update_id))
+        if found_update:
+          return found_update
+        else:
+          msg = "[{}.get_update_date_db: error] update {} is not in database"
+          raise ValueError(msg.format(self.pp, update_id))
+    else:
+      msg = "[{}.get_update_date_db: error] lopq_searcher is not of type \"LOPQSearcherLMDB\""
+      raise TypeError(msg)
+
+
 
   def is_update_indexed(self, update_id):
     """Check whether update ``update_id`` has already been indexed
@@ -601,9 +625,15 @@ class SearcherLOPQHBase(GenericSearcher):
                 self.add_update(update_id)
                 # If full_refresh, check that we have as many codes as available features
                 if full_refresh:
+                  try:
+                    date_db = self.get_update_date_db(update_id)
+                    msg = "[{}: log] date_db of update_id {}: {}"
+                    print(msg.format(self.pp, update_id, date_db))
+                  except:
+                    pass
                   if self.indexer.get_col_listsha1s() in update[1]:
-                    list_sha1s = update[1][self.indexer.get_col_listsha1s()]
-                    sids, _ = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
+                    list_sha1s = set(update[1][self.indexer.get_col_listsha1s()].split(','))
+                    sids, _ = self.indexer.get_features_from_sha1s(list_sha1s,
                                                                    self.build_extr_str())
                     if len(set(sids)) > len(codes_dict):
                       msg = "[{}: log] Update {} has {} new features."
@@ -612,6 +642,11 @@ class SearcherLOPQHBase(GenericSearcher):
                     else:
                       msg = "[{}: log] Skipping update {} already indexed with all {}/{} features."
                       print(msg.format(self.pp, update_id, len(codes_dict), len(set(sids))))
+                      # For full_image extraction, if len(set(sids)) == len(list_sha1s)
+                      # we will never have to check that update again
+                      # For detection based, if all list_sha1s have been processed we should never
+                      # have to check that update again
+                      # How to store that information, and avoid ever checking again...
               except Exception as inst:
                 # Update codes not available
                 if self.verbose > 1:
