@@ -43,6 +43,7 @@ class GenericSearcher(ConfReader):
     self.reranking = False
     self.indexed_updates = set()
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
+    self.set_pp(pp="GenericSearcher")
 
     get_pretrained_model = self.get_param('get_pretrained_model')
     if get_pretrained_model:

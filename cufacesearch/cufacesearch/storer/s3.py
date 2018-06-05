@@ -30,8 +30,8 @@ class S3Storer(GenericStorer):
     :param prefix: prefix in configuration
     :type prefix: str
     """
-    self.set_pp(pp="S3Storer")
     super(S3Storer, self).__init__(global_conf_in, prefix)
+    self.set_pp(pp="S3Storer")
 
     # This assumes you have set the corresponding profile in ~/.aws/credentials
     self.bucket_name = self.get_required_param('bucket_name')

@@ -18,8 +18,8 @@ class LocalStorer(GenericStorer):
     :param prefix: prefix in configuration
     :type prefix: str
     """
-    self.set_pp(pp="LocalStorer")
     super(LocalStorer, self).__init__(global_conf_in, prefix)
+    self.set_pp(pp="LocalStorer")
     self.base_path = self.get_required_param('base_path')
     # Be sure base_path ends by "/" for mkpath
     if self.base_path[-1] != "/":

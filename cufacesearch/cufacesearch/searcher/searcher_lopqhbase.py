@@ -31,7 +31,6 @@ class SearcherLOPQHBase(GenericSearcher):
     :param prefix: prefix in configuration
     :type prefix: str
     """
-    self.set_pp(pp="SearcherLOPQHBase")
     # number of processors to use for parallel computation of codes
     self.num_procs = 8  # could be read from configuration
     self.model_params = None
@@ -45,7 +44,7 @@ class SearcherLOPQHBase(GenericSearcher):
     # making LOPQSearcherLMDB the default LOPQSearcher
     self.lopq_searcher = "LOPQSearcherLMDB"
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
-
+    self.set_pp(pp="SearcherLOPQHBase")
 
   def get_model_params(self):
     """Reads model parameters from configuration
@@ -486,7 +485,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
     return codes_dict
 
-  def add_update(self, update_id, date_db=datetime.now()):
+  def add_update(self, update_id, date_db=None):
     """Add update id ``update_id`` to the database or list of update ids
 
     :param update_id: update id
@@ -494,8 +493,10 @@ class SearcherLOPQHBase(GenericSearcher):
     :param date_db: datetime to save for that update
     :type date_db: datetime
     """
+    if date_db is None:
+      date_db = datetime.now()
     if self.lopq_searcher == "LOPQSearcherLMDB":
-      # Use another LMDB to store updates indexed?
+      # Use another LMDB to store updates indexed
       with self.updates_env.begin(db=self.updates_index_db, write=True) as txn:
         txn.put(bytes(update_id), bytes(date_db))
     else:
@@ -522,7 +523,29 @@ class SearcherLOPQHBase(GenericSearcher):
       msg = "[{}.get_update_date_db: error] lopq_searcher is not of type \"LOPQSearcherLMDB\""
       raise TypeError(msg)
 
+  def skip_update(self, update_id, dtn):
+    """Check if we should skip loading update ``update_id`` because it has been marked as fully
+    processed and indexed already (using a date in the future)
 
+    :param update_id: update id
+    :type update_id: str
+    :param dtn: datetime of now
+    :type dtn: :class:`datetime.datetime`
+    :return: whether this update should be skipped
+    :rtype: bool
+    """
+    try:
+      date_db = self.get_update_date_db(update_id)
+      if date_db.year > dtn.year:
+        if self.verbose > 1:
+          msg = "[{}: log] Skipping update {} marked with a future date: {}."
+          print(msg.format(self.pp, update_id, date_db))
+        return True
+    except Exception as inst:
+      if self.verbose > 4:
+        msg = "[{}: error] Could not get update {} date: {}"
+        print(msg.format(self.pp, update_id, inst))
+      return False
 
   def is_update_indexed(self, update_id):
     """Check whether update ``update_id`` has already been indexed
@@ -578,30 +601,6 @@ class SearcherLOPQHBase(GenericSearcher):
       suffix = '_'.join(self.last_indexed_update.split('_')[6:])
     return suffix
 
-  def skip_update(self, update_id, dtn=datetime.now()):
-    """Check if we should skip loading update ``update_id`` because it has been marked as fully
-    processed and indexed already (using a date in the future)
-
-    :param update_id: update id
-    :type update_id: str
-    :param dtn: datetime of now
-    :type dtn: :class:`datetime.datetime`
-    :return: whether this update should be skipped
-    :rtype: bool
-    """
-    try:
-      date_db = self.get_update_date_db(update_id)
-      if date_db.year > dtn.year:
-        if self.verbose > 1:
-          msg = "[{}: log] Skipping update {} marked with a future date: {}."
-          print(msg.format(self.pp, update_id, date_db))
-        return True
-    except Exception as inst:
-      if self.verbose > 4:
-        msg = "[{}: error] Could not get update {} date: {}"
-        print(msg.format(self.pp, update_id, inst))
-      return False
-
   def load_codes(self, full_refresh=False):
     """Load codes
 
@@ -650,8 +649,9 @@ class SearcherLOPQHBase(GenericSearcher):
                   msg = "[{}: log] Could not load codes from {} for update {}."
                   raise ValueError(msg.format(self.pp, codes_string, update_id))
                 self.add_update(update_id)
+                dtn = datetime.now()
                 # If full_refresh, check that we have as many codes as available features
-                if full_refresh and not self.skip_update(update_id):
+                if full_refresh and not self.skip_update(update_id, dtn):
                   if self.indexer.get_col_listsha1s() in update[1]:
                     set_sha1s = set(update[1][self.indexer.get_col_listsha1s()].split(','))
                     sids, _ = self.indexer.get_features_from_sha1s(list(set_sha1s), extr_str)
@@ -666,9 +666,7 @@ class SearcherLOPQHBase(GenericSearcher):
                       # If all sha1s have been processed, no need to ever check that update again
                       # Store that information as future date_db to avoid ever checking again...
                       if not missing_extr and self.lopq_searcher == "LOPQSearcherLMDB":
-                        dtn = datetime.now()
-                        dtn.replace(year=9999)
-                        self.add_update(update_id, date_db=dtn)
+                        self.add_update(update_id, date_db=dtn.replace(year=9999))
 
               except Exception as inst:
                 # Update codes not available

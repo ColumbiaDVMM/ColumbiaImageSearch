@@ -3,7 +3,7 @@ class DictOutput():
   """
 
   def __init__(self, mode='CamelCase'):
-    """DictOutput constructor.
+    """DictOutput constructor
 
     :param mode: output mode, default ``CamelCase``
     :type mode: str
@@ -19,7 +19,7 @@ class DictOutput():
         self.fillDictOld()
 
   def fillInputFieldsCamelCase(self, input, input_str):
-    """Fill ``self.map`` fields in CamelCase for input type ``input``.
+    """Fill ``self.map`` fields in CamelCase for input type ``input``
 
     :param input: input type string
     :type input: str
@@ -34,7 +34,7 @@ class DictOutput():
     self.map['all_similar_'+input+'s'] = "AllSimilar" + input_str + "s"
 
   def fillInputFieldsOld(self, input, input_str):
-    """Fill ``self.map`` fields in snake_case for input type ``input``.
+    """Fill ``self.map`` fields in snake_case for input type ``input``
 
     :param input: input type string
     :type input: str
@@ -49,7 +49,7 @@ class DictOutput():
     self.map['all_similar_'+input+'s'] = "all_similar_" + input_str + "s"
 
   def fillDictCamelCase(self):
-    """Fill ``self.map`` dictionary in CamelCase.
+    """Fill ``self.map`` dictionary in CamelCase
     """
     self.map['query_sha1'] = "QuerySha1"
     self.map['query_url'] = "QueryURL"
@@ -63,7 +63,7 @@ class DictOutput():
 
 
   def fillDictOld(self):
-    """Fill ``self.map`` dictionary in snake_case.
+    """Fill ``self.map`` dictionary in snake_case
     """
     self.map['query_sha1'] = "query_sha1"
     self.map['query_url'] = "query_url"
