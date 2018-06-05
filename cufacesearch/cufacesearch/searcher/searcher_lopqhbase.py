@@ -462,8 +462,8 @@ class SearcherLOPQHBase(GenericSearcher):
     """
     # Compute codes for each update batch and save them
     from lopq.utils import compute_codes_parallel
-    msg = "[{}.compute_codes: info] Computing codes for {} {}s from features of shape {}"
-    print(msg.format(self.pp, len(det_ids), self.input_type, len(data)))
+    msg = "[{}.compute_codes: log] Computing codes for {} ({} unique) {}s from features of shape {}"
+    print(msg.format(self.pp, len(det_ids), len(set(det_ids)), self.input_type, len(data)))
 
     # That keeps the ordering intact, but output is a chain
     codes = compute_codes_parallel(data, self.searcher.model, self.num_procs)
