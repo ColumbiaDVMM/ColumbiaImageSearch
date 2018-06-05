@@ -462,7 +462,7 @@ class SearcherLOPQHBase(GenericSearcher):
     """
     # Compute codes for each update batch and save them
     from lopq.utils import compute_codes_parallel
-    msg = "[{}.compute_codes: log] Computing codes for {} ({} unique) {}s from features of shape {}"
+    msg = "[{}.compute_codes: log] Computing codes for {} ({} unique) {}s from {} features"
     print(msg.format(self.pp, len(det_ids), len(set(det_ids)), self.input_type, len(data)))
 
     # That keeps the ordering intact, but output is a chain
@@ -477,9 +477,10 @@ class SearcherLOPQHBase(GenericSearcher):
 
     # Save
     if codes_path:
-      if self.verbose > 1 and len(codes_dict) < len(det_ids):
-        msg = "[{}.compute_codes: log] Saving only {} of {} codes. det_ids: {}"
-        print(msg.format(self.pp, len(codes_dict), count_codes, det_ids))
+      # # Some old updates have duplicate sha1s...
+      # if self.verbose > 1 and len(codes_dict) < len(det_ids):
+      #   msg = "[{}.compute_codes: log] Saving only {} of {} codes. det_ids: {}"
+      #   print(msg.format(self.pp, len(codes_dict), count_codes, det_ids))
       self.storer.save(codes_path, codes_dict)
 
     return codes_dict
@@ -604,13 +605,13 @@ class SearcherLOPQHBase(GenericSearcher):
                     list_sha1s = update[1][self.indexer.get_col_listsha1s()]
                     sids, _ = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
                                                                    self.build_extr_str())
-                    if len(sids) > len(codes_dict):
+                    if len(set(sids)) > len(codes_dict):
                       msg = "[{}: log] Update {} has {} new features."
-                      diff_count = len(sids) - len(codes_dict)
+                      diff_count = len(set(sids)) - len(codes_dict)
                       raise ValueError(msg.format(self.pp, update_id, diff_count))
                     else:
                       msg = "[{}: log] Skipping update {} already indexed with all {}/{} features."
-                      print(msg.format(self.pp, update_id, len(codes_dict), len(sids)))
+                      print(msg.format(self.pp, update_id, len(codes_dict), len(set(sids))))
               except Exception as inst:
                 # Update codes not available
                 if self.verbose > 1:
