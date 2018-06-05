@@ -536,13 +536,17 @@ class SearcherLOPQHBase(GenericSearcher):
     """
     try:
       date_db = self.get_update_date_db(update_id)
+      if self.verbose > 1:
+        msg = "[{}: log] Check whether to skip update {} (date_db: {}, dtn: {})"
+        print(msg.format(self.pp, update_id, date_db, dtn))
       if date_db.year > dtn.year:
         if self.verbose > 1:
           msg = "[{}: log] Skipping update {} marked with a future date: {}."
           print(msg.format(self.pp, update_id, date_db))
         return True
+      return False
     except Exception as inst:
-      if self.verbose > 4:
+      if self.verbose > 1:
         msg = "[{}: error] Could not get update {} date: {}"
         print(msg.format(self.pp, update_id, inst))
       return False
