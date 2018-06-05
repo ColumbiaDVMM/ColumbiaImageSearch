@@ -38,6 +38,7 @@ class SearcherLOPQHBase(GenericSearcher):
     self.get_pretrained_model = True
     self.nb_train_pca = 100000
     self.last_refresh = datetime.now()
+    # NB: in load_codes full_refresh default is false...
     self.last_full_refresh = datetime.now()
     self.last_indexed_update = None
     self.pca_model_str = None
@@ -577,6 +578,30 @@ class SearcherLOPQHBase(GenericSearcher):
       suffix = '_'.join(self.last_indexed_update.split('_')[6:])
     return suffix
 
+  def skip_update(self, update_id, dtn=datetime.now()):
+    """Check if we should skip loading update ``update_id`` because it has been marked as fully
+    processed and indexed already (using a date in the future)
+
+    :param update_id: update id
+    :type update_id: str
+    :param dtn: datetime of now
+    :type dtn: :class:`datetime.datetime`
+    :return: whether this update should be skipped
+    :rtype: bool
+    """
+    try:
+      date_db = self.get_update_date_db(update_id)
+      if date_db.year > dtn.year:
+        if self.verbose > 1:
+          msg = "[{}: log] Skipping update {} marked with a future date: {}."
+          print(msg.format(self.pp, update_id, date_db))
+        return True
+    except Exception as inst:
+      if self.verbose > 4:
+        msg = "[{}: error] Could not get update {} date: {}"
+        print(msg.format(self.pp, update_id, inst))
+      return False
+
   def load_codes(self, full_refresh=False):
     """Load codes
 
@@ -602,10 +627,12 @@ class SearcherLOPQHBase(GenericSearcher):
       if not full_refresh:
         start_date = self.get_latest_update_suffix()
 
+      extr_str = self.build_extr_str()
+
       # Get all updates ids for the extraction type
       # TODO: this scan makes the API unresponsive for ~2 minutes during the update process...
       for batch_updates in self.indexer.get_updates_from_date(start_date=start_date,
-                                                              extr_type=self.build_extr_str()):
+                                                              extr_type=extr_str):
         for update in batch_updates:
           update_id = update[0]
           if self.is_update_indexed(update_id) and not full_refresh:
@@ -624,17 +651,10 @@ class SearcherLOPQHBase(GenericSearcher):
                   raise ValueError(msg.format(self.pp, codes_string, update_id))
                 self.add_update(update_id)
                 # If full_refresh, check that we have as many codes as available features
-                if full_refresh:
-                  try:
-                    date_db = self.get_update_date_db(update_id)
-                    msg = "[{}: log] date_db of update_id {}: {}"
-                    print(msg.format(self.pp, update_id, date_db))
-                  except:
-                    pass
+                if full_refresh and not self.skip_update(update_id):
                   if self.indexer.get_col_listsha1s() in update[1]:
                     set_sha1s = set(update[1][self.indexer.get_col_listsha1s()].split(','))
-                    sids, _ = self.indexer.get_features_from_sha1s(list(set_sha1s),
-                                                                   self.build_extr_str())
+                    sids, _ = self.indexer.get_features_from_sha1s(list(set_sha1s), extr_str)
                     if len(set(sids)) > len(codes_dict):
                       msg = "[{}: log] Update {} has {} new features."
                       diff_count = len(set(sids)) - len(codes_dict)
@@ -642,11 +662,14 @@ class SearcherLOPQHBase(GenericSearcher):
                     else:
                       msg = "[{}: log] Skipping update {} already indexed with all {}/{} features."
                       print(msg.format(self.pp, update_id, len(codes_dict), len(set(sids))))
-                      # For full_image extraction, if len(set(sids)) == len(set_sha1s)
-                      # we will never have to check that update again
-                      # For detection based, if all list_sha1s have been processed we should never
-                      # have to check that update again
-                      # How to store that information, and avoid ever checking again...
+                      missing_extr = self.indexer.get_missing_extr_sha1s(list(set_sha1s), extr_str)
+                      # If all sha1s have been processed, no need to ever check that update again
+                      # Store that information as future date_db to avoid ever checking again...
+                      if not missing_extr and self.lopq_searcher == "LOPQSearcherLMDB":
+                        dtn = datetime.now()
+                        dtn.replace(year=9999)
+                        self.add_update(update_id, date_db=dtn)
+
               except Exception as inst:
                 # Update codes not available
                 if self.verbose > 1:
@@ -662,14 +685,14 @@ class SearcherLOPQHBase(GenericSearcher):
                   list_sha1s = update[1][self.indexer.get_col_listsha1s()]
                   # Double check that this gets properly features of detections
                   samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
-                                                                               self.build_extr_str())
+                                                                               extr_str)
                   # FIXME: Legacy dlib features seems to be float32...
                   # Dirty fix for now. Should run workflow fix_feat_type in legacy branch
                   # We could check size is as expected using get_feat_size()
                   if features:
                     if features[0].shape[-1] < 128:
                       samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
-                                                                                   self.build_extr_str(),
+                                                                                   extr_str,
                                                                                    "float32")
                       if features:
                         forced_msg = "Forced decoding of features as float32"
