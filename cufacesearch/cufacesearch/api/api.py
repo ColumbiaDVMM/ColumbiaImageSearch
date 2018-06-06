@@ -23,6 +23,8 @@ global_searcher = None
 global_start_time = None
 input_type = "image"
 
+REFRESH_DELAY = 3600
+
 class APIResponder(Resource):
   """Rest API class.
   """
@@ -312,14 +314,14 @@ class APIResponder(Resource):
     status_dict['API_start_time'] = self.start_time.isoformat(' ')
     status_dict['API_uptime'] = str(datetime.now()-self.start_time)
 
-    # Try to refresh on status call but at most every 4 hours
+    # Try to refresh on status call but at most every hour
     if self.searcher.last_refresh:
       last_refresh_time = self.searcher.last_refresh
     else:
       last_refresh_time = self.searcher.indexer.last_refresh
 
     diff_time = datetime.now()-last_refresh_time
-    if self.searcher and diff_time.total_seconds() > 3600*4:
+    if self.searcher and diff_time.total_seconds() > REFRESH_DELAY:
       self.searcher.load_codes()
       last_refresh_time = self.searcher.last_refresh
 

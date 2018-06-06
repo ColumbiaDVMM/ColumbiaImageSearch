@@ -36,8 +36,8 @@ def setup_app(app):
   print("[gunicorn_api] options: ",options)
 
   api.global_start_time = datetime.now()
+  # This will change the name of the fields in the output, i.e. AllSimilarImages vs AllSimilarFaces
   api.input_type = options["input"]
-  # Set api.input_type too? How? What does it change?
 
   # Initialize searcher object only once
   while True:
