@@ -719,6 +719,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
       print("[{}: log] Total udpates computation time is: {}s".format(self.pp, total_compute_time))
       print("[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load))
+      # Total udpates loading time is: 0.0346581935883s, really? Seems much longer
 
     except Exception as inst:
       full_trace_error("[{}: error] Could not load codes. {}".format(self.pp, inst))
@@ -750,6 +751,10 @@ class SearcherLOPQHBase(GenericSearcher):
     # NB: dets is a list of list
     import time
     start_search = time.time()
+    extr_str = self.build_extr_str()
+    feat_size = get_feat_size(self.featurizer_type)
+    feat_type = get_feat_dtype(self.featurizer_type)
+
     all_sim_images = []
     all_sim_dets = []
     all_sim_score = []
@@ -789,7 +794,7 @@ class SearcherLOPQHBase(GenericSearcher):
               normed_feat = np.squeeze(feats[i][j] / norm_feat)
               results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned,
                                                       with_dists=True)
-              res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
+              res_msg = "[{}.search_from_feats: log] Got {} results by visiting {} cells, first one is: {}"
               print(res_msg.format(self.pp, len(results), visited, results[0]))
 
           # If reranking, get features from hbase for detections using res.id
@@ -797,17 +802,17 @@ class SearcherLOPQHBase(GenericSearcher):
           if self.reranking:
             try:
               res_list_sha1s = [str(x.id).split('_')[0] for x in results]
-              res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s,
-                                                                                   self.build_extr_str())
-              # FIXME: dirty fix for dlib features size issue.
-              # To be removed once workflow applied on all legacy data
-              if res_features is not None and res_features[0].shape[-1] < 128:
-                res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s,
-                                                                                     self.build_extr_str(),
-                                                                                     "float32")
-                if res_features:
-                  forced_msg = "Forced decoding of features as float32. Got {} samples, features with shape {}"
-                  print(forced_msg.format(len(res_samples_ids), res_features[0].shape))
+              res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s, extr_str,
+                                                                       feat_type)
+              # # FIXME: dirty fix for dlib features size issue.
+              # # To be removed once workflow applied on all legacy data
+              # if res_fts is not None and res_fts[0].shape[-1] < 128:
+              #   res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s,
+              #                                                                        self.build_extr_str(),
+              #                                                                        "float32")
+              #   if res_fts:
+              #     forced_msg = "Forced decoding of features as float32. Got {} samples, features with shape {}"
+              #     print(forced_msg.format(len(res_sids), res_fts[0].shape))
             except Exception as inst:
               err_msg = "[{}: error] Could not retrieve features for re-ranking. {}"
               print(err_msg.format(self.pp, inst))
@@ -820,9 +825,9 @@ class SearcherLOPQHBase(GenericSearcher):
             # if reranking compute actual distance
             if self.reranking:
               try:
-                pos = res_samples_ids.index(res.id)
-                dist = np.linalg.norm(normed_feat - res_features[pos])
-                # print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
+                pos = res_sids.index(res.id)
+                dist = np.linalg.norm(normed_feat - res_fts[pos])
+                # print "[{}: res_fts[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
               except Exception as inst:
                 # Means feature was not saved to backend index...
                 err_msg = "Could not compute reranking distance for sample {}, error {} {}"
@@ -896,15 +901,15 @@ class SearcherLOPQHBase(GenericSearcher):
           normed_feat = np.squeeze(feats[i] / norm_feat)
           results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned,
                                                   with_dists=True)
-          res_msg = "[{}.search_from_feats: log] got {} results by visiting {} cells, first one is: {}"
+          res_msg = "[{}.search_from_feats: log] Got {} results by visiting {} cells, first is: {}"
           print(res_msg.format(self.pp, len(results), visited, results[0]))
 
         # Reranking, get features from hbase for detections using res.id
         if self.reranking:
           try:
             res_list_sha1s = [str(x.id) for x in results]
-            res_samples_ids, res_features = self.indexer.get_features_from_sha1s(res_list_sha1s,
-                                                                               self.build_extr_str())
+            res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s, extr_str,
+                                                                     feat_type)
           except Exception as inst:
             err_msg = "[{}: error] Could not retrieve features for re-ranking. {}"
             print(err_msg.format(self.pp, inst))
@@ -916,9 +921,9 @@ class SearcherLOPQHBase(GenericSearcher):
           if self.reranking:
             # If reranking compute actual distance
             try:
-              pos = res_samples_ids.index(res.id)
-              dist = np.linalg.norm(normed_feat - res_features[pos])
-              # print "[{}: res_features[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
+              pos = res_sids.index(res.id)
+              dist = np.linalg.norm(normed_feat - res_fts[pos])
+              # print "[{}: res_fts[{}] approx. dist: {}, rerank dist: {}".format(res.id, pos, res.dist, dist)
             except Exception as inst:
               err_msg = "Could not compute reranked distance for sample {}, error {} {}"
               print(err_msg.format(res.id, type(inst), inst))
