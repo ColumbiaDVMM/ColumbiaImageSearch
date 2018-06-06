@@ -326,8 +326,9 @@ class ExtractionChecker(ConfReader):
 
               # Push images
               fam = self.indexer.get_dictcf_sha1_table()
-              msg = "[{}] Pushing images for update {} with fam {}"
-              print(msg.format(self.pp, update_id, fam))
+              if self.verbose > 4:
+                msg = "[{}] Pushing images for update {} with fam {}"
+                print(msg.format(self.pp, update_id, fam))
               sha1s_table = self.indexer.table_sha1infos_name
               self.indexer.push_dict_rows(dict_push, sha1s_table, families=fam)
 
@@ -339,8 +340,9 @@ class ExtractionChecker(ConfReader):
                                             self.indexer.get_col_upcreate(): now_str}
               # Push it
               fam = self.indexer.get_dictcf_update_table()
-              msg = "[{}] Pushing update {} info with fam {}"
-              print(msg.format(self.pp, update_id, fam))
+              if self.verbose > 4:
+                msg = "[{}] Pushing update {} info with fam {}"
+                print(msg.format(self.pp, update_id, fam))
               self.indexer.push_dict_rows(dict_updates_db, self.indexer.table_updateinfos_name,
                                           families=fam)
 

@@ -467,6 +467,8 @@ class ExtractionProcessor(ConfReader):
         self.out_indexer.push_dict_rows(dict_rows=update_started_dict,
                                         table_name=self.out_indexer.table_updateinfos_name)
 
+        # TODO: define a get_buffer_images method
+        # --------
         # Push images to queue
         list_in = []
         # For parallelized downloading...
@@ -540,7 +542,10 @@ class ExtractionProcessor(ConfReader):
         msg = "[{}] Got {}/{} image buffers ({} downloaded) for update {} in {}s."
         print(msg.format(self.pp, len(list_in), len(rows_batch), nb_dl, update_id, get_buffer_time))
         sys.stdout.flush()
+        # --------
 
+        # TODO: define a get_features method
+        # --------
         q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
         for i, q_batch in enumerate(build_batch(list_in, q_batch_size)):
           self.q_in[i].put(q_batch)
@@ -648,7 +653,7 @@ class ExtractionProcessor(ConfReader):
         dict_imgs = dict()
         for i in range(self.nb_threads):
           if self.verbose > 4:
-            print("[{}] Thread {} q_out_size: {}".format(self.pp, i+1, q_out_size[i]))
+            print("[{}] Thread {} q_out_size: {}".format(self.pp, i + 1, q_out_size[i]))
             sys.stdout.flush()
           while q_out_size[i] > 0 and not self.q_out[i].empty():
             if self.verbose > 6:
@@ -664,7 +669,7 @@ class ExtractionProcessor(ConfReader):
                 dict_imgs[sha1] = dict_out
             except:
               if self.verbose > 1:
-                print("[{}] Thread {} failed to get from q_out: {}".format(self.pp, i+1))
+                print("[{}] Thread {} failed to get from q_out: {}".format(self.pp, i + 1))
                 sys.stdout.flush()
               #pass
             if self.verbose > 4:
@@ -677,6 +682,7 @@ class ExtractionProcessor(ConfReader):
         proc_time = time.time() - start_process
         print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), proc_time))
         sys.stdout.flush()
+        # --------
 
         # Push them
         # DONE: use out_indexer

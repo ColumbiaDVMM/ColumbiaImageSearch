@@ -544,7 +544,7 @@ class HBaseIndexerMinimal(ConfReader):
                                                                  skip_failed=self.skipfailed)
                 if missing_extr_sha1s:
                   if self.verbose > 5:
-                    msg = "[{}.{}: log] update {} has missing extractions"
+                    msg = "[{}.{}: log] Update {} has missing extractions"
                     print(msg.format(self.pp, fname, row[0]))
                   out_row_val = dict()
                   out_row_val[self.get_col_listsha1s()] = ','.join(missing_extr_sha1s)
@@ -554,9 +554,9 @@ class HBaseIndexerMinimal(ConfReader):
                     out_rows = [(row[0], out_row_val)]
                 else:
                   if self.verbose > 4:
-                    msg = "[{}.{}: log] update {} has no missing extractions"
+                    msg = "[{}.{}: log] Update {} has no missing extractions"
                     print(msg.format(self.pp, fname, row[0]))
-                  # We should mark as completed here
+                  # We should mark as completed here (actually even if self.skipfailed?)
                   if not self.skipfailed:
                     update_completed_dict = {row[0]: {self.get_col_upcomp(): str(1)}}
                     self.push_dict_rows(dict_rows=update_completed_dict,

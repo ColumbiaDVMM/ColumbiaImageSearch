@@ -634,11 +634,7 @@ class SearcherLOPQHBase(GenericSearcher):
     total_compute_time = 0
 
     try:
-      # if self.searcher.nb_indexed == 0:
-      #   # We should try to load a concatenation of all unique codes that also contains a list of the corresponding updates...
-      #   # fill codes and self.indexed_updates
-      #   self.load_all_codes()
-      # TODO: try to get date of last update
+      # try to get date of last update
       start_date = "1970-01-01"
       if not full_refresh:
         start_date = self.get_latest_update_suffix()
@@ -670,6 +666,7 @@ class SearcherLOPQHBase(GenericSearcher):
                   raise ValueError(msg.format(self.pp, codes_string))
                 # If full_refresh, check that we have as many codes as available features
                 if full_refresh:
+                  # Also check for 'completed' flag?
                   if self.indexer.get_col_listsha1s() in update[1]:
                     set_sha1s = set(update[1][self.indexer.get_col_listsha1s()].split(','))
                     sids, _ = self.indexer.get_features_from_sha1s(list(set_sha1s), extr_str)

@@ -57,6 +57,7 @@ class DLibFeaturizer(GenericFeaturizer):
     :type global_conf_in: str, dict
     :param prefix: prefix in configuration
     :type prefix: str
+    :raise ValueError: if ``pred_path`` or ``rec_path`` is not set in configuration
     """
     super(DLibFeaturizer, self).__init__(global_conf_in, prefix)
     self.set_pp(pp="DLibFeaturizer")
@@ -65,8 +66,6 @@ class DLibFeaturizer(GenericFeaturizer):
 
     # Get shape predictor
     pred_path = self.get_required_param('pred_path')
-    if not pred_path:
-      raise ValueError('[DLibFeaturizer: error] pred_path was not set in config file.')
     # Test if file exits there
     if not os.path.exists(pred_path):
       # Download file if not
@@ -76,8 +75,6 @@ class DLibFeaturizer(GenericFeaturizer):
 
     # Get recognizer model
     rec_path = self.get_required_param('rec_path')
-    if not pred_path:
-      raise ValueError('[{}: error] pred_path was not set in config file.'.format(self.pp))
     # Test if file exits there
     if not os.path.exists(rec_path):
       # Download file if not
@@ -105,6 +102,4 @@ class DLibFeaturizer(GenericFeaturizer):
     dlib_bbox = rectangle(bbox['left'], bbox['top'], bbox['right'], bbox['bottom'])
     shape = self.sp(img, dlib_bbox)
     # Return feature
-    # should we force features to be np.float32 or np.float64?
-    #return self.facerec.compute_face_descriptor(img, shape)
     return np.squeeze(self.facerec.compute_face_descriptor(img, shape))
