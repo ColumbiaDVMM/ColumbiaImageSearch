@@ -21,7 +21,7 @@ services:
       - table_sha1infos
       - table_updateinfos
       - batch_update_size
-      - extr_family_column
+      - extr_column_family
       - image_info_column_family
       # Search related environment variables
       - model_type
