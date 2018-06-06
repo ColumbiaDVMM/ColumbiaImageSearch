@@ -745,7 +745,7 @@ class HBaseIndexerMinimal(ConfReader):
         rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name, families=families,
                                       columns=columns)
       except Exception as err_inst: # try to catch any exception
-        print("[get_columns_from_sha1_rows: error] {}".format(err_inst))
+        print(err_inst)
         self.refresh_hbase_conn("get_columns_from_sha1_rows")
         return self.get_columns_from_sha1_rows(list_sha1s, columns, families=families,
                                                perr=perr + 1, inst=err_inst)

@@ -10,13 +10,16 @@ from flask_restful import Api
 from cufacesearch.api import api
 from cufacesearch.searcher import searcher_lopqhbase
 
-app = Flask(__name__)
-GLOBAL_CONF = None
-GLOBAL_PORT = 5000
-GLOBAL_ENDPOINT = "cuimgsearch"
+template_dir = os.path.abspath('../../../www/templates')
+app = Flask(__name__, template_folder=template_dir)
+#app = Flask(__name__)
+DEFAULT_PORT = 5000
+
+# DEFAULT_ENDPOINT = "cuimgsearch"
+# DEFAULT_INPUT = "image"
 
 def setup_app(app):
-  print("Setting up application...")
+  print("[gunicorn_api] Setting up application...")
   app.secret_key = "secret_key"
   app.config['SESSION_TYPE'] = 'filesystem'
 
@@ -27,11 +30,14 @@ def setup_app(app):
   options = dict()
   # Get parameters from environment variables
   options["conf"] = os.environ['SEARCH_CONF_FILE']
-  options["port"] = os.getenv('SEARCH_PORT', GLOBAL_PORT)
-  options["endpoint"] = os.getenv('SEARCH_ENDPOINT', GLOBAL_ENDPOINT)
+  options["endpoint"] = os.environ['SEARCH_ENDPOINT']
+  options["input"] = os.environ['SEARCH_INPUT']
+  options["port"] = os.getenv('SEARCH_PORT', DEFAULT_PORT)
+  print("[gunicorn_api] options: ",options)
 
   api.global_start_time = datetime.now()
-  # Set api.input_type too? How?
+  api.input_type = options["input"]
+  # Set api.input_type too? How? What does it change?
 
   # Initialize searcher object only once
   while True:

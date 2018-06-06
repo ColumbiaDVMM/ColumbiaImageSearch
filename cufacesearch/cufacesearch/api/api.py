@@ -1,6 +1,7 @@
 """Flask API to expose the search index.
 """
 
+import os
 import sys
 import time
 import json
@@ -57,9 +58,10 @@ class APIResponder(Resource):
     #query = unicode(request.args.get('data'), "utf8")
     options = request.args.get('options')
     if query:
-      print("[get] received parameters: {}".format(request.args.keys()))
-      print("[get] received data: "+query.encode('ascii','ignore'))
-      print("[get] received options: {}".format(options))
+      pid = os.getpid()
+      print("[get.{}] received parameters: {}".format(pid, request.args.keys()))
+      print("[get.{}] received data: ".format(pid)+query.encode('ascii','ignore'))
+      print("[get.{}] received options: {}".format(pid, options))
       return self.process_query(mode, query, options)
     else:
       return self.process_mode(mode)
@@ -92,15 +94,16 @@ class APIResponder(Resource):
     :return: response (JSON)
     :rtype: dict
     """
-    print("[put/post] received parameters: {}".format(request.form.keys()))
-    print("[put/post] received request: {}".format(request))
+    pid = os.getpid()
+    print("[put/post.{}] received parameters: {}".format(pid, request.form.keys()))
+    print("[put/post.{}] received request: {}".format(pid, request))
     query = request.form['data']
     try:
       options = request.form['options']
     except:
       options = None
-    print("[put/post] received data of length: {}".format(len(query)))
-    print("[put/post] received options: {}".format(options))
+    print("[put/post.{}] received data of length: {}".format(pid, len(query)))
+    print("[put/post.{}] received options: {}".format(pid, options))
     if not query:
       return {'error': 'no data received'}
     else:

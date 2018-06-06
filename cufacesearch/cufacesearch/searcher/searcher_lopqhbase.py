@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import os
 import sys
 import time
 from datetime import datetime
@@ -48,6 +49,7 @@ class SearcherLOPQHBase(GenericSearcher):
     self.lopq_searcher = "LOPQSearcherLMDB"
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
     self.set_pp(pp="SearcherLOPQHBase")
+    #self.set_pp(pp="SearcherLOPQHBase." + str(os.getpid()))
 
   def get_model_params(self):
     """Reads model parameters from configuration
@@ -624,6 +626,9 @@ class SearcherLOPQHBase(GenericSearcher):
     :param full_refresh: wheter to perform a full refresh or not
     :type full_refresh: bool
     """
+    # For multi-workers setting with gunicorn
+    self.set_pp(pp="SearcherLOPQHBase." + str(os.getpid()))
+
     # Calling this method can also perfom an update of the index
     if not self.searcher:
       info_msg = "[{}.load_codes: info] Not loading codes as searcher is not initialized."
@@ -751,6 +756,9 @@ class SearcherLOPQHBase(GenericSearcher):
     """
     # NB: dets is a list of list
     import time
+    # For multi-workers setting with gunicorn
+    self.set_pp(pp="SearcherLOPQHBase." + str(os.getpid()))
+
     start_search = time.time()
     extr_str = self.build_extr_str()
     #feat_size = get_feat_size(self.featurizer_type)
