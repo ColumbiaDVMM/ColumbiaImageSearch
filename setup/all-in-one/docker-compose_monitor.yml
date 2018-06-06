@@ -240,7 +240,7 @@ services:
       - table_updateinfos
       - batch_update_size
       - column_list_sha1s
-      - extr_family_column
+      - extr_column_family
       - image_info_column_family
       - image_buffer_column_family
       - image_buffer_column_name
