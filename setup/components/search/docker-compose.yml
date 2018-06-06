@@ -54,7 +54,7 @@ services:
     ports:
       - $port_host:5000
     #command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && ls -al /data/index || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
-    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && ls -al /data/index || true && pip install gunicorn; python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && export SEARCH_CONF_FILE=${indocker_repo_path}/conf/generated/conf_search_${search_conf_name}.json; cd ${indocker_repo_path}/cufacesearch/cufacesearch/api; gunicorn --preload -w ${gunicorn_workers} gunicorn_api:app --bind 0.0.0.0:5000"]
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && ls -al /data/index || true && pip install gunicorn; python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && export SEARCH_CONF_FILE=${indocker_repo_path}/conf/generated/conf_search_${search_conf_name}.json; cd ${indocker_repo_path}/cufacesearch/cufacesearch/api; gunicorn --access-logfile - --preload -w ${gunicorn_workers} gunicorn_api:app --bind 0.0.0.0:5000"]
     logging:
       driver: "json-file"
       options:
