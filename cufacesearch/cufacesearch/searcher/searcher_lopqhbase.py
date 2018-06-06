@@ -640,7 +640,8 @@ class SearcherLOPQHBase(GenericSearcher):
         start_date = self.get_latest_update_suffix()
       extr_str = self.build_extr_str()
       feat_size = get_feat_size(self.featurizer_type)
-      feat_type = get_feat_dtype(self.featurizer_type)
+      #feat_type = get_feat_dtype(self.featurizer_type)
+      feat_type = self.featurizer_type
 
       # Get all updates ids for the extraction type
       # TODO: this scan makes the API unresponsive for ~2 minutes during the update process...
@@ -752,8 +753,9 @@ class SearcherLOPQHBase(GenericSearcher):
     import time
     start_search = time.time()
     extr_str = self.build_extr_str()
-    feat_size = get_feat_size(self.featurizer_type)
-    feat_type = get_feat_dtype(self.featurizer_type)
+    #feat_size = get_feat_size(self.featurizer_type)
+    #feat_type = get_feat_dtype(self.featurizer_type)
+    feat_type = self.featurizer_type
 
     all_sim_images = []
     all_sim_dets = []
