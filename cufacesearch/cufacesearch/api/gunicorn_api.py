@@ -30,6 +30,9 @@ def setup_app(app):
   options["port"] = os.getenv('SEARCH_PORT', GLOBAL_PORT)
   options["endpoint"] = os.getenv('SEARCH_ENDPOINT', GLOBAL_ENDPOINT)
 
+  api.global_start_time = datetime.now()
+  # Set api.input_type too? How?
+
   # Initialize searcher object only once
   while True:
     try:
@@ -40,9 +43,6 @@ def setup_app(app):
       print(err_msg)
       sys.stdout.flush()
       time.sleep(60)
-
-  searchapi.global_start_time = datetime.now()
-  # Set searchapi.input_type too?
 
   # Setup API
   searchapi.add_resource(api.APIResponder, '/' + options["endpoint"] + '/<string:mode>')

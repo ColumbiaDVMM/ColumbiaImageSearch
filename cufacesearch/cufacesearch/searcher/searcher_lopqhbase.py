@@ -796,8 +796,8 @@ class SearcherLOPQHBase(GenericSearcher):
               normed_feat = np.squeeze(feats[i][j] / norm_feat)
               results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned,
                                                       with_dists=True)
-              res_msg = "[{}.search_from_feats: log] Got {} results by visiting {} cells, first one is: {}"
-              print(res_msg.format(self.pp, len(results), visited, results[0]))
+              msg = "[{}.search_from_feats: log] Got {} results by visiting {} cells, first is: {}"
+              print(msg.format(self.pp, len(results), visited, results[0]))
 
           # If reranking, get features from hbase for detections using res.id
           #   we could also already get 's3_url' to avoid a second call to HBase later...
