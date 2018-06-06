@@ -100,6 +100,8 @@ if __name__ == "__main__":
     conf[hbase_prefix + 'image_url_column_name'] = os.environ['image_url_column_name']
   if os.getenv('image_buffer_column_family', False):
     conf[hbase_prefix + 'image_buffer_column_family'] = os.environ['image_buffer_column_family']
+  if os.getenv('image_buffer_column_name', False):
+    conf[hbase_prefix + 'image_buffer_column_name'] = os.environ['image_buffer_column_name']
   if os.getenv('update_info_column_family', False):
     conf[hbase_prefix + 'update_info_column_family'] = os.environ['update_info_column_family']
 

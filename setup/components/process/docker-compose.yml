@@ -38,6 +38,8 @@ services:
       - batch_update_size
       - image_info_column_family
       - image_url_column_name
+      - image_buffer_column_family
+      - image_buffer_column_name
       - extr_column_family
       - skip_failed
     # nothing really needs to be persistent here. no other volumes needed
