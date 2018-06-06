@@ -7,8 +7,8 @@ from datetime import datetime
 from flask import Flask
 from flask_restful import Api
 
-import api
-from ..searcher import searcher_lopqhbase
+from cufacesearch.api import api
+from cufacesearch.searcher import searcher_lopqhbase
 
 app = Flask(__name__)
 GLOBAL_CONF = None
