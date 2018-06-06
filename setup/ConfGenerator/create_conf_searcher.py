@@ -115,8 +115,8 @@ if __name__ == "__main__":
     conf[hbase_prefix + 'skip_failed'] = os.environ['skip_failed']
   if os.getenv('column_list_sha1s', False):
     conf[hbase_prefix + 'column_list_sha1s'] = os.environ['column_list_sha1s']
-  if os.getenv('extr_family_column', False):
-    conf[hbase_prefix + 'extr_family_column'] = os.environ['extr_family_column']
+  if os.getenv('extr_column_family', False):
+    conf[hbase_prefix + 'extr_column_family'] = os.environ['extr_column_family']
   if os.getenv('image_info_column_family', False):
     conf[hbase_prefix + 'image_info_column_family'] = os.environ['image_info_column_family']
   if os.getenv('image_buffer_column_family', False):
