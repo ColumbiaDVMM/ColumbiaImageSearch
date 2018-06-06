@@ -111,6 +111,8 @@ if __name__ == "__main__":
   conf[hbase_prefix + 'pool_thread'] = 1
 
   # Deal with newly exposed but optional parameters
+  if os.getenv('indexer_skip_failed', False):
+    conf[hbase_prefix + 'skip_failed'] = os.environ['skip_failed']
   if os.getenv('column_list_sha1s', False):
     conf[hbase_prefix + 'column_list_sha1s'] = os.environ['column_list_sha1s']
   if os.getenv('extr_family_column', False):
@@ -141,6 +143,8 @@ if __name__ == "__main__":
     conf[search_prefix + 'nb_train_pca'] = int(os.environ['nb_train_pca'])
     conf[search_prefix + 'nb_min_train_pca'] = int(os.getenv('nb_min_train_pca', conf[search_prefix + 'nb_train_pca']))
     conf[search_prefix + 'lopq_pcadims'] = int(os.environ['lopq_pcadims'])
+  if os.getenv('searcher_skip_failed', False):
+    conf[search_prefix + 'skip_failed'] = os.environ['skip_failed']
 
   if not os.path.exists(options.output_dir):
     os.mkdir(options.output_dir)

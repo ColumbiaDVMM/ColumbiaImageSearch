@@ -11,11 +11,12 @@ import numpy as np
 #from ..indexer.hbase_indexer_minimal import column_list_sha1s, update_str_processed
 from generic_searcher import GenericSearcher
 from ..featurizer.generic_featurizer import get_feat_size
+from ..featurizer.featsio import get_feat_dtype
 from ..storer.s3 import S3Storer
 from ..common.error import full_trace_error
 
 START_HDFS = '/user/'
-DATE_DB_FORMAT = '%Y-%M-%d %H:%m:%S.%f'
+DATE_DB_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
 
 default_prefix = "SEARCHLOPQ_"
 
@@ -42,6 +43,7 @@ class SearcherLOPQHBase(GenericSearcher):
     self.last_full_refresh = datetime.now()
     self.last_indexed_update = None
     self.pca_model_str = None
+    self.skipfailed = False
     # making LOPQSearcherLMDB the default LOPQSearcher
     self.lopq_searcher = "LOPQSearcherLMDB"
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
@@ -62,6 +64,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
     - ``nb_min_train_pca``
     - ``lopq_searcher``
+    - ``skipfailed``
     """
     V = self.get_required_param('lopq_V')
     M = self.get_required_param('lopq_M')
@@ -76,6 +79,7 @@ class SearcherLOPQHBase(GenericSearcher):
       if nb_min_train_pca:
         self.nb_min_train_pca = nb_min_train_pca
     self.lopq_searcher = self.get_param('lopq_searcher', default="LOPQSearcherLMDB")
+    self.skipfailed = self.get_param('skipfailed', default=False)
 
   def build_pca_model_str(self):
     """Build PCA model string
@@ -496,13 +500,18 @@ class SearcherLOPQHBase(GenericSearcher):
     """
     if date_db is None:
       date_db = datetime.now()
+    else:
+      if self.verbose > 4:
+        msg = "[{}.add_update: log] Saving update {} with date {}"
+        print(msg.format(self.pp, update_id, date_db))
     if self.lopq_searcher == "LOPQSearcherLMDB":
       # Use another LMDB to store updates indexed
       with self.updates_env.begin(db=self.updates_index_db, write=True) as txn:
         txn.put(bytes(update_id), bytes(date_db))
     else:
       self.indexed_updates.add(update_id)
-    self.last_indexed_update = update_id
+    if self.last_indexed_update is None or update_id > self.last_indexed_update:
+      self.last_indexed_update = update_id
 
   def get_update_date_db(self, update_id):
     """Get update id ``update_id`` saved date in database
@@ -516,8 +525,11 @@ class SearcherLOPQHBase(GenericSearcher):
       with self.updates_env.begin(db=self.updates_index_db, write=False) as txn:
         found_update = txn.get(bytes(update_id))
         if found_update:
-          # found_update is a string at this point
-          return datetime.strptime(found_update, DATE_DB_FORMAT)
+          # parse found_update as string
+          if self.verbose > 4:
+            msg = "[{}.get_update_date_db: log] update {} date_db in database is: {}"
+            print(msg.format(self.pp, update_id, found_update))
+          return datetime.strptime(str(bytes(found_update)), DATE_DB_FORMAT)
         else:
           msg = "[{}.get_update_date_db: error] update {} is not in database"
           raise ValueError(msg.format(self.pp, update_id))
@@ -537,20 +549,19 @@ class SearcherLOPQHBase(GenericSearcher):
     :rtype: bool
     """
     try:
-      date_db = self.get_update_date_db(update_id)
-      if self.verbose > 1:
+      read_date_db = self.get_update_date_db(update_id)
+      if self.verbose > 5:
         msg = "[{}: log] Check whether to skip update {} (date_db: {}, dtn: {})"
-        print(msg.format(self.pp, update_id, date_db, dtn))
-      if date_db.year > dtn.year:
-        if self.verbose > 1:
+        print(msg.format(self.pp, update_id, read_date_db, dtn))
+      if read_date_db.year > dtn.year:
+        if self.verbose > 4:
           msg = "[{}: log] Skipping update {} marked with a future date: {}."
-          print(msg.format(self.pp, update_id, date_db))
+          print(msg.format(self.pp, update_id, read_date_db))
         return True
       return False
     except Exception as inst:
       if self.verbose > 1:
-        msg = "[{}: error] Could not get update {} date: {}"
-        print(msg.format(self.pp, update_id, inst))
+        print(inst)
       return False
 
   def is_update_indexed(self, update_id):
@@ -631,8 +642,9 @@ class SearcherLOPQHBase(GenericSearcher):
       start_date = "1970-01-01"
       if not full_refresh:
         start_date = self.get_latest_update_suffix()
-
       extr_str = self.build_extr_str()
+      feat_size = get_feat_size(self.featurizer_type)
+      feat_type = get_feat_dtype(self.featurizer_type)
 
       # Get all updates ids for the extraction type
       # TODO: this scan makes the API unresponsive for ~2 minutes during the update process...
@@ -641,10 +653,12 @@ class SearcherLOPQHBase(GenericSearcher):
         for update in batch_updates:
           update_id = update[0]
           if self.is_update_indexed(update_id) and not full_refresh:
-            print("[{}: log] Skipping update {} already indexed.".format(self.pp, update_id))
-
+            if self.verbose > 4:
+              print("[{}: log] Skipping update {} already indexed.".format(self.pp, update_id))
+              continue
           else:
-            if self.is_update_processed(update[1]):
+            dtn = datetime.now()
+            if self.is_update_processed(update[1]) and not self.skip_update(update_id, dtn):
               print("[{}: log] Looking for codes of update {}".format(self.pp, update_id))
               # Get this update codes
               codes_string = self.build_codes_string(update_id)
@@ -652,67 +666,47 @@ class SearcherLOPQHBase(GenericSearcher):
                 # Check for precomputed codes
                 codes_dict = self.storer.load(codes_string, silent=True)
                 if codes_dict is None:
-                  msg = "[{}: log] Could not load codes from {} for update {}."
-                  raise ValueError(msg.format(self.pp, codes_string, update_id))
-                self.add_update(update_id)
-                dtn = datetime.now()
+                  msg = "[{}: log] Could not load codes from {}"
+                  raise ValueError(msg.format(self.pp, codes_string))
                 # If full_refresh, check that we have as many codes as available features
-                if full_refresh and not self.skip_update(update_id, dtn):
+                if full_refresh:
                   if self.indexer.get_col_listsha1s() in update[1]:
                     set_sha1s = set(update[1][self.indexer.get_col_listsha1s()].split(','))
                     sids, _ = self.indexer.get_features_from_sha1s(list(set_sha1s), extr_str)
                     if len(set(sids)) > len(codes_dict):
-                      msg = "[{}: log] Update {} has {} new features."
+                      msg = "[{}: log] Update {} has {} new features"
                       diff_count = len(set(sids)) - len(codes_dict)
                       raise ValueError(msg.format(self.pp, update_id, diff_count))
                     else:
-                      msg = "[{}: log] Skipping update {} already indexed with all {}/{} features."
+                      msg = "[{}: log] Skipping update {} indexed with all {}/{} features"
                       print(msg.format(self.pp, update_id, len(codes_dict), len(set(sids))))
-                      missing_extr = self.indexer.get_missing_extr_sha1s(list(set_sha1s), extr_str)
+                      miss_extr = self.indexer.get_missing_extr_sha1s(list(set_sha1s), extr_str,
+                                                                      skip_failed=self.skipfailed)
                       # If all sha1s have been processed, no need to ever check that update again
                       # Store that information as future date_db to avoid ever checking again...
-                      if not missing_extr and self.lopq_searcher == "LOPQSearcherLMDB":
-                        if self.verbose > 1:
-                          msg = "[{}: log] Mark update {} to be skipped."
-                          print(msg.format(self.pp, update_id))
-                        self.add_update(update_id, date_db=dtn.replace(year=9999))
-
+                      if not miss_extr and self.lopq_searcher == "LOPQSearcherLMDB":
+                        dtn = dtn.replace(year=9999)
               except Exception as inst:
                 # Update codes not available
-                if self.verbose > 1:
-                  # log_msg = "[{}: log] Update {} codes could not be loaded: {}"
-                  # print(log_msg.format(self.pp, update_id, inst))
+                if self.verbose > 3:
                   print(inst)
                 # Compute codes for update not yet processed and save them
                 start_compute = time.time()
-                # Get detections (if any) and features...
-                # if column_list_sha1s in update[1]:
-                #   list_sha1s = update[1][column_list_sha1s]
+                # Get detections (if any) and features
                 if self.indexer.get_col_listsha1s() in update[1]:
-                  list_sha1s = update[1][self.indexer.get_col_listsha1s()]
-                  # Double check that this gets properly features of detections
-                  samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
-                                                                               extr_str)
-                  # FIXME: Legacy dlib features seems to be float32...
-                  # Dirty fix for now. Should run workflow fix_feat_type in legacy branch
-                  # We could check size is as expected using get_feat_size()
-                  if features:
-                    if features[0].shape[-1] < 128:
-                      samples_ids, features = self.indexer.get_features_from_sha1s(list_sha1s.split(','),
-                                                                                   extr_str,
-                                                                                   "float32")
-                      if features:
-                        forced_msg = "Forced decoding of features as float32"
-                        forced_msg += ". Got {} samples, features with shape {}"
-                        print(forced_msg.format(len(samples_ids), features[0].shape))
-                    codes_dict = self.compute_codes(samples_ids, features, codes_string)
+                  list_sha1s = list(set(update[1][self.indexer.get_col_listsha1s()].split(',')))
+                  sids, fts = self.indexer.get_features_from_sha1s(list_sha1s, extr_str, feat_type)
+                  if fts:
+                    if fts[0].shape[-1] != feat_size:
+                      msg = "[{}.load_codes: error] Invalid feature size {} vs {} expected"
+                      raise ValueError(msg.format(fts[0].shape[-1], feat_size))
+                    codes_dict = self.compute_codes(sids, fts, codes_string)
                     update_compute_time = time.time() - start_compute
                     total_compute_time += update_compute_time
                     if self.verbose > 0:
                       log_msg = "[{}: log] Update {} codes computation done in {}s"
                       print(log_msg.format(self.pp, update_id, update_compute_time))
                   else:
-                    #index_update_dlib_feat_dlib_face_2017-12-18_83-ec25-1513640608.49
                     print("[{}: warning] Update {} has no features.".format(self.pp, update_id))
                     continue
                 else:
@@ -721,12 +715,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
               # Use new method add_codes_from_dict of searcher
               self.searcher.add_codes_from_dict(codes_dict)
-              # TODO: indexed_updates should be made persistent too, and add indexing time
-              self.add_update(update_id)
-            else:
-              print("[{}: log] Skipping unprocessed update {}".format(self.pp, update_id))
-          # TODO: we could check that update processing time was older than indexing time, otherwise that means that
-          #    the update has been reprocessed and should be re-indexed.
+              self.add_update(update_id, date_db=dtn)
 
       total_load = time.time() - start_load
       self.last_refresh = datetime.now()

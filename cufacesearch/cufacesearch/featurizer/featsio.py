@@ -29,11 +29,14 @@ def get_feat_dtype(feat_type):
   :return: feature type
   :rtype: :class:`numpy.dtype`
   """
-  if feat_type and (feat_type == "sbpycaffe" or feat_type == "sbcmdline" or feat_type == "float32"):
+  if (feat_type == "sbpycaffe" or feat_type == "sbcmdline" or feat_type == "float32"):
     return np.float32
-  else:
-    # Only for dlib face
+  elif (feat_type == "dlib" or feat_type == "float64"):
+    # NB: Only for dlib face
     return np.float64
+  else:
+    msg = "[featsio.get_feat_dtype: error] Unkown feature type: {}"
+    raise ValueError(msg.format(feat_type))
 
 def featB64decode(feat_B64, feat_type=None):
   """Decode base64 encoded feature

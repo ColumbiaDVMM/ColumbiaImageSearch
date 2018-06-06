@@ -8,7 +8,7 @@ import traceback
 import multiprocessing
 from ..detector.utils import get_detector, get_bbox_str
 from ..featurizer.generic_featurizer import get_featurizer
-from ..featurizer.featsio import normfeatB64encode
+from ..featurizer.featsio import normfeatB64encode, get_feat_dtype
 from ..imgio.imgio import get_buffer_from_B64
 from ..indexer.hbase_indexer_minimal import EXTR_STR_PROCESSED, EXTR_STR_FAILED
 
@@ -206,7 +206,8 @@ class GenericExtractor(object):
         for one_det in dets:
           # Compute detection feature
           one_feat = self.featurizer.featurize(img, one_det)
-          # TODO: should we force type to be featsio.get_feat_dtype(self.featurizer_type)
+          # force type to be as expected
+          one_feat = one_feat.astype(get_feat_dtype(self.featurizer_type))
           # Fill out dictionary
           dict_out[self.extr_str_processed] = str(1)
           bbox_str = get_bbox_str(one_det)
@@ -215,7 +216,8 @@ class GenericExtractor(object):
     # Just featurize full image
     else:
       one_feat = self.featurizer.featurize(img_buffer)
-      # TODO: should we force type to be featsio.get_feat_dtype(self.featurizer_type)
+      # force type to be as expected
+      one_feat = one_feat.astype(get_feat_dtype(self.featurizer_type))
       dict_out[self.extr_str] = normfeatB64encode(one_feat)
       dict_out[self.extr_str_processed] = str(1)
 

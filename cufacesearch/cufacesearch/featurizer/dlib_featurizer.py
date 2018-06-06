@@ -6,6 +6,7 @@ www_rec_path = "http://dlib.net/files/"+rec_bz2_file
 from .generic_featurizer import GenericFeaturizer
 import os
 import dlib
+import numpy as np
 
 def download_model(url, local_path, bz2_file):
   """ Download model from `url` to the directory of `local_path` and unzip to `local_path`.
@@ -105,4 +106,5 @@ class DLibFeaturizer(GenericFeaturizer):
     shape = self.sp(img, dlib_bbox)
     # Return feature
     # should we force features to be np.float32 or np.float64?
-    return self.facerec.compute_face_descriptor(img, shape)
+    #return self.facerec.compute_face_descriptor(img, shape)
+    return np.squeeze(self.facerec.compute_face_descriptor(img, shape))

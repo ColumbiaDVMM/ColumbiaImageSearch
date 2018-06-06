@@ -227,7 +227,7 @@ class HBaseIndexerMinimal(ConfReader):
 
     # Can all columns be set similarly? And is this change effective everywhere?
     self.updatelistsha1scname = self.get_param("column_list_sha1s", default=UPDATE_LISTSHA1CNAME)
-    self.extrcf = self.get_param("extr_family_column", default=EXTR_CF)
+    self.extrcf = self.get_param("extr_column_family", default=EXTR_CF)
     self.imginfocf = self.get_param("image_info_column_family", default=IMG_INFOCF)
     self.imgbuffcf = self.get_param("image_buffer_column_family", default=IMG_BUFFCF)
     self.imgurlcname = self.get_param("image_url_column_name", default=IMG_URLCNAME)

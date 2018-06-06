@@ -185,7 +185,9 @@ class ExtractionProcessor(ConfReader):
       self.img_column = self.in_indexer.get_col_imgurl()
     else:
       self.img_column = self.in_indexer.get_col_imgpath()
-    print("[{}.ExtractionProcessor: log] img_column: {}".format(self.pp, self.img_column))
+    img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
+                self.img_column]
+    print("[{}.ExtractionProcessor: log] img_cols: {}".format(self.pp, img_cols))
 
     self.last_update_date_id = ''
 

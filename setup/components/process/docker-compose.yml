@@ -26,17 +26,20 @@ services:
       # Hbase related environment variables
       - hbase_host
       # In
-      - table_in_imagesinfos
-      - table_in_imgbuffercf
-      - table_in_imgbuffercname
-      - table_in_imginfocf
-      - table_in_imgurlcname
+      - in_table_sha1infos
+      - in_image_buffer_column_family
+      - in_image_buffer_column_name
+      - in_image_info_column_family
+      - in_image_url_column_name
+      - in_extr_column_family
       # Out
       - table_sha1infos
       - table_updateinfos
       - batch_update_size
       - image_info_column_family
       - image_url_column_name
+      - extr_column_family
+      - skip_failed
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path

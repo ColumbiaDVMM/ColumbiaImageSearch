@@ -69,8 +69,9 @@ class ExtractionChecker(ConfReader):
     # Initialize indexer
     self.indexer = HBaseIndexerMinimal(self.global_conf,
                                        prefix=self.get_required_param("indexer_prefix"))
+    print(self.get_required_param("indexer_prefix"), self.indexer.get_dictcf_sha1_table())
     self.set_check_columns()
-
+    print(self.check_columns)
     # Initialize ingester
     try:
       self.ingester = GenericKafkaProcessor(self.global_conf,
@@ -209,11 +210,14 @@ class ExtractionChecker(ConfReader):
       # Check if the selected sha1 rows in HBase table 'sha1infos' have those check_column
       # This call will only return rows that DO have those check_column
       fam = self.indexer.get_dictcf_sha1_table()
-      if self.verbose > 6:
+      try:
+        sha1s_rows = self.indexer.get_columns_from_sha1_rows(list_check_sha1s, self.check_columns,
+                                                             families=fam)
+      except Exception as inst:
         print("[{}.get_unprocessed_rows: log] fam: {}".format(self.pp, fam))
-      sha1s_rows = self.indexer.get_columns_from_sha1_rows(list_check_sha1s, self.check_columns,
-                                                           families=fam)
-                                                           #families=self.tablesha1_col_families)
+        raise inst
+
+          #families=self.tablesha1_col_families)
       if sha1s_rows:
         # TODO: only delete if really previously processed, i.e. if != from current update...
         found_sha1_rows = set([str(row[0]) for row in sha1s_rows])

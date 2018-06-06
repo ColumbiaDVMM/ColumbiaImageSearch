@@ -92,8 +92,8 @@ if __name__ == "__main__":
     conf[hbase_prefix + 'skip_failed'] = os.environ['skip_failed']
   if os.getenv('column_list_sha1s', False):
     conf[hbase_prefix + 'column_list_sha1s'] = os.environ['column_list_sha1s']
-  if os.getenv('extr_family_column', False):
-    conf[hbase_prefix + 'extr_family_column'] = os.environ['extr_family_column']
+  if os.getenv('extr_column_family', False):
+    conf[hbase_prefix + 'extr_column_family'] = os.environ['extr_column_family']
   if os.getenv('image_info_column_family', False):
     conf[hbase_prefix + 'image_info_column_family'] = os.environ['image_info_column_family']
   if os.getenv('image_url_column_name', False):
@@ -104,23 +104,33 @@ if __name__ == "__main__":
     conf[hbase_prefix + 'update_info_column_family'] = os.environ['update_info_column_family']
 
   # "In" HBase settings if any
-  if os.getenv('table_in_imagesinfos', False):
+  env_in_prefix = "in_"
+  if os.getenv(env_in_prefix+'table_sha1infos', False):
     in_hbase_prefix = 'IN'+hbase_prefix
     conf[extr_prefix + 'in_indexer_prefix'] = in_hbase_prefix
-    conf[in_hbase_prefix + 'table_sha1infos'] = os.environ['table_in_imagesinfos'].strip()
+    conf[in_hbase_prefix + 'table_sha1infos'] = os.environ[env_in_prefix+'table_sha1infos'].strip()
     # Should we allow different HBase hosts?
     conf[in_hbase_prefix + 'host'] = os.environ['hbase_host'].strip()
     conf[in_hbase_prefix + 'pool_thread'] = int(os.getenv('table_in_pool_thread', 1))
 
     # Deal with newly exposed but optional parameters
-    if os.getenv('table_in_imgbuffercf', False):
-      conf[in_hbase_prefix + 'image_buffer_column_family'] = os.environ['table_in_imgbuffercf']
-    if os.getenv('table_in_imgbuffercname', False):
-      conf[in_hbase_prefix + 'image_buffer_column_name'] = os.environ['table_in_imgbuffercname']
-    if os.getenv('table_in_imginfocf', False):
-      conf[in_hbase_prefix + 'image_info_column_family'] = os.environ['table_in_imginfocf']
-    if os.getenv('table_in_imgurlcname', False):
-      conf[in_hbase_prefix + 'image_url_column_name'] = os.environ['table_in_imgurlcname']
+    if os.getenv('skip_failed', False):
+      conf[in_hbase_prefix + 'skip_failed'] = os.environ['skip_failed']
+    env_key = env_in_prefix + 'extr_column_family'
+    if os.getenv(env_key, False):
+      conf[in_hbase_prefix + 'extr_column_family'] = os.environ[env_key]
+    env_key = env_in_prefix + 'image_buffer_column_family'
+    if os.getenv(env_key, False):
+      conf[in_hbase_prefix + 'image_buffer_column_family'] = os.environ[env_key]
+    env_key = env_in_prefix + 'image_buffer_column_name'
+    if os.getenv(env_key, False):
+      conf[in_hbase_prefix + 'image_buffer_column_name'] = os.environ[env_key]
+    env_key = env_in_prefix + 'image_info_column_family'
+    if os.getenv(env_key, False):
+      conf[in_hbase_prefix + 'image_info_column_family'] = os.environ[env_key]
+    env_key = env_in_prefix + 'image_url_column_name'
+    if os.getenv(env_key, False):
+      conf[in_hbase_prefix + 'image_url_column_name'] = os.environ[env_key]
 
   # Local input settings
   if os.environ['input_type'] == "local":
