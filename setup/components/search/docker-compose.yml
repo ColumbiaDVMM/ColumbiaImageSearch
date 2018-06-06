@@ -12,6 +12,7 @@ services:
     environment:
       # General environment variables
       - input_type
+      - indocker_repo_path
       - verbose
       - "conf_name=${search_conf_name}"
       - extr_type
@@ -40,8 +41,12 @@ services:
       - aws_bucket_name
       - aws_region
       - aws_prefix
-      # Number of workers for gunicorn
+      # API/Gunicorn
       - gunicorn_workers
+      - SEARCH_ENDPOINT=endpoint
+      - SEARCH_CONF_FILE=${indocker_repo_path}/conf/generated/conf_search_${search_conf_name}.json
+      # any reason to expose internal port as option?
+      #- SEARCH_PORT=port_docker
     # need to add a volume that store the search index data
     volumes:
       - $repo_path:$indocker_repo_path
@@ -52,9 +57,12 @@ services:
       #- cuimgsearch-${search_conf_name}-volume:/data
 
     ports:
+      # any reason to expose internal port too as option? (e.g. port_docker)
       - $port_host:5000
     #command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && ls -al /data/index || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
-    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && ls -al /data/index || true && pip install gunicorn; python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && export SEARCH_CONF_FILE=${indocker_repo_path}/conf/generated/conf_search_${search_conf_name}.json; export SEARCH_ENDPOINT=${endpoint}; cd ${indocker_repo_path}/cufacesearch/cufacesearch/api; gunicorn --access-logfile - --preload -w ${gunicorn_workers} gunicorn_api:app --bind 0.0.0.0:5000"]
+    # Should we use a keep_alive script for gunicorn version too?
+    #command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && ls -al /data/index || true && pip install gunicorn; python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && export SEARCH_CONF_FILE=${indocker_repo_path}/conf/generated/conf_search_${search_conf_name}.json; export SEARCH_ENDPOINT=${endpoint}; cd ${indocker_repo_path}/cufacesearch/cufacesearch/api; gunicorn --access-logfile - --preload -w ${gunicorn_workers} gunicorn_api:app --bind 0.0.0.0:5000"]
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && ls -al /data/index || true && pip install gunicorn; python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/; cd ${indocker_repo_path}/cufacesearch/cufacesearch/api; gunicorn --access-logfile - --preload -w ${gunicorn_workers} gunicorn_api:app --bind 0.0.0.0:5000"]
     logging:
       driver: "json-file"
       options:
