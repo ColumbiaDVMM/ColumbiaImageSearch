@@ -63,6 +63,21 @@ class S3Storer(GenericStorer):
       msg = "[{}: log] Initialized with bucket '{}' and profile '{}' in region '{}'."
       print(msg.format(self.pp, self.bucket_name, self.aws_profile, self.region))
 
+  def _get_s3obj_key_noprefix(self, s3_obj):
+    """Get clean object key from s3 object.
+
+    :param s3_obj: s3 object
+    :type s3_obj: :class:`S3.Object`
+    :return: cleaned up key
+    :rtype: str
+    """
+    key = s3_obj.key
+    if self.aws_prefix:
+      # self.aws_prefix could appear later in key, we just want to remove the prefix one...
+      key = self.aws_prefix.join(key.split(self.aws_prefix)[1:])
+    return key
+
+
   def save(self, key, obj):
     """Save object ``obj`` at location ``key``
 

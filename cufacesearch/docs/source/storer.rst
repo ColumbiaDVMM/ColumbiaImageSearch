@@ -22,3 +22,4 @@ S3 Storer
 .. automodule:: cufacesearch.storer.s3
    :members:
    :special-members: __init__
+   :private-members: _get_s3obj_key_noprefix
