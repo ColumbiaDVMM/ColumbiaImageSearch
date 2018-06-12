@@ -67,7 +67,7 @@ class LocalStorer(GenericStorer):
     :param silent: whether load fails silently
     :type silent: bool
     :return: loaded object
-    :rtype: Object
+    :rtype: object
     """
     # Load a pickle object from disk
     try:
@@ -83,12 +83,21 @@ class LocalStorer(GenericStorer):
 
 
   def list_prefix(self, prefix_path):
-    """List all files in ``prefix_path``
+    """List all objects starting with ``prefix_path``
 
-    :param prefix_path: prefix path
-    :type prefix_path: str
-    :yield: one file path
+    Args:
+      prefix_path (str): prefix path
+
+    Yields:
+      str: one file path
     """
+    # NB: used Google style documentation here to get yield type recognized
+    # """List all files in ``prefix_path``
+    #
+    # :param prefix_path: prefix path
+    # :type prefix_path: str
+    # :yield: one file path
+    # """
     for filepath in glob.glob(self.get_full_path(prefix_path)+"*"):
       yield filepath
 
@@ -96,10 +105,19 @@ class LocalStorer(GenericStorer):
   def get_all_from_prefix(self, prefix_path):
     """Get all objects in ``prefix_path``
 
-    :param prefix_path: prefix path
-    :type prefix_path: str
-    :yield: object
+    Args:
+      prefix_path (str): prefix path
+
+    Yields:
+      object: object
     """
+    # NB: used Google style documentation here to get yield type recognized
+    # """Get all objects in ``prefix_path``
+    #
+    # :param prefix_path: prefix path
+    # :type prefix_path: str
+    # :yield: object
+    # """
     for filepath in self.list_prefix(prefix_path):
       obj = self.load(filepath)
       if obj:

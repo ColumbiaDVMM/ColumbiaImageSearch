@@ -64,7 +64,7 @@ class S3Storer(GenericStorer):
       print(msg.format(self.pp, self.bucket_name, self.aws_profile, self.region))
 
   def _get_s3obj_key_noprefix(self, s3_obj):
-    """Get clean object key from s3 object.
+    """Get clean object key from s3 object
 
     :param s3_obj: s3 object
     :type s3_obj: :class:`S3.Object`
@@ -104,7 +104,7 @@ class S3Storer(GenericStorer):
     :param silent: whether load fails silently
     :type silent: bool
     :return: loaded object
-    :rtype: Object
+    :rtype: object
     """
     # Load a pickle object from s3 bucket
     try:
@@ -126,12 +126,22 @@ class S3Storer(GenericStorer):
         print(err_msg.format(self.pp, type(e), e, load_key))
 
   def list_prefix(self, prefix_path):
-    """List all files in ``prefix_path``
+    """List all objects starting with ``prefix_path``
 
-    :param prefix_path: prefix path
-    :type prefix_path: str
-    :yield: one file path
+    Args:
+      prefix_path (str): prefix path
+
+    Yields:
+      :class:`S3.Object`: s3 object
     """
+    # NB: used Google style documentation here to get yield type recognized
+    # """List all files in ``prefix_path``
+    #
+    # :param prefix_path: prefix path
+    # :type prefix_path: str
+    # :yield: object
+    # """
+    # Should this actually return _get_s3obj_key_noprefix(obj) to be more similar to local storer?
     if self.aws_prefix:
       prefix_path = '/'.join([self.aws_prefix, prefix_path])
     for obj in self.bucket.objects.filter(Prefix=prefix_path):
@@ -141,10 +151,20 @@ class S3Storer(GenericStorer):
   def get_all_from_prefix(self, prefix_path):
     """Get all objects in ``prefix_path``
 
-    :param prefix_path: prefix path
-    :type prefix_path: str
-    :yield: object
+    Args:
+      prefix_path (str): prefix path
+
+    Yields:
+      object: object
     """
+    # NB: used Google style documentation here to get yield type recognized
+    # """Get all objects in ``prefix_path``
+    #
+    # :param prefix_path: prefix path
+    # :type prefix_path: str
+    # :yield: object
+    # """
+    # NB: here object is a python object loaded from pickle not an S3 Object
     if self.aws_prefix:
       prefix_path = '/'.join([self.aws_prefix, prefix_path])
     for obj in self.list_prefix(prefix_path):
