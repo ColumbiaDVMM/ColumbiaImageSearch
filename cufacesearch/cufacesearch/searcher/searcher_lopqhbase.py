@@ -468,13 +468,15 @@ class SearcherLOPQHBase(GenericSearcher):
     :rtype: dict
     """
     # Compute codes for each update batch and save them
-    from lopq.utils import compute_codes_parallel
+    #from lopq.utils import compute_codes_parallel
+    from lopq.utils import compute_codes_notparallel
     msg = "[{}.compute_codes: log] Computing codes for {} ({} unique) {}s from {} features"
     print(msg.format(self.pp, len(det_ids), len(set(det_ids)), self.input_type, len(data)))
 
     # That keeps the ordering intact, but output is a chain
     # Is this blocking now with gunicorn?
-    codes = compute_codes_parallel(data, self.searcher.model, self.num_procs)
+    #codes = compute_codes_parallel(data, self.searcher.model, self.num_procs)
+    codes = compute_codes_notparallel(data, self.searcher.model)
     msg = "[{}.compute_codes: log] Computed {} codes"
     print(msg.format(self.pp, len(codes)))
 
