@@ -215,9 +215,7 @@ def compute_codes_notparallel(data, model):
     def compute_partition(data):
         return [model.predict(d) for d in data]
 
-    codes = compute_partition(data)
-
-    return chain(*codes)
+    return compute_partition(data)
 
 # Modifications by Svebor Karaman
 
