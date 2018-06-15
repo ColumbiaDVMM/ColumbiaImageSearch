@@ -477,8 +477,6 @@ class SearcherLOPQHBase(GenericSearcher):
     # Is this blocking now with gunicorn?
     #codes = compute_codes_parallel(data, self.searcher.model, self.num_procs)
     codes = compute_codes_notparallel(data, self.searcher.model)
-    msg = "[{}.compute_codes: log] Computed {} codes"
-    print(msg.format(self.pp, len(codes)))
 
     # Build dict output
     codes_dict = dict()
@@ -486,6 +484,10 @@ class SearcherLOPQHBase(GenericSearcher):
     for i, code in enumerate(codes):
       count_codes += 1
       codes_dict[det_ids[i]] = [code.coarse, code.fine]
+
+    if self.verbose > 3:
+      msg = "[{}.compute_codes: log] Computed {} codes"
+      print(msg.format(self.pp, len(codes_dict)))
 
     # Save
     if codes_path:
