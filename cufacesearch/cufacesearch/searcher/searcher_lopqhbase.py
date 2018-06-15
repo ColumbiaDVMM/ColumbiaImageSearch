@@ -473,7 +473,10 @@ class SearcherLOPQHBase(GenericSearcher):
     print(msg.format(self.pp, len(det_ids), len(set(det_ids)), self.input_type, len(data)))
 
     # That keeps the ordering intact, but output is a chain
+    # Is this blocking now with gunicorn?
     codes = compute_codes_parallel(data, self.searcher.model, self.num_procs)
+    msg = "[{}.compute_codes: log] Computed {} codes"
+    print(msg.format(self.pp, len(codes)))
 
     # Build dict output
     codes_dict = dict()
