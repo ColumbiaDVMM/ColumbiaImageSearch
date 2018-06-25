@@ -527,7 +527,7 @@ class ExtractionProcessor(ConfReader):
               break
             nb_dl += 1
             if inst:
-              if self.verbose > 0:
+              if self.verbose > 6:
                 msg = "[{}: log] Could not download image {}, error was: {}"
                 print(msg.format(self.pp, sha1, inst))
             else:
