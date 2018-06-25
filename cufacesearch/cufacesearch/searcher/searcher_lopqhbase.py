@@ -162,9 +162,11 @@ class SearcherLOPQHBase(GenericSearcher):
           map_size += self.nb_train * self.model_params['pca'] * 4 * 8
         else:
           map_size = self.nb_train * feat_size * 4 * 8
+        # self.save_feat_env = lmdb.open('/data/lmdb_feats_' + self.build_model_str(),
+        #                                map_size=int(1.1 * map_size),
+        #                                writemap=True, map_async=True, max_dbs=2)
         self.save_feat_env = lmdb.open('/data/lmdb_feats_' + self.build_model_str(),
-                                       map_size=int(1.1 * map_size),
-                                       writemap=True, map_async=True, max_dbs=2)
+                                       map_size=int(1.1 * map_size), max_dbs=2)
 
         # Train and save model in save_path folder
         lopq_model = self.train_index()
@@ -188,8 +190,10 @@ class SearcherLOPQHBase(GenericSearcher):
         # How could we properly set the size of this?
         up_map_size = 1024 * 1000000 * 1
         # Again (see lopq.search LOPQSearcherLMDB), should we use writemap=True or not
+        # self.updates_env = lmdb.open('/data/lmdb_updates_' + self.build_model_str(),
+        #                              map_size=up_map_size, writemap=True, map_async=True, max_dbs=1)
         self.updates_env = lmdb.open('/data/lmdb_updates_' + self.build_model_str(),
-                                     map_size=up_map_size, writemap=True, map_async=True, max_dbs=1)
+                                     map_size=up_map_size, max_dbs=1)
         self.updates_index_db = self.updates_env.open_db("updates")
       elif self.lopq_searcher == "LOPQSearcher":
         from lopq.search import LOPQSearcher
