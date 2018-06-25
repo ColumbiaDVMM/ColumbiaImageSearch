@@ -504,6 +504,7 @@ class ExtractionProcessor(ConfReader):
 
         # Download missing images
         nb_dl = 0
+        nb_dl_failed = 0
         if nb_imgs_dl > 0:
           threads_dl = []
           for i in range(min(self.nb_threads, nb_imgs_dl)):
@@ -530,6 +531,7 @@ class ExtractionProcessor(ConfReader):
               if self.verbose > 6:
                 msg = "[{}: log] Could not download image {}, error was: {}"
                 print(msg.format(self.pp, sha1, inst))
+              nb_dl_failed += 1
             else:
               if buffer:
                 list_in.append((sha1, buffer, push_back))
@@ -539,8 +541,9 @@ class ExtractionProcessor(ConfReader):
                 print(msg.format(self.pp, sha1))
 
         get_buffer_time = time.time() - start_get_buffer
-        msg = "[{}] Got {}/{} image buffers ({} downloaded) for update {} in {}s."
-        print(msg.format(self.pp, len(list_in), len(rows_batch), nb_dl, update_id, get_buffer_time))
+        msg = "[{}] Got {}/{} image buffers ({}/{} downloaded) for update {} in {}s."
+        print(msg.format(self.pp, len(list_in), len(rows_batch), nb_dl - nb_dl_failed, nb_dl,
+                         update_id, get_buffer_time))
         sys.stdout.flush()
         # --------
 

@@ -66,8 +66,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "500k"
-        max-file: "7"
+        max-size: "50m"
+        max-file: "20"
 
 volumes:
   # TODO: Can we use dynamic names for volumes i.e. use ${search_conf_name} ? Nope.
