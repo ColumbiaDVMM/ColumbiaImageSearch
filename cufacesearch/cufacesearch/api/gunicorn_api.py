@@ -53,6 +53,9 @@ def setup_app(app):
   # Setup API
   searchapi.add_resource(api.APIResponder, '/' + options["endpoint"] + '/<string:mode>')
 
+  # Would that help prevent double requests from browser?
+  #searchapi.add_url_rule('/favicon.ico', redirect_to=url_for('static', filename='favicon.ico'))
+
   @app.after_request
   def after_request(response):
     """ Adds appropriate headers to the HTTP response.
