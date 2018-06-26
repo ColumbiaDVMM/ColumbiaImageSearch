@@ -297,7 +297,7 @@ class APIResponder(Resource):
     """
     # Force check if new images are available in HBase
     # Could be called if data needs to be as up-to-date as it can be but may take a while
-    print("[api.{}.refresh: log] eceived refresh call".format(os.getpid()))
+    print("[api.{}.refresh: log] received refresh call".format(os.getpid()))
     if self.searcher:
       self.searcher.load_codes(full_refresh=True)
     # Likely to timeout before this message is sent
