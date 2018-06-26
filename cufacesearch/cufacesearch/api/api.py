@@ -122,6 +122,7 @@ class APIResponder(Resource):
     :return: response (JSON)
     :rtype: dict
     """
+    print("[api.{}.process_mode: log] received: {}".format(os.getpid(), mode))
     if mode == "status":
       return self.status()
     elif mode == "refresh":
@@ -296,6 +297,7 @@ class APIResponder(Resource):
     """
     # Force check if new images are available in HBase
     # Could be called if data needs to be as up-to-date as it can be but may take a while
+    print("[api.{}.refresh: log] eceived refresh call".format(os.getpid()))
     if self.searcher:
       self.searcher.load_codes(full_refresh=True)
     # Likely to timeout before this message is sent
@@ -309,12 +311,14 @@ class APIResponder(Resource):
     :rtype: dict
     """
     # prepare output
+    print("[api.{}.status: log] received status call".format(os.getpid()))
     status_dict = {'status': 'OK'}
 
     status_dict['API_start_time'] = self.start_time.isoformat(' ')
     status_dict['API_uptime'] = str(datetime.now()-self.start_time)
 
     # Try to refresh on status call but at most every hour
+    # The last refresh time should be shared accross workers when using gunicorn...
     if self.searcher.last_refresh:
       last_refresh_time = self.searcher.last_refresh
     else:

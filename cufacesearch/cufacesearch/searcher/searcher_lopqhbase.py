@@ -187,6 +187,7 @@ class SearcherLOPQHBase(GenericSearcher):
         self.searcher = LOPQSearcherLMDB(lopq_model,
                                          lmdb_path='/data/lmdb_index_' + self.build_model_str(),
                                          id_lambda=str)
+        # Should we move all that updates related lmbd in a call for each thread?
         # How could we properly set the size of this?
         up_map_size = 1024 * 1000000 * 1
         # Again (see lopq.search LOPQSearcherLMDB), should we use writemap=True or not
@@ -586,6 +587,7 @@ class SearcherLOPQHBase(GenericSearcher):
     :rtype: bool
     """
     if self.lopq_searcher == "LOPQSearcherLMDB":
+      #  mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot?
       with self.updates_env.begin(db=self.updates_index_db, write=False) as txn:
         found_update = txn.get(bytes(update_id))
         if found_update:
@@ -665,6 +667,7 @@ class SearcherLOPQHBase(GenericSearcher):
                                                               extr_type=extr_str):
         for update in batch_updates:
           update_id = update[0]
+          # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot?
           if self.is_update_indexed(update_id) and not full_refresh:
             if self.verbose > 4:
               print("[{}: log] Skipping update {} already indexed.".format(self.pp, update_id))
