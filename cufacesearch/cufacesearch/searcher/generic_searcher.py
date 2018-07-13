@@ -86,6 +86,7 @@ class GenericSearcher(ConfReader):
       self.do = DictOutput()
     self.do.url_field = self.img_column
 
+    print("[{}.init_seacher: log] Initializing searcher".format(self.pp))
     self.init_searcher()
 
     # Test the performance of the trained model?
@@ -94,6 +95,7 @@ class GenericSearcher(ConfReader):
     # should codes path be a list to deal with updates?
     # should we store that list in HBase?
     # TODO: load pickled codes files from s3 bucket
+    print("[{}.load_codes: log] Starting to load codes".format(self.pp))
     self.load_codes()
 
   def read_conf(self):
