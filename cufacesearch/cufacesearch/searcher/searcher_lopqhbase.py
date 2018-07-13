@@ -101,10 +101,16 @@ class SearcherLOPQHBase(GenericSearcher):
     """
     try:
       # Try to load pretrained model from storer
+      if self.verbose > 4:
+        msg = "[{}.init_searcher: log] Looking for pretrained model: {}"
+        print(msg.format(self.pp, self.build_model_str()))
       # This can fail with error "exceptions.MemoryError" ?
       lopq_model = self.storer.load(self.build_model_str())
       if lopq_model is None:
         raise ValueError("Could not load model from storer.")
+      if self.verbose > 4:
+        msg = "[{}.init_searcher: log] Loaded pretrained model: {}"
+        print(msg.format(self.pp, self.build_model_str()))
       # if self.verbose > 1:
       #   print("pca_mu.shape: {}".format(lopq_model.pca_mu.shape))
       #   print("pca_P.shape: {}".format(lopq_model.pca_P.shape))
@@ -181,6 +187,8 @@ class SearcherLOPQHBase(GenericSearcher):
       # LOPQSearcherLMDB is now the default, as it makes the index more persistent
       # and potentially more easily usable with multiple processes.
       if self.lopq_searcher == "LOPQSearcherLMDB":
+        if self.verbose > 4:
+          print("[{}.init_searcher: log] Initializing local LMDB".format(self.pp))
         from lopq.search import LOPQSearcherLMDB
         # TODO: should we get path from a parameter? and/or add model_str to it?
         # path are inside the docker container only...
@@ -196,6 +204,8 @@ class SearcherLOPQHBase(GenericSearcher):
         self.updates_env = lmdb.open('/data/lmdb_updates_' + self.build_model_str(),
                                      map_size=up_map_size, max_dbs=1)
         self.updates_index_db = self.updates_env.open_db("updates")
+        if self.verbose > 4:
+          print("[{}.init_searcher: log] Local LMDB initialized".format(self.pp))
       elif self.lopq_searcher == "LOPQSearcher":
         from lopq.search import LOPQSearcher
         self.searcher = LOPQSearcher(lopq_model)
