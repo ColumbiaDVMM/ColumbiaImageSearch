@@ -93,7 +93,7 @@ class S3Storer(GenericStorer):
     if self.aws_prefix:
       save_key = '/'.join([self.aws_prefix, key])
     self.bucket.upload_fileobj(buffer, save_key)
-    if self.verbose > 1:
+    if self.verbose > 2:
       print("[{}: log] Saved file: {}".format(self.pp, save_key))
 
   def load(self, key, silent=False):
@@ -113,11 +113,13 @@ class S3Storer(GenericStorer):
       load_key = key
       if self.aws_prefix:
         load_key = '/'.join([self.aws_prefix, key])
+      # Define a Callback function and print out based on verbose level?
+      # This can hang if load_key is not found?
       self.bucket.download_fileobj(load_key, buffer)
       # buffer has been filled, offset is at the end, seek to beginning for unpickling
       buffer.seek(0)
       obj = pickle.load(buffer)
-      if self.verbose > 1:
+      if self.verbose > 2:
         print("[{}: log] Loaded file: {}".format(self.pp, load_key))
       return obj
     except Exception as e:
