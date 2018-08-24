@@ -301,6 +301,8 @@ class ExtractionProcessor(ConfReader):
                 else:
                   msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
                   print(msg.format(self.pp, update_id))
+                  #msg = "[{}.get_batch_hbase: log] Was trying to read columns {} from table {} for rows {}"
+                  #print(msg.format(self.pp, img_cols, self.in_indexer.table_sha1infos_name, list_sha1s))
               else:
                 msg = "[{}.get_batch_hbase: log] Skipping update started recently: {}"
                 print(msg.format(self.pp, update_id))
