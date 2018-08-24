@@ -127,6 +127,8 @@ class APIResponder(Resource):
       return self.status()
     elif mode == "refresh":
       return self.refresh()
+    elif mode == "check_all_updates":
+      return self.check_all_updates()
     else:
       return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give \'data\' parameter?'}
 
@@ -329,6 +331,24 @@ class APIResponder(Resource):
       self.searcher.load_codes()
       last_refresh_time = self.searcher.last_refresh
 
+    status_dict['last_refresh_time'] = last_refresh_time.isoformat(' ')
+    status_dict['nb_indexed'] = str(self.searcher.searcher.get_nb_indexed())
+    return status_dict
+
+  def check_all_updates(self):
+    """Check for any unindexed update disregarding last update indexed time.
+
+    :return: response (JSON)
+    :rtype: dict
+    """
+    # prepare output
+    print("[api.{}.check_all_updates: log] received check_all_updates call".format(os.getpid()))
+    status_dict = {'status': 'OK'}
+
+    status_dict['API_start_time'] = self.start_time.isoformat(' ')
+    status_dict['API_uptime'] = str(datetime.now() - self.start_time)
+    self.searcher.load_codes(check_all_updates=True)
+    last_refresh_time = self.searcher.last_refresh
     status_dict['last_refresh_time'] = last_refresh_time.isoformat(' ')
     status_dict['nb_indexed'] = str(self.searcher.searcher.get_nb_indexed())
     return status_dict

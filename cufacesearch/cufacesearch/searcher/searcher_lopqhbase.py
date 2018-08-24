@@ -643,11 +643,13 @@ class SearcherLOPQHBase(GenericSearcher):
       suffix = '_'.join(self.last_indexed_update.split('_')[6:])
     return suffix
 
-  def load_codes(self, full_refresh=False):
+  def load_codes(self, full_refresh=False, check_all_updates=False):
     """Load codes
 
-    :param full_refresh: wheter to perform a full refresh or not
+    :param full_refresh: whether to perform a full refresh or not
     :type full_refresh: bool
+    :param check_all_updates: whether to check all updates, disregarding last update indexed suffix
+    :type check_all_updates: bool
     """
     # For multi-workers setting with gunicorn
     self.set_pp(pp="SearcherLOPQHBase." + str(os.getpid()))
@@ -664,7 +666,7 @@ class SearcherLOPQHBase(GenericSearcher):
     try:
       # try to get date of last update
       start_date = "1970-01-01"
-      if not full_refresh:
+      if not full_refresh and not check_all_updates:
         start_date = self.get_latest_update_suffix()
       extr_str = self.build_extr_str()
       feat_size = get_feat_size(self.featurizer_type)
