@@ -605,7 +605,8 @@ class HBaseIndexerMinimal(ConfReader):
       self.dict_up[today] += 1
     # add the extraction type, as different extraction may build different batches depending
     # when they started to process the images
-    update_id = update_prefix + extr_type + "_" + today + "_" + str(self.dict_up[today])
+    #update_id = update_prefix + extr_type + "_" + today + "_" + str(self.dict_up[today])
+    update_id = update_prefix + extr_type + "_" + today + "_" + str(self.dict_up[today]).zfill(3)
     return update_id, today
 
 
