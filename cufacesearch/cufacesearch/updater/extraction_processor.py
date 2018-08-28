@@ -721,7 +721,7 @@ class ExtractionProcessor(ConfReader):
         sys.stdout.flush()
         self.nb_err = 0
 
-        # Force garbage collection?
+        # Force garbage collection
         gc.collect()
 
         # Should we just raise an Exception and restart clean?
@@ -730,6 +730,7 @@ class ExtractionProcessor(ConfReader):
           if self.nb_threads > 2:
             self.nb_threads -= 1
             self.extractors = []
+            gc.collect()
           raise ValueError("Something went wrong. Trying to restart clean...")
 
     except Exception as inst:
