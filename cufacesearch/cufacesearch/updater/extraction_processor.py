@@ -726,12 +726,16 @@ class ExtractionProcessor(ConfReader):
 
         # Should we just raise an Exception and restart clean?
         if sum(thread_creation_failed) > 0 or sum(deleted_extr) > 0:
-           raise ValueError("Something went wrong. Trying to restart clean")
+          # To try to adjust a too optimistic nb_threads setting
+          if self.nb_threads > 2:
+            self.nb_threads -= 1
+          raise ValueError("Something went wrong. Trying to restart clean")
 
     except Exception as inst:
       exc_type, exc_obj, exc_tb = sys.exc_info()
       fulltb = traceback.format_tb(exc_tb)
-      raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
+      print("{} ({})".format(inst, ''.join(fulltb)))
+      #raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
     """Run processor
