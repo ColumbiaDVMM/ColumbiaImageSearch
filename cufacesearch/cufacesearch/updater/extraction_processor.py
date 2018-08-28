@@ -729,12 +729,14 @@ class ExtractionProcessor(ConfReader):
           # To try to adjust a too optimistic nb_threads setting
           if self.nb_threads > 2:
             self.nb_threads -= 1
-          raise ValueError("Something went wrong. Trying to restart clean")
+            self.extractors = []
+          raise ValueError("Something went wrong. Trying to restart clean...")
 
     except Exception as inst:
-      exc_type, exc_obj, exc_tb = sys.exc_info()
-      fulltb = traceback.format_tb(exc_tb)
-      print("{} ({})".format(inst, ''.join(fulltb)))
+      #exc_type, exc_obj, exc_tb = sys.exc_info()
+      #fulltb = traceback.format_tb(exc_tb)
+      print("[{}] {}".format(self.pp, inst))
+      #print("[{}] {} ({})".format(self.pp, inst, ''.join(fulltb)))
       #raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
