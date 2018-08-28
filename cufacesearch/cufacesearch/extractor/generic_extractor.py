@@ -91,8 +91,10 @@ class DaemonBatchExtractor(multiprocessing.Process):
             #   out_dict[self.indexer.get_col_imgbuff()] = img_buffer_b64
             out_batch.append((sha1, out_dict))
           except Exception as inst:
-            err_msg = "[{}: warning] Extraction failed for img {} with error ({}): {}"
-            print(err_msg.format(self.pp, sha1, type(inst), inst))
+            err_msg = "[{}: warning] Extraction failed for img {} with error ({}): {} {}"
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fulltb = traceback.format_tb(exc_tb)
+            print(err_msg.format(self.pp, sha1, type(inst), inst, fulltb))
             sys.stdout.flush()
             # Mark this image as corrupted
             # But how and when could it be overwritten if we manage to run the extraction later?
