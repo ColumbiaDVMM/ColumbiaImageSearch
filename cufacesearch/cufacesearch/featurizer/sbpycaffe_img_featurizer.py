@@ -118,6 +118,7 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
     :return: preprocessed image
     :rtype: :class:`numpy.ndarray`
     """
+    # This can fail with a memory error for big images...
     image = caffe.io.load_image(img_buffer)
     # Fix for GIF
     if len(image.shape)==4:

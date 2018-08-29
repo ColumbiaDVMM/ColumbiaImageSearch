@@ -1,6 +1,7 @@
 """The classes in that module can process image with any valid combination of detector and
 featurizer."""
 
+import gc
 import sys
 import time
 from datetime import datetime
@@ -108,7 +109,10 @@ class DaemonBatchExtractor(multiprocessing.Process):
           print print_msg.format(self.pp, len(out_batch), len(batch), time.time() - start_process)
           sys.stdout.flush()
 
-        # Put but allow timeout, to avoid blocking which seems to happen if not enough memory is available
+        # Put with block but allow timeout
+        # Still seems to block forever if not enough memory is available? Cleanup first
+        del batch
+        gc.collect()
         self.q_out.put(out_batch, True, 10)
 
         # Mark as done
