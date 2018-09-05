@@ -115,10 +115,12 @@ class S3Storer(GenericStorer):
         load_key = '/'.join([self.aws_prefix, key])
       # Define a Callback function and print out based on verbose level?
       # This can hang if load_key is not found?
-      self.bucket.download_fileobj(load_key, buffer)
-      # Use that instead? Have a switch for small files?
-      #resp = self.s3.get_object(self.bucket_name, load_key)
-      #buffer.write(resp.Body)
+      #self.bucket.download_fileobj(load_key, buffer)
+      resp = self.s3.Object(bucket_name=self.bucket_name, key=load_key)
+      # Try to access 'content_length' to generate an 404 error if not found
+      if resp.content_length == 0:
+        return None
+      resp.download_fileobj(buffer)
       # buffer has been filled, offset is at the end, seek to beginning for unpickling
       buffer.seek(0)
       obj = pickle.load(buffer)
