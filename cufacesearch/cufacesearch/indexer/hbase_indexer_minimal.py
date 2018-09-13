@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import sys
 import time
+import socket
 from datetime import datetime
 
 import happybase
@@ -709,7 +710,12 @@ class HBaseIndexerMinimal(ConfReader):
           for batch_start in range(0, len(list_queries), rbs):
             batch_end = min(batch_start+rbs, len(list_queries))
             batch_list_queries = list_queries[batch_start:batch_end]
-            rows.extend(hbase_table.rows(batch_list_queries, columns=columns))
+            try:
+              rows.extend(hbase_table.rows(batch_list_queries, columns=columns))
+            except socket.timeout:
+              if self.verbose > 2:
+                msg = "[{}.get_rows_by_batch: warning] timed out when requesting rows: {}"
+                print(msg.format(self.pp, batch_list_queries))
             nb_batch += 1
           if self.verbose > 5:
             msg = "[{}.get_rows_by_batch: log] got {}/{} rows using {} batches."
