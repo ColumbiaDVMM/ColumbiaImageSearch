@@ -69,6 +69,7 @@ class ExtractionChecker(ConfReader):
     # Initialize indexer
     self.indexer = HBaseIndexerMinimal(self.global_conf,
                                        prefix=self.get_required_param("indexer_prefix"))
+    self.indexer.pp = "CheckerHBase"
     print(self.get_required_param("indexer_prefix"), self.indexer.get_dictcf_sha1_table())
     self.set_check_columns()
     print(self.check_columns)

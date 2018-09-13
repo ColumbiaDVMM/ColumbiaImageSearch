@@ -163,15 +163,18 @@ class ExtractionProcessor(ConfReader):
     # NB: they could be the same if tables are merged...
     self.out_indexer = HBaseIndexerMinimal(self.global_conf,
                                            prefix=self.get_required_param("indexer_prefix"))
+    self.out_indexer.pp = "ProcOutHBase"
     prefix_in_indexer = self.get_param("in_indexer_prefix", default=False)
     if prefix_in_indexer:
       self.in_indexer = HBaseIndexerMinimal(self.global_conf, prefix=prefix_in_indexer)
+      self.in_indexer.pp = "ProcInHBase"
       insha1tab = self.in_indexer.table_sha1infos_name
       insha1cfs = self.in_indexer.get_dictcf_sha1_table()
       print("[{}] 'in_indexer' sha1 table {} columns are: {}".format(self.pp, insha1tab, insha1cfs))
     else:
       print("[{}] empty 'in_indexer_prefix', using out_indexer as in_indexer too.".format(self.pp))
       self.in_indexer = self.out_indexer
+      self.in_indexer.pp = "ProcInOutHBase"
 
     # Initialize extractors only once (just one first)
     self.extractors = []
