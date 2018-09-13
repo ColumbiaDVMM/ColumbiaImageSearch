@@ -716,6 +716,8 @@ class HBaseIndexerMinimal(ConfReader):
               if self.verbose > 2:
                 msg = "[{}.get_rows_by_batch: warning] timed out when requesting rows: {}"
                 print(msg.format(self.pp, batch_list_queries))
+                sys.stdout.flush()
+            # how to catch "Hbase_thrift.IOError" ?
             nb_batch += 1
           if self.verbose > 5:
             msg = "[{}.get_rows_by_batch: log] got {}/{} rows using {} batches."
