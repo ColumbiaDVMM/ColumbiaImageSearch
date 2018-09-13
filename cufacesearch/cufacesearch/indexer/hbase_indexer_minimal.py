@@ -709,12 +709,12 @@ class HBaseIndexerMinimal(ConfReader):
             rows.extend(hbase_table.rows(batch_list_queries, columns=columns))
             nb_batch += 1
           if self.verbose > 5:
-            msg = "[get_rows_by_batch: log] got {} rows using {} batches."
-            print(msg.format(len(rows), nb_batch))
+            msg = "[{}.get_rows_by_batch: log] got {}/{} rows using {} batches."
+            print(msg.format(self.pp, len(rows), len(list_queries), nb_batch))
           return rows
         else:
-          msg = "[get_rows_by_batch: error] could not get table: {} (families: {})"
-          raise ValueError(msg.format(table_name, families))
+          msg = "[{}.get_rows_by_batch: error] could not get table: {} (families: {})"
+          raise ValueError(msg.format(self.pp, table_name, families))
     except Exception as err_inst:
       if type(err_inst) == ValueError:
         raise err_inst
