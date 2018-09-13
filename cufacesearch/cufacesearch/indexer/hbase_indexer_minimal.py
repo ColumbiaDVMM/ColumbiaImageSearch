@@ -25,7 +25,7 @@ SKIP_FAILED = False
 # Maximum number of retries before actually raising error
 MAX_ERRORS = 3
 # Reading a lot of data from HBase at once can be unstable
-READ_BATCH_SIZE = 100
+READ_BATCH_SIZE = 50
 # Maximum number of rows when scanning (could be renamed to be more explicit)
 MAX_ROWS = 500
 # Maximum size of one row to be saved to HBase (could be dependent on HBase setup)
@@ -353,7 +353,7 @@ class HBaseIndexerMinimal(ConfReader):
           rows.extend((one_row,))
           if len(rows) >= maxrows:
             return rows
-          if self.verbose > 5:
+          if self.verbose > 7:
             print("[{}.scan_from_row: log] got {} rows.".format(self.pp, len(rows)))
             sys.stdout.flush()
         return rows
