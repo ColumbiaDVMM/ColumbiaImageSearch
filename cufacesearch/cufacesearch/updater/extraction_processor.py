@@ -297,9 +297,14 @@ class ExtractionProcessor(ConfReader):
                 print(msg.format(self.pp, update_id, len(list_sha1s)))
                 # also get 'ext:' to check if extraction was already processed?
                 # DONE: use in_indexer
-                rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
-                                                                        rbs=BATCH_SIZE_IMGBUFFER,
-                                                                        columns=img_cols)
+                try:
+                  rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                          rbs=BATCH_SIZE_IMGBUFFER,
+                                                                          columns=img_cols)
+                except Exception:
+                  msg = "[{}.get_batch_hbase: warning] Failed retrieving images data for update: {}"
+                  print(msg.format(self.pp, update_id))
+                  continue
                 # print "rows_batch", rows_batch
                 if rows_batch:
                   yield rows_batch, update_id
