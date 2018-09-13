@@ -672,14 +672,16 @@ class HBaseIndexerMinimal(ConfReader):
       return self.push_dict_rows(dict_rows, table_name, families=families, perr=perr+1,
                                  inst=err_inst)
 
-  def get_rows_by_batch(self, list_queries, table_name, families=None, columns=None, perr=0,
-                        inst=None):
+  def get_rows_by_batch(self, list_queries, table_name, rbs=READ_BATCH_SIZE, families=None,
+                        columns=None, perr=0, inst=None):
     """Get rows with keys ``list_queries`` from ``table_name``
 
     :param list_queries: list of row keys
     :type list_queries: list
     :param table_name: table name
     :type table_name: str
+    :param rbs: read batch size (default: READ_BATCH_SIZE)
+    :type rbs: int
     :param families: column families (in case we need to create the table)
     :type families: dict
     :param columns: columns to retrieve
@@ -703,8 +705,8 @@ class HBaseIndexerMinimal(ConfReader):
           # slice list_queries in batches of batch_size to query
           rows = []
           nb_batch = 0
-          for batch_start in range(0, len(list_queries), READ_BATCH_SIZE):
-            batch_end = min(batch_start+READ_BATCH_SIZE, len(list_queries))
+          for batch_start in range(0, len(list_queries), rbs):
+            batch_end = min(batch_start+rbs, len(list_queries))
             batch_list_queries = list_queries[batch_start:batch_end]
             rows.extend(hbase_table.rows(batch_list_queries, columns=columns))
             nb_batch += 1
@@ -720,16 +722,20 @@ class HBaseIndexerMinimal(ConfReader):
         raise err_inst
       # try to force longer sleep time if error repeats...
       self.refresh_hbase_conn("get_rows_by_batch", sleep_time=perr)
-      return self.get_rows_by_batch(list_queries, table_name, families=families, columns=columns,
-                                    perr=perr+1, inst=err_inst)
+      lower_rbs = max(int(rbs/2),1)
+      return self.get_rows_by_batch(list_queries, table_name, rbs=lower_rbs, families=families,
+                                    columns=columns, perr=perr+1, inst=err_inst)
 
-  def get_columns_from_sha1_rows(self, list_sha1s, columns, families=None, perr=0, inst=None):
+  def get_columns_from_sha1_rows(self, list_sha1s, columns, rbs=READ_BATCH_SIZE, families=None,
+                                 perr=0, inst=None):
     """Get columns ``columns`` for images in ``list_sha1s``
 
     :param list_sha1s: list of images sha1
     :type list_sha1s: list
     :param columns: columns to retrieve
     :type columns: list
+    :param rbs: read batch size (default: READ_BATCH_SIZE)
+    :type rbs: int
     :param families: column families (in case we need to create the table)
     :type families: dict
     :param perr: previous errors count
@@ -743,13 +749,14 @@ class HBaseIndexerMinimal(ConfReader):
     self.check_errors(perr, "get_columns_from_sha1_rows", inst)
     if list_sha1s:
       try:
-        rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name, families=families,
-                                      columns=columns)
+        rows = self.get_rows_by_batch(list_sha1s, self.table_sha1infos_name, rbs=rbs,
+                                      families=families, columns=columns)
       except Exception as err_inst: # try to catch any exception
         print(err_inst)
         self.refresh_hbase_conn("get_columns_from_sha1_rows")
-        return self.get_columns_from_sha1_rows(list_sha1s, columns, families=families,
-                                               perr=perr + 1, inst=err_inst)
+        lower_rbs = max(int(rbs / 2), 1)
+        return self.get_columns_from_sha1_rows(list_sha1s, columns, rbs=lower_rbs,
+                                               families=families, perr=perr + 1, inst=err_inst)
     return rows
 
 
