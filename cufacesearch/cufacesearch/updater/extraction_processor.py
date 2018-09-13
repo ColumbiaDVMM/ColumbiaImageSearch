@@ -304,6 +304,10 @@ class ExtractionProcessor(ConfReader):
                 except Exception:
                   msg = "[{}.get_batch_hbase: warning] Failed retrieving images data for update: {}"
                   print(msg.format(self.pp, update_id))
+                  # flush?
+                  sys.stdout.flush()
+                  # Update self.last_update_date_id ?
+                  #self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
                   continue
                 # print "rows_batch", rows_batch
                 if rows_batch:
