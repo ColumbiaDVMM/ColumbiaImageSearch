@@ -24,6 +24,7 @@ from cufacesearch.imgio.imgio import buffer_to_B64
 
 DEFAULT_EXTR_PROC_PREFIX = "EXTR_"
 TIME_ELAPSED_FAILED = 3600
+BATCH_SIZE_IMGBUFFER = 20
 
 # Look for and process batch of a given extraction that have not been processed yet.
 # Should be multi-threaded but single process...
@@ -296,7 +297,9 @@ class ExtractionProcessor(ConfReader):
                 print(msg.format(self.pp, update_id, len(list_sha1s)))
                 # also get 'ext:' to check if extraction was already processed?
                 # DONE: use in_indexer
-                rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
+                rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                        rbs=BATCH_SIZE_IMGBUFFER,
+                                                                        columns=img_cols)
                 # print "rows_batch", rows_batch
                 if rows_batch:
                   yield rows_batch, update_id
@@ -337,6 +340,7 @@ class ExtractionProcessor(ConfReader):
                 # also get 'ext:' to check if extraction was already processed?
                 # DONE: use in_indexer
                 rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                        rbs=BATCH_SIZE_IMGBUFFER,
                                                                         columns=img_cols)
                 if rows_batch:
                   yield rows_batch, update_id
@@ -384,7 +388,10 @@ class ExtractionProcessor(ConfReader):
               msg = "[{}.get_batch_kafka: log] Looking for columns: {}"
               print(msg.format(self.pp, img_cols))
             # DONE: use in_indexer
-            rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
+            #rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
+            rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                    rbs=BATCH_SIZE_IMGBUFFER,
+                                                                    columns=img_cols)
             #print "rows_batch", rows_batch
             if rows_batch:
               if self.verbose > 4:

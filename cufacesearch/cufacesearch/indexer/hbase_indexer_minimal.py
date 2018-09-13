@@ -32,6 +32,7 @@ MAX_ROWS = 500
 MAX_ROW_SIZE = 2097152
 #UPDATE_BATCH_SIZE = 2048
 UPDATE_BATCH_SIZE = 1000
+HBASE_TIMEOUT = 60000
 
 # Not yet exposed in configuration
 EXTR_STR_PROCESSED = "processed"
@@ -251,7 +252,7 @@ class HBaseIndexerMinimal(ConfReader):
         print(msg.format(self.pp, calling_function, dt_iso))
         sys.stdout.flush()
       time.sleep(sleep_time)
-      self.pool = happybase.ConnectionPool(timeout=60000, size=self.nb_threads,
+      self.pool = happybase.ConnectionPool(timeout=HBASE_TIMEOUT, size=self.nb_threads,
                                            host=self.hbase_host, transport=self.transport_type)
       if self.verbose > 1:
         msg = "[{}.refresh_hbase_conn: log] Refreshed connection pool in {}s."
@@ -754,7 +755,7 @@ class HBaseIndexerMinimal(ConfReader):
       except Exception as err_inst: # try to catch any exception
         print(err_inst)
         self.refresh_hbase_conn("get_columns_from_sha1_rows")
-        lower_rbs = max(int(rbs / 2), 1)
+        lower_rbs = max(int(rbs / 4), 1)
         return self.get_columns_from_sha1_rows(list_sha1s, columns, rbs=lower_rbs,
                                                families=families, perr=perr + 1, inst=err_inst)
     return rows
