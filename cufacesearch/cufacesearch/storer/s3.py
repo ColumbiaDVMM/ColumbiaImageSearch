@@ -15,7 +15,7 @@ except: # python 3
   import pickle
 from .generic_storer import GenericStorer
 from cufacesearch.common.error import full_trace_error
-
+#from boto3.s3.transfer import TransferConfig
 default_prefix = "S3ST_"
 
 class S3Storer(GenericStorer):
@@ -40,6 +40,7 @@ class S3Storer(GenericStorer):
     # we can define a prefix, i.e. folder in a bucket as a parameter
     self.aws_prefix = self.get_param('aws_prefix', default='')
     self.session = None
+    #self.transferConfig = TransferConfig(use_threads=False)
 
     try:
       self.setup()
@@ -116,6 +117,8 @@ class S3Storer(GenericStorer):
       # Define a Callback function and print out based on verbose level?
       # This can hang if load_key is not found?
       #self.bucket.download_fileobj(load_key, buffer)
+      # Other solution with TransferConfig
+      #self.bucket.download_fileobj(load_key, buffer, Config=self.transferConfig)
       resp = self.s3.Object(bucket_name=self.bucket_name, key=load_key)
       # Try to access 'content_length' to generate an 404 error if not found
       if resp.content_length == 0:

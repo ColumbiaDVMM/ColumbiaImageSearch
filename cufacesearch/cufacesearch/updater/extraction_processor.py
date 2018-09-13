@@ -295,8 +295,7 @@ class ExtractionProcessor(ConfReader):
                 list_sha1s = update_cols[self.out_indexer.get_col_listsha1s()].split(',')
                 msg = "[{}.get_batch_hbase: log] Update {} has {} images."
                 print(msg.format(self.pp, update_id, len(list_sha1s)))
-                # also get 'ext:' to check if extraction was already processed?
-                # DONE: use in_indexer
+                # We should time that, it seems slow i.e. 2/3 minutes per update.
                 try:
                   rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
                                                                           rbs=BATCH_SIZE_IMGBUFFER,
