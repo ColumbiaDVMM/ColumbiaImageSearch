@@ -24,7 +24,8 @@ EXTR_CF = "ext"
 DEFAULT_HBASEINDEXER_PREFIX = "HBI_"
 SKIP_FAILED = False
 # Maximum number of retries before actually raising error
-MAX_ERRORS = 3
+#MAX_ERRORS = 3
+MAX_ERRORS = 2
 # Reading a lot of data from HBase at once can be unstable
 READ_BATCH_SIZE = 50
 # Maximum number of rows when scanning (could be renamed to be more explicit)
