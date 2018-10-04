@@ -363,7 +363,7 @@ class HBaseIndexerMinimal(ConfReader):
     except Exception as err_inst:
       #print("[{}.scan_from_row: error] {}".format(self.pp, err_inst))
       # try to force longer sleep time...
-      self.refresh_hbase_conn("scan_from_row", sleep_time=10 * perr)
+      self.refresh_hbase_conn("scan_from_row", sleep_time=4 * perr)
       return self.scan_from_row(table_name, row_start=row_start, columns=columns, maxrows=maxrows,
                                 perr=perr + 1, inst=err_inst)
 
@@ -387,11 +387,15 @@ class HBaseIndexerMinimal(ConfReader):
     """
     # start_date should be in format YYYY-MM-DD(_XX)
     rows = None
-    self.check_errors(perr, "get_updates_from_date", inst)
     # build row_start as index_update_YYYY-MM-DD
     row_start = update_prefix + extr_type + "_" + start_date
-    try:
-      while True:
+    continue_scan = True
+    err_inst = inst
+
+    while continue_scan:
+      if perr >= MAX_ERRORS:
+        self.check_errors(perr, "get_updates_from_date", err_inst)
+      try:
         rows = self.scan_from_row(self.table_updateinfos_name, row_start=row_start, maxrows=maxrows)
         if rows:
           if extr_type:
@@ -409,12 +413,11 @@ class HBaseIndexerMinimal(ConfReader):
           row_start = rows[-1][0]+'~'
         else:
           #print "[{}.get_updates_from_date: log] 'rows' was None.".format(self.pp)
-          break
-    except Exception as err_inst: # try to catch any exception
-      print("[{}.get_updates_from_date: error] {}".format(self.pp, err_inst))
-      self.refresh_hbase_conn("get_updates_from_date")
-      yield self.get_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
-                                       perr=perr + 1, inst=err_inst)
+          continue_scan = False
+      except Exception as err_inst: # try to catch any exception
+        print("[{}.get_updates_from_date: error] {}".format(self.pp, err_inst))
+        self.refresh_hbase_conn("get_updates_from_date", sleep_time=4 * perr)
+        perr += 1
 
 
   def get_unprocessed_updates_from_date(self, start_date, extr_type="", maxrows=MAX_ROWS, perr=0,
@@ -436,12 +439,13 @@ class HBaseIndexerMinimal(ConfReader):
     fname = "get_unprocessed_updates_from_date"
     rows = None
     continue_scan = True
-    self.check_errors(perr, fname, inst)
     nb_rows_scanned = 0
     update_suffix = extr_type + "_" + start_date
 
-    try:
-      while continue_scan:
+    while continue_scan:
+      if perr >= MAX_ERRORS:
+        self.check_errors(perr, fname, inst)
+      try:
         # build row_start as index_update_YYYY-MM-DD
         row_start = update_prefix + update_suffix
 
@@ -480,13 +484,11 @@ class HBaseIndexerMinimal(ConfReader):
             # Looks like we reach the end of updates list
             continue_scan = False
           yield rows
-
-    except Exception as err_inst: # try to catch any exception
-      full_trace_error("[{}.{}: error] {}".format(self.pp, fname, err_inst))
-      self.refresh_hbase_conn(fname, sleep_time=4 * perr)
-      yield self.get_unprocessed_updates_from_date(start_date, extr_type=extr_type, maxrows=maxrows,
-                                                   perr=perr + 1, inst=err_inst)
-
+      except Exception as err_inst: # try to catch any exception
+        full_trace_error("[{}.{}: error] {}".format(self.pp, fname, err_inst))
+        inst = err_inst
+        self.refresh_hbase_conn(fname, sleep_time=4 * perr)
+        perr += 1
 
   def get_missing_extr_updates_from_date(self, start_date, extr_type="", maxrows=MAX_ROWS,
                                          perr=0, inst=None):
@@ -513,13 +515,16 @@ class HBaseIndexerMinimal(ConfReader):
       return
 
     # start_date should be in format YYYY-MM-DD(_XX)
-    self.check_errors(perr, fname, inst)
+
     # build row_start as index_update_YYYY-MM-DD
     update_suffix = extr_type + "_" + start_date
-    next_start_date = start_date
+    continue_scan = True
 
-    try:
-      while True:
+    while continue_scan:
+      if perr >= MAX_ERRORS:
+        self.check_errors(perr, fname, inst)
+
+      try:
         # build row_start as index_update_YYYY-MM-DD
         row_start = update_prefix + update_suffix
         if self.verbose > 3:
@@ -572,12 +577,11 @@ class HBaseIndexerMinimal(ConfReader):
 
         else:
           # We have reached the end of the scan
-          break
-    except Exception as err_inst: # try to catch any exception
-      print("[{}.{}: error] {}".format(self.pp, fname, err_inst))
-      self.refresh_hbase_conn(fname)
-      yield self.get_missing_extr_updates_from_date(next_start_date, extr_type=extr_type,
-                                                    maxrows=maxrows, perr=perr + 1, inst=err_inst)
+          continue_scan = False
+      except Exception as err_inst: # try to catch any exception
+        print("[{}.{}: error] {}".format(self.pp, fname, err_inst))
+        self.refresh_hbase_conn(fname)
+        perr += 1
 
   # TODO: move to common
   def get_today_string(self):
