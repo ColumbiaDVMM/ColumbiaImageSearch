@@ -27,7 +27,7 @@ SKIP_FAILED = False
 #MAX_ERRORS = 3
 MAX_ERRORS = 2
 # Reading a lot of data from HBase at once can be unstable
-READ_BATCH_SIZE = 50
+READ_BATCH_SIZE = 100
 # Maximum number of rows when scanning (could be renamed to be more explicit)
 MAX_ROWS = 500
 # Maximum size of one row to be saved to HBase (could be dependent on HBase setup)
@@ -85,7 +85,7 @@ class HBaseIndexerMinimal(ConfReader):
     # To store count of batches of updates pushed
     self.dict_up = dict()
     self.pool = None
-    self.timeout = 4
+    self.timeout = 30
     self.batch_update_size = UPDATE_BATCH_SIZE
 
     # Column families and names
