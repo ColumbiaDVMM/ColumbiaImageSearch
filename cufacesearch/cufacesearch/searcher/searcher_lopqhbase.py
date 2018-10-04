@@ -662,6 +662,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
     start_load = time.time()
     total_compute_time = 0
+    total_skipped = 0
 
     try:
       # try to get date of last update
@@ -683,9 +684,8 @@ class SearcherLOPQHBase(GenericSearcher):
           update_id = update[0]
           # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot?
           if self.is_update_indexed(update_id) and not full_refresh:
-            if self.verbose > 4:
-              print("[{}: log] Skipping update {} already indexed.".format(self.pp, update_id))
-              continue
+            total_skipped += 1
+            continue
           else:
             dtn = datetime.now()
             if self.is_update_processed(update[1]) and not self.skip_update(update_id, dtn):
@@ -751,6 +751,7 @@ class SearcherLOPQHBase(GenericSearcher):
       total_load = time.time() - start_load
       self.last_refresh = datetime.now()
 
+      print("[{}: log] Skipped {} updates already indexed.".format(self.pp, total_skipped))
       print("[{}: log] Total udpates computation time is: {}s".format(self.pp, total_compute_time))
       print("[{}: log] Total udpates loading time is: {}s".format(self.pp, total_load))
       # Total udpates loading time is: 0.0346581935883s, really? Seems much longer
