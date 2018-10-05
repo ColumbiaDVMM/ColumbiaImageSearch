@@ -93,6 +93,7 @@ class S3Storer(GenericStorer):
     save_key = key
     if self.aws_prefix:
       save_key = '/'.join([self.aws_prefix, key])
+    # TODO: Can this fail? Can we check if it was successful?
     self.bucket.upload_fileobj(buffer, save_key)
     if self.verbose > 2:
       print("[{}: log] Saved file: {}".format(self.pp, save_key))

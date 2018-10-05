@@ -115,7 +115,9 @@ class APIResponder(Resource):
     """Deal with a mode request, either:
 
     - ``status``: get status and statistics about the search index.
-    - ``refresh``: forces full refresh of the search index.
+    - ``check_new_updates``: run fast refresh of the search index if not run in last hour.
+    - ``check_all_updates``: forces slower refresh of the search index.
+    - ``refresh``: forces full refresh of the search index. (could take days)
 
     :param mode: mode request
     :type mode: str
@@ -129,6 +131,8 @@ class APIResponder(Resource):
       return self.refresh()
     elif mode == "check_all_updates":
       return self.check_all_updates()
+    elif mode == "check_new_updates":
+      return self.check_new_updates()
     else:
       return {'error': 'unknown_mode: '+str(mode)+'. Did you forget to give \'data\' parameter?'}
 
@@ -319,8 +323,25 @@ class APIResponder(Resource):
     status_dict['API_start_time'] = self.start_time.isoformat(' ')
     status_dict['API_uptime'] = str(datetime.now()-self.start_time)
 
-    # Try to refresh on status call but at most every hour
-    # The last refresh time should be shared accross workers when using gunicorn...
+
+    status_dict['last_refresh_time'] = self.searcher.last_refresh.isoformat(' ')
+    status_dict['nb_indexed'] = str(self.searcher.searcher.get_nb_indexed())
+    return status_dict
+
+  def check_new_updates(self):
+    """Check for any unindexed update since last update indexed time.
+
+    :return: response (JSON)
+    :rtype: dict
+    """
+    print("[api.{}.check_new_updates: log] received check_new_updates call".format(os.getpid()))
+    status_dict = {'status': 'OK'}
+
+    status_dict['API_start_time'] = self.start_time.isoformat(' ')
+    status_dict['API_uptime'] = str(datetime.now() - self.start_time)
+
+    # Try to refresh on check_new_updates call but at most every hour
+    # The last refresh time should be shared across workers when using gunicorn...
     if self.searcher.last_refresh:
       last_refresh_time = self.searcher.last_refresh
     else:
