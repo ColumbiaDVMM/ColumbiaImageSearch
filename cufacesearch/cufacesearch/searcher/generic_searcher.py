@@ -41,6 +41,7 @@ class GenericSearcher(ConfReader):
 
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
+    self.skip_get_sim_info = False
     self.indexed_updates = set()
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
     self.set_pp(pp="GenericSearcher")
@@ -147,6 +148,7 @@ class GenericSearcher(ConfReader):
     verbose = self.get_param('verbose')
     if verbose:
       self.verbose = int(verbose)
+    self.skip_get_sim_info = self.get_param('skip_get_sim_info', False)
     self.file_input = bool(self.get_param('file_input', default=False))
 
   def get_model_params(self):

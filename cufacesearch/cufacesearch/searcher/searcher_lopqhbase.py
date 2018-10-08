@@ -898,21 +898,22 @@ class SearcherLOPQHBase(GenericSearcher):
           # print tmp_img_sim
           if tmp_img_sim:
             rows = []
-            start_info = time.time()
-            try:
-              rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
-            except Exception as inst:
-              err_msg = "[{}: error] Could not retrieve similar images info from indexer. {}"
-              print(err_msg.format(self.pp, inst))
-            # rows should contain id, s3_url of images
-            # print rows
-            msg = "[{}.search_from_feats: log] Got info of {}/{} similar images in: {:0.3}s"
-            info_time = time.time() - start_info
-            print(msg.format(self.pp, len(rows), len(tmp_img_sim), info_time))
+            if self.skip_get_sim_info:
+              start_info = time.time()
+              try:
+                rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
+              except Exception as inst:
+                err_msg = "[{}: error] Could not retrieve similar images info from indexer. {}"
+                print(err_msg.format(self.pp, inst))
+              # rows should contain id, s3_url of images
+              # print rows
+              msg = "[{}.search_from_feats: log] Got info of {}/{} similar images in: {:0.3}s"
+              info_time = time.time() - start_info
+              print(msg.format(self.pp, len(rows), len(tmp_img_sim), info_time))
 
             if not rows:
               sim_images.append([(x,) for x in tmp_img_sim])
-            elif len(rows) < len(tmp_img_sim) or not rows:
+            elif len(rows) < len(tmp_img_sim):
               # fall back to just sha1s... but beware to keep order...
               dec = 0
               fixed_rows = []
@@ -995,17 +996,33 @@ class SearcherLOPQHBase(GenericSearcher):
 
         if tmp_img_sim:
           rows = []
-          start_info = time.time()
-          try:
-            rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
-          except Exception as inst:
-            err_msg = "[{}: error] Could not retrieve similar images info from indexer. {}"
-            print(err_msg.format(self.pp, inst))
-          # rows should contain id, s3_url of images
-          msg = "[{}.search_from_feats: log] Got info of {}/{} similar images in: {:0.3}s"
-          info_time = time.time() - start_info
-          print(msg.format(self.pp, len(rows), len(tmp_img_sim), info_time))
-          sim_images.append(rows)
+          if self.skip_get_sim_info:
+            start_info = time.time()
+            try:
+              rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
+            except Exception as inst:
+              err_msg = "[{}: error] Could not retrieve similar images info from indexer. {}"
+              print(err_msg.format(self.pp, inst))
+            # rows should contain id, s3_url of images
+            msg = "[{}.search_from_feats: log] Got info of {}/{} similar images in: {:0.3}s"
+            info_time = time.time() - start_info
+            print(msg.format(self.pp, len(rows), len(tmp_img_sim), info_time))
+          #sim_images.append(rows)
+          if not rows:
+            sim_images.append([(x,) for x in tmp_img_sim])
+          elif len(rows) < len(tmp_img_sim):
+            # fall back to just sha1s... but beware to keep order...
+            dec = 0
+            fixed_rows = []
+            for pos, sha1 in enumerate(tmp_img_sim):
+              if rows[pos - dec][0] == sha1:
+                fixed_rows.append(rows[pos - dec])
+              else:
+                dec += 1
+                fixed_rows.append((sha1,))
+            sim_images.append(fixed_rows)
+          else:
+            sim_images.append(rows)
           sim_score.append(tmp_sim_score)
         else:
           sim_images.append([])
