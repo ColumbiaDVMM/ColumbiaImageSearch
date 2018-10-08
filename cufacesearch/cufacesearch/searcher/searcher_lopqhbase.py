@@ -908,7 +908,7 @@ class SearcherLOPQHBase(GenericSearcher):
               # fall back to just sha1s... but beware to keep order...
               dec = 0
               fixed_rows = []
-              for pos, sha1 in tmp_img_sim:
+              for pos, sha1 in enumerate(tmp_img_sim):
                 if rows[pos - dec][0] == sha1:
                   fixed_rows.append(rows[pos - dec])
                 else:

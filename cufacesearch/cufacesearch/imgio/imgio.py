@@ -228,7 +228,7 @@ def get_buffer_from_URL(img_url, verbose=0, image_dl_timeout=4, retries=DEFAULT_
   else:
     req = requests.get(img_url, timeout=image_dl_timeout)
   if req.status_code == 200:
-    if int(req.headers['content-length']) == 0:
+    if 'content-length' in req.headers and int(req.headers['content-length']) == 0:
       del req
       raise ValueError("Empty image.")
     else:
