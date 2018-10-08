@@ -833,8 +833,9 @@ class SearcherLOPQHBase(GenericSearcher):
               normed_feat = np.squeeze(feats[i][j] / norm_feat)
               results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned,
                                                       with_dists=True)
-              msg = "[{}.search_from_feats: log] Got {} results by visiting {} cells, first is: {}"
-              print(msg.format(self.pp, len(results), visited, results[0]))
+              res_msg = "[{}.search_from_feats: log] Got {} results by visiting {} cells in: {:0.3}s"
+              search_time = time.time() - start_search
+              print(res_msg.format(self.pp, len(results), visited, search_time))
 
           # If reranking, get features from hbase for detections using res.id
           #   we could also already get 's3_url' to avoid a second call to HBase later...
@@ -843,6 +844,8 @@ class SearcherLOPQHBase(GenericSearcher):
               res_list_sha1s = [str(x.id).split('_')[0] for x in results]
               res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s, extr_str,
                                                                        feat_type)
+              msg = "[{}: log] Retrieved {}/{} features for re-ranking."
+              print(msg.format(self.pp, len(res_sids), len(res_list_sha1s)))
               # # FIXME: dirty fix for dlib features size issue.
               # # To be removed once workflow applied on all legacy data
               # if res_fts is not None and res_fts[0].shape[-1] < 128:
@@ -940,8 +943,9 @@ class SearcherLOPQHBase(GenericSearcher):
           normed_feat = np.squeeze(feats[i] / norm_feat)
           results, visited = self.searcher.search(normed_feat, quota=quota, limit=max_returned,
                                                   with_dists=True)
-          res_msg = "[{}.search_from_feats: log] Got {} results by visiting {} cells, first is: {}"
-          print(res_msg.format(self.pp, len(results), visited, results[0]))
+          res_msg = "[{}.search_from_feats: log] Got {} results by visiting {} cells in: {:0.3}s"
+          search_time = time.time() - start_search
+          print(res_msg.format(self.pp, len(results), visited, search_time))
 
         # Reranking, get features from hbase for detections using res.id
         if self.reranking:
@@ -949,6 +953,8 @@ class SearcherLOPQHBase(GenericSearcher):
             res_list_sha1s = [str(x.id) for x in results]
             res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s, extr_str,
                                                                      feat_type)
+            msg = "[{}: log] Retrieved {}/{} features for re-ranking."
+            print(msg.format(self.pp, len(res_sids), len(res_list_sha1s)))
           except Exception as inst:
             err_msg = "[{}: error] Could not retrieve features for re-ranking. {}"
             print(err_msg.format(self.pp, inst))
@@ -1002,7 +1008,7 @@ class SearcherLOPQHBase(GenericSearcher):
       all_sim_score.append(sim_score)
 
     search_time = time.time() - start_search
-    print("[{}: log] Search performed in {:0.3}s.".format(self.pp, search_time))
+    print("[{}: log] Full search performed in {:0.3}s.".format(self.pp, search_time))
 
     # format output
     # print "all_sim_images",all_sim_images
