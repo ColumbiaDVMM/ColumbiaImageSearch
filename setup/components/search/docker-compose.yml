@@ -32,6 +32,7 @@ services:
       - lopq_M
       - lopq_subq
       - reranking
+      - skip_get_sim_info
       # If model_type is lopq_pca:
       - nb_train_pca
       - nb_min_train_pca
