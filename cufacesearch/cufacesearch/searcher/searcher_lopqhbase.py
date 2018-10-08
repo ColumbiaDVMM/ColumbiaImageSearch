@@ -898,7 +898,7 @@ class SearcherLOPQHBase(GenericSearcher):
           # print tmp_img_sim
           if tmp_img_sim:
             rows = []
-            if self.skip_get_sim_info:
+            if not self.skip_get_sim_info:
               start_info = time.time()
               try:
                 rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
@@ -996,7 +996,7 @@ class SearcherLOPQHBase(GenericSearcher):
 
         if tmp_img_sim:
           rows = []
-          if self.skip_get_sim_info:
+          if not self.skip_get_sim_info:
             start_info = time.time()
             try:
               rows = self.indexer.get_columns_from_sha1_rows(tmp_img_sim, self.needed_output_columns)
