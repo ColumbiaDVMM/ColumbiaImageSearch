@@ -768,6 +768,7 @@ class HBaseIndexerMinimal(ConfReader):
       except Exception as err_inst: # try to catch any exception
         print(err_inst)
         self.refresh_hbase_conn("get_columns_from_sha1_rows")
+        lower_rbs = rbs
         if perr > 0:
           lower_rbs = max(int(rbs / 4), 1)
         return self.get_columns_from_sha1_rows(list_sha1s, columns, rbs=lower_rbs,
