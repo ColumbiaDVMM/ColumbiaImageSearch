@@ -138,10 +138,7 @@ if __name__ == "__main__":
   conf[search_prefix + 'lopq_V'] = int(os.environ['lopq_V'])
   conf[search_prefix + 'lopq_M'] = int(os.environ['lopq_M'])
   conf[search_prefix + 'lopq_subq'] = int(os.environ['lopq_subq'])
-  tmpreranking = os.getenv('reranking', 1)
-  print("tmpreranking: {}".format(tmpreranking))
   conf[search_prefix + 'reranking'] = bool(int(os.getenv('reranking', 1)))
-  print("conf[search_prefix + 'reranking']: {}".format(conf[search_prefix + 'reranking']))
   conf[search_prefix + 'skip_get_sim_info'] = bool(int(os.getenv('skip_get_sim_info', 0)))
   if conf[search_prefix + 'model_type'] == "lopq_pca":
     conf[search_prefix + 'nb_train_pca'] = int(os.environ['nb_train_pca'])

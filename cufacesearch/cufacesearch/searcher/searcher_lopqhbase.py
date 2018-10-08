@@ -841,20 +841,13 @@ class SearcherLOPQHBase(GenericSearcher):
           #   we could also already get 's3_url' to avoid a second call to HBase later...
           if self.reranking:
             try:
+              start_rerank = time.time()
               res_list_sha1s = [str(x.id).split('_')[0] for x in results]
               res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s, extr_str,
                                                                        feat_type)
-              msg = "[{}: log] Retrieved {}/{} features for re-ranking."
-              print(msg.format(self.pp, len(res_sids), len(res_list_sha1s)))
-              # # FIXME: dirty fix for dlib features size issue.
-              # # To be removed once workflow applied on all legacy data
-              # if res_fts is not None and res_fts[0].shape[-1] < 128:
-              #   res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s,
-              #                                                                        self.build_extr_str(),
-              #                                                                        "float32")
-              #   if res_fts:
-              #     forced_msg = "Forced decoding of features as float32. Got {} samples, features with shape {}"
-              #     print(forced_msg.format(len(res_sids), res_fts[0].shape))
+              msg = "[{}: log] Retrieved {}/{} features for re-ranking in {:0.3}s"
+              rerank_time = time.time() - start_rerank
+              print(msg.format(self.pp, len(res_sids), len(res_list_sha1s), rerank_time))
             except Exception as inst:
               err_msg = "[{}: error] Could not retrieve features for re-ranking. {}"
               print(err_msg.format(self.pp, inst))
@@ -907,7 +900,7 @@ class SearcherLOPQHBase(GenericSearcher):
                 print(err_msg.format(self.pp, inst))
               # rows should contain id, s3_url of images
               # print rows
-              msg = "[{}.search_from_feats: log] Got info of {}/{} similar images in: {:0.3}s"
+              msg = "[{}.search_from_feats: log] Got info of {}/{} similar images in {:0.3}s"
               info_time = time.time() - start_info
               print(msg.format(self.pp, len(rows), len(tmp_img_sim), info_time))
 
@@ -956,11 +949,13 @@ class SearcherLOPQHBase(GenericSearcher):
         # Reranking, get features from hbase for detections using res.id
         if self.reranking:
           try:
+            start_rerank = time.time()
             res_list_sha1s = [str(x.id) for x in results]
             res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s, extr_str,
                                                                      feat_type)
-            msg = "[{}: log] Retrieved {}/{} features for re-ranking."
-            print(msg.format(self.pp, len(res_sids), len(res_list_sha1s)))
+            msg = "[{}: log] Retrieved {}/{} features for re-ranking in {:0.3}s"
+            rerank_time = time.time() - start_rerank
+            print(msg.format(self.pp, len(res_sids), len(res_list_sha1s), rerank_time))
           except Exception as inst:
             err_msg = "[{}: error] Could not retrieve features for re-ranking. {}"
             print(err_msg.format(self.pp, inst))
@@ -1004,7 +999,7 @@ class SearcherLOPQHBase(GenericSearcher):
               err_msg = "[{}: error] Could not retrieve similar images info from indexer. {}"
               print(err_msg.format(self.pp, inst))
             # rows should contain id, s3_url of images
-            msg = "[{}.search_from_feats: log] Got info of {}/{} similar images in: {:0.3}s"
+            msg = "[{}.search_from_feats: log] Got info of {}/{} similar images in {:0.3}s"
             info_time = time.time() - start_info
             print(msg.format(self.pp, len(rows), len(tmp_img_sim), info_time))
           #sim_images.append(rows)
