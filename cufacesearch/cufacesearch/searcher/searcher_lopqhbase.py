@@ -49,7 +49,10 @@ class SearcherLOPQHBase(GenericSearcher):
     self.lopq_searcher = "LOPQSearcherLMDB"
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
     self.set_pp(pp="SearcherLOPQHBase")
-    #self.set_pp(pp="SearcherLOPQHBase." + str(os.getpid()))
+
+    # To load pickled codes files from s3 bucket
+    print("[{}.load_codes: log] Starting to load codes".format(self.pp))
+    self.load_codes()
 
   def get_model_params(self):
     """Reads model parameters from configuration
@@ -804,9 +807,20 @@ class SearcherLOPQHBase(GenericSearcher):
             "near_dup" in options_dict and options_dict["near_dup"]):
       filter_near_dup = True
       if "near_dup_th" in options_dict:
+        # should we set filter_near_dup to True just based on that?
         near_dup_th = options_dict["near_dup_th"]
       else:
         near_dup_th = self.near_dup_th
+
+    # check what is the rearking config
+    if (self.reranking and "reranking" not in options_dict) or (
+            "reranking" in options_dict and options_dict["reranking"]):
+      curr_reranking = True
+      if "rerank_nb" in options_dict:
+        # should we set filter_near_dup to True just based on that?
+        curr_rerank_nb = options_dict["rerank_nb"]
+      else:
+        curr_rerank_nb = self.rerank_nb
 
     max_returned = self.sim_limit
     if "max_returned" in options_dict:
@@ -839,9 +853,10 @@ class SearcherLOPQHBase(GenericSearcher):
 
           # If reranking, get features from hbase for detections using res.id
           #   we could also already get 's3_url' to avoid a second call to HBase later...
-          if self.reranking:
+          if curr_reranking:
             try:
               start_rerank = time.time()
+              results = results[:min(curr_rerank_nb, len(results))]
               res_list_sha1s = [str(x.id).split('_')[0] for x in results]
               res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s, extr_str,
                                                                        feat_type)
@@ -858,7 +873,7 @@ class SearcherLOPQHBase(GenericSearcher):
           for ires, res in enumerate(results):
             dist = res.dist
             # if reranking compute actual distance
-            if self.reranking:
+            if curr_reranking:
               try:
                 pos = res_sids.index(res.id)
                 dist = np.linalg.norm(normed_feat - res_fts[pos])
@@ -875,7 +890,7 @@ class SearcherLOPQHBase(GenericSearcher):
                 tmp_dets_sim_score.append(dist)
 
           # If reranking, we need to reorder
-          if self.reranking:
+          if curr_reranking:
             sids = np.argsort(tmp_dets_sim_score, axis=0)
             rerank_img_sim = []
             rerank_dets_sim_ids = []
@@ -947,9 +962,10 @@ class SearcherLOPQHBase(GenericSearcher):
           print(res_msg.format(self.pp, len(results), visited, search_time))
 
         # Reranking, get features from hbase for detections using res.id
-        if self.reranking:
+        if curr_reranking:
           try:
             start_rerank = time.time()
+            results = results[:min(curr_rerank_nb, len(results))]
             res_list_sha1s = [str(x.id) for x in results]
             res_sids, res_fts = self.indexer.get_features_from_sha1s(res_list_sha1s, extr_str,
                                                                      feat_type)
@@ -964,7 +980,7 @@ class SearcherLOPQHBase(GenericSearcher):
         tmp_sim_score = []
         for ires, res in enumerate(results):
           dist = res.dist
-          if self.reranking:
+          if curr_reranking:
             # If reranking compute actual distance
             try:
               pos = res_sids.index(res.id)
@@ -979,7 +995,7 @@ class SearcherLOPQHBase(GenericSearcher):
               tmp_sim_score.append(dist)
 
         # If reranking, we need to reorder
-        if self.reranking:
+        if curr_reranking:
           sids = np.argsort(tmp_sim_score, axis=0)
           rerank_img_sim = []
           rerank_sim_score = []

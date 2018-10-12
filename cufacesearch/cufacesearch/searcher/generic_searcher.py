@@ -32,16 +32,25 @@ class GenericSearcher(ConfReader):
     self.model_str = None
     self.extr_str = None
     self.verbose = 1
-    self.top_feature = 0
+    self.top_feature = 100
+    self.sim_limit = 100
     self.nb_train = 1000000
     self.nb_min_train = 10000
     self.save_train_features = False
     self.wait_for_nbtrain = True
     self.file_input = False
 
+    # Look only for near-duplicate i.e. with distance less than `near_dup_th``
+    self.near_dup = False
+    self.near_dup_th = 0.8 # OK for image search
+
+    # Whether we try to get additional info (e.g. URL) about each similar sample from the indexer
+    self.skip_get_sim_info = False
+
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
-    self.skip_get_sim_info = False
+    self.rerank_nb = 100
+
     self.indexed_updates = set()
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
     self.set_pp(pp="GenericSearcher")
@@ -93,12 +102,6 @@ class GenericSearcher(ConfReader):
     # Test the performance of the trained model?
     # To try to set max_returned to achieve some target performance
 
-    # should codes path be a list to deal with updates?
-    # should we store that list in HBase?
-    # TODO: load pickled codes files from s3 bucket
-    print("[{}.load_codes: log] Starting to load codes".format(self.pp))
-    self.load_codes()
-
   def read_conf(self):
     """Read configuration values
 
@@ -118,38 +121,46 @@ class GenericSearcher(ConfReader):
     - ``file_input``
     """
     # these parameters may be overwritten by web call
-    self.sim_limit = self.get_param('sim_limit', default=100)
-    tmp_quota = self.get_param('quota')
-    if tmp_quota:
-      if tmp_quota < self.sim_limit:
-        raise ValueError("'quota' cannot be less than 'sim_limit'")
-      self.quota = tmp_quota
-    else:
-      self.quota = self.sim_limit * 10
-    self.near_dup = bool(self.get_param('near_dup'))
-    self.near_dup_th = self.get_param('near_dup_th')
-    self.ratio = self.get_param('ratio')
-    tmp_top_feature = self.get_param('top_feature')
-    if tmp_top_feature:
-      self.top_feature = int(tmp_top_feature)
-    tmp_input_type = self.get_param('input_type')
-    if tmp_input_type:
-      self.input_type = tmp_input_type
+    self.sim_limit = int(self.get_param('sim_limit', default=self.sim_limit))
+    self.quota = int(self.get_param('quota', default=10*self.sim_limit))
+    # tmp_quota = self.get_param('quota')
+    # if tmp_quota:
+    #   if tmp_quota < self.sim_limit:
+    #     raise ValueError("'quota' cannot be less than 'sim_limit'")
+    #   self.quota = tmp_quota
+    # else:
+    #   self.quota = self.sim_limit * 10
+    self.near_dup = bool(self.get_param('near_dup'), default=self.near_dup)
+    self.near_dup_th = float(self.get_param('near_dup_th'), default=self.near_dup_th)
+    #self.ratio = self.get_param('ratio') # DEPRECATED
+    self.top_feature = int(self.get_param('top_feature', default=self.top_feature))
+    # tmp_top_feature = self.get_param('top_feature')
+    # if tmp_top_feature:
+    #   self.top_feature = int(tmp_top_feature)
+    self.input_type = self.get_param('input_type', default=self.input_type)
+    # tmp_input_type = self.get_param('input_type')
+    # if tmp_input_type:
+    #   self.input_type = tmp_input_type
     # Should nb_train be interpreted as nb_min_train?
-    tmp_nb_train = self.get_param('nb_train')
-    if tmp_nb_train:
-      self.nb_train = tmp_nb_train
-    nb_min_train = self.get_param('nb_min_train')
-    if nb_min_train:
-      self.nb_min_train = nb_min_train
-    tmp_reranking = self.get_param('reranking')
-    if tmp_reranking:
-      self.reranking = True
-    verbose = self.get_param('verbose')
-    if verbose:
-      self.verbose = int(verbose)
-    self.skip_get_sim_info = self.get_param('skip_get_sim_info', False)
-    self.file_input = bool(self.get_param('file_input', default=False))
+    self.nb_train = int(self.get_param('nb_train', default=self.nb_train))
+    self.nb_min_train = int(self.get_param('nb_min_train', default=self.nb_min_train))
+    # tmp_nb_train = self.get_param('nb_train')
+    # if tmp_nb_train:
+    #   self.nb_train = tmp_nb_train
+    # nb_min_train = self.get_param('nb_min_train')
+    # if nb_min_train:
+    #   self.nb_min_train = nb_min_train
+    self.reranking = bool(self.get_param('reranking', default=self.reranking))
+    self.rerank_nb = int(self.get_param('rerank_nb', default=self.top_feature))
+    # tmp_reranking = self.get_param('reranking')
+    # if tmp_reranking:
+    #   self.reranking = True
+    self.verbose = int(self.get_param('verbose', default=self.verbose))
+    # verbose = self.get_param('verbose')
+    # if verbose:
+    #   self.verbose = int(verbose)
+    self.skip_get_sim_info = bool(self.get_param('skip_get_sim_info', default=self.skip_get_sim_info))
+    self.file_input = bool(self.get_param('file_input', default=self.file_input))
 
   def get_model_params(self):
     raise NotImplementedError("[{}] get_model_params is not implemented".format(self.pp))
@@ -263,12 +274,13 @@ class GenericSearcher(ConfReader):
     prefix = self.get_param("storer_prefix", default=storer_default_prefix)
     self.storer = get_storer(storer_type, self.global_conf, prefix=prefix)
 
-  def check_ratio(self):
-    """Check if we need to set the ratio based on top_feature"""
-    if self.top_feature > 0:
-      self.ratio = self.top_feature * 1.0 / len(self.searcher.nb_indexed)
-      log_msg = "[{}.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
-      print(log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed)))
+  # DEPRECATED
+  # def check_ratio(self):
+  #   """Check if we need to set the ratio based on top_feature"""
+  #   if self.top_feature > 0:
+  #     self.ratio = self.top_feature * 1.0 / len(self.searcher.nb_indexed)
+  #     log_msg = "[{}.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
+  #     print(log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed)))
 
 
   def search_imageURL_list(self, image_list, options_dict=dict()):
@@ -411,12 +423,3 @@ class GenericSearcher(ConfReader):
   def search_from_feats(self, dets, feats, options_dict=dict()):
     raise NotImplementedError('search_from_feats')
 
-# #DEPRECATED
-#   def save_index(self):
-#     raise NotImplementedError('save_index')
-#
-#   def load_index(self):
-#     raise NotImplementedError('load_index')
-#
-#   def add_features(self, feats, ids=None):
-#     raise NotImplementedError('add_features')
