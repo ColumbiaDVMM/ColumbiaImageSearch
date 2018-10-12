@@ -37,7 +37,8 @@ class APIResponder(Resource):
     self.default_no_blur = True
     self.default_max_height = 120
     # how to blur canvas images but keep the face clean?
-    self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height", "max_returned"]
+    self.valid_options = ["near_dup", "near_dup_th", "no_blur", "detect_only", "max_height",
+                          "max_returned", "reranking", "rerank_nb"]
 
   def get(self, mode):
     """Get request. Will be fulfilled based on ``mode`` value in list:

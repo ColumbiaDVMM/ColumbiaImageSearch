@@ -813,6 +813,7 @@ class SearcherLOPQHBase(GenericSearcher):
         near_dup_th = self.near_dup_th
 
     # check what is the rearking config
+    curr_reranking = False
     if (self.reranking and "reranking" not in options_dict) or (
             "reranking" in options_dict and options_dict["reranking"]):
       curr_reranking = True
