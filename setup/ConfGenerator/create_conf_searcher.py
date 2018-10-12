@@ -43,23 +43,30 @@ if __name__ == "__main__":
   # Generic ingestion settings
   verbose = int(os.getenv('verbose', 0))
   conf[search_prefix + "verbose"] = verbose
-  conf[search_prefix + 'get_pretrained_model'] = False
 
   conf[search_prefix + 'storer_prefix'] = storer_prefix
   conf[search_prefix + 'indexer_prefix'] = hbase_prefix
+  conf[hbase_prefix + 'verbose'] = verbose
+  conf[storer_prefix + 'verbose'] = verbose
+  # This overwrites what is set in 'searcher_lopqhbase.py'...
+  #conf[search_prefix + 'get_pretrained_model'] = False
   # We only have this type of indexer for now...
   conf[search_prefix + 'indexer_type'] = "hbase_indexer_minimal"
   storer_type = os.environ['storer']
   if storer_type == "local":
     conf[search_prefix + 'storer_type'] = storer_type
     conf[storer_prefix + 'base_path'] = os.getenv('storer_base_path', '/data/index')
-    conf[storer_prefix + 'verbose'] = verbose
   if storer_type == "s3":
     conf[search_prefix + 'storer_type'] = storer_type
-    # A file 'credentials' should exist in docker at /home/ubuntu/.aws/
-    conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
+    # NB: a file 'credentials' should exist in docker at /home/ubuntu/.aws/
+    # There should be a file /home/ubuntu/.aws/credentials.sample in the docker
     conf[storer_prefix + 'bucket_name'] = os.environ['aws_bucket_name']
-    conf[storer_prefix + 'verbose'] = verbose
+    if os.getenv('aws_profile', False):
+      conf[storer_prefix + 'aws_profile'] = os.environ['aws_profile']
+    if os.getenv('aws_region', False):
+      conf[storer_prefix + 'aws_region'] = os.environ['aws_region']
+    if os.getenv('aws_prefix', False):
+      conf[storer_prefix + 'aws_prefix'] = os.environ['aws_prefix']
 
   # Extraction settings
   extr_type = os.environ['extr_type']
@@ -84,14 +91,13 @@ if __name__ == "__main__":
     #conf[featurizer_prefix + 'imgmean_path'] = "./data/models/imagenet_mean.npy"
     conf[featurizer_prefix + 'sbcaffe_path'] = "/data/models/caffe_sentibank_train_iter_250000"
     conf[featurizer_prefix + 'imgmean_path'] = "/data/models/imagenet_mean.npy"
-  # TODO: add sbcmdline for legacy data
+  # Deprecated: sbcmdline was for legacy data
   elif extr_type == "sbcmdlineimg":
     featurizer_prefix = "SBCMD_"
     conf[search_prefix + 'featurizer_prefix'] = featurizer_prefix
     conf[search_prefix + 'featurizer_type'] = "sbcmdline"
     conf[search_prefix + 'detector_type'] = "full"
     conf[featurizer_prefix + 'sbcaffe_path'] = "/data/models/caffe_sentibank_train_iter_250000"
-    # What should it be?
     conf[featurizer_prefix + 'caffe_exec_path'] = "/home/ubuntu/caffe_cpu/build/tools/extract_nfeatures"
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))
@@ -101,12 +107,28 @@ if __name__ == "__main__":
   conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos']
   conf[hbase_prefix + 'table_updateinfos'] = os.environ['table_updateinfos']
   conf[hbase_prefix + 'batch_update_size'] = int(os.environ['batch_update_size'])
-  # TODO: should we expose that parameter
+  # TODO: should we expose that parameter in docker-compose.yml?
   conf[hbase_prefix + 'pool_thread'] = 1
 
-  # Local input settings
+  # Deal with newly exposed but optional parameters
+  if os.getenv('indexer_skip_failed', False):
+    conf[hbase_prefix + 'skip_failed'] = os.environ['skip_failed']
+  if os.getenv('column_list_sha1s', False):
+    conf[hbase_prefix + 'column_list_sha1s'] = os.environ['column_list_sha1s']
+  if os.getenv('extr_column_family', False):
+    conf[hbase_prefix + 'extr_column_family'] = os.environ['extr_column_family']
+  if os.getenv('image_info_column_family', False):
+    conf[hbase_prefix + 'image_info_column_family'] = os.environ['image_info_column_family']
+  if os.getenv('image_buffer_column_family', False):
+    conf[hbase_prefix + 'image_buffer_column_family'] = os.environ['image_buffer_column_family']
+  if os.getenv('update_info_column_family', False):
+    conf[hbase_prefix + 'update_info_column_family'] = os.environ['update_info_column_family']
+
+
+  # Check for local input settings
   # NB: confusing names between that input_type and the extraction input_type i.e. 'face' or 'image'
-  if os.environ['input_type'] == "local":
+  #if os.environ['input_type'] == "local":
+  if os.getenv('input_type', 'notlocal') == 'local':
     conf[search_prefix + 'file_input'] = True
 
   # Search parameters
@@ -116,16 +138,19 @@ if __name__ == "__main__":
   conf[search_prefix + 'lopq_V'] = int(os.environ['lopq_V'])
   conf[search_prefix + 'lopq_M'] = int(os.environ['lopq_M'])
   conf[search_prefix + 'lopq_subq'] = int(os.environ['lopq_subq'])
-  conf[search_prefix + 'reranking'] = os.getenv('reranking', True)
+  conf[search_prefix + 'reranking'] = bool(int(os.getenv('reranking', 1)))
+  conf[search_prefix + 'skip_get_sim_info'] = bool(int(os.getenv('skip_get_sim_info', 0)))
   if conf[search_prefix + 'model_type'] == "lopq_pca":
     conf[search_prefix + 'nb_train_pca'] = int(os.environ['nb_train_pca'])
     conf[search_prefix + 'nb_min_train_pca'] = int(os.getenv('nb_min_train_pca', conf[search_prefix + 'nb_train_pca']))
     conf[search_prefix + 'lopq_pcadims'] = int(os.environ['lopq_pcadims'])
+  if os.getenv('searcher_skip_failed', False):
+    conf[search_prefix + 'skip_failed'] = os.environ['skip_failed']
 
   if not os.path.exists(options.output_dir):
     os.mkdir(options.output_dir)
 
   outpath = os.path.join(options.output_dir,'conf_search_'+conf_name+'.json')
   json.dump(conf, open(outpath,'wt'), sort_keys=True, indent=4)
-  print("Saved conf at {}: {}".format(outpath, json.dumps(conf)))
+  print("Saved conf {} at {}: {}".format(conf, outpath, json.dumps(conf)))
 

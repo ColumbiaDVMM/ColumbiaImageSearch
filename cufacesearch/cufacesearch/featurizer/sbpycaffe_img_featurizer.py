@@ -7,7 +7,10 @@ imagenet_mean_npy_urldlpath = "https://www.dropbox.com/s/s5oqp801tgiktra/imagene
 
 import os
 import sys
-import caffe
+try:
+  import caffe
+except:
+  print("Could not import caffe. You will not be able to use 'SentiBankPyCaffeImgFeaturizer'")
 import numpy as np
 from scipy import misc
 
@@ -17,11 +20,22 @@ from ..common.dl import download_file
 # Is there a memory leak somewhere in this featurizer? In caffe?
 
 class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
+  """Sentibank image featurizer using pycaffe.
+  """
 
   def __init__(self, global_conf_in, prefix="SBPYCAFFEIMGFEAT_"):
+    """Sentibank image featurizer constructor.
+
+    :param global_conf_in: configuration file or dictionary
+    :type global_conf_in: str, dict
+    :param prefix: prefix in configuration
+    :type prefix: str
+    """
+
     super(SentiBankPyCaffeImgFeaturizer, self).__init__(global_conf_in, prefix)
+    self.set_pp(pp="SentiBankPyCaffeImgFeaturizer")
     if self.verbose > 0:
-      print "[{}.log] global_conf: {}".format(self.pp, self.global_conf)
+      print("[{}.log] global_conf: {}".format(self.pp, self.global_conf))
 
     # could be loaded from conf
     self.output_blobs = ['fc7']
@@ -74,29 +88,37 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
     # produces very different results
     self.init_transformer()
 
-  def set_pp(self):
-    self.pp = "SentiBankPyCaffeImgFeaturizer"
-
   def init_model(self):
+    """Initialize sentibank model in caffe."""
+    # We could be exposed the mode as a parameter if we ever want to run extractions on GPU
     caffe.set_mode_cpu()
 
     model_def = os.path.join(self.dir_path, 'data', sentibank_prototxt)
     model_weights = self.sbcaffe_path
 
     self.net = caffe.Net(model_def, model_weights, caffe.TEST)
-    print "[{}:info] Initialized model.".format(self.pp)
+    print("[{}:info] Initialized model.".format(self.pp))
     sys.stdout.flush()
 
   def init_transformer(self):
+    """Initialize transformer that pre-process an image to fit caffe format."""
     # Create transformer for the input called 'data'
     self.transformer = caffe.io.Transformer({'data': self.net.blobs['data'].data.shape})
     self.transformer.set_transpose('data', (2, 0, 1))  # move image channels to outermost dimension
     self.transformer.set_mean('data', self.mu)  # subtract the dataset-mean image
     self.transformer.set_channel_swap('data', (2, 1, 0))
-    print "[{}:info] Initialized transformer.".format(self.pp)
+    print("[{}:info] Initialized transformer.".format(self.pp))
     sys.stdout.flush()
 
   def preprocess_img(self, img_buffer):
+    """Preprocess image to fit caffe model format.
+
+    :param img_buffer: input image
+    :type img_buffer: :class:`numpy.ndarray`
+    :return: preprocessed image
+    :rtype: :class:`numpy.ndarray`
+    """
+    # This can fail with a memory error for big images...
     image = caffe.io.load_image(img_buffer)
     # Fix for GIF
     if len(image.shape)==4:
@@ -113,11 +135,14 @@ class SentiBankPyCaffeImgFeaturizer(GenericFeaturizer):
 
 
   def featurize(self, img, bbox=None, img_type="buffer"):
-    """ Compute face feature of the face bounding box in 'd' in the image 'img'.
+    """ Compute sentibank feature of image `img`. `bbox` is ignored.
 
-    :param img: image (an image buffer to be read)
+    :param img: input image
+    :type img: :class:`numpy.ndarray`
     :param bbox: bounding box dictionary
+    :type bbox: dict
     :return: sentibank image feature
+    :rtype: :class:`numpy.ndarray`
     """
     # TODO: could use bbox to pre-crop the image...
     # Could anything block here?

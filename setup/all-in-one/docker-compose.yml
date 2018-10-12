@@ -123,21 +123,27 @@ services:
       - input_type
       - verbose
       - "conf_name=${extr_conf_name}"
-      - "extr_type=${extr_type}"
-      - "extr_nb_threads=${extr_nb_threads}"
-      - "extr_check_max_delay=${extr_check_max_delay}"
+      - extr_type
+      - extr_nb_threads
+      - extr_check_max_delay
       # Kafka related environment variables
       - images_topic
       - kafka_servers
       - kafka_security
-      - "extr_check_consumer_group=${extr_check_consumer_group}"
-      - "extr_proc_consumer_group=${extr_proc_consumer_group}"
-      - "updates_topic=${updates_topic}"
+      - extr_check_consumer_group
+      - extr_proc_consumer_group
+      - updates_topic
       # Hbase related environment variables
       - hbase_host
-      - "table_sha1infos=${table_sha1infos}"
-      - "table_updateinfos=${table_updateinfos}"
-      - "batch_update_size=${batch_update_size}"
+      - table_sha1infos
+      - table_updateinfos
+      - batch_update_size
+      - column_list_sha1s
+      - extr_column_family
+      - image_info_column_family
+      - image_buffer_column_family
+      - image_buffer_column_name
+      - update_info_column_family
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
@@ -169,13 +175,20 @@ services:
       - input_type
       - verbose
       - "conf_name=${search_conf_name}"
-      - "extr_type=${extr_type}"
-      - "storer=${storer}"
+      #- "extr_type=${extr_type}"
+      - extr_type
+      - storer
       # Hbase related environment variables
       - hbase_host
-      - "table_sha1infos=${table_sha1infos}"
-      - "table_updateinfos=${table_updateinfos}"
-      - "batch_update_size=${batch_update_size}"
+      - table_sha1infos
+      - table_updateinfos
+      - batch_update_size
+      - column_list_sha1s
+      - extr_family_column
+      - image_info_column_family
+      - image_buffer_column_family
+      - image_buffer_column_name
+      - update_info_column_family
       # Search related environment variables
       - "model_type=${model_type}"
       - "nb_train=${nb_train}"

@@ -19,10 +19,7 @@ class LocalImageKafkaPusher(GenericKafkaProcessor):
     self.source_zip = self.get_param('source_zip')
     self.ingested_images = set()
 
-    self.set_pp()
-
-  def set_pp(self):
-    self.pp = "LocalImageKafkaPusher"
+    self.set_pp(pp="LocalImageKafkaPusher")
 
   def get_next_img(self):
     # TODO: test that

@@ -404,11 +404,16 @@ class LOPQSearcherLMDB(LOPQSearcherBase):
         self.id_lambda = id_lambda
 
         # TODO: pass memory size, index_db name as parameters?
-        # Should we have another     DB to list (permanently) the updates we have indexed?
+        # Should we have another DB to list (permanently) the updates we have indexed?
         # Set writemap to True to allow usage of a bigger DB than available RAM?
+        # https://github.com/dw/py-lmdb/issues/113
+        # But can induce full preallocation
+        # http://lmdb.readthedocs.io/en/release/#writemap-mode
         # set map_size to 16 or 32GB? Default to (free?) disk size?
         #self.env = lmdb.open(self.lmdb_path, map_size=1024*1000000*2, writemap=False, map_async=True, max_dbs=1)
-        self.env = lmdb.open(self.lmdb_path, map_size=1024 * 1000000 * 32, writemap=True, map_async=True, max_dbs=1)
+        # self.env = lmdb.open(self.lmdb_path, map_size=1024 * 1000000 * 32,
+        #                      writemap=True, map_async=True, max_dbs=1)
+        self.env = lmdb.open(self.lmdb_path, map_size=1024 * 1000000 * 32, max_dbs=1)
         self.index_db = self.env.open_db("index")
 
     def get_nb_indexed(self):

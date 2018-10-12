@@ -1,4 +1,4 @@
-# Columbia University Iamge and Face Search package
+# Columbia University Image and Face Search package
 
 Author: [Svebor Karaman](mailto:svebor.karaman@columbia.edu)
 
@@ -17,3 +17,5 @@ The package is divided into multiple sub-modules:
 - [searcher](./cufacesearch/searcher): search indexing scheme (currently LOPQ).
 - [storer](./cufacesearch/storer): store data locally or to S3.
 - [updater](./cufacesearch/updater): check for new images to be processed and process them.
+
+Detailed documentation can be build, see folder [docs](./docs).

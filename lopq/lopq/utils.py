@@ -199,6 +199,24 @@ def compute_codes_parallel(data, model, num_procs=4):
 
     return chain(*codes)
 
+
+def compute_codes_notparallel(data, model):
+    """
+    A helper function for the computation of LOPQ codes.
+
+    :param ndarray data:
+        an ndarray of data points
+    :param LOPQModel model:
+        a model instance to use to compute codes
+
+    :returns iterable:
+        an iterable of computed codes in the input order
+    """
+    def compute_partition(data):
+        return [model.predict(d) for d in data]
+
+    return compute_partition(data)
+
 # Modifications by Svebor Karaman
 
 def copy_from_hdfs(hdfs_path):

@@ -4,26 +4,39 @@ import time
 from six.moves import urllib
 
 def reporthook(count, block_size, total_size):
+  """Report download progress every second.
+
+  Modified from http://blog.moleculea.com/2012/10/04/urlretrieve-progres-indicator/
+
+  :param count: number of blocks downloaded so far
+  :type count: int
+  :param block_size: size of a block
+  :type block_size: int
+  :param total_size: total file size
+  :type total_size: int
   """
-  From http://blog.moleculea.com/2012/10/04/urlretrieve-progres-indicator/
-  """
-  global start_time
+  global start_time, last_time
   if count == 0:
     start_time = time.time()
+    last_time = time.time()
     return
-  duration = (time.time() - start_time) or 0.01
-  progress_size = int(count * block_size)
-  speed = int(progress_size / (1024 * duration))
-  percent = int(count * block_size * 100 / total_size)
-  sys.stdout.write("\r...%d%%, %d MB, %d KB/s, %d seconds passed" %
-                   (percent, progress_size / (1024 * 1024), speed, duration))
-  sys.stdout.flush()
+  if time.time() - last_time > 1 or count * block_size / total_size >= 1:
+    last_time = time.time()
+    duration = (time.time() - start_time) or 0.01
+    progress_size = int(count * block_size)
+    speed = int(progress_size / (1024 * duration))
+    percent = int(count * block_size * 100 / total_size)
+    sys.stdout.write("%d%%, %d MB, %d KB/s, %d seconds passed\n" %
+                     (percent, progress_size / (1024 * 1024), speed, duration))
+    sys.stdout.flush()
 
 def download_file(url, local_path):
-  """ Download file from 'url' to the directory of 'local_path'
+  """ Download file from `url` to the directory of `local_path`
 
   :param url: url of model to download
+  :type url: str
   :param local_path: final local path of model
+  :type local_path: str
   """
   print "Downloading file from: {}".format(url)
   out_dir = os.path.dirname(local_path)

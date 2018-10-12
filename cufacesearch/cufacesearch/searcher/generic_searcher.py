@@ -2,14 +2,23 @@ from __future__ import print_function
 
 from output_mapping import DictOutput
 from ..common.conf_reader import ConfReader
-from ..indexer.hbase_indexer_minimal import img_path_column, img_URL_column
 
 default_prefix = "GESEARCH_"
 
 
 class GenericSearcher(ConfReader):
+  """GenericSearcher class
+  """
 
   def __init__(self, global_conf_in, prefix=default_prefix):
+    """GenericSearcher constructor
+
+    :param global_conf_in: configuration file or dictionary
+    :type global_conf_in: str, dict
+    :param prefix: prefix in configuration
+    :type prefix: str
+    """
+
     # Initialize attributes default values
     self.model_params = dict()
     self.input_type = "image"
@@ -23,38 +32,34 @@ class GenericSearcher(ConfReader):
     self.model_str = None
     self.extr_str = None
     self.verbose = 1
-    self.top_feature = 0
+    self.top_feature = 100
+    self.sim_limit = 100
     self.nb_train = 1000000
     self.nb_min_train = 10000
     self.save_train_features = False
     self.wait_for_nbtrain = True
-    self.get_pretrained_model = False
+    self.file_input = False
+
+    # Look only for near-duplicate i.e. with distance less than `near_dup_th``
+    self.near_dup = False
+    self.near_dup_th = 0.8 # OK for image search
+
+    # Whether we try to get additional info (e.g. URL) about each similar sample from the indexer
+    self.skip_get_sim_info = False
+
     # Do re-ranking reading features from HBase? How many features should be read? 1000?
     self.reranking = False
+    self.rerank_nb = 100
+
     self.indexed_updates = set()
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
-
-    # To deal with local file ingestion
-    self.file_input = False
-    file_input = self.get_param('file_input')
-    if file_input:
-      self.file_input = True
-
-    if self.file_input:
-      self.img_column = img_path_column
-    else:
-      self.img_column = img_URL_column
-
-    # TODO: Also add feature column for re-ranking (can we use prefix filter?)
-    self.needed_output_columns = [self.img_column]
+    self.set_pp(pp="GenericSearcher")
 
     get_pretrained_model = self.get_param('get_pretrained_model')
     if get_pretrained_model:
       self.get_pretrained_model = get_pretrained_model
 
-    wait_for_nbtrain = self.get_param('wait_for_nbtrain')
-    if wait_for_nbtrain is not None:
-      self.wait_for_nbtrain = wait_for_nbtrain
+    self.wait_for_nbtrain = bool(self.get_param('wait_for_nbtrain', default=True))
 
     # Initialize attributes from conf
     # TODO: rename model_type in searcher type?
@@ -70,6 +75,20 @@ class GenericSearcher(ConfReader):
     # Have some parameters to discard images of dimensions lower than some values?...
     # Have some parameters to discard detections with scores lower than some values?...
 
+    # Initialize everything
+    self.init_detector()
+    self.init_featurizer()
+    self.init_storer()
+    self.init_indexer()
+
+    # To deal with local file ingestion
+    self.img_column = self.indexer.get_col_imgurl()
+    if self.file_input:
+      self.img_column = self.indexer.get_col_imgpath()
+
+    # TODO: Also add feature column for re-ranking (can we use prefix filter?)
+    self.needed_output_columns = [self.img_column]
+
     # Initialize dict output for formatting
     if self.dict_output_type:
       self.do = DictOutput(self.dict_output_type)
@@ -77,60 +96,81 @@ class GenericSearcher(ConfReader):
       self.do = DictOutput()
     self.do.url_field = self.img_column
 
-    # Initialize everything
-    self.init_detector()
-    self.init_featurizer()
-    self.init_storer()
-    self.init_indexer()
+    print("[{}.init_seacher: log] Initializing searcher".format(self.pp))
     self.init_searcher()
 
     # Test the performance of the trained model?
     # To try to set max_returned to achieve some target performance
 
-    # should codes path be a list to deal with updates?
-    # should we store that list in HBase?
-    # TODO: load pickled codes files from s3 bucket
-    self.load_codes()
-
   def read_conf(self):
+    """Read configuration values
+
+    Optional parameters are:
+
+    - ``sim_limit``
+    - ``quota``
+    - ``near_dup``
+    - ``near_dup_th``
+    - ``ratio``
+    - ``top_feature``
+    - ``input_type``
+    - ``nb_train``
+    - ``nb_min_train``
+    - ``reranking``
+    - ``verbose``
+    - ``file_input``
+    """
     # these parameters may be overwritten by web call
-    self.sim_limit = self.get_param('sim_limit')
-    if self.sim_limit is None:
-      self.sim_limit = 100
-    tmp_quota = self.get_param('quota')
-    if tmp_quota:
-      if tmp_quota < self.sim_limit:
-        raise ValueError("'quota' cannot be less than 'sim_limit'")
-      self.quota = tmp_quota
-    else:
-      self.quota = self.sim_limit * 10
-    self.near_dup = bool(self.get_param('near_dup'))
-    self.near_dup_th = self.get_param('near_dup_th')
-    self.ratio = self.get_param('ratio')
-    tmp_top_feature = self.get_param('top_feature')
-    if tmp_top_feature:
-      self.top_feature = int(tmp_top_feature)
-    tmp_input_type = self.get_param('input_type')
-    if tmp_input_type:
-      self.input_type = tmp_input_type
+    self.sim_limit = int(self.get_param('sim_limit', default=self.sim_limit))
+    self.quota = int(self.get_param('quota', default=10*self.sim_limit))
+    # tmp_quota = self.get_param('quota')
+    # if tmp_quota:
+    #   if tmp_quota < self.sim_limit:
+    #     raise ValueError("'quota' cannot be less than 'sim_limit'")
+    #   self.quota = tmp_quota
+    # else:
+    #   self.quota = self.sim_limit * 10
+    self.near_dup = bool(self.get_param('near_dup'), default=self.near_dup)
+    self.near_dup_th = float(self.get_param('near_dup_th'), default=self.near_dup_th)
+    #self.ratio = self.get_param('ratio') # DEPRECATED
+    self.top_feature = int(self.get_param('top_feature', default=self.top_feature))
+    # tmp_top_feature = self.get_param('top_feature')
+    # if tmp_top_feature:
+    #   self.top_feature = int(tmp_top_feature)
+    self.input_type = self.get_param('input_type', default=self.input_type)
+    # tmp_input_type = self.get_param('input_type')
+    # if tmp_input_type:
+    #   self.input_type = tmp_input_type
     # Should nb_train be interpreted as nb_min_train?
-    tmp_nb_train = self.get_param('nb_train')
-    if tmp_nb_train:
-      self.nb_train = tmp_nb_train
-    nb_min_train = self.get_param('nb_min_train')
-    if nb_min_train:
-      self.nb_min_train = nb_min_train
-    tmp_reranking = self.get_param('reranking')
-    if tmp_reranking:
-      self.reranking = True
-    verbose = self.get_param('verbose')
-    if verbose:
-      self.verbose = int(verbose)
+    self.nb_train = int(self.get_param('nb_train', default=self.nb_train))
+    self.nb_min_train = int(self.get_param('nb_min_train', default=self.nb_min_train))
+    # tmp_nb_train = self.get_param('nb_train')
+    # if tmp_nb_train:
+    #   self.nb_train = tmp_nb_train
+    # nb_min_train = self.get_param('nb_min_train')
+    # if nb_min_train:
+    #   self.nb_min_train = nb_min_train
+    self.reranking = bool(self.get_param('reranking', default=self.reranking))
+    self.rerank_nb = int(self.get_param('rerank_nb', default=self.top_feature))
+    # tmp_reranking = self.get_param('reranking')
+    # if tmp_reranking:
+    #   self.reranking = True
+    self.verbose = int(self.get_param('verbose', default=self.verbose))
+    # verbose = self.get_param('verbose')
+    # if verbose:
+    #   self.verbose = int(verbose)
+    self.skip_get_sim_info = bool(self.get_param('skip_get_sim_info', default=self.skip_get_sim_info))
+    self.file_input = bool(self.get_param('file_input', default=self.file_input))
 
   def get_model_params(self):
     raise NotImplementedError("[{}] get_model_params is not implemented".format(self.pp))
 
   def get_model_params_str(self):
+    """Build model parameters string.
+
+    :return: model parameters string
+    :rtype: str
+    """
     model_params_str = ''
     for p in self.model_params:
       model_params_str += "-"+str(p)+str(self.model_params[p])
@@ -139,6 +179,11 @@ class GenericSearcher(ConfReader):
 
 
   def build_extr_str(self):
+    """Build extraction string.
+
+    :return: extraction string
+    :rtype: str
+    """
     if self.extr_str is None:
       # use generic extractor 'build_extr_str'
       from cufacesearch.extractor.generic_extractor import build_extr_str
@@ -147,10 +192,21 @@ class GenericSearcher(ConfReader):
     return self.extr_str
 
   def get_train_features_str(self):
+    """Build train features filename.
+
+    :return: train features filename
+    :rtype: str
+    """
     extr_str = self.build_extr_str()
     return "train_features_{}_{}.pkl".format(extr_str, self.nb_train)
 
   def build_model_str(self):
+    """Build model string.
+
+    :return: model string
+    :rtype: str
+    """
+
     model_params_str = self.get_model_params_str()
     if self.model_str is None:
       # We could add some additional info, like model parameters, number of samples used for training...
@@ -158,18 +214,28 @@ class GenericSearcher(ConfReader):
     return self.model_str
 
   def build_codes_string(self, update_id):
+    """Build codes filename for update ``update_id``.
+
+    :param update_id: update identifier
+    :type update_id: str
+    :return: codes string
+    :rtype: str
+    """
     model_string = self.build_model_str()
     return model_string+"_codes/"+update_id
 
   def init_indexer(self):
-    """ Initialize HBase Indexer from `global_conf` value.
+    """Initialize indexer from configuration values
+
+    Gets required parameter ``indexer_type``
     """
     # Get indexed type from conf file
     self.indexer_type = self.get_required_param('indexer_type')
     tmp_prefix = self.get_param("indexer_prefix")
     if self.indexer_type == "hbase_indexer_minimal":
-      from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal, default_prefix as hbi_default_prefix
-      prefix = hbi_default_prefix
+      from ..indexer.hbase_indexer_minimal import HBaseIndexerMinimal
+      from ..indexer.hbase_indexer_minimal import DEFAULT_HBASEINDEXER_PREFIX
+      prefix = DEFAULT_HBASEINDEXER_PREFIX
       if tmp_prefix:
         prefix = tmp_prefix
       self.indexer = HBaseIndexerMinimal(self.global_conf, prefix=prefix)
@@ -177,18 +243,20 @@ class GenericSearcher(ConfReader):
       raise ValueError("[{}: error] unknown 'indexer' {}.".format(self.pp, self.indexer_type))
 
   def init_detector(self):
-    """ Initialize detector based on 'detector' in 'global_conf' value.
+    """Initialize ``detector`` (if needed) from configuration values
     """
     # A detector is not required
     detector_type = self.get_param('detector_type')
     if detector_type:
       self.detector_type = detector_type
       if self.detector_type != "full":
-        from ..detector.generic_detector import get_detector
+        from ..detector.utils import get_detector
         self.detector = get_detector(self.detector_type)
 
   def init_featurizer(self):
-    """ Initialize Feature Extractor from `global_conf` value.
+    """Initialize ``featurizer`` from configuration values
+
+    Gets required parameter ``featurizer_type``
     """
     self.featurizer_type = self.get_required_param('featurizer_type')
     tmp_prefix = self.get_param("featurizer_prefix")
@@ -196,27 +264,35 @@ class GenericSearcher(ConfReader):
     self.featurizer = get_featurizer(self.featurizer_type, self.global_conf, tmp_prefix)
 
   def init_storer(self):
-    """ Initialize storer from `global_conf` value.
+    """Initialize ``storer`` from configuration values
+
+    Gets required parameter ``storer_type``
     """
     from ..storer.generic_storer import get_storer, default_prefix as storer_default_prefix
     storer_type = self.get_required_param("storer_type")
     print("[{}.init_storer: log] storer_type: {}".format(self.pp, storer_type))
-    # try to get prefix from conf
-    prefix = storer_default_prefix
-    tmp_prefix = self.get_param("storer_prefix")
-    if tmp_prefix:
-      prefix = tmp_prefix
+    prefix = self.get_param("storer_prefix", default=storer_default_prefix)
     self.storer = get_storer(storer_type, self.global_conf, prefix=prefix)
 
-  def check_ratio(self):
-    '''Check if we need to set the ratio based on top_feature.'''
-    if self.top_feature > 0:
-      self.ratio = self.top_feature * 1.0 / len(self.searcher.nb_indexed)
-      log_msg = "[{}.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
-      print(log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed)))
+  # DEPRECATED
+  # def check_ratio(self):
+  #   """Check if we need to set the ratio based on top_feature"""
+  #   if self.top_feature > 0:
+  #     self.ratio = self.top_feature * 1.0 / len(self.searcher.nb_indexed)
+  #     log_msg = "[{}.check_ratio: log] Set ratio to {} as we want top {} images out of {} indexed."
+  #     print(log_msg.format(self.pp, self.ratio, self.top_feature, len(self.searcher.nb_indexed)))
 
-  # TODO: rename as search_imageURL_list, write similar method for search_imageFiles_list
+
   def search_imageURL_list(self, image_list, options_dict=dict()):
+    """Search from a list of images URLs.
+
+    :param image_list: list of images URLs
+    :type image_list: list
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :return: formatted output of search results
+    :rtype: OrderedDict
+    """
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_URL' function
     if self.detector is None:
       from ..imgio.imgio import get_buffer_from_URL
@@ -226,6 +302,15 @@ class GenericSearcher(ConfReader):
     return self._search_from_any_list(image_list, detect_load_fn, options_dict, push_img=True)
 
   def search_image_path_list(self, image_list, options_dict=dict()):
+    """Search from a list of images paths.
+
+    :param image_list: list of images paths
+    :type image_list: list
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :return: formatted output of search results
+    :rtype: OrderedDict
+    """
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_file' function
     # NB: path would be path from within the docker...
     if self.detector is None:
@@ -236,6 +321,16 @@ class GenericSearcher(ConfReader):
     return self._search_from_any_list(image_list, detect_load_fn, options_dict, push_img=True)
 
   def search_imageB64_list(self, imageB64_list, options_dict=dict()):
+    """Search from a list of base64 encoded images
+
+    :param imageB64_list: list of base64 encoded images
+    :type imageB64_list: list
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :return: formatted output of search results
+    :rtype: OrderedDict
+    """
+
     # To deal with a featurizer without detection, just pass the imgio 'get_buffer_from_B64' function
     if self.detector is None:
       from ..imgio.imgio import get_buffer_from_B64
@@ -246,6 +341,17 @@ class GenericSearcher(ConfReader):
     return self._search_from_any_list(imageB64_list, detect_load_fn, options_dict, push_img=False)
 
   def _search_from_any_list(self, image_list, detect_load_fn, options_dict, push_img=False):
+    """Search from any list of images
+
+    :param image_list: list of images
+    :type image_list: list
+    :param detect_load_fn: detection or loading function
+    :type detect_load_fn: function
+    :param options_dict: options dictionary
+    :type options_dict: dict
+    :return: formatted output of search results
+    :rtype: OrderedDict
+    """
     dets = []
     feats = []
     import time
@@ -311,17 +417,9 @@ class GenericSearcher(ConfReader):
   def init_searcher(self):
     raise NotImplementedError('init_searcher')
 
-  def add_features(self, feats, ids=None):
-    raise NotImplementedError('add_features')
-
   def train_index(self):
     raise NotImplementedError('train_index')
 
-  def save_index(self):
-    raise NotImplementedError('save_index')
-
-  def load_index(self):
-    raise NotImplementedError('load_index')
-
   def search_from_feats(self, dets, feats, options_dict=dict()):
     raise NotImplementedError('search_from_feats')
+

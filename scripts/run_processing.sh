@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Get configuration and extraction type
+# Aren't these also accessible as environment variables?
 while getopts c:r: option
 do
   case "${option}"
@@ -34,9 +35,11 @@ source ~/.bashrc
 package_name="cufacesearch"
 
 # Start extraction checker
+# Can we add an environment variable to potentially skip that?
 echo "Start extraction checker"
 cmd="python ./"${package_name}"/"${package_name}"/updater/extraction_checker.py"
-args=" -d -c ./conf/generated/conf_extraction_"${conf_name}".json"
+#args=" -d -c ./conf/generated/conf_extraction_"${conf_name}".json"
+args=" -c ./conf/generated/conf_extraction_"${conf_name}".json"
 #log="./logs/log_check_"${conf_name}
 bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}"&
 
