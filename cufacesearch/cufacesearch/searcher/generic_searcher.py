@@ -131,7 +131,7 @@ class GenericSearcher(ConfReader):
     # else:
     #   self.quota = self.sim_limit * 10
     self.near_dup = bool(self.get_param('near_dup', default=self.near_dup))
-    self.near_dup_th = float(self.get_param('near_dup_th'), default=self.near_dup_th)
+    self.near_dup_th = float(self.get_param('near_dup_th', default=self.near_dup_th))
     #self.ratio = self.get_param('ratio') # DEPRECATED
     self.top_feature = int(self.get_param('top_feature', default=self.top_feature))
     # tmp_top_feature = self.get_param('top_feature')
