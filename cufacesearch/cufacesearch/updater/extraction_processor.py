@@ -25,6 +25,7 @@ from cufacesearch.imgio.imgio import buffer_to_B64
 DEFAULT_EXTR_PROC_PREFIX = "EXTR_"
 TIME_ELAPSED_FAILED = 3600
 BATCH_SIZE_IMGBUFFER = 20
+MAX_UP_CHECK_MISS_EXTR = 5
 
 # Look for and process batch of a given extraction that have not been processed yet.
 # Should be multi-threaded but single process...
@@ -138,6 +139,7 @@ class ExtractionProcessor(ConfReader):
 
     # Get optional parameters
     self.verbose = int(self.get_param("verbose", default=0))
+    self.maxucme = int(self.get_param("max_up_check_miss_extr", default=MAX_UP_CHECK_MISS_EXTR))
     self.ingestion_input = self.get_param("ingestion_input", default="kafka")
     self.push_back = self.get_param("push_back", default=False)
     file_input = self.get_param("file_input")
@@ -193,7 +195,8 @@ class ExtractionProcessor(ConfReader):
                 self.img_column]
     print("[{}.ExtractionProcessor: log] img_cols: {}".format(self.pp, img_cols))
 
-    self.last_update_date_id = ''
+    self.last_update_date_id = "1970-01-01"
+    self.last_missing_extr_date = "1970-01-01"
 
     # Initialize ingester
     self.ingester = GenericKafkaProcessor(self.global_conf,
@@ -331,11 +334,14 @@ class ExtractionProcessor(ConfReader):
               print(msg.format(self.pp, update_id))
       else:
         print("[{}.get_batch_hbase: log] No unprocessed update found.".format(self.pp))
+        # Should we reinitialized self.last_update_date_id?
         # Look for updates that have some unprocessed images
         # TODO: wether we do that or not could be specified by a parameter
         # as this induces slow down during update...
         # DONE: use out_indexer
-        for updates in self.out_indexer.get_missing_extr_updates_from_date("1970-01-01",
+        count_ucme = 0
+        stop_cme = False
+        for updates in self.out_indexer.get_missing_extr_updates_from_date(self.last_missing_extr_date,
                                                                            extr_type=self.extr_prefix):
           for update_id, update_cols in updates:
             if self.extr_prefix in update_id:
@@ -352,6 +358,11 @@ class ExtractionProcessor(ConfReader):
                                                                         columns=img_cols)
                 if rows_batch:
                   yield rows_batch, update_id
+                  self.last_missing_extr_date = '_'.join(update_id.split('_')[-2:])
+                  count_ucme +=1
+                  if count_ucme >= self.maxucme:
+                    stop_cme = True
+                    break
                 else:
                   msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
                   print(msg.format(self.pp, update_id))
@@ -361,10 +372,21 @@ class ExtractionProcessor(ConfReader):
             else:
               msg = "[{}.get_batch_hbase: log] Skipping update {} from another extraction type."
               print(msg.format(self.pp, update_id))
+          # We have reached maximum number of check for missing extractions in one call
+          if stop_cme:
+            break
         else:
-          msg = "[{}.get_batch_hbase: log] No updates with missing extractions found."
-          print(msg.format(self.pp))
-          sys.stdout.flush()
+          if stop_cme:
+            msg = "[{}.get_batch_hbase: log] Stopped checking updates with missing extractions"
+            msg += "after founding {}/{}."
+            print(msg.format(self.pp, count_ucme, self.maxucme, self.last_missing_extr_date))
+            msg = "[{}.get_batch_hbase: log] Will restart next time from: {}"
+            print(msg.format(self.pp, self.last_missing_extr_date))
+            sys.stdout.flush()
+          else:
+            msg = "[{}.get_batch_hbase: log] No updates with missing extractions found."
+            print(msg.format(self.pp))
+            sys.stdout.flush()
 
     except Exception as inst:
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
