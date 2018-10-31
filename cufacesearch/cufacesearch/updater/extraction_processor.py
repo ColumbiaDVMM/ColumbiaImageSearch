@@ -387,6 +387,9 @@ class ExtractionProcessor(ConfReader):
             msg = "[{}.get_batch_hbase: log] No updates with missing extractions found."
             print(msg.format(self.pp))
             sys.stdout.flush()
+            # Re-initialize dates just to make sure we don't miss anything
+            self.last_update_date_id = "1970-01-01"
+            self.last_missing_extr_date = "1970-01-01"
 
     except Exception as inst:
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
