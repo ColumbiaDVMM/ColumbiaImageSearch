@@ -198,6 +198,7 @@ class DictOutput():
         if dets[i][1]:
           output[out_i][self.map['query_url']] = dets[i][1]
 
+        nb_images = 0
         if sim_images[i][0]:
           nb_images = len(sim_images[i][0])
 
