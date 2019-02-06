@@ -10,6 +10,7 @@ from argparse import ArgumentParser
 from cufacesearch.common.conf_reader import ConfReader
 from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal
 from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
+from cufacesearch.ingester.kinesis_ingester import KinesisIngester
 
 DEFAULT_EXTR_CHECK_PREFIX = "EXTR_"
 
@@ -73,11 +74,28 @@ class ExtractionChecker(ConfReader):
     print(self.get_required_param("indexer_prefix"), self.indexer.get_dictcf_sha1_table())
     self.set_check_columns()
     print(self.check_columns)
-    # Initialize ingester
-    # TODO: ingester could now be Kafka or Kinesis
+    # Initialize ingester, that could now be Kafka or Kinesis
+    ingester_type = self.get_required_param("ingester_type")
+    self.updates_out_topic = None
     try:
-      self.ingester = GenericKafkaProcessor(self.global_conf,
-                                            prefix=self.get_required_param("check_ingester_prefix"))
+      if ingester_type == "kafka":
+        self.ingester = GenericKafkaProcessor(self.global_conf,
+                                              prefix=self.get_required_param("check_ingester_prefix"))
+
+        try:
+          self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
+        except Exception as inst:
+          # print "Could not initialize checker, sleeping for {}s.".format(self.max_delay)
+          # time.sleep(self.max_delay)
+          # raise(inst)
+          # print("Could not initialize 'updates_out_topic' ({}). Will write only to HBase.".format(inst))
+          print("[{}: WARNING] {}. Will write only to HBase.".format(self.pp, inst))
+
+      elif ingester_type == "kinesis":
+        self.ingester = KinesisIngester(self.global_conf,
+                                        prefix=self.get_required_param("check_ingester_prefix"))
+      else:
+        raise ValueError("Unknown 'ingester_type': {}".format(ingester_type))
     except Exception as inst:
       # print "Could not initialize checker, sleeping for {}s.".format(self.max_delay)
       # time.sleep(self.max_delay)
@@ -85,18 +103,10 @@ class ExtractionChecker(ConfReader):
       #print("Could not initialize 'updates_out_topic' ({}). Will write only to HBase.".format(inst))
       print("[{}: ERROR] Could not start ingester.".format(self.pp, inst))
       raise inst
-    # This will not be set for HBase processing, but checker would keep dying here...
-    self.updates_out_topic = None
-    try:
-      self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
-    except Exception as inst:
-      # print "Could not initialize checker, sleeping for {}s.".format(self.max_delay)
-      # time.sleep(self.max_delay)
-      # raise(inst)
-      #print("Could not initialize 'updates_out_topic' ({}). Will write only to HBase.".format(inst))
-      print("{}. Will write only to HBase.".format(inst))
 
     self.ingester.pp = "ec"
+    # Only if daemon mode, as we may have multiple ingesters
+    # But for Kinesis the `shard_infos_filename` may not be re-used...
     if self.pid:
       self.ingester.pp += str(self.pid)
 

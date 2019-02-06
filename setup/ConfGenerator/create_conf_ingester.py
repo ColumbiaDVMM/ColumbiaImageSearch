@@ -47,7 +47,6 @@ if __name__ == "__main__":
     source_zip = os.environ.get('source_zip')
     if source_zip:
       conf[prefix + 'source_zip'] = source_zip
-
   # Kafka input settings
   elif os.environ['input_type'] == "kafka":
     prefix = "KID_"
@@ -56,7 +55,14 @@ if __name__ == "__main__":
     conf[prefix + 'consumer_group'] = os.environ['input_consumer_group']
     conf[prefix + 'obj_stored_prefix'] = os.environ['input_obj_stored_prefix']
     conf[prefix + 'nb_threads'] = int(os.getenv('input_nb_threads', 4))
-
+  elif os.environ['input_type'] == "kinesis":
+    prefix = "KIN_"
+    conf[prefix + 'endpoint_url'] = os.getenv('endpoint_url', None)
+    conf[prefix + 'region_name'] = os.environ['region_name']
+    conf[prefix + 'verify_certificates'] = bool(int(os.getenv('verify_certificates', 1)))
+    conf[prefix + 'use_ssl'] = bool(int(os.getenv('use_ssl', 1)))
+    # Only for extraction step?
+    conf[prefix + 'nb_threads'] = int(os.getenv('input_nb_threads', 4))
   else:
     raise ValueError("Unknown input type: {}".format(os.environ['input_type']))
 
