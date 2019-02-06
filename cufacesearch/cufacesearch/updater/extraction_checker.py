@@ -74,6 +74,7 @@ class ExtractionChecker(ConfReader):
     self.set_check_columns()
     print(self.check_columns)
     # Initialize ingester
+    # TODO: ingester could now be Kafka or Kinesis
     try:
       self.ingester = GenericKafkaProcessor(self.global_conf,
                                             prefix=self.get_required_param("check_ingester_prefix"))
@@ -247,13 +248,17 @@ class ExtractionChecker(ConfReader):
 
         try:
           # Accumulate images infos
-          for msg_json in self.ingester.consumer:
-            msg = json.loads(msg_json.value)
+          # TODO: can we make this work for both Kafka and Kinesis?
+          for msg in self.ingester.get_msg_json():
+
+          # E.g. have a self.ingester.get_msg() method
+          # for msg_json in self.ingester.consumer:
+          #   msg = json.loads(msg_json.value)
             # i += 1
             # print((i, len(list_check_sha1s), msg))
 
             # msg could now contain keys 'sha1' or 'list_sha1s'
-            # should we check that we can't have both or other keys?...
+            # TODO: Should we make sure sha1s are in upper or lowercase?
             if 'sha1' in msg:
               list_check_sha1s.append(str(msg['sha1']))
               # Store other fields to be able to push them too
@@ -265,7 +270,7 @@ class ExtractionChecker(ConfReader):
                 # But we should still build a dict for each sample for consistency...
                 tmp_dict = dict()
                 tmp_dict['sha1'] = str(sha1)
-                # will basically push an empty dict to self.dict_sha1_infos, so self.get_dict_push
+                # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
                 # works properly later on...
                 self.store_img_infos(tmp_dict)
             else:

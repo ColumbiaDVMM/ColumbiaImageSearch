@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import sys
 import time
+import json
 import socket
 from datetime import datetime
 from kafka import KafkaConsumer, KafkaProducer
@@ -255,3 +256,11 @@ class GenericKafkaProcessor(ConfReader):
     except Exception as inst:
       # Would be OK for ingester that do not output to kafka...
       print("[{}: warning] Could not initialize producer with arguments {}. Error was: {}".format(self.pp, dict_args, inst))
+
+  def get_msg_json(self):
+    """Generator of JSON messages from the consumer.
+
+    :yield: JSON message
+    """
+    for msg_json in self.consumer:
+      yield json.loads(msg_json.value)
