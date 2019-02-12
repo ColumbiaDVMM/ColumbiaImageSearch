@@ -109,9 +109,12 @@ class KinesisProducer(ConfReader):
       raise RuntimeError(msg.format(self.pp, self.stream_name, nb_trials))
 
 
-  def send(self, msg):
+  def send(self, stream_name, msg):
       """Push `msg` to `stream_name`
       """
+      if stream_name != self.stream_name:
+        msg = "[{}: ERROR] Trying to push to {} while was initialized with {}"
+        raise ValueError(msg.format(self.pp, stream_name, self.stream_name))
       # TODO: what is a good partition key?
       single_rec = [{'Data': json.dumps(msg), 'PartitionKey': get_random_sha1()}]
-      self.client.put_records(Records=single_rec, StreamName=self.stream_name)
+      self.client.put_records(Records=single_rec, StreamName=stream_name)

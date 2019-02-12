@@ -54,7 +54,7 @@ class LocalImagePusher(ConfReader):
       # TODO: What are needed parameters here?
       # Should we pass whole configuration?
       self.producer = KinesisProducer(self.global_conf, prefix=producer_prefix)
-      self.images_out_topic = self.producer.get_required_param('stream_name')
+      self.images_out_topic = self.producer.stream_name
     else:
       msg = "[{}: ERROR] Unknown producer type: {}"
       raise ValueError(msg.format(self.pp, self.producer_type))
