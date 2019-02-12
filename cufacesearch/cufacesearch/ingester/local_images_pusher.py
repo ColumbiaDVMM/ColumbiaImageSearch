@@ -31,6 +31,7 @@ class LocalImagePusher(ConfReader):
     self.process_count = 0
     self.process_skip = 0
     self.process_failed = 0
+    self.process_time = 0
     self.display_count = self.get_param('display_count', 100)
 
     # any additional initialization needed, like producer specific output logic
