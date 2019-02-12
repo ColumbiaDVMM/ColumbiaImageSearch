@@ -36,6 +36,7 @@ class LocalImagePusher(ConfReader):
 
     # any additional initialization needed, like producer specific output logic
     self.producer = None
+    self.images_out_topic = None
     self.init_producer()
 
   def init_producer(self):
@@ -52,6 +53,7 @@ class LocalImagePusher(ConfReader):
     elif self.producer_type == "kinesis":
       # TODO: What are needed parameters here?
       # Should we pass whole configuration?
+      self.images_out_topic = self.get_required_param('stream_name')
       self.producer = KinesisProducer(self.global_conf, prefix=producer_prefix)
     else:
       msg = "[{}: ERROR] Unknown producer type: {}"
