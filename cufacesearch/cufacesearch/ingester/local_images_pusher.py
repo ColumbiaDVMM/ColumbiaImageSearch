@@ -72,9 +72,21 @@ class LocalImagePusher(ConfReader):
             yield filename
             self.ingested_images.add(filename)
 
+  # def build_image_msg(self, dict_imgs):
+  #   # Build dict ouput for each image with fields 'img_path', 'sha1', 'img_info'
+  #   img_out_msgs = []
+  #   for img_path in dict_imgs:
+  #     tmp_dict_out = dict()
+  #     # TODO: use indexer.img_path_column.split(':')[-1] instead of 'img_path'?
+  #     # Should the img_path be relative to self.input_path?
+  #     tmp_dict_out['img_path'] = img_path
+  #     tmp_dict_out['sha1'] = dict_imgs[img_path]['sha1']
+  #     tmp_dict_out['img_info'] = dict_imgs[img_path]['img_info']
+  #     img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
+  #   return img_out_msgs
+
   def build_image_msg(self, dict_imgs):
     # Build dict ouput for each image with fields 'img_path', 'sha1', 'img_info'
-    img_out_msgs = []
     for img_path in dict_imgs:
       tmp_dict_out = dict()
       # TODO: use indexer.img_path_column.split(':')[-1] instead of 'img_path'?
@@ -82,8 +94,7 @@ class LocalImagePusher(ConfReader):
       tmp_dict_out['img_path'] = img_path
       tmp_dict_out['sha1'] = dict_imgs[img_path]['sha1']
       tmp_dict_out['img_info'] = dict_imgs[img_path]['img_info']
-      img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
-    return img_out_msgs
+      yield json.dumps(tmp_dict_out).encode('utf-8')
 
   def toc_process_ok(self, start_process, end_time=None):
     """Log one process completed

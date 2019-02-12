@@ -10,6 +10,7 @@ services:
       - "4567:4567"
     networks:
       cu_imgsearch_net:
+# Add a volume for persistence?
 #    environment:
 #      VIRTUAL_HOST: kinesis
 #      VIRTUAL_PORT: 4567
