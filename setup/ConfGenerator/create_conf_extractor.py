@@ -143,7 +143,7 @@ if __name__ == "__main__":
   else:
     use_kafka = True
 
-
+  conf[extr_prefix + 'ingester_type'] = os.environ['producer_type']
   conf[check_ingester_prefix + 'ingester_type'] = os.environ['producer_type']
   if os.environ['producer_type'] == "kafka":
     use_kafka = True
