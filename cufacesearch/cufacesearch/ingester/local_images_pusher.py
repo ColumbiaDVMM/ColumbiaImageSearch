@@ -28,6 +28,9 @@ class LocalImagePusher(ConfReader):
     self.input_path = self.get_required_param('input_path')
     self.source_zip = self.get_param('source_zip')
     self.ingested_images = set()
+    self.process_count = 0
+    self.process_skip = 0
+    self.process_failed = 0
 
     # any additional initialization needed, like producer specific output logic
     self.producer = None
@@ -116,7 +119,7 @@ class LocalImagePusher(ConfReader):
       end_time = time.time()
     self.process_time += abs(end_time - start_process)
     self.process_failed += 1
-    
+
   def print_push_stats(self):
     # How come self.process_time is negative?
     avg_process_time = self.process_time / max(1, self.process_count + self.process_failed)
