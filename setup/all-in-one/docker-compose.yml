@@ -113,65 +113,65 @@ services:
       - kinesis
     networks:
       cu_imgsearch_net:
-#  img_processor:
-#    image: svebork/columbia_image_search:1.0
-#    hostname: ${extr_conf_name}
-#    stdin_open: true
-#    tty: true
-#    cap_add:
-#      - IPC_LOCK
-#    environment:
-#      # General environment variables
-#      - input_type
-#      - producer_type
-#      - region_name
-#      - images_stream
-#      - aws_profile
-#      - verify_certificates
-#      - endpoint_url
-#      - verbose
-#      - "conf_name=${extr_conf_name}"
-#      - extr_type
-#      - extr_nb_threads
-#      - extr_check_max_delay
-##      # Kafka related environment variables
-##      - images_topic
-##      - kafka_servers
-##      - kafka_security
-##      - extr_check_consumer_group
-##      - extr_proc_consumer_group
-##      - updates_topic
-#      # Hbase related environment variables
-#      - hbase_host
-#      - table_sha1infos
-#      - table_updateinfos
-#      - batch_update_size
-#      - column_list_sha1s
-#      - extr_column_family
-#      - image_info_column_family
-#      - image_buffer_column_family
-#      - image_buffer_column_name
-#      - update_info_column_family
-#    # nothing really needs to be persistent here. no other volumes needed
-#    volumes:
-#      - $repo_path:$indocker_repo_path
-#      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
-#    # TODO: Should we pass all related env var and call conf generation in the docker?
-#    #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"
-#    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"]
-#    logging:
-#      driver: "json-file"
-#      options:
-#        max-size: "500k"
-#        max-file: "7"
-#    links:
-#      - kinesis
-#      - hbase
-#    depends_on:
-#      - kinesis
-#      - hbase
-#    networks:
-#      cu_imgsearch_net:
+  img_processor:
+    image: svebork/columbia_image_search:1.0
+    hostname: ${extr_conf_name}
+    stdin_open: true
+    tty: true
+    cap_add:
+      - IPC_LOCK
+    environment:
+      # General environment variables
+      - input_type
+      - producer_type
+      - region_name
+      - images_stream
+      - aws_profile
+      - verify_certificates
+      - endpoint_url
+      - verbose
+      - "conf_name=${extr_conf_name}"
+      - extr_type
+      - extr_nb_threads
+      - extr_check_max_delay
+#      # Kafka related environment variables
+#      - images_topic
+#      - kafka_servers
+#      - kafka_security
+#      - extr_check_consumer_group
+#      - extr_proc_consumer_group
+#      - updates_topic
+      # Hbase related environment variables
+      - hbase_host
+      - table_sha1infos
+      - table_updateinfos
+      - batch_update_size
+      - column_list_sha1s
+      - extr_column_family
+      - image_info_column_family
+      - image_buffer_column_family
+      - image_buffer_column_name
+      - update_info_column_family
+    # nothing really needs to be persistent here. no other volumes needed
+    volumes:
+      - $repo_path:$indocker_repo_path
+      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
+    # TODO: Should we pass all related env var and call conf generation in the docker?
+    #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"
+    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+    links:
+      - kinesis
+      - hbase
+    depends_on:
+      - kinesis
+      - hbase
+    networks:
+      cu_imgsearch_net:
 #  img_search:
 #    image: svebork/columbia_image_search:1.0
 #    hostname: ${search_conf_name}
