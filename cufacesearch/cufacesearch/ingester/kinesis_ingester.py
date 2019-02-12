@@ -155,6 +155,7 @@ class KinesisIngester(ConfReader):
       :yield: JSON message
       """
       lim_get_rec = self.get_param('lim_get_rec', 10)
+      sleep_time = self.get_param('sleep_time', 10)
       sifn = self.get_shard_infos_filename()
       empty = 0
 
@@ -234,4 +235,8 @@ class KinesisIngester(ConfReader):
             print(msg.format(self.pp, self.shard_infos))
           with open(sifn, 'w') as sif:
             json.dump(self.shard_infos, sif)
+
+          # Sleep?
+          time.sleep(sleep_time)
+
           break
