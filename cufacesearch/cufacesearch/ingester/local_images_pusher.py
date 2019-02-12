@@ -78,6 +78,45 @@ class LocalImagePusher(ConfReader):
       img_out_msgs.append(json.dumps(tmp_dict_out).encode('utf-8'))
     return img_out_msgs
 
+  def toc_process_ok(self, start_process, end_time=None):
+    """Log one process completed
+
+    :param start_process: start time of process (in seconds since epoch)
+    :type start_process: int
+    :param end_time: end time of process, if 'None' will be set to now (in seconds since epoch)
+    :type end_time: int
+    """
+    if end_time is None:
+      end_time = time.time()
+    self.process_time += abs(end_time - start_process)
+    self.process_count += 1
+
+  def toc_process_skip(self, start_process, end_time=None):
+    """Log one skipped process
+
+    :param start_process: start time of process (in seconds since epoch)
+    :type start_process: int
+    :param end_time: end time of process, if 'None' will be set to now (in seconds since epoch)
+    :type end_time: int
+    """
+    if end_time is None:
+      end_time = time.time()
+    self.process_time += abs(end_time - start_process)
+    self.process_skip += 1
+
+  def toc_process_failed(self, start_process, end_time=None):
+    """Log one process failed
+
+    :param start_process: start time of process (in seconds since epoch)
+    :type start_process: int
+    :param end_time: end time of process, if 'None' will be set to now (in seconds since epoch)
+    :type end_time: int
+    """
+    if end_time is None:
+      end_time = time.time()
+    self.process_time += abs(end_time - start_process)
+    self.process_failed += 1
+    
   def print_push_stats(self):
     # How come self.process_time is negative?
     avg_process_time = self.process_time / max(1, self.process_count + self.process_failed)
