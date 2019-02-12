@@ -138,7 +138,7 @@ class ExtractionChecker(ConfReader):
     """
     # msg is technically a ConsumerRecord that is a collections.namedtuple, see:
     # https://github.com/dpkp/kafka-python/blob/master/kafka/consumer/fetcher.py#L30
-    strk = str(msg['sha1'])
+    strk = str(msg['sha1']).upper()
     self.dict_sha1_infos[strk] = dict()
     for key in msg:
       # dumps json of 'img_info'
@@ -256,44 +256,39 @@ class ExtractionChecker(ConfReader):
       while True:
         list_check_sha1s = []
 
-        try:
+        #try:
           # Accumulate images infos
           # TODO: can we make this work for both Kafka and Kinesis?
-          for msg in self.ingester.get_msg_json():
+        for msg in self.ingester.get_msg_json():
 
-          # E.g. have a self.ingester.get_msg() method
-          # for msg_json in self.ingester.consumer:
-          #   msg = json.loads(msg_json.value)
-            # i += 1
-            # print((i, len(list_check_sha1s), msg))
+          # msg could now contain keys 'sha1' or 'list_sha1s'
+          if 'sha1' in msg:
+            list_check_sha1s.append(str(msg['sha1']).upper())
+            # Store other fields to be able to push them too
+            self.store_img_infos(msg)
+          elif 'list_sha1s' in msg:
+            for sha1 in msg['list_sha1s']:
+              list_check_sha1s.append(str(sha1).upper())
+              # We won't have any additional infos no?
+              # But we should still build a dict for each sample for consistency...
+              tmp_dict = dict()
+              tmp_dict['sha1'] = str(sha1).upper()
+              # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
+              # works properly later on...
+              self.store_img_infos(tmp_dict)
+          else:
+            print('Unknown keys in msg: {}'.format(msg.keys()))
 
-            # msg could now contain keys 'sha1' or 'list_sha1s'
-            # TODO: Should we make sure sha1s are in upper or lowercase?
-            if 'sha1' in msg:
-              list_check_sha1s.append(str(msg['sha1']).upper())
-              # Store other fields to be able to push them too
-              self.store_img_infos(msg)
-            elif 'list_sha1s' in msg:
-              for sha1 in msg['list_sha1s']:
-                list_check_sha1s.append(str(sha1).upper())
-                # We won't have any additional infos no?
-                # But we should still build a dict for each sample for consistency...
-                tmp_dict = dict()
-                tmp_dict['sha1'] = str(sha1).upper()
-                # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
-                # works properly later on...
-                self.store_img_infos(tmp_dict)
-            else:
-              print('Unknown keys in msg: {}'.format(msg.keys()))
-
-            if len(list_check_sha1s) >= self.indexer.batch_update_size:
-              break
-        except Exception as inst:
-          # trying to use 'consumer_timeout_ms' to raise timeout and get last samples
-          msg = "[{}: warning] At {}, caught {} {} in consumer loop"
-          now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
-          print(msg.format(self.pp, now_str, type(inst), inst))
-          sys.stdout.flush()
+          if len(list_check_sha1s) >= self.indexer.batch_update_size:
+            break
+        # except Exception as inst:
+        #   # trying to use 'consumer_timeout_ms' to raise timeout and get last samples
+        #   pr_msg = "[{}: warning] At {}, caught {} {} in consumer loop"
+        #   now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
+        #   print(pr_msg.format(self.pp, now_str, type(inst), inst))
+        #   if msg is not None:
+        #     print(msg)
+        #   sys.stdout.flush()
 
         if not list_check_sha1s:
           # TODO: should we fallback to scanning Hbase table here?
