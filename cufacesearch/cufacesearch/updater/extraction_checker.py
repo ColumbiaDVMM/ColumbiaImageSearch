@@ -260,27 +260,30 @@ class ExtractionChecker(ConfReader):
           # Accumulate images infos
           # TODO: can we make this work for both Kafka and Kinesis?
         for msg in self.ingester.get_msg_json():
+          try:
+            # msg could now contain keys 'sha1' or 'list_sha1s'
+            if 'sha1' in msg:
+              list_check_sha1s.append(str(msg['sha1']).upper())
+              # Store other fields to be able to push them too
+              self.store_img_infos(msg)
+            elif 'list_sha1s' in msg:
+              for sha1 in msg['list_sha1s']:
+                list_check_sha1s.append(str(sha1).upper())
+                # We won't have any additional infos no?
+                # But we should still build a dict for each sample for consistency...
+                tmp_dict = dict()
+                tmp_dict['sha1'] = str(sha1).upper()
+                # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
+                # works properly later on...
+                self.store_img_infos(tmp_dict)
+            else:
+              raise ValueError('Unknown keys in msg: {}'.format(msg.keys()))
 
-          # msg could now contain keys 'sha1' or 'list_sha1s'
-          if 'sha1' in msg:
-            list_check_sha1s.append(str(msg['sha1']).upper())
-            # Store other fields to be able to push them too
-            self.store_img_infos(msg)
-          elif 'list_sha1s' in msg:
-            for sha1 in msg['list_sha1s']:
-              list_check_sha1s.append(str(sha1).upper())
-              # We won't have any additional infos no?
-              # But we should still build a dict for each sample for consistency...
-              tmp_dict = dict()
-              tmp_dict['sha1'] = str(sha1).upper()
-              # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
-              # works properly later on...
-              self.store_img_infos(tmp_dict)
-          else:
-            print('Unknown keys in msg: {}'.format(msg.keys()))
-
-          if len(list_check_sha1s) >= self.indexer.batch_update_size:
-            break
+            if len(list_check_sha1s) >= self.indexer.batch_update_size:
+              break
+          except:
+            pr_msg = "[{}: ERROR] Could not process message: {}"
+            print(pr_msg.format(self.pp, msg))
         # except Exception as inst:
         #   # trying to use 'consumer_timeout_ms' to raise timeout and get last samples
         #   pr_msg = "[{}: warning] At {}, caught {} {} in consumer loop"
