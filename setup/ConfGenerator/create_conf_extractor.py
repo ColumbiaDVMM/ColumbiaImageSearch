@@ -138,10 +138,16 @@ if __name__ == "__main__":
   if os.environ['input_type'] == "local":
     conf[extr_prefix + 'file_input'] = True
 
-  use_kafka = True
+  use_kafka = False
   if os.environ['input_type'] == "hbase":
-    use_kafka = False
     conf[extr_prefix + "ingestion_input"] = "hbase"
+  else:
+    use_kafka = True
+
+  if os.environ['producer_type'] == "kafka":
+    use_kafka = True
+  elif os.environ['producer_type'] != "kinesis":
+    raise ValueError("Producer in neither Kafka nor Kinesis")
 
   # Generic ingestion settings
   verbose = os.getenv('verbose', 0)
@@ -174,7 +180,8 @@ if __name__ == "__main__":
 
     # Checker consumer
     conf[check_ingester_prefix + 'consumer_servers'] = kafka_servers
-    conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_topic']
+    #conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_topic']
+    conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_stream']
     conf[check_ingester_prefix + 'consumer_group'] = os.environ['extr_check_consumer_group']
     conf[check_ingester_prefix + 'consumer_options'] = consumer_options
 
@@ -191,12 +198,22 @@ if __name__ == "__main__":
       conf[proc_ingester_prefix + 'consumer_group'] = os.environ['extr_proc_consumer_group']
     conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
 
-  conf[check_ingester_prefix + 'verbose'] = verbose
-  conf[check_ingester_prefix + 'pp'] = "KafkaUpdateChecker"
-  # Checker producer
+    conf[check_ingester_prefix + 'pp'] = "KafkaUpdateChecker"
+    conf[proc_ingester_prefix + 'pp'] = "KafkaUpdateIngester"
 
+  else:
+    # Assume Kinesis here?
+    conf[check_ingester_prefix + 'pp'] = "KinesisUpdateChecker"
+    conf[proc_ingester_prefix + 'pp'] = "KinesisUpdateIngester"
+    conf[check_ingester_prefix + 'stream_name'] = os.environ['images_stream']
+    conf[check_ingester_prefix + 'region_name'] = os.environ['region_name']
+    conf[check_ingester_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
+    conf[check_ingester_prefix + 'aws_profile'] = os.getenv('aws_profile')
+    # Kinesis + HBase? Or should we create a stream for the updates too?
+    #conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
+
+  conf[check_ingester_prefix + 'verbose'] = verbose
   conf[proc_ingester_prefix + 'verbose'] = verbose
-  conf[proc_ingester_prefix + 'pp'] = "KafkaUpdateIngester"
 
   if not os.path.exists(options.output_dir):
     os.mkdir(options.output_dir)

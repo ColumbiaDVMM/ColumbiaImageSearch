@@ -64,9 +64,13 @@ if __name__ == "__main__":
   # OK Local
   # ki = KinesisIngester({'region_name': REGION_NAME, 'stream_name': STREAM_NAME, 'verbose': 6,
   #                       'endpoint_url': ENDPOINT_URL, 'verify_certificates': VERIFY_CERTIFICATES})
+  # ki = KinesisIngester({'region_name': REGION_NAME, 'stream_name': STREAM_NAME, 'verbose': 6,
+  #                       'endpoint_url': ENDPOINT_URL, 'verify_certificates': VERIFY_CERTIFICATES,
+  #                       'aws_access_key_id': ACCESS_KEY, 'aws_secret_access_key': SECRET_KEY})
   ki = KinesisIngester({'region_name': REGION_NAME, 'stream_name': STREAM_NAME, 'verbose': 6,
                         'endpoint_url': ENDPOINT_URL, 'verify_certificates': VERIFY_CERTIFICATES,
-                        'aws_access_key_id': ACCESS_KEY, 'aws_secret_access_key': SECRET_KEY})
+                        'aws_profile': 'kinesis'})
+
 
   for msg in ki.get_msg_json():
     print(msg)

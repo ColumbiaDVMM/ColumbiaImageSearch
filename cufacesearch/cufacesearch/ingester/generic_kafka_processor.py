@@ -206,7 +206,6 @@ class GenericKafkaProcessor(ConfReader):
       print(msg.format(self.pp))
       return
 
-
     # NB: topic could be a list
     if type(topic) == list:
       topic = [str(t) for t in topic]

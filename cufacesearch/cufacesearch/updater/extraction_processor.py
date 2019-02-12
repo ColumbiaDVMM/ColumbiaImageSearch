@@ -336,7 +336,7 @@ class ExtractionProcessor(ConfReader):
         print("[{}.get_batch_hbase: log] No unprocessed update found.".format(self.pp))
         # Should we reinitialized self.last_update_date_id?
         # Look for updates that have some unprocessed images
-        # TODO: wether we do that or not could be specified by a parameter
+        # TODO: whether we do that or not could be specified by a parameter
         # as this induces slow down during update...
         # DONE: use out_indexer
         count_ucme = 0
@@ -395,7 +395,7 @@ class ExtractionProcessor(ConfReader):
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
 
 
-
+  # TODO: rename to get_batch_consumer() and handle both Kafka and Kinesis which would be similar
   def get_batch_kafka(self):
     """Get one batch of images from Kafka
 
@@ -407,6 +407,7 @@ class ExtractionProcessor(ConfReader):
                 self.img_column]
     try:
       # Needs to read topic to get update_id and list of sha1s
+      # TODO: this consumer could be kinesis or Kafka too...
       if self.ingester.consumer:
         for msg in self.ingester.consumer:
           msg_dict = json.loads(msg.value)

@@ -84,19 +84,27 @@ class KinesisIngester(ConfReader):
     """Initialize Kinesis client.
     """
     region_name = self.get_required_param('region_name')
-    # Should we specify the default values for those?
+    aws_profile = self.get_param('aws_profile', None)
+    # This is mostly to be able to test locally
     endpoint_url = self.get_param('endpoint_url', None)
     verify = self.get_param('verify_certificates', True)
     use_ssl = self.get_param('use_ssl', True)
-    # Should we get these in another way?
-    aws_access_key_id = self.get_param('aws_access_key_id', None)
-    aws_secret_access_key = self.get_param('aws_secret_access_key', None)
 
-    # Are there other parameters we should pass?
-    self.client = boto3.client('kinesis', region_name=region_name, endpoint_url=endpoint_url,
-                               aws_access_key_id=aws_access_key_id,
-                               aws_secret_access_key=aws_secret_access_key,
-                               verify=verify, use_ssl=use_ssl)
+    # # Should we get these in another way?
+    # aws_access_key_id = self.get_param('aws_access_key_id', None)
+    # aws_secret_access_key = self.get_param('aws_secret_access_key', None)
+    #
+    # # Are there other parameters we should pass?
+    # self.client = boto3.client('kinesis', region_name=region_name, endpoint_url=endpoint_url,
+    #                            aws_access_key_id=aws_access_key_id,
+    #                            aws_secret_access_key=aws_secret_access_key,
+    #                            verify=verify, use_ssl=use_ssl)
+
+    # Use session and profile
+    self.session = boto3.Session(profile_name=aws_profile, region_name=region_name)
+    self.client = self.session.client('kinesis', endpoint_url=endpoint_url, verify=verify,
+                                      use_ssl=use_ssl)
+
 
   def init_consumer(self):
     """Initialize stream shards infos

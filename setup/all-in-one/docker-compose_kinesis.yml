@@ -4,20 +4,12 @@ services:
 
   kinesis:
     build: ./kinesalite
-    hostname: kinesis
-    container_name: kinesis
     ports:
       - "4567:4567"
-    networks:
-      cu_imgsearch_net:
   dynamodb:
     image: amazon/dynamodb-local
-    hostname: dynamodb
-    container_name: dynamodb
     ports:
       - "4568:8000"
-    networks:
-      cu_imgsearch_net:
   zookeeper:
     image: wurstmeister/zookeeper
     hostname: zookeeper
@@ -85,9 +77,6 @@ services:
 #      - kafka_servers
 #      - kafka_security
       - images_stream
-      - region_name
-      - aws_profile
-      - endpoint_url
       - producer_type
       - producer_prefix
     cap_add:
@@ -95,7 +84,6 @@ services:
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
-      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
     logging:
       driver: "json-file"
@@ -118,10 +106,6 @@ services:
     environment:
       # General environment variables
       - input_type
-      - producer_type
-      - region_name
-      - aws_profile
-      - endpoint_url
       - verbose
       - "conf_name=${extr_conf_name}"
       - extr_type
@@ -148,7 +132,6 @@ services:
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
-      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
     # TODO: Should we pass all related env var and call conf generation in the docker?
     #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"]
@@ -207,7 +190,6 @@ services:
     volumes:
       - $repo_path:$indocker_repo_path
       - cuimgsearch-volume:/data
-      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
     ports:
       - $port_host:5000
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]

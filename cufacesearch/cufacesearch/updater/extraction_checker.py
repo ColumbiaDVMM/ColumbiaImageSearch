@@ -270,16 +270,16 @@ class ExtractionChecker(ConfReader):
             # msg could now contain keys 'sha1' or 'list_sha1s'
             # TODO: Should we make sure sha1s are in upper or lowercase?
             if 'sha1' in msg:
-              list_check_sha1s.append(str(msg['sha1']))
+              list_check_sha1s.append(str(msg['sha1']).upper())
               # Store other fields to be able to push them too
               self.store_img_infos(msg)
             elif 'list_sha1s' in msg:
               for sha1 in msg['list_sha1s']:
-                list_check_sha1s.append(str(sha1))
+                list_check_sha1s.append(str(sha1).upper())
                 # We won't have any additional infos no?
                 # But we should still build a dict for each sample for consistency...
                 tmp_dict = dict()
-                tmp_dict['sha1'] = str(sha1)
+                tmp_dict['sha1'] = str(sha1).upper()
                 # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
                 # works properly later on...
                 self.store_img_infos(tmp_dict)

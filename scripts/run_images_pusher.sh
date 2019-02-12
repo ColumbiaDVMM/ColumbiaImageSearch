@@ -38,7 +38,8 @@ package_name="cufacesearch"
 
 if [ "$input_type" = "local" ];
 then
-    cmd="python ./"${package_name}"/"${package_name}"/ingester/local_images_kafka_pusher.py"
+    #cmd="python ./"${package_name}"/"${package_name}"/ingester/local_images_kafka_pusher.py"
+    cmd="python ./"${package_name}"/"${package_name}"/ingester/local_images_pusher.py"
     args=" -c ./conf/generated/conf_ingestion_"${conf_name}.json
 else
     if [ ${nb_workers+x} ]; then
