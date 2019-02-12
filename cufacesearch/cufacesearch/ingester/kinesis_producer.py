@@ -91,18 +91,22 @@ class KinesisProducer(ConfReader):
         response = self.client.describe_stream(StreamName=self.stream_name)
         if response['StreamDescription']['StreamStatus'] == 'ACTIVE':
           break
+      # Can we catch ResourceNotFound and create stream here?
       except Exception as inst:
+        # Create stream
+        if self.get_param('create_stream', False):
+          try:
+            nb_shards = self.get_param('nb_shards', 2)
+            self.client.create_stream(StreamName=self.stream_name, ShardCount=nb_shards)
+          except:
+            msg = "[{}: warning] Trial #{}: could not create kinesis stream : {}. {}"
+            print(msg.format(self.pp, tries, self.stream_name, inst))
         msg = "[{}: warning] Trial #{}: could not describe kinesis stream : {}. {}"
         print(msg.format(self.pp, tries, self.stream_name, inst))
         time.sleep(1)
     else:
-      # Create stream
-      if self.get_param('create_stream', False):
-        nb_shards = self.get_param('nb_shards', 2)
-        self.client.create_stream(StreamName=self.stream_name, ShardCount=nb_shards)
-      else:
-        msg = "[{}: ERROR] Stream {} not active after {} trials. Aborting..."
-        raise RuntimeError(msg.format(self.pp, self.stream_name, nb_trials))
+      msg = "[{}: ERROR] Stream {} not active after {} trials. Aborting..."
+      raise RuntimeError(msg.format(self.pp, self.stream_name, nb_trials))
 
 
   def send(self, msg):

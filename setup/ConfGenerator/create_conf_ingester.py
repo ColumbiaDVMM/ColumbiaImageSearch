@@ -102,7 +102,8 @@ if __name__ == "__main__":
     conf[producer_prefix + 'region_name'] = os.environ['region_name']
     conf[producer_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
     conf[producer_prefix + 'aws_profile'] = os.getenv('aws_profile')
-    conf[producer_prefix + 'create_stream'] = os.getenv('create_stream')
+    conf[producer_prefix + 'create_stream'] = bool(int(os.getenv('create_stream')))
+    conf[producer_prefix + 'verify_certificates'] = bool(int(os.getenv('verify_certificates')))
 
   # - images_stream
   # - aws_profile

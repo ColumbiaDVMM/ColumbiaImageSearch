@@ -135,19 +135,23 @@ if __name__ == "__main__":
       conf[in_hbase_prefix + 'image_url_column_name'] = os.environ[env_key]
 
   # Local input settings
+  use_kafka = False
   if os.environ['input_type'] == "local":
     conf[extr_prefix + 'file_input'] = True
-
-  use_kafka = False
-  if os.environ['input_type'] == "hbase":
+  elif os.environ['input_type'] == "hbase":
     conf[extr_prefix + "ingestion_input"] = "hbase"
   else:
     use_kafka = True
 
+
+  conf[check_ingester_prefix + 'ingestion_type'] = os.environ['producer_type']
   if os.environ['producer_type'] == "kafka":
     use_kafka = True
   elif os.environ['producer_type'] != "kinesis":
     raise ValueError("Producer in neither Kafka nor Kinesis")
+
+  print("os.environ['input_type']: {}".format(os.environ['input_type']))
+  print("use_kafka: {}".format(use_kafka))
 
   # Generic ingestion settings
   verbose = os.getenv('verbose', 0)
@@ -209,6 +213,7 @@ if __name__ == "__main__":
     conf[check_ingester_prefix + 'region_name'] = os.environ['region_name']
     conf[check_ingester_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
     conf[check_ingester_prefix + 'aws_profile'] = os.getenv('aws_profile')
+    conf[check_ingester_prefix + 'verify_certificates'] = bool(int(os.getenv('verify_certificates')))
     # Kinesis + HBase? Or should we create a stream for the updates too?
     #conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
 
