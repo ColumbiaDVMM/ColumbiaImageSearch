@@ -67,52 +67,52 @@ services:
       - cuimgsearch-hbase-volume:/var/lib/hadoop-hdfs
     networks:
       cu_imgsearch_net:
-  img_pusher:
-    image: svebork/columbia_image_search:1.0
-    hostname: ${input_conf_name}
-    stdin_open: true
-    tty: true
-    environment:
-      # General environment variables
-      - input_type
-      - input_path
-      - input_nb_threads
-      - verbose
-      - source_zip
-      - "nb_workers=${input_nb_workers}"
-      - "conf_name=${input_conf_name}"
-#      # Kafka related environment variables
-#      - input_topic
-#      - input_consumer_group
-#      - images_topic
-#      - kafka_servers
-#      - kafka_security
-      - images_stream
-      - region_name
-      - create_stream
-      - aws_profile
-      - verify_certificates
-      - endpoint_url
-      - producer_type
-      - producer_prefix
-    cap_add:
-      - IPC_LOCK
-    # nothing really needs to be persistent here. no other volumes needed
-    volumes:
-      - $repo_path:$indocker_repo_path
-      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
-    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "500k"
-        max-file: "7"
-    links:
-      - kinesis
-    depends_on:
-      - kinesis
-    networks:
-      cu_imgsearch_net:
+#  img_pusher:
+#    image: svebork/columbia_image_search:1.0
+#    hostname: ${input_conf_name}
+#    stdin_open: true
+#    tty: true
+#    environment:
+#      # General environment variables
+#      - input_type
+#      - input_path
+#      - input_nb_threads
+#      - verbose
+#      - source_zip
+#      - "nb_workers=${input_nb_workers}"
+#      - "conf_name=${input_conf_name}"
+##      # Kafka related environment variables
+##      - input_topic
+##      - input_consumer_group
+##      - images_topic
+##      - kafka_servers
+##      - kafka_security
+#      - images_stream
+#      - region_name
+#      - create_stream
+#      - aws_profile
+#      - verify_certificates
+#      - endpoint_url
+#      - producer_type
+#      - producer_prefix
+#    cap_add:
+#      - IPC_LOCK
+#    # nothing really needs to be persistent here. no other volumes needed
+#    volumes:
+#      - $repo_path:$indocker_repo_path
+#      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
+#    command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: "500k"
+#        max-file: "7"
+#    links:
+#      - kinesis
+#    depends_on:
+#      - kinesis
+#    networks:
+#      cu_imgsearch_net:
   img_processor:
     image: svebork/columbia_image_search:1.0
     hostname: ${extr_conf_name}
