@@ -65,6 +65,11 @@ class KinesisIngester(ConfReader):
     return self.get_param('shard_infos_filename', self.pp+'_'+self.stream_name+'.json')
 
   def get_shard_iterator(self, shard_id):
+    """Get shard iterator
+
+    :param shard_id: shard identifier
+    :return: shard iterator
+    """
     shard_iterator_type = self.get_param('shard_iterator_type', "TRIM_HORIZON")
     # Try to get iterator based on latest processed sequence number if available
     if shard_id in self.shard_infos:

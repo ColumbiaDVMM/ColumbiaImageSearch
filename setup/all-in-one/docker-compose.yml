@@ -115,6 +115,7 @@ services:
 #      - images_topic
 #      - kafka_servers
 #      - kafka_security
+      # Kinesis related environment variables
       - images_stream
       - region_name
       - create_stream
@@ -151,17 +152,19 @@ services:
     environment:
       # General environment variables
       - input_type
+      - verbose
+      - "conf_name=${extr_conf_name}"
+      - extr_type
+      - extr_nb_threads
+      - extr_check_max_delay
+      - ingestion_input
+      # Kinesis related variables
       - producer_type
       - region_name
       - images_stream
       - aws_profile
       - verify_certificates
       - endpoint_url
-      - verbose
-      - "conf_name=${extr_conf_name}"
-      - extr_type
-      - extr_nb_threads
-      - extr_check_max_delay
 #      # Kafka related environment variables
 #      - images_topic
 #      - kafka_servers
@@ -184,7 +187,6 @@ services:
     volumes:
       - $repo_path:$indocker_repo_path
       - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
-    # TODO: Should we pass all related env var and call conf generation in the docker?
     #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"]
     logging:

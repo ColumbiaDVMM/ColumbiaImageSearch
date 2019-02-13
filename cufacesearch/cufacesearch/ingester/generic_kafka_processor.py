@@ -15,6 +15,9 @@ from ..common.conf_reader import ConfReader
 # Should we consider using Kafka Streams ?
 base_path_keys = "../../data/keys/hg-kafka-"
 
+
+# TODO: Split into ingester/producer
+
 class GenericKafkaProcessor(ConfReader):
   """GenericKafkaProcessor
   """

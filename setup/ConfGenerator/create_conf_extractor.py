@@ -1,6 +1,12 @@
 import os
 import json
+import time
 from argparse import ArgumentParser
+
+DEFAULT_MAX_DELAY=3600
+DEFAULT_NB_THREADS=1
+DEFAULT_POOL_THREADS=1
+DEFAULT_VERIFY_CERTIFICATES=1
 
 if __name__ == "__main__":
   # Get config
@@ -85,7 +91,7 @@ if __name__ == "__main__":
   conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos'].strip()
   conf[hbase_prefix + 'table_updateinfos'] = os.environ['table_updateinfos'].strip()
   conf[hbase_prefix + 'batch_update_size'] = int(os.environ['batch_update_size'])
-  conf[hbase_prefix + 'pool_thread'] = int(os.getenv('pool_thread', 1))
+  conf[hbase_prefix + 'pool_thread'] = int(os.getenv('pool_thread', DEFAULT_POOL_THREADS))
 
   # Deal with newly exposed but optional parameters
   if os.getenv('skip_failed', False):
@@ -136,6 +142,7 @@ if __name__ == "__main__":
 
   # Local input settings
   use_kafka = False
+  conf[extr_prefix + "ingestion_input"] = os.getenv('ingestion_input')
   if os.environ['input_type'] == "local":
     conf[extr_prefix + 'file_input'] = True
   elif os.environ['input_type'] == "hbase":
@@ -151,16 +158,17 @@ if __name__ == "__main__":
     raise ValueError("Producer in neither Kafka nor Kinesis")
 
   print("os.environ['input_type']: {}".format(os.environ['input_type']))
+  print("os.environ['ingestion_input']: {}".format(os.environ['ingestion_input']))
   print("use_kafka: {}".format(use_kafka))
 
   # Generic ingestion settings
   verbose = os.getenv('verbose', 0)
   conf[extr_prefix + "verbose"] = int(verbose)
   conf[hbase_prefix + "verbose"] = int(verbose)
-  conf[extr_prefix + "nb_threads"] = int(os.getenv('extr_nb_threads', 1))
+  conf[extr_prefix + "nb_threads"] = int(os.getenv('extr_nb_threads', DEFAULT_NB_THREADS))
+  conf[extr_prefix + "max_delay"] = int(os.getenv('extr_check_max_delay', DEFAULT_MAX_DELAY))
 
   if use_kafka:
-    conf[extr_prefix + "max_delay"] = int(os.getenv('extr_check_max_delay', 3600))
 
     kafka_servers = json.loads(os.getenv('kafka_servers', '["kafka0.team-hg-memex.com:9093",\
                                                            "kafka1.team-hg-memex.com:9093",\
@@ -202,18 +210,19 @@ if __name__ == "__main__":
       conf[proc_ingester_prefix + 'consumer_group'] = os.environ['extr_proc_consumer_group']
     conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
 
-    conf[check_ingester_prefix + 'pp'] = "KafkaUpdateChecker"
+    conf[check_ingester_prefix + 'pp'] = "KafkaImageIngester"
     conf[proc_ingester_prefix + 'pp'] = "KafkaUpdateIngester"
 
   else:
     # Assume Kinesis here?
-    conf[check_ingester_prefix + 'pp'] = "KinesisUpdateChecker"
+    conf[check_ingester_prefix + 'pp'] = "KinesisImageIngester"
     conf[proc_ingester_prefix + 'pp'] = "KinesisUpdateIngester"
     conf[check_ingester_prefix + 'stream_name'] = os.environ['images_stream']
     conf[check_ingester_prefix + 'region_name'] = os.environ['region_name']
     conf[check_ingester_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
     conf[check_ingester_prefix + 'aws_profile'] = os.getenv('aws_profile')
-    conf[check_ingester_prefix + 'verify_certificates'] = bool(int(os.getenv('verify_certificates')))
+    verify_certificates = bool(int(os.getenv('verify_certificates', DEFAULT_VERIFY_CERTIFICATES)))
+    conf[check_ingester_prefix + 'verify_certificates'] = verify_certificates
     # Kinesis + HBase? Or should we create a stream for the updates too?
     #conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
 
@@ -226,3 +235,4 @@ if __name__ == "__main__":
   outpath = os.path.join(options.output_dir,'conf_extraction_'+conf_name+'.json')
   json.dump(conf, open(outpath,'wt'), sort_keys=True, indent=4)
   print("Saved conf at {}: {}".format(outpath, json.dumps(conf)))
+  time.sleep(5)

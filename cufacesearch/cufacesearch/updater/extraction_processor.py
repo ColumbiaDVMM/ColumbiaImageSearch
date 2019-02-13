@@ -19,7 +19,6 @@ from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal
   # img_URL_column, img_path_column, EXTR_CF #, img_info_column_family, update_info_column_family
 from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, GenericExtractor
 from cufacesearch.extractor.generic_extractor import build_extr_str
-from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 from cufacesearch.imgio.imgio import buffer_to_B64
 
 DEFAULT_EXTR_PROC_PREFIX = "EXTR_"
@@ -158,7 +157,6 @@ class ExtractionProcessor(ConfReader):
     # Initialize queues
     self.init_queues()
 
-
     # Initialize indexer
     # We now have two indexers:
     # - one "in_indexer" for TF table with buffer, img URLs etc...
@@ -199,9 +197,20 @@ class ExtractionProcessor(ConfReader):
     self.last_missing_extr_date = "1970-01-01"
 
     # Initialize ingester
-    self.ingester = GenericKafkaProcessor(self.global_conf,
-                                          prefix=self.get_required_param("proc_ingester_prefix"))
-    self.ingester.pp = "ep"
+    # TODO: this should be Kafka, Kinesis or None if getting data from HBase...
+    self.ingester = None
+    if self.ingestion_input == "kafka":
+      # TODO: create a class KafkaIngester
+      from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
+      self.ingester = GenericKafkaProcessor(self.global_conf,
+                                            prefix=self.get_required_param("proc_ingester_prefix"))
+      self.ingester.pp = "KafkaUpdateIngester"
+    elif self.ingestion_input == "kinesis":
+      from cufacesearch.ingester.kinesis_ingester import KinesisIngester
+      self.ingester = KinesisIngester(self.global_conf,
+                                      prefix=self.get_required_param("proc_ingester_prefix"))
+      self.ingester.pp = "KinesisUpdateIngester"
+
 
 
   def set_pp(self, pp="ExtractionProcessor"):
@@ -395,32 +404,30 @@ class ExtractionProcessor(ConfReader):
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
 
 
-  # TODO: rename to get_batch_consumer() and handle both Kafka and Kinesis which would be similar
-  def get_batch_kafka(self):
-    """Get one batch of images from Kafka
+  # Now handles both Kafka and Kinesis
+  def get_batch_ingester(self):
+    """Get one batch of images from Kafka or Kinesis
 
     :yield: tuple (rows_batch, update_id)
     """
-    # Read from a kafka topic to allow safer parallelization on different machines
-    # DONE: use in_indexer
     img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
                 self.img_column]
+    mn = "get_batch_ingester"
     try:
       # Needs to read topic to get update_id and list of sha1s
       # TODO: this consumer could be kinesis or Kafka too...
-      if self.ingester.consumer:
-        for msg in self.ingester.consumer:
-          msg_dict = json.loads(msg.value)
+      if self.ingester and self.ingester.consumer:
+        for msg_dict in self.ingester.get_msg_json():
           update_id = msg_dict.keys()[0]
           # NB: Try to get update info and check it was really not processed yet.
           if self.is_update_unprocessed(update_id):
             str_list_sha1s = msg_dict[update_id]
             list_sha1s = str_list_sha1s.split(',')
-            msg = "[{}.get_batch_kafka: log] Update {} has {} images."
-            print(msg.format(self.pp, update_id, len(list_sha1s)))
+            msg = "[{}.{}: log] Update {} has {} images."
+            print(msg.format(self.pp, mn, update_id, len(list_sha1s)))
             if self.verbose > 3:
-              msg = "[{}.get_batch_kafka: log] Looking for columns: {}"
-              print(msg.format(self.pp, img_cols))
+              msg = "[{}.{}: log] Looking for columns: {}"
+              print(msg.format(self.pp, mn, img_cols))
             # DONE: use in_indexer
             #rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
             rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
@@ -429,33 +436,33 @@ class ExtractionProcessor(ConfReader):
             #print "rows_batch", rows_batch
             if rows_batch:
               if self.verbose > 4:
-                msg = "[{}.get_batch_kafka: log] Yielding for update: {}"
-                print(msg.format(self.pp, update_id))
+                msg = "[{}.{}: log] Yielding for update: {}"
+                print(msg.format(self.pp, mn, update_id))
               yield rows_batch, update_id
               self.ingester.consumer.commit()
               if self.verbose > 4:
-                msg = "[{}.get_batch_kafka: log] After yielding for update: {}"
-                print(msg.format(self.pp, update_id))
+                msg = "[{}.{}: log] After yielding for update: {}"
+                print(msg.format(self.pp, mn, update_id))
               self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
             # Should we try to commit offset only at this point?
             else:
-              msg = "[{}.get_batch_kafka: log] Did not get any image buffers for the update: {}"
-              print(msg.format(self.pp, update_id))
+              msg = "[{}.{}: log] Did not get any image buffers for the update: {}"
+              print(msg.format(self.pp, mn, update_id))
           else:
-            msg = "[{}.get_batch_kafka: log] Skipping already processed update: {}"
-            print(msg.format(self.pp, update_id))
+            msg = "[{}.{}: log] Skipping already processed update: {}"
+            print(msg.format(self.pp, mn, update_id))
         else:
-          print("[{}.get_batch_kafka: log] No update found.".format(self.pp))
+          print("[{}.{}: log] No update found.".format(self.pp, mn))
           # Fall back to checking HBase for unstarted/unfinished updates
           for rows_batch, update_id in self.get_batch_hbase():
             yield rows_batch, update_id
       else:
-        print("[{}.get_batch_kafka: log] No consumer found.".format(self.pp))
+        print("[{}.{}: log] No consumer found.".format(self.pp, mn))
         # Fall back to checking HBase for unstarted/unfinished updates
         for rows_batch, update_id in self.get_batch_hbase():
           yield rows_batch, update_id
     except Exception as inst:
-      full_trace_error("[{}.get_batch_kafka: error] {}".format(self.pp, inst))
+      full_trace_error("[{}.{}: error] {}".format(self.pp, mn, inst))
 
 
   def get_batch(self):
@@ -467,7 +474,7 @@ class ExtractionProcessor(ConfReader):
       for rows_batch, update_id in self.get_batch_hbase():
         yield rows_batch, update_id
     else:
-      for rows_batch, update_id in self.get_batch_kafka():
+      for rows_batch, update_id in self.get_batch_ingester():
         yield rows_batch, update_id
 
   def process_batch(self):

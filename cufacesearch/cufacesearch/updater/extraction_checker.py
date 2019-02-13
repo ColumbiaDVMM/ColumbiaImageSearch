@@ -79,6 +79,7 @@ class ExtractionChecker(ConfReader):
     self.updates_out_topic = None
     try:
       if ingester_type == "kafka":
+        # TODO: replace by a KafkaIngester
         self.ingester = GenericKafkaProcessor(self.global_conf,
                                               prefix=self.get_required_param("check_ingester_prefix"))
 
@@ -104,11 +105,12 @@ class ExtractionChecker(ConfReader):
       print("[{}: ERROR] Could not start ingester.".format(self.pp, inst))
       raise inst
 
-    self.ingester.pp = "ec"
+    #self.ingester.pp = self.get_param("pp", "ImageIngester")
+
     # Only if daemon mode, as we may have multiple ingesters
     # But for Kinesis the `shard_infos_filename` may not be re-used...
-    if self.pid:
-      self.ingester.pp += str(self.pid)
+    #if self.pid:
+    #  self.ingester.pp += str(self.pid)
 
   def set_check_columns(self):
     """Set columns to be checked in indexer
