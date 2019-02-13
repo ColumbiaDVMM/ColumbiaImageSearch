@@ -140,13 +140,16 @@ if __name__ == "__main__":
     if os.getenv(env_key, False):
       conf[in_hbase_prefix + 'image_url_column_name'] = os.environ[env_key]
 
-  # Local input settings
+  # Input settings
+  # TODO: a bit confusing. Try to make this cleaner
   use_kafka = False
   conf[extr_prefix + "ingestion_input"] = os.getenv('ingestion_input')
   if os.environ['input_type'] == "local":
     conf[extr_prefix + 'file_input'] = True
   elif os.environ['input_type'] == "hbase":
     conf[extr_prefix + "ingestion_input"] = "hbase"
+  elif os.environ['input_type'] == "kinesis":
+    conf[extr_prefix + "ingestion_input"] = "kinesis"
   else:
     use_kafka = True
 
