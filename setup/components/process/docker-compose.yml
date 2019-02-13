@@ -16,6 +16,9 @@ services:
       - "conf_name=${extr_conf_name}"
       - extr_type
       - extr_nb_threads
+      - producer_type
+      - producer_prefix
+      - ingestion_input
       # Kafka related environment variables
       - images_topic
       - kafka_servers
@@ -23,6 +26,11 @@ services:
       - extr_check_consumer_group
       - extr_proc_consumer_group
       - updates_topic
+      # Kinesis related environment variables
+      - images_stream
+      - create_stream
+      - region_name
+      - aws_profile
       # Hbase related environment variables
       - hbase_host
       # In
