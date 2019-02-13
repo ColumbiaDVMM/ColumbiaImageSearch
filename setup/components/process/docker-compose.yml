@@ -54,6 +54,7 @@ services:
     volumes:
       - $repo_path:$indocker_repo_path
       - cuimgsearch-proc-volume:/data
+      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"]
     logging:
       driver: "json-file"
