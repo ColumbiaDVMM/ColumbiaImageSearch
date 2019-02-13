@@ -1,6 +1,6 @@
 """Flask API to expose the search index.
 """
-
+from __future__ import print_function
 import os
 import sys
 import time
@@ -396,7 +396,7 @@ class APIResponder(Resource):
         query_urls.append(x[:-1])
       else:
         query_urls.append(x)
-    print("[get_clean_urls_from_query: info] {}".format(query_urls))
+    print("[api.get_clean_urls_from_query: info] {}".format(query_urls))
     return query_urls
 
   def view_similar_query_response(self, query_type, query, query_response, options=None):
@@ -443,16 +443,17 @@ class APIResponder(Resource):
       # URLs should already be in query response
       pass
     else:
-      print("[view_similar_query_response: error] Unknown query_type: {}".format(query_type))
+      print("[api.view_similar_query_response: error] Unknown query_type: {}".format(query_type))
       return None
 
     # Get errors
     options_dict, errors_options = self.get_options_dict(options)
 
-    # Parse similar faces response
+    # Parse similar images response
+    # TODO: remove 'face' in variable names
     all_sim_faces = query_response[self.searcher.do.map['all_similar_'+self.input_type+'s']]
     search_results = []
-    print "[view_similar_query_response: log] len(sim_images): {}".format(len(all_sim_faces))
+    print("[api.view_similar_query_response: log] len(sim_images): {}".format(len(all_sim_faces)))
     for i in range(len(all_sim_faces)):
       # Parse query face, and build face tuple (sha1, url/b64 img, face bounding box)
       query_face = all_sim_faces[i]
@@ -482,10 +483,14 @@ class APIResponder(Resource):
         osface_sha1 = similar_faces[self.searcher.do.map['image_sha1s']][j]
         #if query_type == "PATH":
         if self.searcher.file_input:
-          with open(similar_faces[self.searcher.do.map['cached_image_urls']][j], 'rb') as img_buffer:
-            img_info = get_SHA1_img_info_from_buffer(img_buffer)
-            img_B64 = buffer_to_B64(img_buffer)
-          osface_url = "data:" + ImageMIMETypes[img_info[1]] + ";base64," + str(img_B64)
+          try:
+            with open(similar_faces[self.searcher.do.map['cached_image_urls']][j], 'rb') as img_buffer:
+              img_info = get_SHA1_img_info_from_buffer(img_buffer)
+              img_B64 = buffer_to_B64(img_buffer)
+            osface_url = "data:" + ImageMIMETypes[img_info[1]] + ";base64," + str(img_B64)
+          except Exception as inst:
+            msg = "[api.view_similar_query_response: WARNING] Could not load image {} from {}"
+            print(msg.format(osface_sha1, similar_faces[self.searcher.do.map['cached_image_urls']][j]))
         else:
           osface_url = similar_faces[self.searcher.do.map['cached_image_urls']][j]
         osface_bbox_compstr = None

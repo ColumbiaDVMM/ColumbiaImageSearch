@@ -158,6 +158,7 @@ class KinesisIngester(ConfReader):
       sleep_time = self.get_param('sleep_time', 10)
       sifn = self.get_shard_infos_filename()
       empty = 0
+      sleep_count = 0
 
       # Iterate over shards
       for sh_id in self.shard_iters:
@@ -184,7 +185,7 @@ class KinesisIngester(ConfReader):
         while 'NextShardIterator' in rec_response:
           records = rec_response['Records']
           if len(records) > 0:
-
+            sleep_count = 0
             for rec in records:
               rec_json = json.loads(rec['Data'])
               yield rec_json
@@ -237,6 +238,6 @@ class KinesisIngester(ConfReader):
             json.dump(self.shard_infos, sif)
 
           # Sleep?
-          time.sleep(sleep_time)
-
+          time.sleep(sleep_time*max(sleep_count+1, sleep_time))
+          sleep_count += 1
           break
