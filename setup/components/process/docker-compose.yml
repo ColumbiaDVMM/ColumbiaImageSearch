@@ -20,14 +20,15 @@ services:
       - extr_type
       - extr_nb_threads
       # Kafka related environment variables
-      - images_topic
       - kafka_servers
       - kafka_security
-      - extr_check_consumer_group
-      - extr_proc_consumer_group
+      - images_topic
       - updates_topic
+      - images_consumer_group
+      - updates_consumer_group
       # Kinesis related environment variables
       - images_stream
+      - updates_stream
       - create_stream
       - region_name
       - aws_profile

@@ -129,7 +129,7 @@ if __name__ == "__main__":
     conf[in_hbase_prefix + 'table_sha1infos'] = os.environ[env_in_prefix+'table_sha1infos'].strip()
     # Should we allow different HBase hosts?
     conf[in_hbase_prefix + 'host'] = os.environ['hbase_host'].strip()
-    conf[in_hbase_prefix + 'pool_thread'] = int(os.getenv('table_in_pool_thread', 1))
+    conf[in_hbase_prefix + 'pool_thread'] = int(os.getenv('table_in_pool_thread', DEFAULT_POOL_THREADS))
 
     # Deal with newly exposed but optional parameters
     if os.getenv('skip_failed', False):
@@ -284,7 +284,7 @@ if __name__ == "__main__":
 
     conf[proc_ingester_prefix + 'pp'] = "KinesisUpdateIngester"
     conf[proc_ingester_prefix + 'region_name'] = os.environ['region_name']
-    conf[proc_ingester_prefix + 'stream_name'] = os.environ['updates_topic']
+    conf[proc_ingester_prefix + 'stream_name'] = os.environ['updates_stream']
     conf[proc_ingester_prefix + 'aws_profile'] = os.getenv('aws_profile')
     conf[proc_ingester_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
     conf[proc_ingester_prefix + 'create_stream'] = create_stream
