@@ -75,7 +75,8 @@ class ExtractionChecker(ConfReader):
     self.set_check_columns()
     print(self.check_columns)
     # Initialize ingester, that could now be Kafka or Kinesis
-    ingester_type = self.get_required_param("ingester_type")
+    ingester_type = self.get_required_param("image_ingestion_type")
+    # TODO: also check for 'update_ingestion_type'
     self.updates_out_topic = None
     try:
       if ingester_type == "kafka":

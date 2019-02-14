@@ -157,9 +157,9 @@ services:
       - extr_type
       - extr_nb_threads
       - extr_check_max_delay
-      - ingestion_input
       # Kinesis related variables
-      - producer_type
+      - image_ingestion_type
+      - update_ingestion_type
       - region_name
       - images_stream
       - aws_profile

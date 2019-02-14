@@ -139,7 +139,8 @@ class ExtractionProcessor(ConfReader):
     # Get optional parameters
     self.verbose = int(self.get_param("verbose", default=0))
     self.maxucme = int(self.get_param("max_up_check_miss_extr", default=MAX_UP_CHECK_MISS_EXTR))
-    self.ingestion_input = self.get_param("ingestion_input", default="kafka")
+    #self.ingestion_input = self.get_param("ingestion_input", default="hbase")
+    self.ingestion_input = self.get_param("update_ingestion_type", default="hbase")
     self.push_back = self.get_param("push_back", default=False)
     file_input = self.get_param("file_input")
     print("[{}.ExtractionProcessor: log] file_input: {}".format(self.pp, file_input))

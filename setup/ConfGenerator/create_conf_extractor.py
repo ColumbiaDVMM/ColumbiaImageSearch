@@ -142,32 +142,48 @@ if __name__ == "__main__":
 
   # Input settings
   # TODO: a bit confusing. Try to make this cleaner
-  use_kafka = False
-  conf[extr_prefix + "ingestion_input"] = os.getenv('ingestion_input')
+  # Define
+  # - input_type: local or what? url? Basically to set file_input to True if local
+  # Confusing with image/face above...
   if os.environ['input_type'] == "local":
     conf[extr_prefix + 'file_input'] = True
-  elif os.environ['input_type'] == "hbase":
-    conf[extr_prefix + "ingestion_input"] = "hbase"
-  elif os.environ['input_type'] == "kinesis":
-    conf[extr_prefix + "ingestion_input"] = "kinesis"
-  else:
-    use_kafka = True
 
-  conf[extr_prefix + 'ingester_type'] = os.environ['producer_type']
-  conf[check_ingester_prefix + 'ingester_type'] = os.environ['producer_type']
-  if os.environ['producer_type'] == "kafka":
+  use_kafka = False
+  # - image_ingestion_type: kinesis/kafka
+  if os.environ['image_ingestion_type'] == "kafka":
+    conf[extr_prefix + "image_ingestion_type"] = "kafka"
     use_kafka = True
-  elif os.environ['producer_type'] != "kinesis":
-    raise ValueError("Producer in neither Kafka nor Kinesis")
+  elif os.environ['image_ingestion_type'] == "kinesis":
+    conf[extr_prefix + "image_ingestion_type"] = "kinesis"
+  else:
+    msg = "Unsupported 'image_ingestion_type: {}"
+    raise ValueError(msg.format(os.environ['image_ingestion_type']))
+  # - update_ingestion_type: kinesis/kafka/hbase
+  if os.environ['update_ingestion_type'] == "hbase":
+    conf[extr_prefix + "update_ingestion_type"] = "hbase"
+  elif os.environ['update_ingestion_type'] == "kafka":
+    conf[extr_prefix + "update_ingestion_type"] = "kafka"
+    use_kafka = True
+  elif os.environ['update_ingestion_type'] == "kinesis":
+    conf[extr_prefix + "update_ingestion_type"] = "kinesis"
+
+  # Deprecated
+  # #conf[extr_prefix + 'ingester_type'] = os.environ['producer_type']
+  # #conf[check_ingester_prefix + 'ingester_type'] = os.environ['producer_type']
+  # if os.environ['producer_type'] == "kafka":
+  #   use_kafka = True
+  # elif os.environ['producer_type'] != "kinesis":
+  #   raise ValueError("Producer in neither Kafka nor Kinesis")
 
   print("os.environ['input_type']: {}".format(os.environ['input_type']))
-  print("os.environ['ingestion_input']: {}".format(os.environ['ingestion_input']))
+  print("os.environ['image_ingestion_type']: {}".format(os.environ['image_ingestion_type']))
+  print("os.environ['update_ingestion_type']: {}".format(os.environ['update_ingestion_type']))
   print("use_kafka: {}".format(use_kafka))
 
   # Generic ingestion settings
   verbose = os.getenv('verbose', 0)
-  conf[extr_prefix + "verbose"] = int(verbose)
   conf[hbase_prefix + "verbose"] = int(verbose)
+  conf[extr_prefix + "verbose"] = int(verbose)
   conf[extr_prefix + "nb_threads"] = int(os.getenv('extr_nb_threads', DEFAULT_NB_THREADS))
   conf[extr_prefix + "max_delay"] = int(os.getenv('extr_check_max_delay', DEFAULT_MAX_DELAY))
 
@@ -194,40 +210,53 @@ if __name__ == "__main__":
     consumer_options = json.loads(os.getenv('kafka_consumer_options', "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 10, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
 
     # Checker consumer
-    conf[check_ingester_prefix + 'consumer_servers'] = kafka_servers
-    #conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_topic']
-    conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_stream']
-    conf[check_ingester_prefix + 'consumer_group'] = os.environ['extr_check_consumer_group']
-    conf[check_ingester_prefix + 'consumer_options'] = consumer_options
+    if conf[extr_prefix + "image_ingestion_type"] == "kafka":
+      conf[check_ingester_prefix + 'consumer_servers'] = kafka_servers
+      conf[check_ingester_prefix + 'consumer_options'] = consumer_options
+      conf[check_ingester_prefix + 'pp'] = "KafkaImageIngester"
+      conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_stream']
+      conf[check_ingester_prefix + 'consumer_group'] = os.environ['extr_check_consumer_group']
+      # This is now optional
+      #if os.getenv('updates_topic', False):
+      #conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
 
-    conf[check_ingester_prefix + 'producer_servers'] = kafka_servers
-    # This is now optional
-    if os.getenv('updates_topic', False):
+    if conf[extr_prefix + "update_ingestion_type"] == "kafka":
+      # Checker producers
       conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
+      conf[check_ingester_prefix + 'producer_servers'] = kafka_servers
 
-    # Processor consumer
-    conf[proc_ingester_prefix + 'consumer_servers'] = kafka_servers
-    if os.getenv('updates_topic', False):
+      # Processor consumer
+      conf[proc_ingester_prefix + 'consumer_servers'] = kafka_servers
+      conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
+      conf[proc_ingester_prefix + 'pp'] = "KafkaUpdateIngester"
       conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
-    if os.getenv('extr_proc_consumer_group', False):
       conf[proc_ingester_prefix + 'consumer_group'] = os.environ['extr_proc_consumer_group']
-    conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
 
-    conf[check_ingester_prefix + 'pp'] = "KafkaImageIngester"
-    conf[proc_ingester_prefix + 'pp'] = "KafkaUpdateIngester"
 
-  else:
-    # Assume Kinesis here?
+  # We should have at least images from Kinesis
+  if conf[extr_prefix + "image_ingestion_type"] == "kinesis":
     conf[check_ingester_prefix + 'pp'] = "KinesisImageIngester"
-    conf[proc_ingester_prefix + 'pp'] = "KinesisUpdateIngester"
     conf[check_ingester_prefix + 'stream_name'] = os.environ['images_stream']
     conf[check_ingester_prefix + 'region_name'] = os.environ['region_name']
     conf[check_ingester_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
     conf[check_ingester_prefix + 'aws_profile'] = os.getenv('aws_profile')
     verify_certificates = bool(int(os.getenv('verify_certificates', DEFAULT_VERIFY_CERTIFICATES)))
     conf[check_ingester_prefix + 'verify_certificates'] = verify_certificates
+
+  if conf[extr_prefix + "update_ingestion_type"] == "kinesis":
+    conf[proc_ingester_prefix + 'pp'] = "KinesisUpdateIngester"
+    conf[proc_ingester_prefix + 'stream_name'] = os.environ['updates_topic']
+    conf[proc_ingester_prefix + 'region_name'] = os.environ['region_name']
+    conf[proc_ingester_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
+    conf[proc_ingester_prefix + 'aws_profile'] = os.getenv('aws_profile')
+    verify_certificates = bool(int(os.getenv('verify_certificates', DEFAULT_VERIFY_CERTIFICATES)))
+    conf[proc_ingester_prefix + 'verify_certificates'] = verify_certificates
+  elif conf[extr_prefix + "update_ingestion_type"] == "hbase":
+    # No parameters to pass?
+    pass
+  elif conf[extr_prefix + "update_ingestion_type"] == "kafka":
+    pass
     # Kinesis + HBase? Or should we create a stream for the updates too?
-    #conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
 
   conf[check_ingester_prefix + 'verbose'] = verbose
   conf[proc_ingester_prefix + 'verbose'] = verbose

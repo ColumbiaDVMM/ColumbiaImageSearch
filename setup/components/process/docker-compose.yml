@@ -13,7 +13,8 @@ services:
       # General environment variables
       # These two parameters are a bit confusing
       - input_type
-      - ingestion_input
+      - image_ingestion_type
+      - update_ingestion_type
       - verbose
       - "conf_name=${extr_conf_name}"
       - extr_type
