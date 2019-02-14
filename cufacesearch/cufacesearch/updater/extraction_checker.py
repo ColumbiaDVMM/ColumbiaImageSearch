@@ -283,9 +283,9 @@ class ExtractionChecker(ConfReader):
 
             if len(list_check_sha1s) >= self.indexer.batch_update_size:
               break
-          except:
-            pr_msg = "[{}: ERROR] Could not process message: {}"
-            print(pr_msg.format(self.pp, msg))
+          except Exception as inst:
+            pr_msg = "[{}: ERROR] Could not process message: {}. {}"
+            print(pr_msg.format(self.pp, msg, inst))
         # except Exception as inst:
         #   # trying to use 'consumer_timeout_ms' to raise timeout and get last samples
         #   pr_msg = "[{}: warning] At {}, caught {} {} in consumer loop"

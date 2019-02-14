@@ -11,14 +11,15 @@ services:
       - IPC_LOCK
     environment:
       # General environment variables
+      # These two parameters are a bit confusing
       - input_type
+      - ingestion_input
       - verbose
       - "conf_name=${extr_conf_name}"
       - extr_type
       - extr_nb_threads
       - producer_type
       - producer_prefix
-      - ingestion_input
       # Kafka related environment variables
       - images_topic
       - kafka_servers
@@ -54,6 +55,7 @@ services:
     volumes:
       - $repo_path:$indocker_repo_path
       - cuimgsearch-proc-volume:/data
+      # AWS for Kinesis
       - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"]
     logging:
