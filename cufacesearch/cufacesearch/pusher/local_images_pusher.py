@@ -178,6 +178,8 @@ class LocalImagePusher(ConfReader):
           print(msg.format(self.pp, img_path, inst))
 
       # Push
+      # TODO: Could we actually accumulate and push by batch with key as 'list_sha1s'
+      # But where should we read the path from?
       for img_out_msg in self.build_image_msg(dict_imgs):
         self.pusher.send(img_out_msg)
 

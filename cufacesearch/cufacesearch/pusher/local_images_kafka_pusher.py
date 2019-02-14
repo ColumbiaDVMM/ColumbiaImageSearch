@@ -1,4 +1,5 @@
 #DEPRECATED
+# Use local_images_pusher with appropriate settings
 import json
 import time
 from argparse import ArgumentParser
