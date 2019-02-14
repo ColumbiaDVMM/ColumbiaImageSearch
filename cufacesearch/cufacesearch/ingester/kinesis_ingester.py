@@ -73,13 +73,20 @@ class KinesisIngester(ConfReader):
     shard_iterator_type = self.get_param('shard_iterator_type', "TRIM_HORIZON")
     # Try to get iterator based on latest processed sequence number if available
     if shard_id in self.shard_infos:
-      sqn = self.shard_infos[shard_id]['sqn']
-      shard_iterator = self.client.get_shard_iterator(StreamName=self.stream_name,
-                                                      ShardId=shard_id,
-                                                      StartingSequenceNumber=sqn,
-                                                      ShardIteratorType='AFTER_SEQUENCE_NUMBER')
-    else:
-      shard_iterator = self.client.get_shard_iterator(StreamName=self.stream_name,
+      try:
+        sqn = self.shard_infos[shard_id]['sqn']
+        shard_iterator = self.client.get_shard_iterator(StreamName=self.stream_name,
+                                                        ShardId=shard_id,
+                                                        StartingSequenceNumber=sqn,
+                                                        ShardIteratorType='AFTER_SEQUENCE_NUMBER')
+        return shard_iterator['ShardIterator']
+      except Exception as inst:
+        msg = "[{}.get_shard_iterator] Could not initialize from previous SequenceNumber {}. {}"
+        print(msg.format(self.pp, sqn, inst))
+      # Could fail with
+      #botocore.errorfactory.InvalidArgumentException: An error occurred (InvalidArgumentException) when calling the GetShardIterator operation: StartingSequenceNumber 49592949124142737608129152630877400786080442094840709122 used in GetShardIterator on shard shardId-000000000000 in stream test-local-kinesis-caltech101 under account 000000000000 is invalid because it did not come from this stream.
+
+    shard_iterator = self.client.get_shard_iterator(StreamName=self.stream_name,
                                                       ShardId=shard_id,
                                                       ShardIteratorType=shard_iterator_type)
     return shard_iterator['ShardIterator']
