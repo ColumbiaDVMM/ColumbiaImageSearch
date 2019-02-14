@@ -11,6 +11,7 @@ services:
       # General environment variables
       - verbose
       - input_type
+      - image_pushing_type
       - "conf_name=${input_conf_name}"
       # Local pusher related environment variables
       - input_path
@@ -26,6 +27,7 @@ services:
       - cdr_out_topic
       - kafka_servers
       - kafka_security
+      # Kinesis input/output related environment variables
     cap_add:
       - IPC_LOCK
     volumes:

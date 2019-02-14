@@ -7,12 +7,13 @@ from argparse import ArgumentParser
 from cufacesearch.common.conf_reader import ConfReader
 # TODO: separate consumer/producer
 #from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
-#from cufacesearch.ingester.kakfa_producer import KafkaProducer
-from cufacesearch.ingester.kinesis_producer import KinesisProducer
+from cufacesearch.pusher.kafka_pusher import KafkaPusher
+from cufacesearch.pusher.kinesis_pusher import KinesisPusher
 
 
+#Should default_prefix be empty?
 #default_prefix = "LIKP_"
-default_prefix = "LIP_"
+default_prefix = ""
 skip_formats = ['SVG', 'RIFF']
 valid_formats = ['JPEG', 'JPG', 'GIF', 'PNG']
 
@@ -35,30 +36,25 @@ class LocalImagePusher(ConfReader):
     self.display_count = self.get_param('display_count', 100)
 
     # any additional initialization needed, like producer specific output logic
-    self.producer = None
-    self.images_out_topic = None
-    self.init_producer()
+    self.pusher = None
+    #self.images_out_topic = None
+    self.init_pusher()
 
-  def init_producer(self):
-    # TODO: should check for producer_type: Kafka or Kinesis.
-    # Read all required parameters and prepare producer
-    self.producer_type = self.get_required_param('producer_type')
-    producer_prefix = self.get_required_param('producer_prefix')
-    if self.producer_type == "kafka":
-      # TODO: What are needed parameters here?
-      # Should we pass whole configuration?
-      #self.producer = GenericKafkaProcessor()
-      #self.producer = KafkaProducer(self.global_conf, prefix=producer_prefix)
-      raise ValueError("[{}: ERROR] KafkaProducer not yet supported!".format(self.pp))
-    elif self.producer_type == "kinesis":
-      # TODO: What are needed parameters here?
-      # Should we pass whole configuration?
-      self.producer = KinesisProducer(self.global_conf, prefix=producer_prefix)
-      self.images_out_topic = self.producer.stream_name
+  def init_pusher(self):
+    # Prepare pusher
+    image_pushing_type = self.get_required_param('image_pushing_type')
+    image_pusher_prefix = self.get_required_param('image_pusher_prefix')
+    if image_pushing_type == "kafka":
+      self.pusher = KafkaPusher(self.global_conf, prefix=image_pusher_prefix)
+    elif image_pushing_type == "kinesis":
+      self.pusher = KinesisPusher(self.global_conf, prefix=image_pusher_prefix)
     else:
-      msg = "[{}: ERROR] Unknown producer type: {}"
-      raise ValueError(msg.format(self.pp, self.producer_type))
+      msg = "[{}: ERROR] Unknown image_pushing_type: {}"
+      raise ValueError(msg.format(self.pp, image_pushing_type))
 
+  # TODO: We could check for input type, we should rename this file to images_pusher.py then...
+  #input_type = self.get_required_param('input_type')
+  # See ingester/kafka_image_downloader and kafka_cdr_ingester too
   def get_next_img(self):
     # TODO: test that
     #  improvement: with a timestamp ordering? to try to add automatically new images?
@@ -145,8 +141,9 @@ class LocalImagePusher(ConfReader):
     from cufacesearch.imgio.imgio import get_SHA1_img_info_from_buffer, get_buffer_from_filepath
     nb_img_found = 0
 
-    if self.producer is None:
-      raise ValueError("Producer was not initialized, will not be able to push. Is Kafka ready or reachable?")
+    if self.pusher is None:
+      msg = "[{}.process: ERROR] Pusher was not initialized, will not be able to push"
+      raise ValueError(msg.format(self.pp))
 
     # Get images data and infos
     for img_path in self.get_next_img():
@@ -160,29 +157,29 @@ class LocalImagePusher(ConfReader):
       # Could we multi-thread that?
 
       if self.verbose > 4:
-        msg = "[{}.process_one: info] Reading image from: {}"
+        msg = "[{}.process: log] Reading image from: {}"
         print(msg.format(self.pp, img_path))
       try:
         img_buffer = get_buffer_from_filepath(img_path)
         if img_buffer:
           sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
           dict_imgs[img_path] = {'img_buffer': img_buffer, 'sha1': sha1,
-                            'img_info': {'format': img_type, 'width': width, 'height': height}}
+                                 'img_info': {'format': img_type, 'width': width, 'height': height}}
           self.toc_process_ok(start_process, end_time=time.time())
         else:
           self.toc_process_failed(start_process, end_time=time.time())
           if self.verbose > 1:
-            msg = "[{}.process_one: info] Could not read image from: {}"
+            msg = "[{}.process: Warning] Could not read image from: {}"
             print(msg.format(self.pp, img_path))
       except Exception as inst:
         self.toc_process_failed(start_process, end_time=time.time())
         if self.verbose > 0:
-          msg = "[{}.process_one: error] Could not read image from: {} ({})"
+          msg = "[{}.process: ERROR] Could not read image from: {} ({})"
           print(msg.format(self.pp, img_path, inst))
 
-      # Push to images_out_topic
+      # Push
       for img_out_msg in self.build_image_msg(dict_imgs):
-        self.producer.send(self.images_out_topic, img_out_msg)
+        self.pusher.send(img_out_msg)
 
     if nb_img_found > 0:
       self.print_push_stats()

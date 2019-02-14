@@ -5,20 +5,21 @@ import json
 import boto3
 # Cannot be imported?
 #from botocore.errorfactory import ExpiredIteratorException
-from ..common.conf_reader import ConfReader
-
+from cufacesearch.common.conf_reader import ConfReader
 
 def get_random_sha1():
   from hashlib import sha1
   import random
   return sha1(str(random.getrandbits(256)).encode('utf-8')).hexdigest().upper()
 
-class KinesisProducer(ConfReader):
-  """KinesisProducer
+# TODO: Should we have a GenericPusher class that exposes the `send` message method?
+
+class KinesisPusher(ConfReader):
+  """KinesisPusher
   """
 
   def __init__(self, global_conf, prefix="", pid=None):
-    """KinesisProducer constructor
+    """KinesisPusher constructor
 
     :param global_conf: configuration file or dictionary
     :type global_conf: str, dict
@@ -32,7 +33,7 @@ class KinesisProducer(ConfReader):
     self.pid = pid
     self.verbose = 1
 
-    super(KinesisProducer, self).__init__(global_conf, prefix)
+    super(KinesisPusher, self).__init__(global_conf, prefix)
 
     # Set print prefix
     self.set_pp(pp=self.get_param("pp"))
@@ -45,19 +46,19 @@ class KinesisProducer(ConfReader):
     self.stream_name = self.get_required_param('stream_name')
 
     # Initialize everything
-    self.init_producer()
+    self.init_pusher()
 
 
   def set_pp(self, pp=None):
     """Set pretty print name
 
-    :param pp: pretty print name, default will be `KinesisIngester`
+    :param pp: pretty print name, default will be `KinesisPusher`
     :type pp: str
     """
     if pp is not None:
       self.pp = pp
     else:
-      self.pp = "KinesisProducer"
+      self.pp = "KinesisPusher"
 
 
   def init_client(self):
@@ -75,7 +76,7 @@ class KinesisProducer(ConfReader):
     self.client = self.session.client('kinesis', endpoint_url=endpoint_url, verify=verify,
                                       use_ssl=use_ssl)
 
-  def init_producer(self):
+  def init_pusher(self):
     """Initialize stream shards infos
     """
     self.init_client()
@@ -109,14 +110,12 @@ class KinesisProducer(ConfReader):
       raise RuntimeError(msg.format(self.pp, self.stream_name, nb_trials))
 
 
-  def send(self, stream_name, msg):
-      """Push `msg` to `stream_name`
+  def send(self, msg):
+      """Push `msg` to `self.stream_name`
       """
-      if stream_name != self.stream_name:
-        msg = "[{}: ERROR] Trying to push to {} while was initialized with {}"
-        raise ValueError(msg.format(self.pp, stream_name, self.stream_name))
+      # Check if msg was already json_dumped
+      if isinstance(msg, dict):
+        msg = json.dump(msg).encode('utf-8')
       # TODO: what is a good partition key?
-      #single_rec = [{'Data': json.dumps(msg), 'PartitionKey': get_random_sha1()}]
-      # Assume msg is already json_dumped?
       single_rec = [{'Data': msg, 'PartitionKey': get_random_sha1()}]
-      self.client.put_records(Records=single_rec, StreamName=stream_name)
+      self.client.put_records(Records=single_rec, StreamName=self.stream_name)

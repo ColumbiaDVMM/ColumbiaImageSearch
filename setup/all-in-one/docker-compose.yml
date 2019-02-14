@@ -2,6 +2,7 @@ version: "3"
 
 services:
 
+# Backend services dockers
   kinesis:
     build: ./kinesalite
     hostname: kinesis
@@ -11,6 +12,7 @@ services:
     networks:
       cu_imgsearch_net:
 # Add a volume for persistence?
+# What is the path of things that are needed for persistence?
 #    environment:
 #      VIRTUAL_HOST: kinesis
 #      VIRTUAL_PORT: 4567
@@ -35,6 +37,64 @@ services:
         max-file: "7"
     ports:
       - "2181:2181"
+    networks:
+      cu_imgsearch_net:
+  kafka:
+    image: wurstmeister/kafka
+    hostname: kafka
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    links:
+      - zookeeper:zk
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ADVERTISED_HOST_NAME: "kafka"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    # In /opt/kafka/config/server.properties
+    # log.dirs=/kafka/kafka-logs-kafka
+    # List topics with /opt/kafka/bin/kafka-topics.sh --list --zookeeper zk:2181
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+    volumes:
+      - cuimgsearch-kafka-volume:/kafka/kafka-logs-kafka
+    networks:
+      cu_imgsearch_net:
+  kafka_manager:
+    image: sheepkiller/kafka-manager
+    hostname: kafka_manager
+    container_name: kafka_manager
+    environment:
+      ZK_HOSTS: "zookeeper:2181"
+      KM_CONFIGFILE: "/opt/application.conf"
+      #JMX_PORT: "true"
+    ports:
+      - "9997:9000"
+    # Access kafka manager at: http://0.0.0.0:9997/kafka_manager/
+    # but need to manually add cluster! https://github.com/yahoo/kafka-manager/issues/244
+    # Click on "Cluster" -> "Add Cluster" add "zookeeper:2181"
+    # Have "Enable JMX Polling" and "Poll consumer information" checked
+    #command: "./start-kafka-manager.sh"
+    command: tail -f /dev/null
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "7"
+    volumes:
+      - ../../conf/kafka_manager/km.conf:/opt/application.conf
+      - cuimgsearch-kafka-volume:/kafka/kafka-logs-kafka # Is this OK? Kafka-manager is read-only?
+    depends_on:
+      - zookeeper
+      - kafka
+    links:
+      - zookeeper
+      - kafka
     networks:
       cu_imgsearch_net:
   hbase:
@@ -71,7 +131,7 @@ services:
   hue:
     image: gethue/hue:latest
     hostname: hue
-    #container_name: hue
+    container_name: hue
     dns: 8.8.8.8
     ports:
      - "9999:8888"
@@ -95,6 +155,9 @@ services:
       - hbase
     networks:
       cu_imgsearch_net:
+
+
+# Our dockers
   img_pusher:
     image: svebork/columbia_image_search:1.0
     hostname: ${input_conf_name}
@@ -109,12 +172,13 @@ services:
       - source_zip
       - "nb_workers=${input_nb_workers}"
       - "conf_name=${input_conf_name}"
-#      # Kafka related environment variables
-#      - input_topic
-#      - input_consumer_group
-#      - images_topic
-#      - kafka_servers
-#      - kafka_security
+      - "image_pushing_type=${image_ingestion_type}"
+      # NB: Kafka and Kinesis are for output only
+      # Kafka related environment variables
+      - images_topic
+      - images_consumer_group
+      - kafka_servers
+      - kafka_security
       # Kinesis related environment variables
       - images_stream
       - region_name
@@ -122,8 +186,7 @@ services:
       - aws_profile
       - verify_certificates
       - endpoint_url
-      - producer_type
-      - producer_prefix
+      #- producer_prefix
     cap_add:
       - IPC_LOCK
     # nothing really needs to be persistent here. no other volumes needed
@@ -157,21 +220,24 @@ services:
       - extr_type
       - extr_nb_threads
       - extr_check_max_delay
-      # Kinesis related variables
-      - image_ingestion_type
       - update_ingestion_type
-      - region_name
+      - image_ingestion_type
+      # Kafka related environment variables
+      - images_topic
+      - updates_topic
+      - images_consumer_group
+      - updates_consumer_group
+      - kafka_servers
+      - kafka_security
+      # Kinesis related environment variables
       - images_stream
+      - updates_stream
+      - region_name
+      - create_stream
       - aws_profile
+      - lim_get_rec
       - verify_certificates
       - endpoint_url
-#      # Kafka related environment variables
-#      - images_topic
-#      - kafka_servers
-#      - kafka_security
-#      - extr_check_consumer_group
-#      - extr_proc_consumer_group
-#      - updates_topic
       # Hbase related environment variables
       - hbase_host
       - table_sha1infos
@@ -273,4 +339,5 @@ networks:
 
 volumes:
   cuimgsearch-volume:
+  cuimgsearch-kafka-volume:
   cuimgsearch-hbase-volume:

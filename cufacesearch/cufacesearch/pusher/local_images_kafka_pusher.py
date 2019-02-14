@@ -1,3 +1,4 @@
+#DEPRECATED
 import json
 import time
 from argparse import ArgumentParser

@@ -9,6 +9,7 @@ from datetime import datetime
 #from botocore.errorfactory import ExpiredIteratorException
 from ..common.conf_reader import ConfReader
 
+# TODO: Should we have a GenericIngester class that exposes the `get_msg_json` message method?
 
 class KinesisIngester(ConfReader):
   """KinesisIngester
@@ -70,7 +71,7 @@ class KinesisIngester(ConfReader):
     :param shard_id: shard identifier
     :return: shard iterator
     """
-    shard_iterator_type = self.get_param('shard_iterator_type', "TRIM_HORIZON")
+    shard_iterator_type = self.get_required_param('shard_iterator_type')
     # Try to get iterator based on latest processed sequence number if available
     if shard_id in self.shard_infos:
       try:
@@ -96,11 +97,11 @@ class KinesisIngester(ConfReader):
     """Initialize Kinesis client.
     """
     region_name = self.get_required_param('region_name')
-    aws_profile = self.get_param('aws_profile', None)
+    aws_profile = self.get_param('aws_profile', default=None)
     # This is mostly to be able to test locally
-    endpoint_url = self.get_param('endpoint_url', None)
-    verify = self.get_param('verify_certificates', True)
-    use_ssl = self.get_param('use_ssl', True)
+    endpoint_url = self.get_param('endpoint_url', default=None)
+    verify = self.get_param('verify_certificates', default=True)
+    use_ssl = self.get_param('use_ssl', default=True)
 
     # # Should we get these in another way?
     # aws_access_key_id = self.get_param('aws_access_key_id', None)
@@ -166,8 +167,8 @@ class KinesisIngester(ConfReader):
 
       :yield: JSON message
       """
-      lim_get_rec = self.get_param('lim_get_rec', 10)
-      sleep_time = self.get_param('sleep_time', 10)
+      lim_get_rec = self.get_required_param('lim_get_rec')
+      sleep_time = self.get_required_param('sleep_time')
       sifn = self.get_shard_infos_filename()
       empty = 0
       sleep_count = 0
@@ -183,6 +184,7 @@ class KinesisIngester(ConfReader):
         # If iterator has expired, we would get botocore.errorfactory.ExpiredIteratorException:
         # An error occurred (ExpiredIteratorException) when calling the GetRecords operation: Iterator expired.
         # The iterator was created at time XXX while right now it is XXX which is further in the future than the tolerated delay of 300000 milliseconds.
+        # Also beware of get_records limits of 2MB per second per shard
         try:
           rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
         #except ExpiredIteratorException as inst:
@@ -200,7 +202,7 @@ class KinesisIngester(ConfReader):
             sleep_count = 0
             for rec in records:
               rec_json = json.loads(rec['Data'])
-              if self.verbose > 5:
+              if self.verbose > 6:
                 msg = "[{}: log] Found message in shard {}: {}"
                 print(msg.format(self.pp, sh_id, rec_json))
               yield rec_json

@@ -331,8 +331,12 @@ class ExtractionProcessor(ConfReader):
                   #msg = "[{}.get_batch_hbase: log] Was trying to read columns {} from table {} for rows {}"
                   #print(msg.format(self.pp, img_cols, self.in_indexer.table_sha1infos_name, list_sha1s))
               else:
-                msg = "[{}.get_batch_hbase: log] Skipping update started recently: {}"
+                msg = "[{}.get_batch_hbase: log] Skipping recently started update: {}"
                 print(msg.format(self.pp, update_id))
+                # This is a bad sign, likely meaning two processes are scanning at the same point
+                # Try to add some random sleep time?
+                import numpy as np
+                time.sleep(int(np.random.rand()*10))
                 continue
             else:
               msg = "[{}.get_batch_hbase: log] Skipping already processed update: {}"
@@ -419,36 +423,48 @@ class ExtractionProcessor(ConfReader):
       # TODO: this consumer could be kinesis or Kafka too...
       if self.ingester and self.ingester.consumer:
         for msg_dict in self.ingester.get_msg_json():
+          # Check msg_dict is really a dict?
+          if not isinstance(msg_dict, dict):
+            msg_dict = json.loads(msg_dict)
           update_id = msg_dict.keys()[0]
           # NB: Try to get update info and check it was really not processed yet.
           if self.is_update_unprocessed(update_id):
-            str_list_sha1s = msg_dict[update_id]
-            list_sha1s = str_list_sha1s.split(',')
-            msg = "[{}.{}: log] Update {} has {} images."
-            print(msg.format(self.pp, mn, update_id, len(list_sha1s)))
-            if self.verbose > 3:
-              msg = "[{}.{}: log] Looking for columns: {}"
-              print(msg.format(self.pp, mn, img_cols))
-            # DONE: use in_indexer
-            #rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
-            rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
-                                                                    rbs=BATCH_SIZE_IMGBUFFER,
-                                                                    columns=img_cols)
-            #print "rows_batch", rows_batch
-            if rows_batch:
-              if self.verbose > 4:
-                msg = "[{}.{}: log] Yielding for update: {}"
+            # double check update was not marked as started recently i.e. by another process
+            if self.is_update_notstarted(update_id, max_delay=TIME_ELAPSED_FAILED):
+              str_list_sha1s = msg_dict[update_id]
+              list_sha1s = str_list_sha1s.split(',')
+              msg = "[{}.{}: log] Update {} has {} images."
+              print(msg.format(self.pp, mn, update_id, len(list_sha1s)))
+              if self.verbose > 3:
+                msg = "[{}.{}: log] Looking for columns: {}"
+                print(msg.format(self.pp, mn, img_cols))
+              # DONE: use in_indexer
+              #rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
+              rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                      rbs=BATCH_SIZE_IMGBUFFER,
+                                                                      columns=img_cols)
+              #print "rows_batch", rows_batch
+              if rows_batch:
+                if self.verbose > 4:
+                  msg = "[{}.{}: log] Yielding for update: {}"
+                  print(msg.format(self.pp, mn, update_id))
+                yield rows_batch, update_id
+                self.ingester.consumer.commit()
+                if self.verbose > 4:
+                  msg = "[{}.{}: log] After yielding for update: {}"
+                  print(msg.format(self.pp, mn, update_id))
+                self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+              # Should we try to commit offset only at this point?
+              else:
+                msg = "[{}.{}: log] Did not get any image buffers for the update: {}"
                 print(msg.format(self.pp, mn, update_id))
-              yield rows_batch, update_id
-              self.ingester.consumer.commit()
-              if self.verbose > 4:
-                msg = "[{}.{}: log] After yielding for update: {}"
-                print(msg.format(self.pp, mn, update_id))
-              self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
-            # Should we try to commit offset only at this point?
             else:
-              msg = "[{}.{}: log] Did not get any image buffers for the update: {}"
+              msg = "[{}.{}: log] Skipping recently started update: {}"
               print(msg.format(self.pp, mn, update_id))
+              # This is a bad sign, likely meaning two processes are scanning at the same point
+              # Try to add some random sleep time?
+              import numpy as np
+              time.sleep(int(np.random.rand() * 10))
           else:
             msg = "[{}.{}: log] Skipping already processed update: {}"
             print(msg.format(self.pp, mn, update_id))

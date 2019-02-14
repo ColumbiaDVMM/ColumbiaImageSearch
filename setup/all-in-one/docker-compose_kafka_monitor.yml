@@ -148,9 +148,11 @@ services:
       # Kafka related environment variables
       - input_topic
       - input_consumer_group
+      - input_obj_stored_prefix
       - images_topic
       - kafka_servers
       - kafka_security
+      # Kinesis related environment variables
     cap_add:
       - IPC_LOCK
     # nothing really needs to be persistent here. no other volumes needed
