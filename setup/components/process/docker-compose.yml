@@ -19,8 +19,6 @@ services:
       - "conf_name=${extr_conf_name}"
       - extr_type
       - extr_nb_threads
-      - producer_type
-      - producer_prefix
       # Kafka related environment variables
       - images_topic
       - kafka_servers
