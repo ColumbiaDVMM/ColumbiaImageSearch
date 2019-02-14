@@ -216,7 +216,7 @@ class KinesisIngester(ConfReader):
                 self.shard_infos[sh_id] = dict()
                 self.shard_infos[sh_id]['sqn'] = sqn
                 self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
-                self.shard_infos[sh_id]['nb_read'] = 0
+                self.shard_infos[sh_id]['nb_read'] = 1
 
             # len(records) < lim_get_rec means we have reached end of stream
             # This test avoid making one more `get_records` call
