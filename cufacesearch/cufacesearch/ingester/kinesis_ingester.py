@@ -200,6 +200,9 @@ class KinesisIngester(ConfReader):
             sleep_count = 0
             for rec in records:
               rec_json = json.loads(rec['Data'])
+              if self.verbose > 5:
+                msg = "[{}: log] Found message in shard {}: {}"
+                print(msg.format(self.pp, sh_id, rec_json))
               yield rec_json
 
               # Store `sqn`. Is there anything else we should store?

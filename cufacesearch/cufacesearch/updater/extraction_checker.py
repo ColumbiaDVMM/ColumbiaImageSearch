@@ -390,6 +390,12 @@ class ExtractionChecker(ConfReader):
             # and let it claim the potential remaining images in 'list_sha1s_to_process'
             # sanity check that len(list_sha1s_to_process) == len(self.dict_sha1_infos) ?
 
+          else:
+            if self.verbose > 4:
+              msg = "[{}: at {}] Gathered {} images so far..."
+              now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
+              print(msg.format(self.pp, now_str, len(list_sha1s_to_process)))
+
     except Exception as inst:
       exc_type, exc_obj, exc_tb = sys.exc_info()
       fulltb = traceback.format_tb(exc_tb)
