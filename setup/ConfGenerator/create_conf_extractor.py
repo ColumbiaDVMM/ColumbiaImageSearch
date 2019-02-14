@@ -145,7 +145,7 @@ if __name__ == "__main__":
   # Define
   # - input_type: local or what? url? Basically to set file_input to True if local
   # Confusing with image/face above...
-  if os.environ['input_type'] == "local":
+  if os.getenv('input_type') == "local":
     conf[extr_prefix + 'file_input'] = True
 
   use_kafka = False
@@ -175,7 +175,7 @@ if __name__ == "__main__":
   # elif os.environ['producer_type'] != "kinesis":
   #   raise ValueError("Producer in neither Kafka nor Kinesis")
 
-  print("os.environ['input_type']: {}".format(os.environ['input_type']))
+  print("os.getenv('input_type'): {}".format(os.getenv('input_type')))
   print("os.environ['image_ingestion_type']: {}".format(os.environ['image_ingestion_type']))
   print("os.environ['update_ingestion_type']: {}".format(os.environ['update_ingestion_type']))
   print("use_kafka: {}".format(use_kafka))
