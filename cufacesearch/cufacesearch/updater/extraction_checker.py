@@ -264,6 +264,9 @@ class ExtractionChecker(ConfReader):
           # TODO: can we make this work for both Kafka and Kinesis?
         for msg in self.ingester.get_msg_json():
           try:
+            # Fix if input was JSON dumped twice?
+            if not isinstance(msg, dict):
+              msg = json.loads(msg)
             # msg could now contain keys 'sha1' or 'list_sha1s'
             if 'sha1' in msg:
               list_check_sha1s.append(str(msg['sha1']).upper())
