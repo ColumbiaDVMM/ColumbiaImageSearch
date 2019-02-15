@@ -124,7 +124,7 @@ class ExtractionProcessor(ConfReader):
     self.extractor = None
     self.nb_empt = 0
     self.nb_err = 0
-    self.max_proc_time = 1200 # in seconds. Increased for sbcmdline...
+    self.max_proc_time = 900 # in seconds. Increased for sbcmdline...
     self.url_input = True
 
     super(ExtractionProcessor, self).__init__(global_conf, prefix)
@@ -669,7 +669,8 @@ class ExtractionProcessor(ConfReader):
                     if deleted_extr[i] == 0:
                       # we pushed the extractor as self.extractors[i] in a loop of self.nb_threads
                       # we use i_q_in
-                      del self.extractors[i_q_in]
+                      #del self.extractors[i_q_in]
+                      del self.extractors[i_q_in - sum(deleted_extr[:i])]
                       deleted_extr[i] = 1
                   except Exception:
                     pass
@@ -708,6 +709,7 @@ class ExtractionProcessor(ConfReader):
               print("[{}] Thread {} q_out is not empty.".format(self.pp, i + 1))
               sys.stdout.flush()
             try:
+              # This can still block forever?
               batch_out = self.q_out[i].get(True, 10)
               if self.verbose > 4:
                 msg = "[{}] Got batch of {} features from thread {} q_out."
@@ -781,6 +783,9 @@ class ExtractionProcessor(ConfReader):
       #fulltb = traceback.format_tb(exc_tb)
       print("[{}] {}".format(self.pp, inst))
       #print("[{}] {} ({})".format(self.pp, inst, ''.join(fulltb)))
+      # Things are likely to be very bad at that point... Docker should be restarted
+      if self.nb_threads == 2:
+        raise inst
       #raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
