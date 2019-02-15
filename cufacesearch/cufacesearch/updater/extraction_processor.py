@@ -629,11 +629,11 @@ class ExtractionProcessor(ConfReader):
               msg = "[{}.process_batch: error] Could not start thread #{}: {}"
               print(msg.format(self.pp, i+1, inst))
               thread_creation_failed[i] = 1
-              time.sleep(10*sum(thread_creation_failed))
+              time.sleep(sum(thread_creation_failed))
 
         if sum(thread_creation_failed) == self.nb_threads:
           # We are in trouble...
-          raise ValueError("Could not start any thread...")
+          raise OSError("Could not start any thread...")
 
         nb_threads_running = len(threads)
         start_process = time.time()
@@ -783,7 +783,8 @@ class ExtractionProcessor(ConfReader):
             self.nb_threads -= 1
             self.extractors = []
             gc.collect()
-          raise ValueError("Something went wrong. Trying to restart clean...")
+          else:
+            raise OSError("Something went wrong. Trying to restart clean...")
 
     except Exception as inst:
       #exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -791,8 +792,8 @@ class ExtractionProcessor(ConfReader):
       print("[{}] {}".format(self.pp, inst))
       #print("[{}] {} ({})".format(self.pp, inst, ''.join(fulltb)))
       # Things are likely to be very bad at that point... Docker should be restarted
-      if self.nb_threads == 2:
-        raise inst
+      #if self.nb_threads == 2:
+      raise inst
       #raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
@@ -805,7 +806,7 @@ class ExtractionProcessor(ConfReader):
       msg = "[ExtractionProcessor: log] Nothing to process at: {}"
       print(msg.format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
       sys.stdout.flush()
-      time.sleep(10*self.nb_empt)
+      time.sleep(10*min(self.nb_empt, 60))
       self.nb_empt += 1
 
       # try:

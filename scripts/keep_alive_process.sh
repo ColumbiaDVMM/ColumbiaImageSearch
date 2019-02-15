@@ -1,7 +1,7 @@
 #!/bin/bash
 
-sleep_time=60
-max_nb_crash=5
+sleep_time=30
+max_nb_crash=3
 
 while getopts :-: option
 do
