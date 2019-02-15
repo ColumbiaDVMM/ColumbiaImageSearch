@@ -392,7 +392,10 @@ class ExtractionProcessor(ConfReader):
             self.last_missing_extr_date = "1970-01-01"
 
     except Exception as inst:
+      # If we reach this point it is really a succession of failures
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
+      # Raise Exception to restart process or docker
+      raise inst
 
 
 
@@ -454,7 +457,11 @@ class ExtractionProcessor(ConfReader):
         for rows_batch, update_id in self.get_batch_hbase():
           yield rows_batch, update_id
     except Exception as inst:
+      # If we reach this point it is really a succession of failures
       full_trace_error("[{}.get_batch_kafka: error] {}".format(self.pp, inst))
+      # Raise Exception to restart process or docker
+      raise inst
+
 
 
   def get_batch(self):
