@@ -537,7 +537,9 @@ class ExtractionProcessor(ConfReader):
           #if img_buffer_column in img[1]:
           if self.in_indexer.get_col_imgbuff() in img[1]:
             # That's messy...
-            b64buffer = buffer_to_B64(cStringIO.StringIO(img[1][self.in_indexer.get_col_imgbuff()]))
+            # b64buffer = buffer_to_B64(cStringIO.StringIO(img[1][self.in_indexer.get_col_imgbuff()]))
+            # use img[1].pop(self.in_indexer.get_col_imgbuff())
+            b64buffer = buffer_to_B64(cStringIO.StringIO(img[1].pop(self.in_indexer.get_col_imgbuff())))
             tup = (img[0], b64buffer, False)
             list_in.append(tup)
           else:
@@ -633,7 +635,7 @@ class ExtractionProcessor(ConfReader):
 
         if sum(thread_creation_failed) == self.nb_threads:
           # We are in trouble...
-          raise OSError("Could not start any thread...")
+          raise RuntimeError("Could not start any thread...")
 
         nb_threads_running = len(threads)
         start_process = time.time()
@@ -779,12 +781,12 @@ class ExtractionProcessor(ConfReader):
         # Should we just raise an Exception and restart clean?
         if sum(thread_creation_failed) > 0 or sum(deleted_extr) > 0:
           # To try to adjust a too optimistic nb_threads setting
-          if self.nb_threads > 2:
+          if self.nb_threads > 1:
             self.nb_threads -= 1
             self.extractors = []
             gc.collect()
           else:
-            raise OSError("Something went wrong. Trying to restart clean...")
+            raise RuntimeError("Processed failed with a single thread...")
 
     except Exception as inst:
       #exc_type, exc_obj, exc_tb = sys.exc_info()
