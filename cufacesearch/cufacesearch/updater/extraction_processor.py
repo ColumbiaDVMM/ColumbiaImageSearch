@@ -833,26 +833,26 @@ if __name__ == "__main__":
   parser.add_argument("-p", "--prefix", dest="prefix", default=DEFAULT_EXTR_PROC_PREFIX)
   options = parser.parse_args()
 
-  # TODO: should we daemonize that too?
-
   # Initialize extraction processor
   ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
-  nb_err = 0
 
   print("Extraction processor options are: {}".format(options))
   sys.stdout.flush()
 
-  while True:
-    try:
-      ep.run()
-      nb_err = 0
-    except Exception as inst:
-      full_trace_error("Extraction processor failed: {}".format(inst))
-      sys.stdout.flush()
-      break
-      #raise inst
-      # del ep
-      # gc.collect()
-      # time.sleep(10*nb_err)
-      # ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
-      # nb_err += 1
+  ep.run()
+
+  # nb_err = 0
+  # while True:
+  #   try:
+  #     ep.run()
+  #     nb_err = 0
+  #   except Exception as inst:
+  #     full_trace_error("Extraction processor failed: {}".format(inst))
+  #     sys.stdout.flush()
+  #     break
+  #     #raise inst
+  #     # del ep
+  #     # gc.collect()
+  #     # time.sleep(10*nb_err)
+  #     # ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
+  #     # nb_err += 1
