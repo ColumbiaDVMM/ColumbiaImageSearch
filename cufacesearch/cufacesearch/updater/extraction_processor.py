@@ -622,154 +622,163 @@ class ExtractionProcessor(ConfReader):
         print(msg.format(self.pp, len(list_in), len(rows_batch), nb_dl - nb_dl_failed, nb_dl,
                          update_id, get_buffer_time))
         sys.stdout.flush()
-        # --------
 
-        # TODO: define a get_features method
-        # --------
-        q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
-        for i, q_batch in enumerate(build_batch(list_in, q_batch_size)):
-          self.q_in[i].put(q_batch)
-
-        q_in_size = []
-        q_in_size_tot = 0
-        for i in range(self.nb_threads):
-          q_in_size.append(self.q_in[i].qsize())
-          q_in_size_tot += q_in_size[i]
-        if self.verbose > 5:
-          print("[{}] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
-
-        # Start daemons...
-        thread_creation_failed = [0]*self.nb_threads
-        for i in range(self.nb_threads):
-          # one per non empty input queue
-          if q_in_size[i] > 0:
-            try:
-              thread = DaemonBatchExtractor(self.extractors[i], self.q_in[i], self.q_out[i],
-                                            verbose=self.verbose)
-              # Could get a 'Cannot allocate memory' if we are using too many threads...
-              thread.start()
-              threads.append(thread)
-            except OSError as inst:
-              # Should we try to push self.q_in[i] data to some other thread?
-              msg = "[{}.process_batch: error] Could not start thread #{}: {}"
-              print(msg.format(self.pp, i+1, inst))
-              thread_creation_failed[i] = 1
-              time.sleep(sum(thread_creation_failed))
-
-        if sum(thread_creation_failed) == self.nb_threads:
-          # We are in trouble...
-          raise RuntimeError("Could not start any thread...")
-
-        nb_threads_running = len(threads)
-        start_process = time.time()
-        stop = time.time() + self.max_proc_time
-        # Wait for all tasks to be marked as done
-        threads_finished = [0] * nb_threads_running
+        thread_creation_failed = [0] * self.nb_threads
         deleted_extr = [0] * nb_threads_running
-        thread_msg = "[{}] Thread {}/{} (pid: {}) "
-        while sum(threads_finished) < nb_threads_running:
-          for i in range(nb_threads_running):
-            if sum(threads_finished) == nb_threads_running:
-              sys.stdout.flush()
-              break
-            if threads_finished[i] == 1:
-              continue
-            i_q_in = i + sum(thread_creation_failed[:i + 1])
-            if q_in_size[i_q_in] > 0:
-              # This seems to block forever sometimes, if subprocess crashed?...
-              #self.q_in[i].join()
-              # Manual join with timeout...
-              # https://github.com/python/cpython/blob/3.6/Lib/multiprocessing/queues.py
-              if not self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
-                time.sleep(1)
-              else:
-                if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero():
-                  if self.verbose > 5:
-                    msg = thread_msg+"marked as finished because processing seems finished"
-                    print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
-                else:
-                  if self.verbose > 0:
-                    # In this cases does this happen...
-                    msg = thread_msg+"force marked task as done as max_proc_time ({}) has passed."
-                    print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid,
-                                     self.max_proc_time))
-                    sys.stdout.flush()
-                    # Try to delete corresponding extractor to free memory?
-                    # And reduce number of threads at the end of the loop
-                  try:
-                    self.q_in[i_q_in].task_done()
-                    if deleted_extr[i] == 0:
-                      # we pushed the extractor as self.extractors[i] in a loop of self.nb_threads
-                      # we use i_q_in
-                      #del self.extractors[i_q_in]
-                      del self.extractors[i_q_in - sum(deleted_extr[:i])]
-                      deleted_extr[i] = 1
-                  except Exception:
-                    pass
-                threads_finished[i] = 1
-            else:
-              if self.verbose > 2:
-                # We actually never gave something to process...
-                msg = thread_msg+"marked as finished because no data was passed to it"
-                print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
-              threads_finished[i] = 1
 
-        # Cleanup threads to free memory before getting data back
-        # Daemon may still be running...
-        # and will actually be deleted only when they exit after not getting a batch
-        del threads
-
-        # Gather results
-        q_out_size = []
-        q_out_size_tot = 0
-        for i in range(self.nb_threads):
-          q_out_size.append(self.q_out[i].qsize())
-          q_out_size_tot += q_out_size[i]
-
-        if self.verbose > 5:
-          print("[{}: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
-          sys.stdout.flush()
-
-        # Can get stuck here?
-        dict_imgs = dict()
-        for i in range(self.nb_threads):
-          if self.verbose > 4:
-            print("[{}] Thread {} q_out_size: {}".format(self.pp, i + 1, q_out_size[i]))
-            sys.stdout.flush()
-          while q_out_size[i] > 0 and not self.q_out[i].empty():
-            if self.verbose > 6:
-              print("[{}] Thread {} q_out is not empty.".format(self.pp, i + 1))
-              sys.stdout.flush()
-            try:
-              # This can still block forever?
-              batch_out = self.q_out[i].get(True, 10)
-              if self.verbose > 4:
-                msg = "[{}] Got batch of {} features from thread {} q_out."
-                print(msg.format(self.pp, len(batch_out), i + 1))
-                sys.stdout.flush()
-              for sha1, dict_out in batch_out:
-                dict_imgs[sha1] = dict_out
-            except:
-              if self.verbose > 1:
-                print("[{}] Thread {} failed to get from q_out: {}".format(self.pp, i + 1))
-                sys.stdout.flush()
-              #pass
-            if self.verbose > 4:
-              print("[{}] Marking task done in q_out of thread {}.".format(self.pp, i + 1))
-              sys.stdout.flush()
-            self.q_out[i].task_done()
-
-        #if self.verbose > 0:
-        print_msg = "[{}] Got features for {}/{} images in {}s."
-        proc_time = time.time() - start_process
-        print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), proc_time))
-        sys.stdout.flush()
         # --------
+        # if len(list_in) == 0, we shouldn't try to process anything, just mark update as processed
+        if len(list_in) != 0:
 
-        # Push them
-        # DONE: use out_indexer
-        self.out_indexer.push_dict_rows(dict_rows=dict_imgs,
-                                        table_name=self.out_indexer.table_sha1infos_name)
+          # TODO: define a get_features method
+          # --------
+          q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
+          for i, q_batch in enumerate(build_batch(list_in, q_batch_size)):
+            self.q_in[i].put(q_batch)
+
+          q_in_size = []
+          q_in_size_tot = 0
+          for i in range(self.nb_threads):
+            q_in_size.append(self.q_in[i].qsize())
+            q_in_size_tot += q_in_size[i]
+          if self.verbose > 5:
+            print("[{}] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
+
+          # Start daemons...
+          for i in range(self.nb_threads):
+            # one per non empty input queue
+            if q_in_size[i] > 0:
+              try:
+                thread = DaemonBatchExtractor(self.extractors[i], self.q_in[i], self.q_out[i],
+                                              verbose=self.verbose)
+                # Could get a 'Cannot allocate memory' if we are using too many threads...
+                thread.start()
+                threads.append(thread)
+              except OSError as inst:
+                # Should we try to push self.q_in[i] data to some other thread?
+                msg = "[{}.process_batch: error] Could not start thread #{}: {}"
+                print(msg.format(self.pp, i+1, inst))
+                thread_creation_failed[i] = 1
+                time.sleep(sum(thread_creation_failed))
+
+          if sum(thread_creation_failed) == self.nb_threads:
+            # We are in trouble...
+            raise RuntimeError("Could not start any thread...")
+
+          nb_threads_running = len(threads)
+          start_process = time.time()
+          stop = time.time() + self.max_proc_time
+          # Wait for all tasks to be marked as done
+          threads_finished = [0] * nb_threads_running
+          thread_msg = "[{}] Thread {}/{} (pid: {}) "
+          while sum(threads_finished) < nb_threads_running:
+            for i in range(nb_threads_running):
+              if sum(threads_finished) == nb_threads_running:
+                sys.stdout.flush()
+                break
+              if threads_finished[i] == 1:
+                continue
+              i_q_in = i + sum(thread_creation_failed[:i + 1])
+              if q_in_size[i_q_in] > 0:
+                # This seems to block forever sometimes, if subprocess crashed?...
+                #self.q_in[i].join()
+                # Manual join with timeout...
+                # https://github.com/python/cpython/blob/3.6/Lib/multiprocessing/queues.py
+                if not self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero() and time.time() < stop:
+                  time.sleep(1)
+                else:
+                  if self.q_in[i_q_in]._unfinished_tasks._semlock._is_zero():
+                    if self.verbose > 5:
+                      msg = thread_msg+"marked as finished because processing seems finished"
+                      print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
+                  else:
+                    if self.verbose > 0:
+                      # In this cases does this happen...
+                      msg = thread_msg+"force marked task as done as max_proc_time ({}) has passed."
+                      print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid,
+                                       self.max_proc_time))
+                      sys.stdout.flush()
+                      # Try to delete corresponding extractor to free memory?
+                      # And reduce number of threads at the end of the loop
+                    try:
+                      self.q_in[i_q_in].task_done()
+                      if deleted_extr[i] == 0:
+                        # we pushed the extractor as self.extractors[i] in a loop of self.nb_threads
+                        # we use i_q_in
+                        #del self.extractors[i_q_in]
+                        del self.extractors[i_q_in - sum(deleted_extr[:i])]
+                        deleted_extr[i] = 1
+                    except Exception:
+                      pass
+                  threads_finished[i] = 1
+              else:
+                if self.verbose > 2:
+                  # We actually never gave something to process...
+                  msg = thread_msg+"marked as finished because no data was passed to it"
+                  print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
+                threads_finished[i] = 1
+
+          # Cleanup threads to free memory before getting data back
+          # Daemon may still be running...
+          # and will actually be deleted only when they exit after not getting a batch
+          del threads
+
+          # Gather results
+          q_out_size = []
+          q_out_size_tot = 0
+          for i in range(self.nb_threads):
+            q_out_size.append(self.q_out[i].qsize())
+            q_out_size_tot += q_out_size[i]
+
+          if self.verbose > 5:
+            print("[{}: log] Total output queues size is: {}".format(self.pp, q_out_size_tot))
+            sys.stdout.flush()
+
+          # Can get stuck here?
+          dict_imgs = dict()
+          for i in range(self.nb_threads):
+            if self.verbose > 4:
+              print("[{}] Thread {} q_out_size: {}".format(self.pp, i + 1, q_out_size[i]))
+              sys.stdout.flush()
+            while q_out_size[i] > 0 and not self.q_out[i].empty():
+              if self.verbose > 6:
+                print("[{}] Thread {} q_out is not empty.".format(self.pp, i + 1))
+                sys.stdout.flush()
+              try:
+                # This can still block forever?
+                batch_out = self.q_out[i].get(True, 10)
+                if self.verbose > 4:
+                  msg = "[{}] Got batch of {} features from thread {} q_out."
+                  print(msg.format(self.pp, len(batch_out), i + 1))
+                  sys.stdout.flush()
+                for sha1, dict_out in batch_out:
+                  dict_imgs[sha1] = dict_out
+              except:
+                if self.verbose > 1:
+                  print("[{}] Thread {} failed to get from q_out: {}".format(self.pp, i + 1))
+                  sys.stdout.flush()
+                #pass
+              if self.verbose > 4:
+                print("[{}] Marking task done in q_out of thread {}.".format(self.pp, i + 1))
+                sys.stdout.flush()
+              self.q_out[i].task_done()
+
+          #if self.verbose > 0:
+          print_msg = "[{}] Got features for {}/{} images in {}s."
+          proc_time = time.time() - start_process
+          print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), proc_time))
+          sys.stdout.flush()
+          # --------
+
+          # Push them
+          # DONE: use out_indexer
+          self.out_indexer.push_dict_rows(dict_rows=dict_imgs,
+                                          table_name=self.out_indexer.table_sha1infos_name)
+
+        else:
+          msg = "[{}: Warning] Could not get any image buffer (out of {} requested) for update {}"
+          print(msg.format(self.pp, len(rows_batch), update_id))
+          dict_imgs = dict()
 
         # Mark batch as processed
         now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
