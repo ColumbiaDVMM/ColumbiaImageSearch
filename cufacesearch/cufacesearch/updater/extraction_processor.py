@@ -198,13 +198,12 @@ class ExtractionProcessor(ConfReader):
     self.last_missing_extr_date = "1970-01-01"
 
     # Initialize ingester
-    # TODO: this should be Kafka, Kinesis or None if getting data from HBase...
+    # This should be Kafka, Kinesis or None if getting data from HBase...
     self.ingester = None
     if self.ingestion_input == "kafka":
-      # TODO: create a class KafkaIngester
-      from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
-      self.ingester = GenericKafkaProcessor(self.global_conf,
-                                            prefix=self.get_required_param("proc_ingester_prefix"))
+      from cufacesearch.ingester.kafka_ingester import KafkaIngester
+      self.ingester = KafkaIngester(self.global_conf,
+                                    prefix=self.get_required_param("proc_ingester_prefix"))
       self.ingester.pp = "KafkaUpdateIngester"
     elif self.ingestion_input == "kinesis":
       from cufacesearch.ingester.kinesis_ingester import KinesisIngester
@@ -423,7 +422,7 @@ class ExtractionProcessor(ConfReader):
     mn = "get_batch_ingester"
     try:
       # Needs to read topic to get update_id and list of sha1s
-      # TODO: this consumer could be kinesis or Kafka too...
+      # This consumer could be kinesis or Kafka
       if self.ingester and self.ingester.consumer:
         for msg_dict in self.ingester.get_msg_json():
           # Check msg_dict is really a dict?
