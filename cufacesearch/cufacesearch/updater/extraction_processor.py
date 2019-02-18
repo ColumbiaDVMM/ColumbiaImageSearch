@@ -622,9 +622,6 @@ class ExtractionProcessor(ConfReader):
                          update_id, get_buffer_time))
         sys.stdout.flush()
 
-        thread_creation_failed = [0] * self.nb_threads
-        deleted_extr = [0] * nb_threads_running
-
         # --------
         # if len(list_in) == 0, we shouldn't try to process anything, just mark update as processed
         if len(list_in) != 0:
@@ -644,6 +641,7 @@ class ExtractionProcessor(ConfReader):
             print("[{}] Total input queues sizes is: {}".format(self.pp, q_in_size_tot))
 
           # Start daemons...
+          thread_creation_failed = [0] * self.nb_threads
           for i in range(self.nb_threads):
             # one per non empty input queue
             if q_in_size[i] > 0:
@@ -665,6 +663,7 @@ class ExtractionProcessor(ConfReader):
             raise RuntimeError("Could not start any thread...")
 
           nb_threads_running = len(threads)
+          deleted_extr = [0] * nb_threads_running
           start_process = time.time()
           stop = time.time() + self.max_proc_time
           # Wait for all tasks to be marked as done
@@ -778,6 +777,9 @@ class ExtractionProcessor(ConfReader):
           msg = "[{}: Warning] Could not get any image buffer (out of {} requested) for update {}"
           print(msg.format(self.pp, len(rows_batch), update_id))
           dict_imgs = dict()
+          nb_threads_running = len(threads)
+          thread_creation_failed = [0] * self.nb_threads
+          deleted_extr = [0] * nb_threads_running
 
         # Mark batch as processed
         now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
