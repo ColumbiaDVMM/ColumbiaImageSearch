@@ -1,6 +1,7 @@
 #!/bin/bash
 
-sleep_time=60
+sleep_time=10
+max_nb_crash=3
 
 while getopts :-: option
 do
@@ -30,16 +31,24 @@ else
   exit -1
 fi
 
-while true;
+# New: have a maximum number of failures
+nb_crash=0
+#while true;
+while [[ $nb_crash < $max_nb_crash ]];
 do
+    nb_crash=$((nb_crash+1));
     if [ ${log+x} ]; then
         echo "["$(date)"] Starting process." >> ${log}"_keepalive";
         ${command} ${args} &> ${log}"_"$(date +%Y-%m-%d_%H-%M-%S);
-        echo "["$(date)"] Process crashed." >> ${log}"_keepalive";
+        echo "["$(date)"] Process crashed. Crash #"$nb_crash >> ${log}"_keepalive";
     else
         echo "["$(date)"] Starting process."
         ${command} ${args}
-        echo "["$(date)"] Process crashed."
+        echo "["$(date)"] Process crashed. Crash #"$nb_crash
     fi
+    echo "["$(date)"] Sleeping for "${sleep_time}" seconds."
     sleep ${sleep_time};
 done
+
+# New: if we reach that point, processes have failed multiple times
+exit 1

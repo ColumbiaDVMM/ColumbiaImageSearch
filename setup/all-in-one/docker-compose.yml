@@ -165,6 +165,7 @@ services:
     hostname: ${input_conf_name}
     stdin_open: true
     tty: true
+    restart: on-failure
     environment:
       # General environment variables
       - input_type
@@ -212,6 +213,7 @@ services:
     hostname: ${extr_conf_name}
     stdin_open: true
     tty: true
+    restart: on-failure
     cap_add:
       - IPC_LOCK
     environment:
@@ -275,6 +277,7 @@ services:
     hostname: ${search_conf_name}
     stdin_open: true
     tty: true
+    restart: on-failure
     cap_add:
       - IPC_LOCK
     environment:
