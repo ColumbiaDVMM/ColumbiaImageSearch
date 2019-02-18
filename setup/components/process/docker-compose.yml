@@ -33,6 +33,8 @@ services:
       - create_stream
       - region_name
       - aws_profile
+      - image_shard_infos_filename
+      - update_shard_infos_filename
       # Hbase related environment variables
       - hbase_host
       # In
