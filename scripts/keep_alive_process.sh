@@ -51,4 +51,5 @@ do
 done
 
 # New: if we reach that point, processes have failed multiple times
+echo "Command "${command}" has failed multiple times."
 exit 1

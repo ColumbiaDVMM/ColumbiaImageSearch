@@ -123,7 +123,7 @@ class ExtractionProcessor(ConfReader):
     self.extractor = None
     self.nb_empt = 0
     self.nb_err = 0
-    self.max_proc_time = 1200 # in seconds. Increased for sbcmdline...
+    self.max_proc_time = 900 # in seconds. Increased for sbcmdline...
     self.url_input = True
 
     super(ExtractionProcessor, self).__init__(global_conf, prefix)
@@ -406,7 +406,10 @@ class ExtractionProcessor(ConfReader):
             self.last_missing_extr_date = "1970-01-01"
 
     except Exception as inst:
+      # If we reach this point it is really a succession of failures
       full_trace_error("[{}.get_batch_hbase: error] {}".format(self.pp, inst))
+      # Raise Exception to restart process or docker
+      raise inst
 
 
   # Now handles both Kafka and Kinesis
@@ -479,8 +482,10 @@ class ExtractionProcessor(ConfReader):
         for rows_batch, update_id in self.get_batch_hbase():
           yield rows_batch, update_id
     except Exception as inst:
+      # If we reach this point it is really a succession of failures
       full_trace_error("[{}.{}: error] {}".format(self.pp, mn, inst))
-
+      # Raise Exception to restart process or docker
+      raise inst
 
   def get_batch(self):
     """Get one batch of images
@@ -555,7 +560,9 @@ class ExtractionProcessor(ConfReader):
           #if img_buffer_column in img[1]:
           if self.in_indexer.get_col_imgbuff() in img[1]:
             # That's messy...
-            b64buffer = buffer_to_B64(cStringIO.StringIO(img[1][self.in_indexer.get_col_imgbuff()]))
+            # b64buffer = buffer_to_B64(cStringIO.StringIO(img[1][self.in_indexer.get_col_imgbuff()]))
+            # use img[1].pop(self.in_indexer.get_col_imgbuff())
+            b64buffer = buffer_to_B64(cStringIO.StringIO(img[1].pop(self.in_indexer.get_col_imgbuff())))
             tup = (img[0], b64buffer, False)
             list_in.append(tup)
           else:
@@ -647,11 +654,11 @@ class ExtractionProcessor(ConfReader):
               msg = "[{}.process_batch: error] Could not start thread #{}: {}"
               print(msg.format(self.pp, i+1, inst))
               thread_creation_failed[i] = 1
-              time.sleep(10*sum(thread_creation_failed))
+              time.sleep(sum(thread_creation_failed))
 
         if sum(thread_creation_failed) == self.nb_threads:
           # We are in trouble...
-          raise ValueError("Could not start any thread...")
+          raise RuntimeError("Could not start any thread...")
 
         nb_threads_running = len(threads)
         start_process = time.time()
@@ -694,7 +701,8 @@ class ExtractionProcessor(ConfReader):
                     if deleted_extr[i] == 0:
                       # we pushed the extractor as self.extractors[i] in a loop of self.nb_threads
                       # we use i_q_in
-                      del self.extractors[i_q_in]
+                      #del self.extractors[i_q_in]
+                      del self.extractors[i_q_in - sum(deleted_extr[:i])]
                       deleted_extr[i] = 1
                   except Exception:
                     pass
@@ -733,6 +741,7 @@ class ExtractionProcessor(ConfReader):
               print("[{}] Thread {} q_out is not empty.".format(self.pp, i + 1))
               sys.stdout.flush()
             try:
+              # This can still block forever?
               batch_out = self.q_out[i].get(True, 10)
               if self.verbose > 4:
                 msg = "[{}] Got batch of {} features from thread {} q_out."
@@ -795,17 +804,21 @@ class ExtractionProcessor(ConfReader):
         # Should we just raise an Exception and restart clean?
         if sum(thread_creation_failed) > 0 or sum(deleted_extr) > 0:
           # To try to adjust a too optimistic nb_threads setting
-          if self.nb_threads > 2:
+          if self.nb_threads > 1:
             self.nb_threads -= 1
             self.extractors = []
             gc.collect()
-          raise ValueError("Something went wrong. Trying to restart clean...")
+          else:
+            raise RuntimeError("Processed failed with a single thread...")
 
     except Exception as inst:
       #exc_type, exc_obj, exc_tb = sys.exc_info()
       #fulltb = traceback.format_tb(exc_tb)
       print("[{}] {}".format(self.pp, inst))
       #print("[{}] {} ({})".format(self.pp, inst, ''.join(fulltb)))
+      # Things are likely to be very bad at that point... Docker should be restarted
+      #if self.nb_threads == 2:
+      raise inst
       #raise type(inst)(" {} ({})".format(inst, ''.join(fulltb)))
 
   def run(self):
@@ -818,7 +831,7 @@ class ExtractionProcessor(ConfReader):
       msg = "[ExtractionProcessor: log] Nothing to process at: {}"
       print(msg.format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
       sys.stdout.flush()
-      time.sleep(10*self.nb_empt)
+      time.sleep(10*min(self.nb_empt, 60))
       self.nb_empt += 1
 
       # try:
@@ -843,26 +856,26 @@ if __name__ == "__main__":
   parser.add_argument("-p", "--prefix", dest="prefix", default=DEFAULT_EXTR_PROC_PREFIX)
   options = parser.parse_args()
 
-  # TODO: should we daemonize that too?
-
   # Initialize extraction processor
   ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
-  nb_err = 0
 
   print("Extraction processor options are: {}".format(options))
   sys.stdout.flush()
 
-  while True:
-    try:
-      ep.run()
-      nb_err = 0
-    except Exception as inst:
-      full_trace_error("Extraction processor failed: {}".format(inst))
-      sys.stdout.flush()
-      break
-      #raise inst
-      # del ep
-      # gc.collect()
-      # time.sleep(10*nb_err)
-      # ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
-      # nb_err += 1
+  ep.run()
+
+  # nb_err = 0
+  # while True:
+  #   try:
+  #     ep.run()
+  #     nb_err = 0
+  #   except Exception as inst:
+  #     full_trace_error("Extraction processor failed: {}".format(inst))
+  #     sys.stdout.flush()
+  #     break
+  #     #raise inst
+  #     # del ep
+  #     # gc.collect()
+  #     # time.sleep(10*nb_err)
+  #     # ep = ExtractionProcessor(options.conf_file, prefix=options.prefix)
+  #     # nb_err += 1
