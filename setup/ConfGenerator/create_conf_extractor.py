@@ -269,6 +269,7 @@ if __name__ == "__main__":
     conf[check_ingester_prefix + 'lim_get_rec'] = lim_get_rec
     conf[check_ingester_prefix + 'verify_certificates'] = verify_certificates
     conf[check_ingester_prefix + 'shard_iterator_type'] = shard_iterator_type
+    conf[check_ingester_prefix + 'shard_infos_filename'] = os.getenv('image_shard_infos_filename')
     # NB: does not make sense to create input stream
 
   if conf[extr_prefix + "update_ingestion_type"] == "kinesis":
@@ -289,6 +290,8 @@ if __name__ == "__main__":
     conf[proc_ingester_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
     conf[proc_ingester_prefix + 'create_stream'] = create_stream
     conf[proc_ingester_prefix + 'verify_certificates'] = verify_certificates
+    conf[check_ingester_prefix + 'shard_iterator_type'] = shard_iterator_type
+    conf[check_ingester_prefix + 'shard_infos_filename'] = os.getenv('update_shard_infos_filename')
   # elif conf[extr_prefix + "update_ingestion_type"] == "hbase":
   #   # No additional parameters to pass?
   #   pass
