@@ -677,7 +677,8 @@ class ExtractionProcessor(ConfReader):
                       # Try to delete corresponding extractor to free memory?
                       # And reduce number of threads at the end of the loop
                     try:
-                      self.q_in[i_q_in].task_done()
+                      # This can block?
+                      #self.q_in[i_q_in].task_done()
                       if deleted_extr[i] == 0:
                         # we pushed the extractor as self.extractors[i] in a loop of self.nb_threads
                         # we use i_q_in
