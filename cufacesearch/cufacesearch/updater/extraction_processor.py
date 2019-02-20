@@ -862,6 +862,8 @@ if __name__ == "__main__":
   except:
     print("Extraction processor failed at {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
 
+  sys.exit(1)
+
   # nb_err = 0
   # while True:
   #   try:

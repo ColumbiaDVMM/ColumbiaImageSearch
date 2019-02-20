@@ -42,9 +42,9 @@ do
         ${command} ${args} &> ${log}"_"$(date +%Y-%m-%d_%H-%M-%S);
         echo "["$(date)"] Process crashed. Crash #"$nb_crash >> ${log}"_keepalive";
     else
-        echo "["$(date)"] Starting process."
-        ${command} ${args}
-        echo "["$(date)"] Process crashed. Crash #"$nb_crash
+        echo "["$(date)"] Starting process.";
+        ${command} ${args};
+        echo "["$(date)"] Process crashed. Crash #"$nb_crash;
     fi
     sleep ${sleep_time};
 done
