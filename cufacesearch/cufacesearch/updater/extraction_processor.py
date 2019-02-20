@@ -724,7 +724,8 @@ class ExtractionProcessor(ConfReader):
                   sys.stdout.flush()
                 try:
                   # This can still block forever?
-                  batch_out = self.q_out[i].get(True, 10)
+                  #batch_out = self.q_out[i].get(True, 10)
+                  batch_out = self.q_out[i].get_nowait()
                   if self.verbose > 4:
                     msg = "[{}] Got batch of {} features from thread {} q_out."
                     print(msg.format(self.pp, len(batch_out), i + 1))
