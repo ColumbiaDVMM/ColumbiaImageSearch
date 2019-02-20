@@ -79,17 +79,23 @@ class DaemonBatchExtractor(multiprocessing.Process):
       try:
 
         start_process = time.time()
+        batch_size = len(batch)
         if self.verbose > 1:
-          print "[{}] Got batch of {} images to process.".format(self.pp, len(batch))
+          print "[{}] Got batch of {} images to process.".format(self.pp, batch_size)
           sys.stdout.flush()
 
         # Process each image
         #---
         # Something in this part seems to block with sbpycaffe but very rarely...
         out_batch = []
-        for sha1, img_buffer_b64, push_buffer in batch:
+        #for sha1, img_buffer_b64, push_buffer in batch:
+        for img_id in range(batch_size):
           if self.killed:
+            if self.verbose > 2:
+              print "[{}] Killed at: {}".format(self.pp, datetime.now().isoformat())
+              sys.stdout.flush()
             break
+          sha1, img_buffer_b64, push_buffer = batch.pop()
           try:
             # Could this block???
             out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
@@ -101,10 +107,12 @@ class DaemonBatchExtractor(multiprocessing.Process):
             #   out_dict[self.indexer.get_col_imgbuff()] = img_buffer_b64
             out_batch.append((sha1, out_dict))
           except Exception as inst:
-            err_msg = "[{}: warning] Extraction failed for img {} with error ({}): {} {}"
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fulltb = traceback.format_tb(exc_tb)
-            print(err_msg.format(self.pp, sha1, type(inst), inst, fulltb))
+            #err_msg = "[{}: warning] Extraction failed for img {} with error ({}): {} {}"
+            #print(err_msg.format(self.pp, sha1, type(inst), inst, fulltb))
+            err_msg = "[{}: warning] Extraction failed for img #{} {} with error ({}): {} {}"
+            print(err_msg.format(self.pp, img_id, sha1, type(inst), inst, fulltb))
             sys.stdout.flush()
             # Mark this image as corrupted
             # But how and when could it be overwritten if we manage to run the extraction later?
