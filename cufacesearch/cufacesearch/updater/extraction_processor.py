@@ -323,12 +323,13 @@ class ExtractionProcessor(ConfReader):
                 # print "rows_batch", rows_batch
                 if rows_batch:
                   yield rows_batch, update_id
-                  self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
                 else:
                   msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
                   print(msg.format(self.pp, update_id))
                   #msg = "[{}.get_batch_hbase: log] Was trying to read columns {} from table {} for rows {}"
                   #print(msg.format(self.pp, img_cols, self.in_indexer.table_sha1infos_name, list_sha1s))
+                # Store last update id
+                self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
               else:
                 msg = "[{}.get_batch_hbase: log] Skipping recently started update: {}"
                 print(msg.format(self.pp, update_id))
@@ -507,7 +508,8 @@ class ExtractionProcessor(ConfReader):
     try:
       for rows_batch, update_id in self.get_batch():
         start_update = time.time()
-        print("[{}] Processing update {} of {} rows.".format(self.pp, update_id, len(rows_batch)))
+        img_list_size = len(rows_batch)
+        print("[{}] Processing update {} of {} rows.".format(self.pp, update_id, img_list_size))
         sys.stdout.flush()
 
         # Initialize
@@ -519,7 +521,7 @@ class ExtractionProcessor(ConfReader):
         nb_extr_to_create = self.nb_threads - len(self.extractors)
         if nb_extr_to_create:
           start_create_extractor = time.time()
-          while len(self.extractors) < min(self.nb_threads, len(rows_batch)):
+          while len(self.extractors) < min(self.nb_threads, img_list_size):
             # DONE: use 'out_indexer'
             self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
                                                     self.input_type, self.out_indexer.extrcf,
@@ -567,6 +569,9 @@ class ExtractionProcessor(ConfReader):
             list_in.append(tup)
           else:
             # need to re-download, accumulate a list of URLs to download
+            if self.verbose > 5:
+              msg = "[{}: log] Will try to download image {} without buffer"
+              print(msg.format(self.pp, img[0]))
             # Deal with img_path_column for local_images_kafka_pusher
             if self.img_column in img[1]:
               q_in_dl.put((img[0], img[1][self.img_column], self.push_back))
@@ -578,6 +583,10 @@ class ExtractionProcessor(ConfReader):
               msg = "[{}: warning] No buffer and no URL/path for image {} !"
               print(msg.format(self.pp, img[0]))
               continue
+
+        # At this point we can delete rows_batch
+        del rows_batch
+        gc.collect()
 
         # Download missing images
         nb_dl = 0
@@ -619,20 +628,25 @@ class ExtractionProcessor(ConfReader):
                 print(msg.format(self.pp, sha1))
 
         get_buffer_time = time.time() - start_get_buffer
+        buff_list_size = len(list_in)
         msg = "[{}] Got {}/{} image buffers ({}/{} downloaded) for update {} in {}s."
-        print(msg.format(self.pp, len(list_in), len(rows_batch), nb_dl - nb_dl_failed, nb_dl,
+        print(msg.format(self.pp, buff_list_size, img_list_size, nb_dl - nb_dl_failed, nb_dl,
                          update_id, get_buffer_time))
         sys.stdout.flush()
 
         # --------
-        # if len(list_in) == 0, we shouldn't try to process anything, just mark update as processed
-        if len(list_in) != 0:
+        # if buff_list_size == 0, we shouldn't try to process anything, just mark update as processed
+        if buff_list_size != 0:
 
           # TODO: define a get_features method
           # --------
-          q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
+          q_batch_size = int(math.ceil(float(buff_list_size)/self.nb_threads))
           for i, q_batch in enumerate(build_batch(list_in, q_batch_size)):
             self.q_in[i].put(q_batch)
+
+          # At this point we can delete list_in
+          del list_in
+          gc.collect()
 
           q_in_size = []
           q_in_size_tot = 0
@@ -772,7 +786,7 @@ class ExtractionProcessor(ConfReader):
           #if self.verbose > 0:
           print_msg = "[{}] Got features for {}/{} images in {}s."
           proc_time = time.time() - start_process
-          print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), proc_time))
+          print(print_msg.format(self.pp, len(dict_imgs.keys()), buff_list_size, proc_time))
           sys.stdout.flush()
           # --------
 
@@ -783,7 +797,7 @@ class ExtractionProcessor(ConfReader):
 
         else:
           msg = "[{}: Warning] Could not get any image buffer (out of {} requested) for update {}"
-          print(msg.format(self.pp, len(rows_batch), update_id))
+          print(msg.format(self.pp, img_list_size, update_id))
           dict_imgs = dict()
           nb_threads_running = len(threads)
           thread_creation_failed = [0] * self.nb_threads
@@ -797,7 +811,7 @@ class ExtractionProcessor(ConfReader):
                                         table_name=self.out_indexer.table_updateinfos_name)
 
         # Mark as completed if all rows had an extraction
-        if len(rows_batch) == len(dict_imgs.keys()):
+        if img_list_size == len(dict_imgs.keys()):
           # DONE: use out_indexer
           update_completed_dict = {update_id: {self.out_indexer.get_col_upcomp(): str(1)}}
           self.out_indexer.push_dict_rows(dict_rows=update_completed_dict,
