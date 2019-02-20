@@ -9,7 +9,8 @@ services:
     tty: true
     cap_add:
       - IPC_LOCK
-    restart: on-failure
+    #restart: on-failure
+    restart: unless-stopped
     environment:
       # General environment variables
       # These two parameters are a bit confusing

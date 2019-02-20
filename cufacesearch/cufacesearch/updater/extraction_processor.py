@@ -699,7 +699,8 @@ class ExtractionProcessor(ConfReader):
                       # Try to delete corresponding extractor to free memory?
                       # And reduce number of threads at the end of the loop
                     try:
-                      self.q_in[i_q_in].task_done()
+                      # This can block?
+                      #self.q_in[i_q_in].task_done()
                       if deleted_extr[i] == 0:
                         # we pushed the extractor as self.extractors[i] in a loop of self.nb_threads
                         # we use i_q_in
@@ -734,32 +735,34 @@ class ExtractionProcessor(ConfReader):
 
           # Can get stuck here?
           dict_imgs = dict()
-          for i in range(self.nb_threads):
-            if self.verbose > 4:
-              print("[{}] Thread {} q_out_size: {}".format(self.pp, i + 1, q_out_size[i]))
-              sys.stdout.flush()
-            while q_out_size[i] > 0 and not self.q_out[i].empty():
-              if self.verbose > 6:
-                print("[{}] Thread {} q_out is not empty.".format(self.pp, i + 1))
-                sys.stdout.flush()
-              try:
-                # This can still block forever?
-                batch_out = self.q_out[i].get(True, 10)
-                if self.verbose > 4:
-                  msg = "[{}] Got batch of {} features from thread {} q_out."
-                  print(msg.format(self.pp, len(batch_out), i + 1))
-                  sys.stdout.flush()
-                for sha1, dict_out in batch_out:
-                  dict_imgs[sha1] = dict_out
-              except:
-                if self.verbose > 1:
-                  print("[{}] Thread {} failed to get from q_out: {}".format(self.pp, i + 1))
-                  sys.stdout.flush()
-                #pass
+          if q_out_size_tot > 0:
+            for i in range(self.nb_threads):
               if self.verbose > 4:
-                print("[{}] Marking task done in q_out of thread {}.".format(self.pp, i + 1))
+                print("[{}] Thread {} q_out_size: {}".format(self.pp, i + 1, q_out_size[i]))
                 sys.stdout.flush()
-              self.q_out[i].task_done()
+              while q_out_size[i] > 0 and not self.q_out[i].empty():
+                if self.verbose > 6:
+                  print("[{}] Thread {} q_out is not empty.".format(self.pp, i + 1))
+                  sys.stdout.flush()
+                try:
+                  # This can still block forever?
+                  #batch_out = self.q_out[i].get(True, 10)
+                  batch_out = self.q_out[i].get_nowait()
+                  if self.verbose > 4:
+                    msg = "[{}] Got batch of {} features from thread {} q_out."
+                    print(msg.format(self.pp, len(batch_out), i + 1))
+                    sys.stdout.flush()
+                  for sha1, dict_out in batch_out:
+                    dict_imgs[sha1] = dict_out
+                except:
+                  if self.verbose > 1:
+                    print("[{}] Thread {} failed to get from q_out: {}".format(self.pp, i + 1))
+                    sys.stdout.flush()
+                  #pass
+                if self.verbose > 4:
+                  print("[{}] Marking task done in q_out of thread {}.".format(self.pp, i + 1))
+                  sys.stdout.flush()
+                self.q_out[i].task_done()
 
           #if self.verbose > 0:
           print_msg = "[{}] Got features for {}/{} images in {}s."
@@ -768,10 +771,10 @@ class ExtractionProcessor(ConfReader):
           sys.stdout.flush()
           # --------
 
-          # Push them
-          # DONE: use out_indexer
-          self.out_indexer.push_dict_rows(dict_rows=dict_imgs,
-                                          table_name=self.out_indexer.table_sha1infos_name)
+          if len(dict_imgs.keys()) > 0:
+            # Push computed features
+            self.out_indexer.push_dict_rows(dict_rows=dict_imgs,
+                                            table_name=self.out_indexer.table_sha1infos_name)
 
         else:
           msg = "[{}: Warning] Could not get any image buffer (out of {} requested) for update {}"
@@ -824,7 +827,7 @@ class ExtractionProcessor(ConfReader):
     except Exception as inst:
       #exc_type, exc_obj, exc_tb = sys.exc_info()
       #fulltb = traceback.format_tb(exc_tb)
-      print("[{}] {}".format(self.pp, inst))
+      print("[{}.process_batch: ERROR] {}".format(self.pp, inst))
       #print("[{}] {} ({})".format(self.pp, inst, ''.join(fulltb)))
       # Things are likely to be very bad at that point... Docker should be restarted
       #if self.nb_threads == 2:
@@ -843,6 +846,7 @@ class ExtractionProcessor(ConfReader):
       sys.stdout.flush()
       time.sleep(10*min(self.nb_empt, 60))
       self.nb_empt += 1
+
 
       # try:
       #   self.process_batch()
@@ -872,7 +876,10 @@ if __name__ == "__main__":
   print("Extraction processor options are: {}".format(options))
   sys.stdout.flush()
 
-  ep.run()
+  try:
+    ep.run()
+  except:
+    print("Extraction processor failed at {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
 
   # nb_err = 0
   # while True:
