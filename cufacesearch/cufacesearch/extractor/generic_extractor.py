@@ -115,9 +115,12 @@ class DaemonBatchExtractor(multiprocessing.Process):
             print(err_msg.format(self.pp, img_id, sha1, type(inst), inst, fulltb))
             sys.stdout.flush()
             # len(img_buffer_b64)
-            err_msg = "[{}: warning] Extraction failed for img #{} {}. img_buffer_b64 length was {}"
-            print(err_msg.format(self.pp, img_id, sha1, len(len(img_buffer_b64))))
-            sys.stdout.flush()
+            try:
+              err_msg = "[{}: warning] Extraction failed for img #{} {}. img_buffer_b64 length was {}"
+              print(err_msg.format(self.pp, img_id, sha1, len(img_buffer_b64)))
+              sys.stdout.flush()
+            except:
+              pass
             # Mark this image as corrupted
             # But how and when could it be overwritten if we manage to run the extraction later?
             out_dict = self.extractor.failed_out_dict()
