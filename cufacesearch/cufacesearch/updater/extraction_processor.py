@@ -804,7 +804,7 @@ class ExtractionProcessor(ConfReader):
     except Exception as inst:
       #exc_type, exc_obj, exc_tb = sys.exc_info()
       #fulltb = traceback.format_tb(exc_tb)
-      print("[{}] {}".format(self.pp, inst))
+      print("[{}.process_batch: ERROR] {}".format(self.pp, inst))
       #print("[{}] {} ({})".format(self.pp, inst, ''.join(fulltb)))
       # Things are likely to be very bad at that point... Docker should be restarted
       #if self.nb_threads == 2:
@@ -823,6 +823,7 @@ class ExtractionProcessor(ConfReader):
       sys.stdout.flush()
       time.sleep(10*min(self.nb_empt, 60))
       self.nb_empt += 1
+
 
       # try:
       #   self.process_batch()
@@ -852,7 +853,10 @@ if __name__ == "__main__":
   print("Extraction processor options are: {}".format(options))
   sys.stdout.flush()
 
-  ep.run()
+  try:
+    ep.run()
+  except:
+    print("Extraction processor failed at {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
 
   # nb_err = 0
   # while True:
