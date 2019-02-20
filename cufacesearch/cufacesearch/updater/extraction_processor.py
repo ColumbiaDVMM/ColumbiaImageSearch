@@ -544,6 +544,9 @@ class ExtractionProcessor(ConfReader):
             list_in.append(tup)
           else:
             # need to re-download, accumulate a list of URLs to download
+            if self.verbose > 5:
+              msg = "[{}: log] Will try to download image {} without buffer"
+              print(msg.format(self.pp, img[0]))
             # Deal with img_path_column for local_images_kafka_pusher
             if self.img_column in img[1]:
               q_in_dl.put((img[0], img[1][self.img_column], self.push_back))
