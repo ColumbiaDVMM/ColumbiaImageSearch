@@ -690,9 +690,11 @@ class ExtractionProcessor(ConfReader):
                       msg = thread_msg+"marked as finished because processing seems finished"
                       print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid))
                   else:
+                    # Try to stop processing
+                    threads[i].killed = True
                     if self.verbose > 0:
                       # In this cases does this happen...
-                      msg = thread_msg+"force marked task as done as max_proc_time ({}) has passed."
+                      msg = thread_msg+"killed as max_proc_time ({}) has passed."
                       print(msg.format(self.pp, i+1, nb_threads_running, threads[i].pid,
                                        self.max_proc_time))
                       sys.stdout.flush()
@@ -705,8 +707,9 @@ class ExtractionProcessor(ConfReader):
                         # we pushed the extractor as self.extractors[i] in a loop of self.nb_threads
                         # we use i_q_in
                         #del self.extractors[i_q_in]
-                        del self.extractors[i_q_in - sum(deleted_extr[:i])]
                         deleted_extr[i] = 1
+                        del self.extractors[i_q_in - sum(deleted_extr[:i+1])]
+                        #del threads[i - sum(deleted_extr[:i+1])]
                     except Exception:
                       pass
                   threads_finished[i] = 1
@@ -880,6 +883,8 @@ if __name__ == "__main__":
     ep.run()
   except:
     print("Extraction processor failed at {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
+
+  sys.exit(1)
 
   # nb_err = 0
   # while True:
