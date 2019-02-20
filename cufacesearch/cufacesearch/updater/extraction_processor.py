@@ -314,12 +314,13 @@ class ExtractionProcessor(ConfReader):
                 # print "rows_batch", rows_batch
                 if rows_batch:
                   yield rows_batch, update_id
-                  self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
                 else:
                   msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
                   print(msg.format(self.pp, update_id))
                   #msg = "[{}.get_batch_hbase: log] Was trying to read columns {} from table {} for rows {}"
                   #print(msg.format(self.pp, img_cols, self.in_indexer.table_sha1infos_name, list_sha1s))
+                # Store last update id
+                self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
               else:
                 msg = "[{}.get_batch_hbase: log] Skipping update started recently: {}"
                 print(msg.format(self.pp, update_id))
@@ -604,14 +605,19 @@ class ExtractionProcessor(ConfReader):
         sys.stdout.flush()
 
         # --------
-        # if len(list_in) == 0, we shouldn't try to process anything, just mark update as processed
-        if len(list_in) != 0:
+        buff_list_size = len(list_in)
+        # if buff_list_size == 0, we shouldn't try to process anything, just mark update as processed
+        if buff_list_size != 0:
 
           # TODO: define a get_features method
           # --------
-          q_batch_size = int(math.ceil(float(len(list_in))/self.nb_threads))
+          q_batch_size = int(math.ceil(float(buff_list_size)/self.nb_threads))
           for i, q_batch in enumerate(build_batch(list_in, q_batch_size)):
             self.q_in[i].put(q_batch)
+
+          # At this point we can delete list_in
+          del list_in
+          gc.collect()
 
           q_in_size = []
           q_in_size_tot = 0
@@ -751,7 +757,7 @@ class ExtractionProcessor(ConfReader):
           #if self.verbose > 0:
           print_msg = "[{}] Got features for {}/{} images in {}s."
           proc_time = time.time() - start_process
-          print(print_msg.format(self.pp, len(dict_imgs.keys()), len(list_in), proc_time))
+          print(print_msg.format(self.pp, len(dict_imgs.keys()), buff_list_size, proc_time))
           sys.stdout.flush()
           # --------
 
