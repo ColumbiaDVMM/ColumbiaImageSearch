@@ -486,7 +486,8 @@ class ExtractionProcessor(ConfReader):
     try:
       for rows_batch, update_id in self.get_batch():
         start_update = time.time()
-        print("[{}] Processing update {} of {} rows.".format(self.pp, update_id, len(rows_batch)))
+        img_list_size = len(rows_batch)
+        print("[{}] Processing update {} of {} rows.".format(self.pp, update_id, img_list_size))
         sys.stdout.flush()
 
         # Initialize
@@ -498,7 +499,7 @@ class ExtractionProcessor(ConfReader):
         nb_extr_to_create = self.nb_threads - len(self.extractors)
         if nb_extr_to_create:
           start_create_extractor = time.time()
-          while len(self.extractors) < min(self.nb_threads, len(rows_batch)):
+          while len(self.extractors) < min(self.nb_threads, img_list_size):
             # DONE: use 'out_indexer'
             self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
                                                     self.input_type, self.out_indexer.extrcf,
@@ -560,6 +561,10 @@ class ExtractionProcessor(ConfReader):
               print(msg.format(self.pp, img[0]))
               continue
 
+        # At this point we can delete rows_batch
+        del rows_batch
+        gc.collect()
+
         # Download missing images
         nb_dl = 0
         nb_dl_failed = 0
@@ -599,13 +604,13 @@ class ExtractionProcessor(ConfReader):
                 print(msg.format(self.pp, sha1))
 
         get_buffer_time = time.time() - start_get_buffer
+        buff_list_size = len(list_in)
         msg = "[{}] Got {}/{} image buffers ({}/{} downloaded) for update {} in {}s."
-        print(msg.format(self.pp, len(list_in), len(rows_batch), nb_dl - nb_dl_failed, nb_dl,
+        print(msg.format(self.pp, buff_list_size, img_list_size, nb_dl - nb_dl_failed, nb_dl,
                          update_id, get_buffer_time))
         sys.stdout.flush()
 
         # --------
-        buff_list_size = len(list_in)
         # if buff_list_size == 0, we shouldn't try to process anything, just mark update as processed
         if buff_list_size != 0:
 
@@ -768,7 +773,7 @@ class ExtractionProcessor(ConfReader):
 
         else:
           msg = "[{}: Warning] Could not get any image buffer (out of {} requested) for update {}"
-          print(msg.format(self.pp, len(rows_batch), update_id))
+          print(msg.format(self.pp, img_list_size, update_id))
           dict_imgs = dict()
           nb_threads_running = len(threads)
           thread_creation_failed = [0] * self.nb_threads
@@ -782,7 +787,7 @@ class ExtractionProcessor(ConfReader):
                                         table_name=self.out_indexer.table_updateinfos_name)
 
         # Mark as completed if all rows had an extraction
-        if len(rows_batch) == len(dict_imgs.keys()):
+        if img_list_size == len(dict_imgs.keys()):
           # DONE: use out_indexer
           update_completed_dict = {update_id: {self.out_indexer.get_col_upcomp(): str(1)}}
           self.out_indexer.push_dict_rows(dict_rows=update_completed_dict,
