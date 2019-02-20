@@ -562,6 +562,7 @@ class ExtractionProcessor(ConfReader):
             # b64buffer = buffer_to_B64(cStringIO.StringIO(img[1][self.in_indexer.get_col_imgbuff()]))
             # use img[1].pop(self.in_indexer.get_col_imgbuff())
             b64buffer = buffer_to_B64(cStringIO.StringIO(img[1].pop(self.in_indexer.get_col_imgbuff())))
+            # TODO: Should we check b64buffer size and discard if too big?
             tup = (img[0], b64buffer, False)
             list_in.append(tup)
           else:
@@ -610,6 +611,7 @@ class ExtractionProcessor(ConfReader):
               nb_dl_failed += 1
             else:
               if buffer:
+                # TODO: Should we check b64buffer size and discard if too big?
                 list_in.append((sha1, buffer, push_back))
               else:
                 # Is that even possible?
