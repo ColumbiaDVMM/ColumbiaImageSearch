@@ -44,6 +44,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
     self.q_out = q_out
     self.verbose = verbose
     self.qin_timeout = 5
+    self.killed = False
 
   def run(self):
     """Process input queue and push results to output queue.
@@ -53,6 +54,12 @@ class DaemonBatchExtractor(multiprocessing.Process):
     # Unreliable...
     #while self.q_in.empty() == False:
     while not empty:
+
+      if self.killed:
+        if self.verbose > 2:
+          print "[{}] Killed at: {}".format(self.pp, datetime.now().isoformat())
+          sys.stdout.flush()
+        break
 
       try:
         # The queue should already have items,but seems sometime to block forever...
@@ -81,6 +88,8 @@ class DaemonBatchExtractor(multiprocessing.Process):
         # Something in this part seems to block with sbpycaffe but very rarely...
         out_batch = []
         for sha1, img_buffer_b64, push_buffer in batch:
+          if self.killed:
+            break
           try:
             # Could this block???
             out_dict = self.extractor.process_buffer(get_buffer_from_B64(img_buffer_b64))
