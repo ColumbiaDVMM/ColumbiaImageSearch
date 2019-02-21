@@ -272,35 +272,35 @@ class ExtractionChecker(ConfReader):
 
         try:
           # Accumulate images infos
-          # while len(list_check_sha1s) < self.indexer.batch_update_size:
-          while len(list_check_sha1s) < self.min_len_check:
-            for msg in self.ingester.get_msg_json():
-              try:
-                # Fix if input was JSON dumped twice?
-                if not isinstance(msg, dict):
-                  msg = json.loads(msg)
-                # msg could now contain keys 'sha1' or 'list_sha1s'
-                if 'sha1' in msg:
-                  list_check_sha1s.append(str(msg['sha1']).upper())
-                  # Store other fields to be able to push them too
-                  self.store_img_infos(msg)
-                elif 'list_sha1s' in msg:
-                  for sha1 in msg['list_sha1s']:
-                    list_check_sha1s.append(str(sha1).upper())
-                    # We won't have any additional infos no?
-                    # But we should still build a dict for each sample for consistency...
-                    tmp_dict = dict()
-                    tmp_dict['sha1'] = str(sha1).upper()
-                    # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
-                    # works properly later on...
-                    self.store_img_infos(tmp_dict)
-                else:
-                  raise ValueError('Unknown keys in msg: {}'.format(msg.keys()))
-                if len(list_check_sha1s) >= self.indexer.batch_update_size:
-                  break
-              except Exception as inst:
-                pr_msg = "[{}: ERROR] Could not process message: {}. {}"
-                print(pr_msg.format(self.pp, msg, inst))
+          #while len(list_check_sha1s) < self.indexer.batch_update_size:
+          #while len(list_check_sha1s) < self.min_len_check:
+          for msg in self.ingester.get_msg_json():
+            try:
+              # Fix if input was JSON dumped twice?
+              if not isinstance(msg, dict):
+                msg = json.loads(msg)
+              # msg could now contain keys 'sha1' or 'list_sha1s'
+              if 'sha1' in msg:
+                list_check_sha1s.append(str(msg['sha1']).upper())
+                # Store other fields to be able to push them too
+                self.store_img_infos(msg)
+              elif 'list_sha1s' in msg:
+                for sha1 in msg['list_sha1s']:
+                  list_check_sha1s.append(str(sha1).upper())
+                  # We won't have any additional infos no?
+                  # But we should still build a dict for each sample for consistency...
+                  tmp_dict = dict()
+                  tmp_dict['sha1'] = str(sha1).upper()
+                  # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
+                  # works properly later on...
+                  self.store_img_infos(tmp_dict)
+              else:
+                raise ValueError('Unknown keys in msg: {}'.format(msg.keys()))
+              if len(list_check_sha1s) >= self.indexer.batch_update_size:
+                break
+            except Exception as inst:
+              pr_msg = "[{}: ERROR] Could not process message: {}. {}"
+              print(pr_msg.format(self.pp, msg, inst))
         except Exception as inst:
           pr_msg = "[{}: at {} ERROR] Caught {} {} in consumer loop"
           now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
