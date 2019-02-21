@@ -19,6 +19,7 @@ DEFAULT_EXTR_CHECK_PREFIX = "EXTR_"
 # Should DEFAULT_UPDATE_INGESTION_TYPE be gather from some other place?
 # Should we add a cufacesearch.common.defautls?
 DEFAULT_UPDATE_INGESTION_TYPE = "hbase"
+DEFAULT_MIN_LENGTH_CHECK = 100
 
 # Simulates the way updates were generated from the spark workflows but reading from a kafka topic
 # Should be run as a single process to ensure data integrity,
@@ -55,6 +56,7 @@ class ExtractionChecker(ConfReader):
 
     # Max delay
     self.max_delay = int(self.get_param("max_delay", default=3600))
+    self.min_len_check = int(self.get_param("min_len_check", default=DEFAULT_MIN_LENGTH_CHECK))
 
     self.list_extr_prefix = [self.featurizer_type, "feat", self.detector_type, self.input_type]
     self.extr_prefix = "_".join(self.list_extr_prefix)
@@ -270,35 +272,35 @@ class ExtractionChecker(ConfReader):
 
         try:
           # Accumulate images infos
-          # TODO: can we make this work for both Kafka and Kinesis?
-          for msg in self.ingester.get_msg_json():
-            try:
-              # Fix if input was JSON dumped twice?
-              if not isinstance(msg, dict):
-                msg = json.loads(msg)
-              # msg could now contain keys 'sha1' or 'list_sha1s'
-              if 'sha1' in msg:
-                list_check_sha1s.append(str(msg['sha1']).upper())
-                # Store other fields to be able to push them too
-                self.store_img_infos(msg)
-              elif 'list_sha1s' in msg:
-                for sha1 in msg['list_sha1s']:
-                  list_check_sha1s.append(str(sha1).upper())
-                  # We won't have any additional infos no?
-                  # But we should still build a dict for each sample for consistency...
-                  tmp_dict = dict()
-                  tmp_dict['sha1'] = str(sha1).upper()
-                  # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
-                  # works properly later on...
-                  self.store_img_infos(tmp_dict)
-              else:
-                raise ValueError('Unknown keys in msg: {}'.format(msg.keys()))
+          while len(list_check_sha1s) < self.min_len_check:
+            for msg in self.ingester.get_msg_json():
+              try:
+                # Fix if input was JSON dumped twice?
+                if not isinstance(msg, dict):
+                  msg = json.loads(msg)
+                # msg could now contain keys 'sha1' or 'list_sha1s'
+                if 'sha1' in msg:
+                  list_check_sha1s.append(str(msg['sha1']).upper())
+                  # Store other fields to be able to push them too
+                  self.store_img_infos(msg)
+                elif 'list_sha1s' in msg:
+                  for sha1 in msg['list_sha1s']:
+                    list_check_sha1s.append(str(sha1).upper())
+                    # We won't have any additional infos no?
+                    # But we should still build a dict for each sample for consistency...
+                    tmp_dict = dict()
+                    tmp_dict['sha1'] = str(sha1).upper()
+                    # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
+                    # works properly later on...
+                    self.store_img_infos(tmp_dict)
+                else:
+                  raise ValueError('Unknown keys in msg: {}'.format(msg.keys()))
 
-              if len(list_check_sha1s) >= self.indexer.batch_update_size:
-                break
-            except Exception as inst:
-              pr_msg = "[{}: ERROR] Could not process message: {}. {}"
-              print(pr_msg.format(self.pp, msg, inst))
+                if len(list_check_sha1s) >= self.indexer.batch_update_size:
+                  break
+              except Exception as inst:
+                pr_msg = "[{}: ERROR] Could not process message: {}. {}"
+                print(pr_msg.format(self.pp, msg, inst))
         except Exception as inst:
           pr_msg = "[{}: at {} ERROR] Caught {} {} in consumer loop"
           now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
@@ -308,7 +310,6 @@ class ExtractionChecker(ConfReader):
           sys.stdout.flush()
 
         if not list_check_sha1s:
-          # TODO: should we fallback to scanning Hbase table here?
           continue
 
         # Check which images have not been processed (or pushed in an update) yet
