@@ -220,7 +220,9 @@ if __name__ == "__main__":
         conf[proc_ingester_prefix + 'security'] = kafka_security
 
 
-    consumer_options = json.loads(os.getenv('kafka_consumer_options', "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 10, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
+    #consumer_options = json.loads(os.getenv('kafka_consumer_options', "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 10, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
+    consumer_options = json.loads(os.getenv('kafka_consumer_options',
+                                            "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 200, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
 
     # Checker consumer
     if conf[extr_prefix + "image_ingestion_type"] == "kafka":

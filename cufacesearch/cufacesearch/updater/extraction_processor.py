@@ -801,17 +801,16 @@ class ExtractionProcessor(ConfReader):
           nb_threads_running = len(threads)
           thread_creation_failed = [0] * self.nb_threads
           deleted_extr = [0] * nb_threads_running
+          # Mark as completed anyway, as it is unlikely we will ever be able to get those images?
 
         # Mark batch as processed
         now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
-        # DONE: use out_indexer
         update_processed_dict = {update_id: {self.out_indexer.get_col_upproc(): now_str}}
         self.out_indexer.push_dict_rows(dict_rows=update_processed_dict,
                                         table_name=self.out_indexer.table_updateinfos_name)
 
         # Mark as completed if all rows had an extraction
         if img_list_size == len(dict_imgs.keys()):
-          # DONE: use out_indexer
           update_completed_dict = {update_id: {self.out_indexer.get_col_upcomp(): str(1)}}
           self.out_indexer.push_dict_rows(dict_rows=update_completed_dict,
                                           table_name=self.out_indexer.table_updateinfos_name)
