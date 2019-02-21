@@ -309,29 +309,31 @@ class ExtractionChecker(ConfReader):
             print(msg)
           sys.stdout.flush()
 
-        if not list_check_sha1s:
+        # To be able to push one (non empty) update every max_delay
+        if not list_check_sha1s and (time.time() - self.last_push) < self.max_delay:
           continue
 
-        # Check which images have not been processed (or pushed in an update) yet
-        unprocessed_rows = self.get_unprocessed_rows(list_check_sha1s)
-        self.nb_imgs_check += len(list_check_sha1s)
-        push_delay = (time.time() - self.last_push) > self.max_delay / 60
-        if push_delay and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
-          msg = "[{}: log] Found {}/{} unprocessed images"
-          print(msg.format(self.pp, self.nb_imgs_unproc, self.nb_imgs_check))
-          self.nb_imgs_unproc_lastprint = self.nb_imgs_unproc
+        if list_check_sha1s:
+          # Check which images have not been processed (or pushed in an update) yet
+          unprocessed_rows = self.get_unprocessed_rows(list_check_sha1s)
+          self.nb_imgs_check += len(list_check_sha1s)
+          push_delay = (time.time() - self.last_push) > self.max_delay / 60
+          if push_delay and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
+            msg = "[{}: log] Found {}/{} unprocessed images"
+            print(msg.format(self.pp, self.nb_imgs_unproc, self.nb_imgs_check))
+            self.nb_imgs_unproc_lastprint = self.nb_imgs_unproc
 
-        # TODO: we should mark those images as being 'owned' by the update we are constructing
-        # (only important if we are running multiple threads i.e. daemon is True)
-        # otherwise another update running at the same time could also claim it (in another ad)
-        # could be handle when adding data to the searcher but duplicates in extraction process...
+          # TODO: we should mark those images as being 'owned' by the update we are constructing
+          # (only important if we are running multiple threads i.e. daemon is True)
+          # otherwise another update running at the same time could also claim it (in another ad)
+          # could be handle when adding data to the searcher but duplicates in extraction process...
 
-        # Push sha1s to be processed
-        for sha1 in unprocessed_rows:
-          list_sha1s_to_process.append(sha1)
+          # Push sha1s to be processed
+          for sha1 in unprocessed_rows:
+            list_sha1s_to_process.append(sha1)
 
-        # Remove potential duplicates
-        list_sha1s_to_process = list(set(list_sha1s_to_process))
+          # Remove potential duplicates
+          list_sha1s_to_process = list(set(list_sha1s_to_process))
 
         if list_sha1s_to_process:
           # Push them to HBase by batch of 'batch_update_size'
