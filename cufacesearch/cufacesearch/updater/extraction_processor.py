@@ -131,7 +131,7 @@ class ExtractionProcessor(ConfReader):
     # TODO: move that to self.read_conf()
     # Get required parameters
     self.input_type = self.get_required_param("input_type")
-    self.nb_threads = self.get_required_param("nb_threads")
+    self.nb_threads = int(self.get_required_param("nb_threads"))
     self.featurizer_type = self.get_required_param("featurizer_type")
     self.featurizer_prefix = self.get_required_param("featurizer_prefix")
     self.detector_type = self.get_required_param("detector_type")
@@ -522,7 +522,6 @@ class ExtractionProcessor(ConfReader):
         if nb_extr_to_create:
           start_create_extractor = time.time()
           while len(self.extractors) < min(self.nb_threads, img_list_size):
-            # DONE: use 'out_indexer'
             self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
                                                     self.input_type, self.out_indexer.extrcf,
                                                     self.featurizer_prefix, self.global_conf))
@@ -842,6 +841,14 @@ class ExtractionProcessor(ConfReader):
             gc.collect()
           else:
             raise RuntimeError("Processed failed with a single thread...")
+        else:
+          # Try to recover from a bad period when everything went well when processing a batch
+          req_threads = int(self.get_required_param("nb_threads"))
+          if self.nb_threads < req_threads:
+            if self.verbose > 1:
+              msg = "[{}: log] We have only {} out of {} requested threads. Adding one more..."
+              print(msg.format(self.pp, self.nb_threads, req_threads))
+            self.nb_threads += 1
 
     except Exception as inst:
       #exc_type, exc_obj, exc_tb = sys.exc_info()
