@@ -272,6 +272,7 @@ class ExtractionChecker(ConfReader):
 
         try:
           # Accumulate images infos
+          # while len(list_check_sha1s) < self.indexer.batch_update_size:
           while len(list_check_sha1s) < self.min_len_check:
             for msg in self.ingester.get_msg_json():
               try:
@@ -295,7 +296,6 @@ class ExtractionChecker(ConfReader):
                     self.store_img_infos(tmp_dict)
                 else:
                   raise ValueError('Unknown keys in msg: {}'.format(msg.keys()))
-
                 if len(list_check_sha1s) >= self.indexer.batch_update_size:
                   break
               except Exception as inst:
