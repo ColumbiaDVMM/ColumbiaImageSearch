@@ -186,6 +186,9 @@ class KinesisIngester(ConfReader):
 
       while True:
         empty = 0
+        if self.verbose > 2:
+          msg = "[{}: log] Entering while loop in get_msg_json"
+          print(msg.format(self.pp))
 
         # Iterate over shards
         for sh_num in range(nb_shards):
