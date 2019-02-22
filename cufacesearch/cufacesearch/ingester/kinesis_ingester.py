@@ -202,15 +202,15 @@ class KinesisIngester(ConfReader):
             sleep_count = 0
             for rec in records:
               rec_json = json.loads(rec['Data'])
-              if self.verbose > 6:
-                msg = "[{}: log] Found message in shard {}: {}"
-                print(msg.format(self.pp, sh_id, rec_json))
+              sqn = rec['SequenceNumber']
+              if self.verbose > 5:
+                msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+                print(msg.format(self.pp, sqn, sh_id, rec_json))
               yield rec_json
 
               # Store `sqn`. Is there anything else we should store?
               # Maybe number of records read for sanity check
               # Start read time too?
-              sqn = rec['SequenceNumber']
               if sh_id in self.shard_infos:
                 self.shard_infos[sh_id]['sqn'] = sqn
                 self.shard_infos[sh_id]['nb_read'] += 1
