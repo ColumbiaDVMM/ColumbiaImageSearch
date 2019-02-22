@@ -240,17 +240,17 @@ class KinesisIngester(ConfReader):
             #   break
 
           else:
-            if self.verbose > 3:
-              msg = "[{}: log] Shard {} seems empty"
-              print(msg.format(self.pp, sh_id))
-            empty += 1
             break
-
 
           if self.verbose > 4:
             msg = "[{}: log] Getting records starting from {} in shard {}"
             print(msg.format(self.pp, sh_it, sh_id))
           rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
+
+        if self.verbose > 3:
+          msg = "[{}: log] Shard {} seems empty"
+          print(msg.format(self.pp, sh_id))
+        empty += 1
 
         if empty == len(self.shard_iters):
           if self.verbose > 1:
