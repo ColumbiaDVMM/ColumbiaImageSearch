@@ -82,7 +82,8 @@ class KinesisIngester(ConfReader):
         shard_iterator = self.client.get_shard_iterator(StreamName=self.stream_name,
                                                         ShardId=shard_id,
                                                         StartingSequenceNumber=sqn,
-                                                        ShardIteratorType='AFTER_SEQUENCE_NUMBER')
+                                                        ShardIteratorType='AT_SEQUENCE_NUMBER')
+                                                        #ShardIteratorType='AFTER_SEQUENCE_NUMBER')
         return shard_iterator['ShardIterator']
       except Exception as inst:
         msg = "[{}.get_shard_iterator] Could not initialize from previous SequenceNumber {}. {}"
@@ -183,6 +184,11 @@ class KinesisIngester(ConfReader):
       sifn = self.get_shard_infos_filename()
       nb_shards = len(self.shard_iters)
       sleep_count = 0
+
+      # Invalidate any previous shard iterator first...
+      for sh_num in range(nb_shards):
+        sh_id = self.shard_iters.keys()[sh_num]
+        self.shard_iters[sh_id] = None
 
       try:
         while True:

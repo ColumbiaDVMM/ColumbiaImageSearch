@@ -301,6 +301,8 @@ class ExtractionChecker(ConfReader):
                   self.store_img_infos(tmp_dict)
               else:
                 raise ValueError('Unknown keys in msg: {}'.format(msg.keys()))
+              # This is dangerous, as it assumes the self.ingester.get_msg_json() generator
+              # would restart from the next point... Is this the case for Kafka?
               if len(list_check_sha1s) >= self.indexer.batch_update_size:
                 break
             except Exception as inst:
