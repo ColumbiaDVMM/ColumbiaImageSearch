@@ -234,14 +234,16 @@ class KinesisIngester(ConfReader):
           if 'NextShardIterator' in rec_response:
             sh_it = rec_response['NextShardIterator']
             if sh_it is None:
+              self.shard_iters[sh_id] = None
               break
             # Update iterator. Is this working?
             self.shard_iters[sh_id] = sh_it
             if self.verbose > 4:
-              msg = "[{}: log] Getting records starting from {} in shard {}"
+              msg = "[{}: log] Loop getting records. Starting from {} in shard {}"
               print(msg.format(self.pp, sh_it, sh_id))
             rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
           else:
+            self.shard_iters[sh_id] = None
             break
 
             # len(records) < lim_get_rec means we have reached end of stream
