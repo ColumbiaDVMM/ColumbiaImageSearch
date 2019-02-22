@@ -227,6 +227,11 @@ class KinesisIngester(ConfReader):
                 self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
                 self.shard_infos[sh_id]['nb_read'] = 1
 
+            # Iterate in same shard
+            sh_it = rec_response['NextShardIterator']
+            # Update iterator. Is this working?
+            self.shard_iters[sh_id] = sh_it
+
             # len(records) < lim_get_rec means we have reached end of stream
             # This test avoid making one more `get_records` call
             if len(records) < lim_get_rec:
@@ -240,10 +245,7 @@ class KinesisIngester(ConfReader):
             empty += 1
             break
 
-          # Iterate in same shard
-          sh_it = rec_response['NextShardIterator']
-          # Update iterator
-          self.shard_iters[sh_id] = sh_it
+
           if self.verbose > 4:
             msg = "[{}: log] Getting records starting from {} in shard {}"
             print(msg.format(self.pp, sh_it, sh_id))
