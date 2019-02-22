@@ -294,11 +294,6 @@ class KinesisIngester(ConfReader):
             #   print(msg.format(self.pp, sh_id))
             # self.shard_iters[sh_id] = None
 
-          if empty == len(self.shard_iters):
-            if self.verbose > 1:
-              msg = "[{}: log] All shards seem empty or fully processed."
-              print(msg.format(self.pp))
-
           # Dump current self.shard_infos
           if self.verbose > 1:
             msg = "[{}: log] shard_infos: {}"
@@ -307,9 +302,14 @@ class KinesisIngester(ConfReader):
             json.dump(self.shard_infos, sif)
 
           # Sleep?
-          #time.sleep(sleep_time*max(sleep_count+1, sleep_time))
-          time.sleep(min(sleep_count + 1, sleep_time))
-          sleep_count += 1
+          if empty == len(self.shard_iters):
+            if self.verbose > 1:
+              msg = "[{}: log] All shards seem empty or fully processed."
+              print(msg.format(self.pp))
+            time.sleep(min(sleep_count + 1, sleep_time))
+            sleep_count += 1
+          else:
+            time.sleep(1)
       except Exception as inst:
         msg = "[{}: ERROR] get_msg_json failed with error {}"
         print(msg.format(self.pp, inst))
