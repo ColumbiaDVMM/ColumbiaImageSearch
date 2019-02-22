@@ -236,6 +236,8 @@ class KinesisIngester(ConfReader):
           if 'NextShardIterator' in rec_response:
             sh_it = rec_response['NextShardIterator']
             if sh_it is None:
+              msg = "[{}: log] Invalidating shard iterator for shard {}"
+              print(msg.format(self.pp, sh_id))
               self.shard_iters[sh_id] = None
               break
             # Update iterator. Is this working?
@@ -245,6 +247,8 @@ class KinesisIngester(ConfReader):
               print(msg.format(self.pp, sh_it, sh_id))
             rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
           else:
+            msg = "[{}: log] Invalidating shard iterator for shard {}"
+            print(msg.format(self.pp, sh_id))
             self.shard_iters[sh_id] = None
             break
 
@@ -259,6 +263,10 @@ class KinesisIngester(ConfReader):
           msg = "[{}: log] Shard {} seems empty"
           print(msg.format(self.pp, sh_id))
         empty += 1
+
+        msg = "[{}: log] Invalidating shard iterator for shard {}"
+        print(msg.format(self.pp, sh_id))
+        self.shard_iters[sh_id] = None
 
         if empty == len(self.shard_iters):
           if self.verbose > 1:
