@@ -209,7 +209,7 @@ class KinesisIngester(ConfReader):
             sleep_count = 0
             for rec in records:
               rec_json = json.loads(rec['Data'])
-              sqn = rec['SequenceNumber']
+              sqn = str(rec['SequenceNumber'].decode("utf-8"))
               if self.verbose > 5:
                 msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
                 print(msg.format(self.pp, sqn, sh_id, rec_json))
