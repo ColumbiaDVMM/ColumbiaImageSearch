@@ -211,6 +211,13 @@ class KinesisIngester(ConfReader):
         #while 'NextShardIterator' in rec_response:
         while rec_response is not None:
           records = rec_response['Records']
+
+          if self.verbose > 5:
+            # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+            # print(msg.format(self.pp, sqn, sh_id, rec_json))
+            msg = "[{}: log] Got {} records"
+            print(msg.format(self.pp,len(records)))
+
           if len(records) > 0:
             sleep_count = 0
             for rec in records:
@@ -234,6 +241,12 @@ class KinesisIngester(ConfReader):
                 self.shard_infos[sh_id]['sqn'] = sqn
                 self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
                 self.shard_infos[sh_id]['nb_read'] = 1
+
+          if self.verbose > 5:
+            # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+            # print(msg.format(self.pp, sqn, sh_id, rec_json))
+            msg = "[{}: log] Finished looping on {} records"
+            print(msg.format(self.pp,len(records)))
 
           # Iterate in same shard
           if 'NextShardIterator' in rec_response:
