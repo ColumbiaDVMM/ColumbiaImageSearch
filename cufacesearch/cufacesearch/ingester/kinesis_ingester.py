@@ -174,14 +174,18 @@ class KinesisIngester(ConfReader):
 
       :yield: JSON message
       """
+      if self.verbose > 2:
+        msg = "[{}: log] Entering get_msg_json"
+        print(msg.format(self.pp))
+
       lim_get_rec = self.get_required_param('lim_get_rec')
       sleep_time = self.get_required_param('sleep_time')
       sifn = self.get_shard_infos_filename()
       nb_shards = len(self.shard_iters)
+      sleep_count = 0
 
       while True:
         empty = 0
-        sleep_count = 0
 
         # Iterate over shards
         for sh_num in range(nb_shards):
@@ -213,17 +217,36 @@ class KinesisIngester(ConfReader):
             self.shard_iters[sh_id] = None
             continue
 
-          # #while 'NextShardIterator' in rec_response:
-          # while rec_response is not None:
+          # To iterate in same shard
+          if 'NextShardIterator' in rec_response:
+            sh_it = rec_response['NextShardIterator']
+            if sh_it is None:
+              msg = "[{}: log] Invalidating shard iterator for shard {}"
+              print(msg.format(self.pp, sh_id))
+              self.shard_iters[sh_id] = None
+            else:
+              # Update iterator. Is this working?
+              msg = "[{}: log] Found valid shard iterator {} for shard {}"
+              print(msg.format(self.pp, sh_it. sh_id))
+              self.shard_iters[sh_id] = sh_it
+            # if self.verbose > 4:
+            #   msg = "[{}: log] Loop getting records. Starting from {} in shard {}"
+            #   print(msg.format(self.pp, sh_it, sh_id))
+            # Try catch this?
+            # rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
+          else:
+            msg = "[{}: log] Invalidating shard iterator for shard {}"
+            print(msg.format(self.pp, sh_id))
+            self.shard_iters[sh_id] = None
+
           records = rec_response['Records']
 
-          if self.verbose > 5:
-            # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
-            # print(msg.format(self.pp, sqn, sh_id, rec_json))
-            msg = "[{}: log] Got {} records"
-            print(msg.format(self.pp,len(records)))
-
           if len(records) > 0:
+            if self.verbose > 5:
+              # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+              # print(msg.format(self.pp, sqn, sh_id, rec_json))
+              msg = "[{}: log] Got {} records"
+              print(msg.format(self.pp,len(records)))
             sleep_count = 0
             for rec in records:
               rec_json = json.loads(rec['Data'])
@@ -248,39 +271,9 @@ class KinesisIngester(ConfReader):
                 self.shard_infos[sh_id]['nb_read'] = 1
 
             if self.verbose > 5:
-              # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
-              # print(msg.format(self.pp, sqn, sh_id, rec_json))
               msg = "[{}: log] Finished looping on {} records"
               print(msg.format(self.pp,len(records)))
 
-            # Iterate in same shard
-            if 'NextShardIterator' in rec_response:
-              sh_it = rec_response['NextShardIterator']
-              if sh_it is None:
-                msg = "[{}: log] Invalidating shard iterator for shard {}"
-                print(msg.format(self.pp, sh_id))
-                self.shard_iters[sh_id] = None
-                break
-              # Update iterator. Is this working?
-              self.shard_iters[sh_id] = sh_it
-              continue
-              # if self.verbose > 4:
-              #   msg = "[{}: log] Loop getting records. Starting from {} in shard {}"
-              #   print(msg.format(self.pp, sh_it, sh_id))
-              # Try catch this?
-              # rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
-            else:
-              msg = "[{}: log] Invalidating shard iterator for shard {}"
-              print(msg.format(self.pp, sh_id))
-              self.shard_iters[sh_id] = None
-              break
-
-              # len(records) < lim_get_rec means we have reached end of stream
-              # This test avoid making one more `get_records` call
-              # But may actually not be true!
-              # if len(records) < lim_get_rec:
-              #   empty += 1
-              #   break
 
           if self.verbose > 3:
             msg = "[{}: log] Shard {} seems empty"
@@ -296,14 +289,13 @@ class KinesisIngester(ConfReader):
             msg = "[{}: log] All shards seem empty or fully processed."
             print(msg.format(self.pp))
 
-          # Dump current self.shard_infos
-          if self.verbose > 1:
-            msg = "[{}: log] shard_infos: {}"
-            print(msg.format(self.pp, self.shard_infos))
-          with open(sifn, 'w') as sif:
-            json.dump(self.shard_infos, sif)
+        # Dump current self.shard_infos
+        if self.verbose > 1:
+          msg = "[{}: log] shard_infos: {}"
+          print(msg.format(self.pp, self.shard_infos))
+        with open(sifn, 'w') as sif:
+          json.dump(self.shard_infos, sif)
 
-          # Sleep?
-          time.sleep(sleep_time*max(sleep_count+1, sleep_time))
-          sleep_count += 1
-          #break
+        # Sleep?
+        time.sleep(sleep_time*max(sleep_count+1, sleep_time))
+        sleep_count += 1
