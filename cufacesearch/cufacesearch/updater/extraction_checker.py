@@ -262,11 +262,10 @@ class ExtractionChecker(ConfReader):
     :type daemon: bool
     :raises Exception: if check fails
     """
-    i = 0
-    import inspect
-    if not inspect.isgeneratorfunction(self.ingester.get_msg_json()):
-      msg = "[{}: Warning] Ingester {} function `get_msg_json` is not a generator"
-      print(msg.format(self.pp, type(self.ingester)))
+    # import inspect
+    # if not inspect.isgeneratorfunction(self.ingester.get_msg_json()):
+    #   msg = "[{}: Warning] Ingester {} function `get_msg_json` is not a generator"
+    #   print(msg.format(self.pp, type(self.ingester)))
 
     try:
       list_sha1s_to_process = []
