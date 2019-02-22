@@ -207,42 +207,45 @@ class KinesisIngester(ConfReader):
             if self.verbose > 0:
               msg = "[{}: WARNING] Could not get records starting from {} in shard {}. {}"
               print(msg.format(self.pp, sh_it, sh_id, inst))
-            self.shard_iters[sh_id] = self.get_shard_iterator(sh_id)
+            if self.verbose > 5:
+              msg = "[{}: log] Invalidating shard iterator for shard {}"
+              print(msg.format(self.pp, sh_id))
+            self.shard_iters[sh_id] = None
             continue
 
-          #while 'NextShardIterator' in rec_response:
-          while rec_response is not None:
-            records = rec_response['Records']
+          # #while 'NextShardIterator' in rec_response:
+          # while rec_response is not None:
+          records = rec_response['Records']
 
-            if self.verbose > 5:
-              # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
-              # print(msg.format(self.pp, sqn, sh_id, rec_json))
-              msg = "[{}: log] Got {} records"
-              print(msg.format(self.pp,len(records)))
+          if self.verbose > 5:
+            # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+            # print(msg.format(self.pp, sqn, sh_id, rec_json))
+            msg = "[{}: log] Got {} records"
+            print(msg.format(self.pp,len(records)))
 
-            if len(records) > 0:
-              sleep_count = 0
-              for rec in records:
-                rec_json = json.loads(rec['Data'])
-                sqn = str(rec['SequenceNumber'].decode("utf-8"))
-                if self.verbose > 5:
-                  #msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
-                  #print(msg.format(self.pp, sqn, sh_id, rec_json))
-                  msg = "[{}: log] Found message at SequenceNumber {} in shard {}"
-                  print(msg.format(self.pp, sqn, sh_id))
-                yield rec_json
+          if len(records) > 0:
+            sleep_count = 0
+            for rec in records:
+              rec_json = json.loads(rec['Data'])
+              sqn = str(rec['SequenceNumber'].decode("utf-8"))
+              if self.verbose > 5:
+                #msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+                #print(msg.format(self.pp, sqn, sh_id, rec_json))
+                msg = "[{}: log] Found message at SequenceNumber {} in shard {}"
+                print(msg.format(self.pp, sqn, sh_id))
+              yield rec_json
 
-                # Store `sqn`. Is there anything else we should store?
-                # Maybe number of records read for sanity check
-                # Start read time too?
-                if sh_id in self.shard_infos:
-                  self.shard_infos[sh_id]['sqn'] = sqn
-                  self.shard_infos[sh_id]['nb_read'] += 1
-                else:
-                  self.shard_infos[sh_id] = dict()
-                  self.shard_infos[sh_id]['sqn'] = sqn
-                  self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
-                  self.shard_infos[sh_id]['nb_read'] = 1
+              # Store `sqn`. Is there anything else we should store?
+              # Maybe number of records read for sanity check
+              # Start read time too?
+              if sh_id in self.shard_infos:
+                self.shard_infos[sh_id]['sqn'] = sqn
+                self.shard_infos[sh_id]['nb_read'] += 1
+              else:
+                self.shard_infos[sh_id] = dict()
+                self.shard_infos[sh_id]['sqn'] = sqn
+                self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
+                self.shard_infos[sh_id]['nb_read'] = 1
 
             if self.verbose > 5:
               # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
@@ -260,10 +263,12 @@ class KinesisIngester(ConfReader):
                 break
               # Update iterator. Is this working?
               self.shard_iters[sh_id] = sh_it
-              if self.verbose > 4:
-                msg = "[{}: log] Loop getting records. Starting from {} in shard {}"
-                print(msg.format(self.pp, sh_it, sh_id))
-              rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
+              continue
+              # if self.verbose > 4:
+              #   msg = "[{}: log] Loop getting records. Starting from {} in shard {}"
+              #   print(msg.format(self.pp, sh_it, sh_id))
+              # Try catch this?
+              # rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
             else:
               msg = "[{}: log] Invalidating shard iterator for shard {}"
               print(msg.format(self.pp, sh_id))
