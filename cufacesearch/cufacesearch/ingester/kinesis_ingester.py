@@ -203,7 +203,8 @@ class KinesisIngester(ConfReader):
           self.shard_iters[sh_id] = self.get_shard_iterator(sh_id)
           continue
 
-        while 'NextShardIterator' in rec_response:
+        #while 'NextShardIterator' in rec_response:
+        while rec_response is not None:
           records = rec_response['Records']
           if len(records) > 0:
             sleep_count = 0
@@ -211,8 +212,10 @@ class KinesisIngester(ConfReader):
               rec_json = json.loads(rec['Data'])
               sqn = str(rec['SequenceNumber'].decode("utf-8"))
               if self.verbose > 5:
-                msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
-                print(msg.format(self.pp, sqn, sh_id, rec_json))
+                #msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+                #print(msg.format(self.pp, sqn, sh_id, rec_json))
+                msg = "[{}: log] Found message at SequenceNumber {} in shard {}"
+                print(msg.format(self.pp, sqn, sh_id))
               yield rec_json
 
               # Store `sqn`. Is there anything else we should store?
@@ -227,10 +230,19 @@ class KinesisIngester(ConfReader):
                 self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
                 self.shard_infos[sh_id]['nb_read'] = 1
 
-            # Iterate in same shard
+          # Iterate in same shard
+          if 'NextShardIterator' in rec_response:
             sh_it = rec_response['NextShardIterator']
+            if sh_it is None:
+              break
             # Update iterator. Is this working?
             self.shard_iters[sh_id] = sh_it
+            if self.verbose > 4:
+              msg = "[{}: log] Getting records starting from {} in shard {}"
+              print(msg.format(self.pp, sh_it, sh_id))
+            rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
+          else:
+            break
 
             # len(records) < lim_get_rec means we have reached end of stream
             # This test avoid making one more `get_records` call
@@ -238,14 +250,6 @@ class KinesisIngester(ConfReader):
             # if len(records) < lim_get_rec:
             #   empty += 1
             #   break
-
-          else:
-            break
-
-          if self.verbose > 4:
-            msg = "[{}: log] Getting records starting from {} in shard {}"
-            print(msg.format(self.pp, sh_it, sh_id))
-          rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
 
         if self.verbose > 3:
           msg = "[{}: log] Shard {} seems empty"
