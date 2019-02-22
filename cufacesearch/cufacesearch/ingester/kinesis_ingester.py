@@ -181,7 +181,9 @@ class KinesisIngester(ConfReader):
       sleep_count = 0
 
       # Iterate over shards
-      for sh_id in self.shard_iters:
+      nb_shards = len(self.shard_iters)
+      for sh_num in range(nb_shards):
+        sh_id = self.shard_iters.keys()[sh_num]
         sh_it = self.shard_iters[sh_id]
 
         if self.verbose > 2:
