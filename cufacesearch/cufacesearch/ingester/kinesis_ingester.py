@@ -231,7 +231,7 @@ class KinesisIngester(ConfReader):
               else:
                 # Update iterator. Is this working?
                 msg = "[{}: log] Found valid shard iterator {} for shard {}"
-                print(msg.format(self.pp, sh_it. sh_id))
+                print(msg.format(self.pp, sh_it, sh_id))
                 self.shard_iters[sh_id] = sh_it
               # if self.verbose > 4:
               #   msg = "[{}: log] Loop getting records. Starting from {} in shard {}"
