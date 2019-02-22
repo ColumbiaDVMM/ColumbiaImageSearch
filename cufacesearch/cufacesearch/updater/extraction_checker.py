@@ -274,6 +274,10 @@ class ExtractionChecker(ConfReader):
           # Accumulate images infos
           #while len(list_check_sha1s) < self.indexer.batch_update_size:
           #while len(list_check_sha1s) < self.min_len_check:
+          import inspect
+          if not inspect.isgeneratorfunction(self.ingester.get_msg_json()):
+            msg = "[{}: Warning] Ingester {} function `get_msg_json` is not a generator"
+            print(msg.format(self.pp, type(self.ingester)))
           for msg in self.ingester.get_msg_json():
             try:
               # Fix if input was JSON dumped twice?

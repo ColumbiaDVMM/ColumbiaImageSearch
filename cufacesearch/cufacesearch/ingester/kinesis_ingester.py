@@ -177,112 +177,114 @@ class KinesisIngester(ConfReader):
       lim_get_rec = self.get_required_param('lim_get_rec')
       sleep_time = self.get_required_param('sleep_time')
       sifn = self.get_shard_infos_filename()
-      empty = 0
-      sleep_count = 0
-
-      # Iterate over shards
       nb_shards = len(self.shard_iters)
-      for sh_num in range(nb_shards):
-        sh_id = self.shard_iters.keys()[sh_num]
-        sh_it = self.shard_iters[sh_id]
-        if sh_it is None:
-          self.shard_iters[sh_id] = self.get_shard_iterator(sh_id)
+
+      while True:
+        empty = 0
+        sleep_count = 0
+
+        # Iterate over shards
+        for sh_num in range(nb_shards):
+          sh_id = self.shard_iters.keys()[sh_num]
           sh_it = self.shard_iters[sh_id]
+          if sh_it is None:
+            self.shard_iters[sh_id] = self.get_shard_iterator(sh_id)
+            sh_it = self.shard_iters[sh_id]
 
-        if self.verbose > 2:
-          msg = "[{}: log] Getting records starting from {} in shard {}"
-          print(msg.format(self.pp, sh_it, sh_id))
+          if self.verbose > 2:
+            msg = "[{}: log] Getting records starting from {} in shard {}"
+            print(msg.format(self.pp, sh_it, sh_id))
 
-        # If iterator has expired, we would get botocore.errorfactory.ExpiredIteratorException:
-        # An error occurred (ExpiredIteratorException) when calling the GetRecords operation: Iterator expired.
-        # The iterator was created at time XXX while right now it is XXX which is further in the future than the tolerated delay of 300000 milliseconds.
-        # Also beware of get_records limits of 2MB per second per shard
-        try:
-          rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
-        #except ExpiredIteratorException as inst:
-        except Exception as inst:
-          # Iterator may have expired...
-          if self.verbose > 0:
-            msg = "[{}: WARNING] Could not get records starting from {} in shard {}. {}"
-            print(msg.format(self.pp, sh_it, sh_id, inst))
-          self.shard_iters[sh_id] = self.get_shard_iterator(sh_id)
-          continue
+          # If iterator has expired, we would get botocore.errorfactory.ExpiredIteratorException:
+          # An error occurred (ExpiredIteratorException) when calling the GetRecords operation: Iterator expired.
+          # The iterator was created at time XXX while right now it is XXX which is further in the future than the tolerated delay of 300000 milliseconds.
+          # Also beware of get_records limits of 2MB per second per shard
+          try:
+            rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
+          #except ExpiredIteratorException as inst:
+          except Exception as inst:
+            # Iterator may have expired...
+            if self.verbose > 0:
+              msg = "[{}: WARNING] Could not get records starting from {} in shard {}. {}"
+              print(msg.format(self.pp, sh_it, sh_id, inst))
+            self.shard_iters[sh_id] = self.get_shard_iterator(sh_id)
+            continue
 
-        #while 'NextShardIterator' in rec_response:
-        while rec_response is not None:
-          records = rec_response['Records']
+          #while 'NextShardIterator' in rec_response:
+          while rec_response is not None:
+            records = rec_response['Records']
 
-          if self.verbose > 5:
-            # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
-            # print(msg.format(self.pp, sqn, sh_id, rec_json))
-            msg = "[{}: log] Got {} records"
-            print(msg.format(self.pp,len(records)))
+            if self.verbose > 5:
+              # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+              # print(msg.format(self.pp, sqn, sh_id, rec_json))
+              msg = "[{}: log] Got {} records"
+              print(msg.format(self.pp,len(records)))
 
-          if len(records) > 0:
-            sleep_count = 0
-            for rec in records:
-              rec_json = json.loads(rec['Data'])
-              sqn = str(rec['SequenceNumber'].decode("utf-8"))
-              if self.verbose > 5:
-                #msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
-                #print(msg.format(self.pp, sqn, sh_id, rec_json))
-                msg = "[{}: log] Found message at SequenceNumber {} in shard {}"
-                print(msg.format(self.pp, sqn, sh_id))
-              yield rec_json
+            if len(records) > 0:
+              sleep_count = 0
+              for rec in records:
+                rec_json = json.loads(rec['Data'])
+                sqn = str(rec['SequenceNumber'].decode("utf-8"))
+                if self.verbose > 5:
+                  #msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+                  #print(msg.format(self.pp, sqn, sh_id, rec_json))
+                  msg = "[{}: log] Found message at SequenceNumber {} in shard {}"
+                  print(msg.format(self.pp, sqn, sh_id))
+                yield rec_json
 
-              # Store `sqn`. Is there anything else we should store?
-              # Maybe number of records read for sanity check
-              # Start read time too?
-              if sh_id in self.shard_infos:
-                self.shard_infos[sh_id]['sqn'] = sqn
-                self.shard_infos[sh_id]['nb_read'] += 1
-              else:
-                self.shard_infos[sh_id] = dict()
-                self.shard_infos[sh_id]['sqn'] = sqn
-                self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
-                self.shard_infos[sh_id]['nb_read'] = 1
+                # Store `sqn`. Is there anything else we should store?
+                # Maybe number of records read for sanity check
+                # Start read time too?
+                if sh_id in self.shard_infos:
+                  self.shard_infos[sh_id]['sqn'] = sqn
+                  self.shard_infos[sh_id]['nb_read'] += 1
+                else:
+                  self.shard_infos[sh_id] = dict()
+                  self.shard_infos[sh_id]['sqn'] = sqn
+                  self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
+                  self.shard_infos[sh_id]['nb_read'] = 1
 
-          if self.verbose > 5:
-            # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
-            # print(msg.format(self.pp, sqn, sh_id, rec_json))
-            msg = "[{}: log] Finished looping on {} records"
-            print(msg.format(self.pp,len(records)))
+            if self.verbose > 5:
+              # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
+              # print(msg.format(self.pp, sqn, sh_id, rec_json))
+              msg = "[{}: log] Finished looping on {} records"
+              print(msg.format(self.pp,len(records)))
 
-          # Iterate in same shard
-          if 'NextShardIterator' in rec_response:
-            sh_it = rec_response['NextShardIterator']
-            if sh_it is None:
+            # Iterate in same shard
+            if 'NextShardIterator' in rec_response:
+              sh_it = rec_response['NextShardIterator']
+              if sh_it is None:
+                msg = "[{}: log] Invalidating shard iterator for shard {}"
+                print(msg.format(self.pp, sh_id))
+                self.shard_iters[sh_id] = None
+                break
+              # Update iterator. Is this working?
+              self.shard_iters[sh_id] = sh_it
+              if self.verbose > 4:
+                msg = "[{}: log] Loop getting records. Starting from {} in shard {}"
+                print(msg.format(self.pp, sh_it, sh_id))
+              rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
+            else:
               msg = "[{}: log] Invalidating shard iterator for shard {}"
               print(msg.format(self.pp, sh_id))
               self.shard_iters[sh_id] = None
               break
-            # Update iterator. Is this working?
-            self.shard_iters[sh_id] = sh_it
-            if self.verbose > 4:
-              msg = "[{}: log] Loop getting records. Starting from {} in shard {}"
-              print(msg.format(self.pp, sh_it, sh_id))
-            rec_response = self.client.get_records(ShardIterator=sh_it, Limit=lim_get_rec)
-          else:
-            msg = "[{}: log] Invalidating shard iterator for shard {}"
+
+              # len(records) < lim_get_rec means we have reached end of stream
+              # This test avoid making one more `get_records` call
+              # But may actually not be true!
+              # if len(records) < lim_get_rec:
+              #   empty += 1
+              #   break
+
+          if self.verbose > 3:
+            msg = "[{}: log] Shard {} seems empty"
             print(msg.format(self.pp, sh_id))
-            self.shard_iters[sh_id] = None
-            break
+          empty += 1
 
-            # len(records) < lim_get_rec means we have reached end of stream
-            # This test avoid making one more `get_records` call
-            # But may actually not be true!
-            # if len(records) < lim_get_rec:
-            #   empty += 1
-            #   break
-
-        if self.verbose > 3:
-          msg = "[{}: log] Shard {} seems empty"
+          msg = "[{}: log] Invalidating shard iterator for shard {}"
           print(msg.format(self.pp, sh_id))
-        empty += 1
-
-        msg = "[{}: log] Invalidating shard iterator for shard {}"
-        print(msg.format(self.pp, sh_id))
-        self.shard_iters[sh_id] = None
+          self.shard_iters[sh_id] = None
 
         if empty == len(self.shard_iters):
           if self.verbose > 1:
@@ -299,4 +301,4 @@ class KinesisIngester(ConfReader):
           # Sleep?
           time.sleep(sleep_time*max(sleep_count+1, sleep_time))
           sleep_count += 1
-          break
+          #break
