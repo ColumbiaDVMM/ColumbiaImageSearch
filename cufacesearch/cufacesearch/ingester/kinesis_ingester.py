@@ -234,9 +234,10 @@ class KinesisIngester(ConfReader):
 
             # len(records) < lim_get_rec means we have reached end of stream
             # This test avoid making one more `get_records` call
-            if len(records) < lim_get_rec:
-              empty += 1
-              break
+            # But may actually not be true!
+            # if len(records) < lim_get_rec:
+            #   empty += 1
+            #   break
 
           else:
             if self.verbose > 3:
