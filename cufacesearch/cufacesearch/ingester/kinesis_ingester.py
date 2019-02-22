@@ -78,7 +78,7 @@ class KinesisIngester(ConfReader):
         sqn = self.shard_infos[shard_id]['sqn']
         shard_iterator = self.client.get_shard_iterator(StreamName=self.stream_name,
                                                         ShardId=shard_id,
-                                                        StartingSequenceNumber=sqn,
+                                                        StartingSequenceNumber=str(sqn),
                                                         ShardIteratorType='AFTER_SEQUENCE_NUMBER')
         return shard_iterator['ShardIterator']
       except Exception as inst:
