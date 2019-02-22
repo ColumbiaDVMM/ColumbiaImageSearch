@@ -185,6 +185,9 @@ class KinesisIngester(ConfReader):
       for sh_num in range(nb_shards):
         sh_id = self.shard_iters.keys()[sh_num]
         sh_it = self.shard_iters[sh_id]
+        if sh_it is None:
+          self.shard_iters[sh_id] = self.get_shard_iterator(sh_id)
+          sh_it = self.shard_iters[sh_id]
 
         if self.verbose > 2:
           msg = "[{}: log] Getting records starting from {} in shard {}"
