@@ -232,7 +232,7 @@ class KinesisIngester(ConfReader):
               else:
                 # Update iterator. Is this working?
                 if self.verbose > 4:
-                  msg = "[{}: log] Found valid shard iterator {} for shard {}"
+                  msg = "[{}: log] Found valid next shard iterator {} for shard {}"
                   print(msg.format(self.pp, sh_it, sh_id))
                 self.shard_iters[sh_id] = sh_it
               # if self.verbose > 4:
@@ -285,12 +285,14 @@ class KinesisIngester(ConfReader):
             if self.verbose > 3:
               msg = "[{}: log] Shard {} seems empty"
               print(msg.format(self.pp, sh_id))
-            empty += 1
 
-            if self.verbose > 5:
-              msg = "[{}: log] Invalidating shard iterator for shard {}"
-              print(msg.format(self.pp, sh_id))
-            self.shard_iters[sh_id] = None
+            if self.shard_iters[sh_id] is None:
+              empty += 1
+
+            # if self.verbose > 5:
+            #   msg = "[{}: log] Invalidating shard iterator for shard {}"
+            #   print(msg.format(self.pp, sh_id))
+            # self.shard_iters[sh_id] = None
 
           if empty == len(self.shard_iters):
             if self.verbose > 1:
