@@ -263,6 +263,11 @@ class ExtractionChecker(ConfReader):
     :raises Exception: if check fails
     """
     i = 0
+    import inspect
+    if not inspect.isgeneratorfunction(self.ingester.get_msg_json()):
+      msg = "[{}: Warning] Ingester {} function `get_msg_json` is not a generator"
+      print(msg.format(self.pp, type(self.ingester)))
+
     try:
       list_sha1s_to_process = []
       # TODO: create update_id here
@@ -274,10 +279,7 @@ class ExtractionChecker(ConfReader):
           # Accumulate images infos
           #while len(list_check_sha1s) < self.indexer.batch_update_size:
           #while len(list_check_sha1s) < self.min_len_check:
-          import inspect
-          if not inspect.isgeneratorfunction(self.ingester.get_msg_json()):
-            msg = "[{}: Warning] Ingester {} function `get_msg_json` is not a generator"
-            print(msg.format(self.pp, type(self.ingester)))
+
           for msg in self.ingester.get_msg_json():
             try:
               # Fix if input was JSON dumped twice?
@@ -315,6 +317,7 @@ class ExtractionChecker(ConfReader):
 
         # To be able to push one (non empty) update every max_delay
         if not list_check_sha1s and (time.time() - self.last_push) < self.max_delay:
+          time.sleep(1)
           continue
 
         if list_check_sha1s:
