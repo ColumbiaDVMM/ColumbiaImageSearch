@@ -263,7 +263,6 @@ class KinesisIngester(ConfReader):
                   #print(msg.format(self.pp, sqn, sh_id, rec_json))
                   msg = "[{}: log] Found message at SequenceNumber {} in shard {}"
                   print(msg.format(self.pp, sqn, sh_id))
-                yield rec_json
 
                 # Store `sqn`. Is there anything else we should store?
                 # Maybe number of records read for sanity check
@@ -277,17 +276,18 @@ class KinesisIngester(ConfReader):
                   self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
                   self.shard_infos[sh_id]['nb_read'] = 1
 
+                yield rec_json
+
               if self.verbose > 5:
                 msg = "[{}: log] Finished looping on {} records"
                 print(msg.format(self.pp,len(records)))
 
 
-            if self.verbose > 3:
-              msg = "[{}: log] Shard {} seems empty"
-              print(msg.format(self.pp, sh_id))
-
             if self.shard_iters[sh_id] is None:
               empty += 1
+              if self.verbose > 3:
+                msg = "[{}: log] Shard {} seems empty"
+                print(msg.format(self.pp, sh_id))
 
             # if self.verbose > 5:
             #   msg = "[{}: log] Invalidating shard iterator for shard {}"
@@ -307,7 +307,8 @@ class KinesisIngester(ConfReader):
             json.dump(self.shard_infos, sif)
 
           # Sleep?
-          time.sleep(sleep_time*max(sleep_count+1, sleep_time))
+          #time.sleep(sleep_time*max(sleep_count+1, sleep_time))
+          time.sleep(min(sleep_count + 1, sleep_time))
           sleep_count += 1
       except Exception as inst:
         msg = "[{}: ERROR] get_msg_json failed with error {}"
