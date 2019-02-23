@@ -289,7 +289,8 @@ class KinesisIngester(ConfReader):
                 print(msg.format(self.pp,len(records)))
 
 
-            if self.shard_iters[sh_id] is None:
+            #if self.shard_iters[sh_id] is None:
+            else:
               empty += 1
               if self.verbose > 3:
                 msg = "[{}: log] Shard {} seems empty"
@@ -312,7 +313,7 @@ class KinesisIngester(ConfReader):
             if self.verbose > 1:
               msg = "[{}: log] All shards seem empty or fully processed."
               print(msg.format(self.pp))
-            time.sleep(min(sleep_count + 1, sleep_time))
+            time.sleep(min(5*sleep_count + 1, sleep_time))
             sleep_count += 1
           else:
             time.sleep(1)
