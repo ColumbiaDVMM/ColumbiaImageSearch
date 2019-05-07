@@ -142,6 +142,7 @@ class ExtractionProcessor(ConfReader):
     #self.ingestion_input = self.get_param("ingestion_input", default="hbase")
     self.ingestion_input = self.get_param("update_ingestion_type", default="hbase")
     self.push_back = self.get_param("push_back", default=False)
+    self.check_missing = self.get_param("check_missing", default=False)
     file_input = self.get_param("file_input")
     print("[{}.ExtractionProcessor: log] file_input: {}".format(self.pp, file_input))
     if file_input:
@@ -348,62 +349,61 @@ class ExtractionProcessor(ConfReader):
               print(msg.format(self.pp, update_id))
       else:
         print("[{}.get_batch_hbase: log] No unprocessed update found.".format(self.pp))
-        # Should we reinitialized self.last_update_date_id?
-        # Look for updates that have some unprocessed images
-        # TODO: whether we do that or not could be specified by a parameter
-        # as this induces slow down during update...
-        # DONE: use out_indexer
-        count_ucme = 0
-        stop_cme = False
-        for updates in self.out_indexer.get_missing_extr_updates_from_date(self.last_missing_extr_date,
-                                                                           extr_type=self.extr_prefix):
-          for update_id, update_cols in updates:
-            if self.extr_prefix in update_id:
-              # DONE: use out_indexer
-              if self.out_indexer.get_col_listsha1s() in update_cols:
-                list_sha1s = update_cols[self.out_indexer.get_col_listsha1s()].split(',')
-                msg = "[{}.get_batch_hbase: log] Update {} has {} images missing extractions."
-                print(msg.format(self.pp, update_id, len(list_sha1s)))
-                sys.stdout.flush()
-                # also get 'ext:' to check if extraction was already processed?
-                # DONE: use in_indexer
-                rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
-                                                                        rbs=BATCH_SIZE_IMGBUFFER,
-                                                                        columns=img_cols)
-                if rows_batch:
-                  yield rows_batch, update_id
-                  self.last_missing_extr_date = '_'.join(update_id.split('_')[-2:])
-                  count_ucme +=1
-                  if count_ucme >= self.maxucme:
-                    stop_cme = True
-                    break
+        # Look for updates that have some unprocessed images.
+        # whether we do that or not is specified by parameter 'check_missing'
+        # as this induces slow down during update and heavy read from HBase...
+        if self.check_missing:
+          count_ucme = 0
+          stop_cme = False
+          for updates in self.out_indexer.get_missing_extr_updates_from_date(self.last_missing_extr_date,
+                                                                             extr_type=self.extr_prefix):
+            for update_id, update_cols in updates:
+              if self.extr_prefix in update_id:
+                # DONE: use out_indexer
+                if self.out_indexer.get_col_listsha1s() in update_cols:
+                  list_sha1s = update_cols[self.out_indexer.get_col_listsha1s()].split(',')
+                  msg = "[{}.get_batch_hbase: log] Update {} has {} images missing extractions."
+                  print(msg.format(self.pp, update_id, len(list_sha1s)))
+                  sys.stdout.flush()
+                  # also get 'ext:' to check if extraction was already processed?
+                  # DONE: use in_indexer
+                  rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                          rbs=BATCH_SIZE_IMGBUFFER,
+                                                                          columns=img_cols)
+                  if rows_batch:
+                    yield rows_batch, update_id
+                    self.last_missing_extr_date = '_'.join(update_id.split('_')[-2:])
+                    count_ucme +=1
+                    if count_ucme >= self.maxucme:
+                      stop_cme = True
+                      break
+                  else:
+                    msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
+                    print(msg.format(self.pp, update_id))
                 else:
-                  msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
+                  msg = "[{}.get_batch_hbase: log] Update {} has no images list."
                   print(msg.format(self.pp, update_id))
               else:
-                msg = "[{}.get_batch_hbase: log] Update {} has no images list."
+                msg = "[{}.get_batch_hbase: log] Skipping update {} from another extraction type."
                 print(msg.format(self.pp, update_id))
-            else:
-              msg = "[{}.get_batch_hbase: log] Skipping update {} from another extraction type."
-              print(msg.format(self.pp, update_id))
-          # We have reached maximum number of check for missing extractions in one call
-          if stop_cme:
-            break
-        else:
-          if stop_cme:
-            msg = "[{}.get_batch_hbase: log] Stopped checking updates with missing extractions"
-            msg += "after founding {}/{}."
-            print(msg.format(self.pp, count_ucme, self.maxucme, self.last_missing_extr_date))
-            msg = "[{}.get_batch_hbase: log] Will restart next time from: {}"
-            print(msg.format(self.pp, self.last_missing_extr_date))
-            sys.stdout.flush()
+            # We have reached maximum number of check for missing extractions in one call
+            if stop_cme:
+              break
           else:
-            msg = "[{}.get_batch_hbase: log] No updates with missing extractions found."
-            print(msg.format(self.pp))
-            sys.stdout.flush()
-            # Re-initialize dates just to make sure we don't miss anything
-            self.last_update_date_id = "1970-01-01"
-            self.last_missing_extr_date = "1970-01-01"
+            if stop_cme:
+              msg = "[{}.get_batch_hbase: log] Stopped checking updates with missing extractions"
+              msg += "after founding {}/{}."
+              print(msg.format(self.pp, count_ucme, self.maxucme, self.last_missing_extr_date))
+              msg = "[{}.get_batch_hbase: log] Will restart next time from: {}"
+              print(msg.format(self.pp, self.last_missing_extr_date))
+              sys.stdout.flush()
+            else:
+              msg = "[{}.get_batch_hbase: log] No updates with missing extractions found."
+              print(msg.format(self.pp))
+              sys.stdout.flush()
+              # Re-initialize dates just to make sure we don't miss anything
+              self.last_update_date_id = "1970-01-01"
+              self.last_missing_extr_date = "1970-01-01"
 
     except Exception as inst:
       # If we reach this point it is really a succession of failures
