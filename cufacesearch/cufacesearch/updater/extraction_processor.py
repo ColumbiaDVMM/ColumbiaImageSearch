@@ -25,6 +25,7 @@ DEFAULT_EXTR_PROC_PREFIX = "EXTR_"
 TIME_ELAPSED_FAILED = 3600
 BATCH_SIZE_IMGBUFFER = 20
 MAX_UP_CHECK_MISS_EXTR = 5
+MAX_EMPT = 60
 
 # Look for and process batch of a given extraction that have not been processed yet.
 # Should be multi-threaded but single process...
@@ -300,6 +301,8 @@ class ExtractionProcessor(ConfReader):
                                                                         extr_type=self.extr_prefix):
         for update_id, update_cols in updates:
           if self.extr_prefix in update_id:
+            # Save current update_id so we would restart from that in next call
+            self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
             # double check update has not been processed somewhere else
             if self.is_update_unprocessed(update_id):
               # double check update was not marked as started recently i.e. by another process
@@ -869,10 +872,12 @@ class ExtractionProcessor(ConfReader):
       msg = "[ExtractionProcessor: log] Nothing to process at: {}"
       print(msg.format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
       sys.stdout.flush()
-      time.sleep(10*min(self.nb_empt, 60))
+      time.sleep(10*min(self.nb_empt, MAX_EMPT))
       self.nb_empt += 1
-
-
+      # Potentially reset `self.last_update_date_id` after many nb_empt
+      if self.nb_empt >= MAX_EMPT:
+        self.nb_empt = 0
+        self.last_update_date_id = "1970-01-01"
       # try:
       #   self.process_batch()
       #   print("[ExtractionProcessor: log] Nothing to process at: {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
