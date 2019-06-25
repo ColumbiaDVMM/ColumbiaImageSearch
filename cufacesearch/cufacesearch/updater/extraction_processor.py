@@ -141,8 +141,8 @@ class ExtractionProcessor(ConfReader):
     self.maxucme = int(self.get_param("max_up_check_miss_extr", default=MAX_UP_CHECK_MISS_EXTR))
     #self.ingestion_input = self.get_param("ingestion_input", default="hbase")
     self.ingestion_input = self.get_param("update_ingestion_type", default="hbase")
-    self.push_back = self.get_param("push_back", default=False)
-    self.check_missing = self.get_param("check_missing", default=False)
+    self.push_back = bool(self.get_param("push_back", default=False))
+    self.check_missing = bool(self.get_param("check_missing", default=False))
     file_input = self.get_param("file_input")
     print("[{}.ExtractionProcessor: log] file_input: {}".format(self.pp, file_input))
     if file_input:

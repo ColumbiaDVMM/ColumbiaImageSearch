@@ -22,6 +22,7 @@ services:
       - extr_type
       - extr_nb_threads
       - extr_check_max_delay
+      - check_missing
       # Kafka related environment variables
       - kafka_servers
       - kafka_security

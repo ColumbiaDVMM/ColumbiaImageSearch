@@ -96,6 +96,9 @@ if __name__ == "__main__":
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))
 
+  if os.getenv('check_missing', False):
+    conf[extr_prefix + 'check_missing'] = os.environ['check_missing']
+
   # HBase settings
   conf[hbase_prefix + 'host'] = os.environ['hbase_host'].strip()
   conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos'].strip()
