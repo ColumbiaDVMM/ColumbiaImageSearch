@@ -26,6 +26,7 @@ TIME_ELAPSED_FAILED = 3600
 BATCH_SIZE_IMGBUFFER = 20
 MAX_UP_CHECK_MISS_EXTR = 5
 MAX_EMPT = 60
+INIT_UPDATE_ID = "1970-01-01"
 
 # Look for and process batch of a given extraction that have not been processed yet.
 # Should be multi-threaded but single process...
@@ -196,8 +197,8 @@ class ExtractionProcessor(ConfReader):
                 self.img_column]
     print("[{}.ExtractionProcessor: log] img_cols: {}".format(self.pp, img_cols))
 
-    self.last_update_date_id = "1970-01-01"
-    self.last_missing_extr_date = "1970-01-01"
+    self.last_update_date_id = INIT_UPDATE_ID
+    self.last_missing_extr_date = INIT_UPDATE_ID
 
     # Initialize ingester
     # This should be Kafka, Kinesis or None if getting data from HBase...
@@ -296,6 +297,8 @@ class ExtractionProcessor(ConfReader):
     img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
                 self.img_column]
     try:
+      msg = "[{}.get_batch_hbase: log] Scanning for updates from {}"
+      print(msg.format(self.pp, self.last_update_date_id))
       # DONE: use out_indexer
       for updates in self.out_indexer.get_unprocessed_updates_from_date(self.last_update_date_id,
                                                                         extr_type=self.extr_prefix):
@@ -405,8 +408,8 @@ class ExtractionProcessor(ConfReader):
               print(msg.format(self.pp))
               sys.stdout.flush()
               # Re-initialize dates just to make sure we don't miss anything
-              self.last_update_date_id = "1970-01-01"
-              self.last_missing_extr_date = "1970-01-01"
+              self.last_update_date_id = INIT_UPDATE_ID
+              self.last_missing_extr_date = INIT_UPDATE_ID
 
     except Exception as inst:
       # If we reach this point it is really a succession of failures
@@ -876,8 +879,10 @@ class ExtractionProcessor(ConfReader):
       self.nb_empt += 1
       # Potentially reset `self.last_update_date_id` after many nb_empt
       if self.nb_empt >= MAX_EMPT:
+        msg = "[ExtractionProcessor: log] Resetting `last_update_date_id` to {} after {} empty scans"
+        print(msg.format(INIT_UPDATE_ID, self.nb_empt))
         self.nb_empt = 0
-        self.last_update_date_id = "1970-01-01"
+        self.last_update_date_id = INIT_UPDATE_ID
       # try:
       #   self.process_batch()
       #   print("[ExtractionProcessor: log] Nothing to process at: {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
