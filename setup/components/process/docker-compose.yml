@@ -23,6 +23,14 @@ services:
       - extr_nb_threads
       - extr_check_max_delay
       - check_missing
+      # Image storer: to read image binary content from S3 and not HBase
+      - use_image_storer
+      - image_storer_prefix
+      - image_storer_aws_profile
+      - image_storer_aws_region
+      - image_storer_aws_prefix
+      - image_storer_bucket_name
+      - image_storer_verbose
       # Kafka related environment variables
       - kafka_servers
       - kafka_security

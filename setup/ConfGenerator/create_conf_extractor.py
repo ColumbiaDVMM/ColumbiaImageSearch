@@ -96,8 +96,25 @@ if __name__ == "__main__":
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))
 
-  if os.getenv('check_missing', False):
-    conf[extr_prefix + 'check_missing'] = os.environ['check_missing']
+  conf[extr_prefix + 'check_missing'] = bool(os.getenv('check_missing', False))
+
+  # Image storer to read image binary content from S3 instead of HBase
+  conf[extr_prefix + 'use_image_storer'] = bool(os.getenv('use_image_storer', False))
+  if os.getenv('use_image_storer', False):
+      # `image_storer_prefix`, should we have a default value?
+      image_storer_prefix = str(os.getenv('image_storer_prefix', 'IMG_STORER_'))
+      conf[extr_prefix + 'image_storer_prefix'] = image_storer_prefix
+      # Storer conf, should we have default parameters?
+      conf[image_storer_prefix + 'aws_profile'] = str(os.getenv('image_storer_aws_profile',
+                                                                'tfhtimagesprod'))
+      conf[image_storer_prefix + 'aws_region'] = str(os.getenv('image_storer_aws_region',
+                                                                'us-gov-west-1'))
+      conf[image_storer_prefix + 'aws_prefix'] = str(os.getenv('image_storer_aws_prefix',
+                                                                'media'))
+      conf[image_storer_prefix + 'bucket_name'] = str(os.getenv('image_storer_bucket_name',
+                                                                'tellfinder-ht-images-prod'))
+      conf[image_storer_prefix + 'verbose'] = int(os.getenv('image_storer_verbose', 5))
+      conf[image_storer_prefix + 'pickling'] = False
 
   # HBase settings
   conf[hbase_prefix + 'host'] = os.environ['hbase_host'].strip()

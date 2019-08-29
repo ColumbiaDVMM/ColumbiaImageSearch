@@ -13,7 +13,7 @@ try:
   import cPickle as pickle
 except: # python 3
   import pickle
-from .generic_storer import GenericStorer
+from cufacesearch.storer.generic_storer import GenericStorer
 from cufacesearch.common.error import full_trace_error
 #from boto3.s3.transfer import TransferConfig
 default_prefix = "S3ST_"
@@ -39,6 +39,8 @@ class S3Storer(GenericStorer):
     self.aws_profile = self.get_param('aws_profile', default=None)
     # we can define a prefix, i.e. folder in a bucket as a parameter
     self.aws_prefix = self.get_param('aws_prefix', default='')
+    # True by default for backward compatibility...
+    self.pickling = bool(self.get_param('pickling', default=True))
     self.session = None
     #self.transferConfig = TransferConfig(use_threads=False)
 
@@ -84,12 +86,15 @@ class S3Storer(GenericStorer):
 
     :param key: location to save
     :type key: str
-    :param obj: object to save, will be pickled.
+    :param obj: object to save, will be pickled if `pickling` is true.
     :type obj: object
     """
-    # Pickle and save to s3 bucket
-    #buffer = sio.StringIO(pickle.dumps(obj))
-    buffer = sio(pickle.dumps(obj))
+    if self.pickling:
+      buffer = sio(pickle.dumps(obj))
+    else:
+      # Assume obj is already a buffer
+      buffer = obj
+    # Save to s3 bucket
     save_key = key
     if self.aws_prefix:
       save_key = '/'.join([self.aws_prefix, key])
@@ -108,7 +113,7 @@ class S3Storer(GenericStorer):
     :return: loaded object
     :rtype: object
     """
-    # Load a pickle object from s3 bucket
+    # Load an object from s3 bucket
     try:
       #buffer = sio.StringIO()
       buffer = sio()
@@ -127,8 +132,11 @@ class S3Storer(GenericStorer):
       resp.download_fileobj(buffer)
       # buffer has been filled, offset is at the end, seek to beginning for unpickling
       buffer.seek(0)
-      obj = pickle.load(buffer)
-      if self.verbose > 2:
+      if self.pickling:
+        obj = pickle.load(buffer)
+      else:
+        obj = buffer
+      if self.verbose > 3:
         print("[{}: log] Loaded file: {}".format(self.pp, load_key))
       return obj
     except Exception as e:
@@ -182,6 +190,16 @@ class S3Storer(GenericStorer):
       yield self.load(obj.key)
 
 if __name__ == "__main__":
-  s3_conf = {"aws_profile": "cuimagesearch", "bucket_name": "dig-cu-imagesearchindex"}
-
+  # s3_conf = {"aws_profile": "cuimagesearch", "bucket_name": "dig-cu-imagesearchindex"}
+  # s3s = S3Storer(s3_conf, prefix="")
+  s3_conf = {"aws_profile": "tfhtimagesprod",
+             "aws_region": "us-gov-west-1",
+             "aws_prefix": "media",
+             "bucket_name": "tellfinder-ht-images-prod",
+             "pickling": False,
+             "verbose": 5}
   s3s = S3Storer(s3_conf, prefix="")
+  buffer = s3s.load("2E5BB236C6BE1A96F524EBA33D167C5A1A94D7C9")
+  from cufacesearch.imgio.imgio import buffer_to_B64
+  b64buffer = buffer_to_B64(buffer)
+  print(len(b64buffer))

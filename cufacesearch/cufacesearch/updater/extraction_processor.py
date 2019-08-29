@@ -214,6 +214,13 @@ class ExtractionProcessor(ConfReader):
                                       prefix=self.get_required_param("proc_ingester_prefix"))
       self.ingester.pp = "KinesisUpdateIngester"
 
+    # Image storer if we want to get images from s3 bucket directly
+    self.image_storer = None
+    if bool(self.get_param("use_image_storer", default=False)):
+      print("[{}.ExtractionProcessor: log] Will use S3Storer to read images.".format(self.pp))
+      from cufacesearch.storer.s3 import S3Storer
+      self.image_storer = S3Storer(self.global_conf,
+                                   prefix=self.get_required_param("image_storer_prefix"))
 
 
   def set_pp(self, pp="ExtractionProcessor"):
@@ -430,6 +437,7 @@ class ExtractionProcessor(ConfReader):
     try:
       # Needs to read topic to get update_id and list of sha1s
       # This consumer could be kinesis or Kafka
+      # TODO: test `self.ingester.consumer` will not work for Kinesis ingester...
       if self.ingester and self.ingester.consumer:
         for msg_dict in self.ingester.get_msg_json():
           # Check msg_dict is really a dict?
@@ -458,6 +466,7 @@ class ExtractionProcessor(ConfReader):
                   msg = "[{}.{}: log] Yielding for update: {}"
                   print(msg.format(self.pp, mn, update_id))
                 yield rows_batch, update_id
+                # TODO: this will not work for Kinesis ingester...
                 self.ingester.consumer.commit()
                 if self.verbose > 4:
                   msg = "[{}.{}: log] After yielding for update: {}"
@@ -562,17 +571,28 @@ class ExtractionProcessor(ConfReader):
         # DONE: use in_indexer in all this scope
         # How could we transfer URL from in table to out table if they are different?...
         for img in rows_batch:
-          # should decode base64
-          #if img_buffer_column in img[1]:
+          dl_image = False
+          # Try to get from HBase directly
           if self.in_indexer.get_col_imgbuff() in img[1]:
-            # That's messy...
-            # b64buffer = buffer_to_B64(cStringIO.StringIO(img[1][self.in_indexer.get_col_imgbuff()]))
-            # use img[1].pop(self.in_indexer.get_col_imgbuff())
             b64buffer = buffer_to_B64(cStringIO.StringIO(img[1].pop(self.in_indexer.get_col_imgbuff())))
             # TODO: Should we check b64buffer size and discard if too big?
             tup = (img[0], b64buffer, False)
             list_in.append(tup)
+          # Try to load from bucket directly
+          elif self.image_storer:
+            if self.verbose > 4:
+              msg = "[{}: log] Will try to get image {} from bucket"
+              print(msg.format(self.pp, img[0]))
+            buffer = self.image_storer.load(img[0])
+            if buffer is not None:
+              tup = (img[0], buffer_to_B64(buffer), False)
+              list_in.append(tup)
+            else:
+              dl_image = True
           else:
+            dl_image = True
+
+          if dl_image:
             # need to re-download, accumulate a list of URLs to download
             if self.verbose > 5:
               msg = "[{}: log] Will try to download image {} without buffer"
@@ -625,7 +645,7 @@ class ExtractionProcessor(ConfReader):
               nb_dl_failed += 1
             else:
               if buffer:
-                # TODO: Should we check b64buffer size and discard if too big?
+                # TODO: Should we check buffer size and discard if too big?
                 list_in.append((sha1, buffer, push_back))
               else:
                 # Is that even possible?
