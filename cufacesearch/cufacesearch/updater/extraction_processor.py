@@ -583,7 +583,7 @@ class ExtractionProcessor(ConfReader):
             list_in.append(tup)
           # Try to load from bucket directly
           elif self.image_storer:
-            if self.verbose > 4:
+            if self.verbose > 5:
               msg = "[{}: log] Will try to get image {} from bucket"
               print(msg.format(self.pp, img[0]))
             buffer = self.image_storer.load(img[0])
