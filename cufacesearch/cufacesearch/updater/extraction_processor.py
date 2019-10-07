@@ -193,8 +193,9 @@ class ExtractionProcessor(ConfReader):
       self.img_column = self.in_indexer.get_col_imgurl()
     else:
       self.img_column = self.in_indexer.get_col_imgpath()
-    img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
-                self.img_column]
+    #img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
+    #            self.img_column]
+    img_cols = [self.img_column, self.in_indexer.imginfocf]
     print("[{}.ExtractionProcessor: log] img_cols: {}".format(self.pp, img_cols))
 
     self.last_update_date_id = INIT_UPDATE_ID
@@ -301,8 +302,9 @@ class ExtractionProcessor(ConfReader):
     # legacy implementation: better to have a kafka topic for batches to be processed to allow
     # safe and efficient parallelization on different machines
     # DONE: use in_indexer
-    img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
-                self.img_column]
+    #img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
+    #            self.img_column]
+    img_cols = [self.img_column, self.in_indexer.imginfocf]
     try:
       msg = "[{}.get_batch_hbase: log] Scanning for updates from {}"
       print(msg.format(self.pp, self.last_update_date_id))
@@ -431,8 +433,9 @@ class ExtractionProcessor(ConfReader):
 
     :yield: tuple (rows_batch, update_id)
     """
-    img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
-                self.img_column]
+    #img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
+    #            self.img_column]
+    img_cols = [self.img_column, self.in_indexer.imginfocf]
     mn = "get_batch_ingester"
     try:
       # Needs to read topic to get update_id and list of sha1s
