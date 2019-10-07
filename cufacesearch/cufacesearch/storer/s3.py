@@ -200,6 +200,6 @@ if __name__ == "__main__":
              "verbose": 5}
   s3s = S3Storer(s3_conf, prefix="")
   buffer = s3s.load("2E5BB236C6BE1A96F524EBA33D167C5A1A94D7C9")
-  from cufacesearch.imgio.imgio import buffer_to_B64
+  from cufacesearch.imgio.imgio import buffer_to_B64, get_SHA1_img_type_from_B64
   b64buffer = buffer_to_B64(buffer)
-  print(len(b64buffer))
+  print(len(b64buffer), get_SHA1_img_type_from_B64(b64buffer))
