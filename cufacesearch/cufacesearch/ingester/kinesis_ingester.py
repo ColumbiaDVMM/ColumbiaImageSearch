@@ -259,7 +259,11 @@ class KinesisIngester(ConfReader):
                 # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
                 # print(msg.format(self.pp, sqn, sh_id, rec_json))
                 msg = "[{}: log] Got {} records"
-                print(msg.format(self.pp,len(records)))
+                print(msg.format(self.pp, len(records)))
+                if self.verbose > 4:
+                  lag_ms = rec_response['MillisBehindLatest']
+                  msg = "[{}: log] Lagging by {1:.3f}s"
+                  print(msg.format(self.pp, lag_ms/1000.0))
               sleep_count = 0
               for rec in records:
                 rec_json = json.loads(rec['Data'])
