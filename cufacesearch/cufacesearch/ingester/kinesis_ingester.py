@@ -262,7 +262,7 @@ class KinesisIngester(ConfReader):
                 print(msg.format(self.pp, len(records)))
                 if self.verbose > 4:
                   lag_ms = rec_response['MillisBehindLatest']
-                  msg = "[{}: log] Lagging by {1:.3f}s"
+                  msg = "[{}: log] Lagging by {.3f}s"
                   print(msg.format(self.pp, lag_ms/1000.0))
               sleep_count = 0
               for rec in records:
