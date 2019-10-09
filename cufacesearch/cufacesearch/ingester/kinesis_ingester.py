@@ -292,7 +292,6 @@ class KinesisIngester(ConfReader):
                 msg = "[{}: log] Finished looping on {} records"
                 print(msg.format(self.pp,len(records)))
 
-
             #if self.shard_iters[sh_id] is None:
             else:
               empty += 1
