@@ -303,6 +303,11 @@ class ExtractionChecker(ConfReader):
                 raise ValueError('Unknown keys in msg: {}'.format(msg.keys()))
               # This is dangerous, as it assumes the self.ingester.get_msg_json() generator
               # would restart from the next point... Is this the case for Kafka?
+              prev_len = len(list_check_sha1s)
+              list_check_sha1s = list(set(list_check_sha1s))
+              if len(list_check_sha1s) < prev_len:
+                  msg = "[{}: log] Removed {} duplicate from `list_check_sha1s`"
+                  print(msg.format(self.pp, prev_len - len(list_check_sha1s)))
               if len(list_check_sha1s) >= self.indexer.batch_update_size:
                 break
             except Exception as inst:
