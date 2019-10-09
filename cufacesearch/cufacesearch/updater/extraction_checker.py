@@ -323,7 +323,12 @@ class ExtractionChecker(ConfReader):
 
         if list_check_sha1s:
           # Check which images have not been processed (or pushed in an update) yet
+          # This seems slow
+          start_check = time.time()
           unprocessed_rows = self.get_unprocessed_rows(list_check_sha1s)
+          msg = "[{}: log] Found {}/{} unprocessed images in {:.2f}s"
+          print(msg.format(self.pp, len(unprocessed_rows), len(list_check_sha1s), time.time() - start_check))
+          #unprocessed_rows = self.get_unprocessed_rows(list_check_sha1s)
           self.nb_imgs_check += len(list_check_sha1s)
           push_delay = (time.time() - self.last_push) > self.max_delay / 60
           if push_delay and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
