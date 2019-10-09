@@ -5,9 +5,10 @@ import time
 import json
 import boto3
 from datetime import datetime
+from ..common.conf_reader import ConfReader
 # Cannot be imported?
 #from botocore.errorfactory import ExpiredIteratorException
-from ..common.conf_reader import ConfReader
+#from json import JSONDecodeError
 
 # TODO: Should we have a GenericIngester class that exposes the `get_msg_json` message method?
 
@@ -278,10 +279,10 @@ class KinesisIngester(ConfReader):
               sleep_count = 0
               for rec in records:
                 sqn = str(rec['SequenceNumber'].decode("utf-8"))
-                # This could throw a JSONDecodeError: No JSON object could be decoded
+                # This could throw a JSONDecodeError (subclass of ValueError): No JSON object could be decoded
                 try:
                   rec_json = json.loads(rec['Data'])
-                except json.JSONDecodeError:
+                except ValueError:
                   msg = "[{}: WARNING] Could not parse record at SequenceNumber {}"
                   print(msg.format(self.pp, sqn))
                   continue
