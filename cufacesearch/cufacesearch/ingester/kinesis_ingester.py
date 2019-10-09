@@ -271,8 +271,9 @@ class KinesisIngester(ConfReader):
                 if self.verbose > 5:
                   #msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
                   #print(msg.format(self.pp, sqn, sh_id, rec_json))
-                  msg = "[{}: log] Found message at SequenceNumber {} in shard {}"
-                  print(msg.format(self.pp, sqn, sh_id))
+                  rec_ts = rec['ApproximateArrivalTimestamp']
+                  msg = "[{}: log] Found message at SequenceNumber {} and timestamp {} in shard {}"
+                  print(msg.format(self.pp, sqn, rec_ts, sh_id))
 
                 # Store `sqn`. Is there anything else we should store?
                 # Maybe number of records read for sanity check
