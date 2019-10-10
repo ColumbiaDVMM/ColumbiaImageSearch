@@ -274,7 +274,7 @@ class KinesisIngester(ConfReader):
                 print(msg.format(self.pp, len(records)))
                 if self.verbose > 4:
                   lag_ms = rec_response['MillisBehindLatest']
-                  msg = "[{}: log] Lagging by {:.2f}s"
+                  msg = "[{}: log] Lagging by {:.3f}s"
                   print(msg.format(self.pp, lag_ms/1000.0))
               sleep_count = 0
               for rec in records:
@@ -283,8 +283,14 @@ class KinesisIngester(ConfReader):
                 try:
                   rec_json = json.loads(rec['Data'])
                 except ValueError:
-                  msg = "[{}: WARNING] Could not parse record at SequenceNumber {}"
-                  print(msg.format(self.pp, sqn))
+                  if 'Data' in rec:
+                      #msg = "[{}: WARNING] Could not parse record at SequenceNumber {}. rec['Data']: {}"
+                      #print(msg.format(self.pp, sqn, rec['Data']))
+                      msg = "[{}: WARNING] Could not parse record at SequenceNumber {}. rec['Data'] may contain binary data"
+                      print(msg.format(self.pp, sqn))
+                  else:
+                      msg = "[{}: WARNING] Could not parse record at SequenceNumber {}. Record has no 'Data' field"
+                      print(msg.format(self.pp, sqn))
                   continue
                 if self.verbose > 5:
                   #msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
