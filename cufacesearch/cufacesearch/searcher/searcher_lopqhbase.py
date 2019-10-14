@@ -790,6 +790,7 @@ class SearcherLOPQHBase(GenericSearcher):
     import time
     # For multi-workers setting with gunicorn
     self.set_pp(pp="SearcherLOPQHBase." + str(os.getpid()))
+    print("[{}.search_from_feats: LOG] searching for {} features from {} images".format(self.pp, len(feats), len(dets)))
 
     start_search = time.time()
     extr_str = self.build_extr_str()
@@ -1043,12 +1044,14 @@ class SearcherLOPQHBase(GenericSearcher):
           sim_images.append([])
           sim_score.append([])
 
-      all_sim_images.append(sim_images)
-      all_sim_dets.append([])
-      all_sim_score.append(sim_score)
+        all_sim_images.append(sim_images)
+        all_sim_dets.append([])
+        all_sim_score.append(sim_score)
 
     search_time = time.time() - start_search
     print("[{}: log] Full search performed in {:0.3}s.".format(self.pp, search_time))
+
+    print("[{}.search_from_feats: LOG] Returning {} lists of similar images".format(self.pp, len(all_sim_images)))
 
     # format output
     # print "all_sim_images",all_sim_images

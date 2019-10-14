@@ -99,7 +99,7 @@ class APIResponder(Resource):
     """
     pid = os.getpid()
     form = request.form
-    print("[put/post.{}] received parameters: {}".format(pid, form.keys()))
+    #print("[put/post.{}] received parameters: {}".format(pid, form.keys()))
     if 'data' not in request.form.keys():
         print("[put/post.{}] trying to parse input".format(pid))
         form = json.loads(request.form.keys()[0])
