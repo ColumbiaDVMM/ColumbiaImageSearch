@@ -98,11 +98,15 @@ class APIResponder(Resource):
     :rtype: dict
     """
     pid = os.getpid()
-    print("[put/post.{}] received parameters: {}".format(pid, request.form.keys()))
+    form = request.form
+    print("[put/post.{}] received parameters: {}".format(pid, form.keys()))
+    if 'data' not in request.form.keys():
+        print("[put/post.{}] trying to parse input".format(pid))
+        form = json.loads(request.form.keys())
     print("[put/post.{}] received request: {}".format(pid, request))
-    query = request.form['data']
+    query = form['data']
     try:
-      options = request.form['options']
+      options = form['options']
     except:
       options = None
     print("[put/post.{}] received data of length: {}".format(pid, len(query)))
