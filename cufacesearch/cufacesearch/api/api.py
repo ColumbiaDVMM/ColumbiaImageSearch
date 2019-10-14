@@ -296,8 +296,8 @@ class APIResponder(Resource):
     """
     query_b64s = [str(x) for x in query.split(',') if not x.startswith('data:')]
     print("Received {} B64 queries with length of: {}".format(len(query_b64s), [len(x) for x in query_b64s]))
-    for i in range(len(query_b64s)):
-        print(i,query_b64s[i])
+    #for i in range(len(query_b64s)):
+    #    print(i,query_b64s[i])
     options_dict, errors = self.get_options_dict(options)
     outp = self.searcher.search_imageB64_list(query_b64s, options_dict)
     outp_we = self.append_errors(outp, errors)
