@@ -187,9 +187,12 @@ class DictOutput():
 
     else:
       # no detections, dets contains list of query images sha1
+      if len(sim_images) != len(dets):
+        print("Did not get enough results! {} vs {}".format(len(sim_images), len(dets)))
 
       for i in range(len(dets)):
         sha1 = dets[i][0]
+        print("Preparing output for input {} with SHA1 {}".format(i, sha1))
 
         # Add one output for each image query
         output.append(dict())
@@ -199,7 +202,7 @@ class DictOutput():
           output[out_i][self.map['query_url']] = dets[i][1]
 
         nb_images = 0
-        if sim_images[i] and sim_images[i][0]:
+        if i<len(sim_images) and sim_images[i] and sim_images[i][0]:
           nb_images = len(sim_images[i][0])
 
         output[out_i][self.map['similar_images']] = OrderedDict([[self.map['number_images'], nb_images],
