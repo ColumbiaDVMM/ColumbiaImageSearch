@@ -951,6 +951,9 @@ class SearcherLOPQHBase(GenericSearcher):
       sim_images = []
       sim_score = []
 
+      msg = "[{}.search_from_feats: log] Searching from {} full image features"
+      print(msg.format(self.pp, len(feats)))
+
       for i in range(len(feats)):
         if self.searcher:
           # Normalize feature first as it is how it is done during extraction...

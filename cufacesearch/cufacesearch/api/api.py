@@ -98,11 +98,16 @@ class APIResponder(Resource):
     :rtype: dict
     """
     pid = os.getpid()
-    print("[put/post.{}] received parameters: {}".format(pid, request.form.keys()))
+    form = request.form
+    print("[put/post.{}] received parameters: {}".format(pid, form.keys()))
+    if 'data' not in request.form.keys():
+        print("[put/post.{}] trying to parse input".format(pid))
+        form = json.loads(request.form.keys()[0])
+    print("[put/post.{}] received parameters: {}".format(pid, form.keys()))
     print("[put/post.{}] received request: {}".format(pid, request))
-    query = request.form['data']
+    query = form['data']
     try:
-      options = request.form['options']
+      options = form['options']
     except:
       options = None
     print("[put/post.{}] received data of length: {}".format(pid, len(query)))
@@ -290,6 +295,7 @@ class APIResponder(Resource):
     :rtype: dict
     """
     query_b64s = [str(x) for x in query.split(',') if not x.startswith('data:')]
+    print("Received {} B64 queries with length of: {}".format(len(query_b64s), [len(x) for x in query_b64s]))
     options_dict, errors = self.get_options_dict(options)
     outp = self.searcher.search_imageB64_list(query_b64s, options_dict)
     outp_we = self.append_errors(outp, errors)
