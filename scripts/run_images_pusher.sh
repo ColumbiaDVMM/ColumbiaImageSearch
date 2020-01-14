@@ -38,7 +38,8 @@ package_name="cufacesearch"
 
 if [ "$input_type" = "local" ];
 then
-    cmd="python ./"${package_name}"/"${package_name}"/ingester/local_images_kafka_pusher.py"
+    #cmd="python ./"${package_name}"/"${package_name}"/ingester/local_images_kafka_pusher.py"
+    cmd="python ./"${package_name}"/"${package_name}"/pusher/local_images_pusher.py"
     args=" -c ./conf/generated/conf_ingestion_"${conf_name}.json
 else
     if [ ${nb_workers+x} ]; then
@@ -48,6 +49,8 @@ else
       # Should we assume nb_workers=1?
       exit -1
     fi
+    # TODO: deal with different input sources
+    # This has to be re-tested
     cmd="python ./"${package_name}"/"${package_name}"/ingester/kafka_image_downloader.py"
     args=" -t -d -w ${nb_workers} -c ./conf/generated/conf_ingestion_"${conf_name}.json
 fi

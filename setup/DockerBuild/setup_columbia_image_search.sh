@@ -24,6 +24,7 @@ pip install --user setuptools
 pip install --user --upgrade numpy
 pip install --user protobuf
 # -e is for development mode, so changes in the python codes are applied without needing to reinstall
+# But does not work if we create new (sub)modules?
 pip install -e ${repo_path}/${repodirname}
 pip install -e ${repo_path}/lopq
 
@@ -36,6 +37,7 @@ caffe_repo="https://github.com/BVLC/caffe"
 caffe_commit="b963008a6591600e60ed6746d208e82e107f6a89"
 cd ${caffe_base_path}; git clone ${caffe_repo} ${caffe_dir}; cd ${caffe_dir}; git reset --hard ${caffe_commit}
 # For command line sentibank extraction
+#TODO: need to make extract_nfeatures less verbose
 cp ${repo_path}/${repodirname}/${repodirname}/featurizer/data/extract_nfeatures.cpp ${caffe_path}/tools
 # Use flag CPU_ONLY?
 cd ${caffe_path}; mkdir build; cd build; cmake ..; make all; make pycaffe -j8;

@@ -1,6 +1,6 @@
 """Flask API to expose the search index.
 """
-
+from __future__ import print_function
 import os
 import sys
 import time
@@ -99,10 +99,11 @@ class APIResponder(Resource):
     """
     pid = os.getpid()
     form = request.form
-    print("[put/post.{}] received parameters: {}".format(pid, form.keys()))
+    #print("[put/post.{}] received parameters: {}".format(pid, form.keys()))
     if 'data' not in request.form.keys():
         print("[put/post.{}] trying to parse input".format(pid))
-        form = json.loads(request.form.keys())
+        form = json.loads(request.form.keys()[0])
+    print("[put/post.{}] received parameters: {}".format(pid, form.keys()))
     print("[put/post.{}] received request: {}".format(pid, request))
     query = form['data']
     try:
@@ -294,6 +295,9 @@ class APIResponder(Resource):
     :rtype: dict
     """
     query_b64s = [str(x) for x in query.split(',') if not x.startswith('data:')]
+    print("Received {} B64 queries with length of: {}".format(len(query_b64s), [len(x) for x in query_b64s]))
+    #for i in range(len(query_b64s)):
+    #    print(i,query_b64s[i])
     options_dict, errors = self.get_options_dict(options)
     outp = self.searcher.search_imageB64_list(query_b64s, options_dict)
     outp_we = self.append_errors(outp, errors)
@@ -400,7 +404,7 @@ class APIResponder(Resource):
         query_urls.append(x[:-1])
       else:
         query_urls.append(x)
-    print("[get_clean_urls_from_query: info] {}".format(query_urls))
+    print("[api.get_clean_urls_from_query: info] {}".format(query_urls))
     return query_urls
 
   def view_similar_query_response(self, query_type, query, query_response, options=None):
@@ -447,16 +451,17 @@ class APIResponder(Resource):
       # URLs should already be in query response
       pass
     else:
-      print("[view_similar_query_response: error] Unknown query_type: {}".format(query_type))
+      print("[api.view_similar_query_response: error] Unknown query_type: {}".format(query_type))
       return None
 
     # Get errors
     options_dict, errors_options = self.get_options_dict(options)
 
-    # Parse similar faces response
+    # Parse similar images response
+    # TODO: remove 'face' in variable names
     all_sim_faces = query_response[self.searcher.do.map['all_similar_'+self.input_type+'s']]
     search_results = []
-    print "[view_similar_query_response: log] len(sim_images): {}".format(len(all_sim_faces))
+    print("[api.view_similar_query_response: log] len(sim_images): {}".format(len(all_sim_faces)))
     for i in range(len(all_sim_faces)):
       # Parse query face, and build face tuple (sha1, url/b64 img, face bounding box)
       query_face = all_sim_faces[i]
@@ -486,10 +491,14 @@ class APIResponder(Resource):
         osface_sha1 = similar_faces[self.searcher.do.map['image_sha1s']][j]
         #if query_type == "PATH":
         if self.searcher.file_input:
-          with open(similar_faces[self.searcher.do.map['cached_image_urls']][j], 'rb') as img_buffer:
-            img_info = get_SHA1_img_info_from_buffer(img_buffer)
-            img_B64 = buffer_to_B64(img_buffer)
-          osface_url = "data:" + ImageMIMETypes[img_info[1]] + ";base64," + str(img_B64)
+          try:
+            with open(similar_faces[self.searcher.do.map['cached_image_urls']][j], 'rb') as img_buffer:
+              img_info = get_SHA1_img_info_from_buffer(img_buffer)
+              img_B64 = buffer_to_B64(img_buffer)
+            osface_url = "data:" + ImageMIMETypes[img_info[1]] + ";base64," + str(img_B64)
+          except Exception as inst:
+            msg = "[api.view_similar_query_response: WARNING] Could not load image {} from {}"
+            print(msg.format(osface_sha1, similar_faces[self.searcher.do.map['cached_image_urls']][j]))
         else:
           osface_url = similar_faces[self.searcher.do.map['cached_image_urls']][j]
         osface_bbox_compstr = None

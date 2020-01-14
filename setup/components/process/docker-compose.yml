@@ -13,18 +13,39 @@ services:
     restart: unless-stopped
     environment:
       # General environment variables
+      # These two parameters are a bit confusing
       - input_type
+      - image_ingestion_type
+      - update_ingestion_type
       - verbose
       - "conf_name=${extr_conf_name}"
       - extr_type
       - extr_nb_threads
+      - extr_check_max_delay
+      - check_missing
+      # Image storer: to read image binary content from S3 and not HBase
+      - use_image_storer
+      - image_storer_prefix
+      - image_storer_aws_profile
+      - image_storer_aws_region
+      - image_storer_aws_prefix
+      - image_storer_bucket_name
+      - image_storer_verbose
       # Kafka related environment variables
-      - images_topic
       - kafka_servers
       - kafka_security
-      - extr_check_consumer_group
-      - extr_proc_consumer_group
+      - images_topic
       - updates_topic
+      - images_consumer_group
+      - updates_consumer_group
+      # Kinesis related environment variables
+      - images_stream
+      - updates_stream
+      - create_stream
+      - region_name
+      - aws_profile
+      - "image_shard_infos_filename=${indocker_repo_path}/kinesis_${images_stream}_${extr_conf_name}.json"
+      - "update_shard_infos_filename=${indocker_repo_path}/kinesis_${updates_stream}_${extr_conf_name}.json"
       # Hbase related environment variables
       - hbase_host
       # In
@@ -48,6 +69,8 @@ services:
     volumes:
       - $repo_path:$indocker_repo_path
       - cuimgsearch-proc-volume:/data
+      # AWS for Kinesis
+      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"]
     logging:
       driver: "json-file"

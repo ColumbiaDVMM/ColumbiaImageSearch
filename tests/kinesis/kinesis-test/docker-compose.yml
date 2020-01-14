@@ -1,0 +1,10 @@
+version: '2'
+services:
+  kinesis:
+    build: ./kinesalite
+    ports:
+      - "4567:4567"
+  dynamodb:
+    image: amazon/dynamodb-local
+    ports:
+      - "4568:8000"

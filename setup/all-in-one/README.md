@@ -25,7 +25,7 @@ e.g. [http://localhost/cufacesearch/status](http://localhost/cufacesearch/status
 Details about the API are provided in the [README.md](../../www/README.md) file of the `www` folder. 
 You can also open your browser at [http://localhost/[endpoint]/view_similar_byURL?data=[an_image_URL]](http://localhost/[endpoint]/view_similar_byURL?data=[an_image_URL]) to visualize some results.
 
-A docker compose file [docker-compose_monitor.yml](docker-compose_monitor.yml) with additional monitoring tools is also provided.
+A docker compose file [docker-compose_monitor.yml](docker-compose_kafka_monitor.yml) with additional monitoring tools is also provided.
 You can use it by running:
 
 - `docker-compose -f docker-compose_monitor.yml up`

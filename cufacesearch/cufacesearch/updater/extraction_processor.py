@@ -19,13 +19,14 @@ from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal
   # img_URL_column, img_path_column, EXTR_CF #, img_info_column_family, update_info_column_family
 from cufacesearch.extractor.generic_extractor import DaemonBatchExtractor, GenericExtractor
 from cufacesearch.extractor.generic_extractor import build_extr_str
-from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
 from cufacesearch.imgio.imgio import buffer_to_B64
 
 DEFAULT_EXTR_PROC_PREFIX = "EXTR_"
 TIME_ELAPSED_FAILED = 3600
 BATCH_SIZE_IMGBUFFER = 20
 MAX_UP_CHECK_MISS_EXTR = 5
+MAX_EMPT = 60
+INIT_UPDATE_ID = "1970-01-01"
 
 # Look for and process batch of a given extraction that have not been processed yet.
 # Should be multi-threaded but single process...
@@ -132,7 +133,7 @@ class ExtractionProcessor(ConfReader):
     # TODO: move that to self.read_conf()
     # Get required parameters
     self.input_type = self.get_required_param("input_type")
-    self.nb_threads = self.get_required_param("nb_threads")
+    self.nb_threads = int(self.get_required_param("nb_threads"))
     self.featurizer_type = self.get_required_param("featurizer_type")
     self.featurizer_prefix = self.get_required_param("featurizer_prefix")
     self.detector_type = self.get_required_param("detector_type")
@@ -140,8 +141,10 @@ class ExtractionProcessor(ConfReader):
     # Get optional parameters
     self.verbose = int(self.get_param("verbose", default=0))
     self.maxucme = int(self.get_param("max_up_check_miss_extr", default=MAX_UP_CHECK_MISS_EXTR))
-    self.ingestion_input = self.get_param("ingestion_input", default="kafka")
-    self.push_back = self.get_param("push_back", default=False)
+    #self.ingestion_input = self.get_param("ingestion_input", default="hbase")
+    self.ingestion_input = self.get_param("update_ingestion_type", default="hbase")
+    self.push_back = bool(self.get_param("push_back", default=False))
+    self.check_missing = bool(self.get_param("check_missing", default=False))
     file_input = self.get_param("file_input")
     print("[{}.ExtractionProcessor: log] file_input: {}".format(self.pp, file_input))
     if file_input:
@@ -157,7 +160,6 @@ class ExtractionProcessor(ConfReader):
 
     # Initialize queues
     self.init_queues()
-
 
     # Initialize indexer
     # We now have two indexers:
@@ -191,17 +193,35 @@ class ExtractionProcessor(ConfReader):
       self.img_column = self.in_indexer.get_col_imgurl()
     else:
       self.img_column = self.in_indexer.get_col_imgpath()
-    img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
-                self.img_column]
+    #img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
+    #            self.img_column]
+    img_cols = [self.img_column, self.in_indexer.imginfocf]
     print("[{}.ExtractionProcessor: log] img_cols: {}".format(self.pp, img_cols))
 
-    self.last_update_date_id = "1970-01-01"
-    self.last_missing_extr_date = "1970-01-01"
+    self.last_update_date_id = INIT_UPDATE_ID
+    self.last_missing_extr_date = INIT_UPDATE_ID
 
     # Initialize ingester
-    self.ingester = GenericKafkaProcessor(self.global_conf,
-                                          prefix=self.get_required_param("proc_ingester_prefix"))
-    self.ingester.pp = "ep"
+    # This should be Kafka, Kinesis or None if getting data from HBase...
+    self.ingester = None
+    if self.ingestion_input == "kafka":
+      from cufacesearch.ingester.kafka_ingester import KafkaIngester
+      self.ingester = KafkaIngester(self.global_conf,
+                                    prefix=self.get_required_param("proc_ingester_prefix"))
+      self.ingester.pp = "KafkaUpdateIngester"
+    elif self.ingestion_input == "kinesis":
+      from cufacesearch.ingester.kinesis_ingester import KinesisIngester
+      self.ingester = KinesisIngester(self.global_conf,
+                                      prefix=self.get_required_param("proc_ingester_prefix"))
+      self.ingester.pp = "KinesisUpdateIngester"
+
+    # Image storer if we want to get images from s3 bucket directly
+    self.image_storer = None
+    if bool(self.get_param("use_image_storer", default=False)):
+      print("[{}.ExtractionProcessor: log] Will use S3Storer to read images.".format(self.pp))
+      from cufacesearch.storer.s3 import S3Storer
+      self.image_storer = S3Storer(self.global_conf,
+                                   prefix=self.get_required_param("image_storer_prefix"))
 
 
   def set_pp(self, pp="ExtractionProcessor"):
@@ -282,14 +302,19 @@ class ExtractionProcessor(ConfReader):
     # legacy implementation: better to have a kafka topic for batches to be processed to allow
     # safe and efficient parallelization on different machines
     # DONE: use in_indexer
-    img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
-                self.img_column]
+    #img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
+    #            self.img_column]
+    img_cols = [self.img_column, self.in_indexer.imginfocf]
     try:
+      msg = "[{}.get_batch_hbase: log] Scanning for updates from {}"
+      print(msg.format(self.pp, self.last_update_date_id))
       # DONE: use out_indexer
       for updates in self.out_indexer.get_unprocessed_updates_from_date(self.last_update_date_id,
                                                                         extr_type=self.extr_prefix):
         for update_id, update_cols in updates:
           if self.extr_prefix in update_id:
+            # Save current update_id so we would restart from that in next call
+            self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
             # double check update has not been processed somewhere else
             if self.is_update_unprocessed(update_id):
               # double check update was not marked as started recently i.e. by another process
@@ -322,8 +347,12 @@ class ExtractionProcessor(ConfReader):
                 # Store last update id
                 self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
               else:
-                msg = "[{}.get_batch_hbase: log] Skipping update started recently: {}"
+                msg = "[{}.get_batch_hbase: log] Skipping recently started update: {}"
                 print(msg.format(self.pp, update_id))
+                # This is a bad sign, likely meaning two processes are scanning at the same point
+                # Try to add some random sleep time?
+                import numpy as np
+                time.sleep(int(np.random.rand()*10))
                 continue
             else:
               msg = "[{}.get_batch_hbase: log] Skipping already processed update: {}"
@@ -335,62 +364,61 @@ class ExtractionProcessor(ConfReader):
               print(msg.format(self.pp, update_id))
       else:
         print("[{}.get_batch_hbase: log] No unprocessed update found.".format(self.pp))
-        # Should we reinitialized self.last_update_date_id?
-        # Look for updates that have some unprocessed images
-        # TODO: wether we do that or not could be specified by a parameter
-        # as this induces slow down during update...
-        # DONE: use out_indexer
-        count_ucme = 0
-        stop_cme = False
-        for updates in self.out_indexer.get_missing_extr_updates_from_date(self.last_missing_extr_date,
-                                                                           extr_type=self.extr_prefix):
-          for update_id, update_cols in updates:
-            if self.extr_prefix in update_id:
-              # DONE: use out_indexer
-              if self.out_indexer.get_col_listsha1s() in update_cols:
-                list_sha1s = update_cols[self.out_indexer.get_col_listsha1s()].split(',')
-                msg = "[{}.get_batch_hbase: log] Update {} has {} images missing extractions."
-                print(msg.format(self.pp, update_id, len(list_sha1s)))
-                sys.stdout.flush()
-                # also get 'ext:' to check if extraction was already processed?
-                # DONE: use in_indexer
-                rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
-                                                                        rbs=BATCH_SIZE_IMGBUFFER,
-                                                                        columns=img_cols)
-                if rows_batch:
-                  yield rows_batch, update_id
-                  self.last_missing_extr_date = '_'.join(update_id.split('_')[-2:])
-                  count_ucme +=1
-                  if count_ucme >= self.maxucme:
-                    stop_cme = True
-                    break
+        # Look for updates that have some unprocessed images.
+        # whether we do that or not is specified by parameter 'check_missing'
+        # as this induces slow down during update and heavy read from HBase...
+        if self.check_missing:
+          count_ucme = 0
+          stop_cme = False
+          for updates in self.out_indexer.get_missing_extr_updates_from_date(self.last_missing_extr_date,
+                                                                             extr_type=self.extr_prefix):
+            for update_id, update_cols in updates:
+              if self.extr_prefix in update_id:
+                # DONE: use out_indexer
+                if self.out_indexer.get_col_listsha1s() in update_cols:
+                  list_sha1s = update_cols[self.out_indexer.get_col_listsha1s()].split(',')
+                  msg = "[{}.get_batch_hbase: log] Update {} has {} images missing extractions."
+                  print(msg.format(self.pp, update_id, len(list_sha1s)))
+                  sys.stdout.flush()
+                  # also get 'ext:' to check if extraction was already processed?
+                  # DONE: use in_indexer
+                  rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                          rbs=BATCH_SIZE_IMGBUFFER,
+                                                                          columns=img_cols)
+                  if rows_batch:
+                    yield rows_batch, update_id
+                    self.last_missing_extr_date = '_'.join(update_id.split('_')[-2:])
+                    count_ucme +=1
+                    if count_ucme >= self.maxucme:
+                      stop_cme = True
+                      break
+                  else:
+                    msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
+                    print(msg.format(self.pp, update_id))
                 else:
-                  msg = "[{}.get_batch_hbase: log] Did not get any image buffer for update: {}"
+                  msg = "[{}.get_batch_hbase: log] Update {} has no images list."
                   print(msg.format(self.pp, update_id))
               else:
-                msg = "[{}.get_batch_hbase: log] Update {} has no images list."
+                msg = "[{}.get_batch_hbase: log] Skipping update {} from another extraction type."
                 print(msg.format(self.pp, update_id))
-            else:
-              msg = "[{}.get_batch_hbase: log] Skipping update {} from another extraction type."
-              print(msg.format(self.pp, update_id))
-          # We have reached maximum number of check for missing extractions in one call
-          if stop_cme:
-            break
-        else:
-          if stop_cme:
-            msg = "[{}.get_batch_hbase: log] Stopped checking updates with missing extractions"
-            msg += "after founding {}/{}."
-            print(msg.format(self.pp, count_ucme, self.maxucme, self.last_missing_extr_date))
-            msg = "[{}.get_batch_hbase: log] Will restart next time from: {}"
-            print(msg.format(self.pp, self.last_missing_extr_date))
-            sys.stdout.flush()
+            # We have reached maximum number of check for missing extractions in one call
+            if stop_cme:
+              break
           else:
-            msg = "[{}.get_batch_hbase: log] No updates with missing extractions found."
-            print(msg.format(self.pp))
-            sys.stdout.flush()
-            # Re-initialize dates just to make sure we don't miss anything
-            self.last_update_date_id = "1970-01-01"
-            self.last_missing_extr_date = "1970-01-01"
+            if stop_cme:
+              msg = "[{}.get_batch_hbase: log] Stopped checking updates with missing extractions"
+              msg += "after founding {}/{}."
+              print(msg.format(self.pp, count_ucme, self.maxucme, self.last_missing_extr_date))
+              msg = "[{}.get_batch_hbase: log] Will restart next time from: {}"
+              print(msg.format(self.pp, self.last_missing_extr_date))
+              sys.stdout.flush()
+            else:
+              msg = "[{}.get_batch_hbase: log] No updates with missing extractions found."
+              print(msg.format(self.pp))
+              sys.stdout.flush()
+              # Re-initialize dates just to make sure we don't miss anything
+              self.last_update_date_id = INIT_UPDATE_ID
+              self.last_missing_extr_date = INIT_UPDATE_ID
 
     except Exception as inst:
       # If we reach this point it is really a succession of failures
@@ -399,71 +427,83 @@ class ExtractionProcessor(ConfReader):
       raise inst
 
 
-
-  def get_batch_kafka(self):
-    """Get one batch of images from Kafka
+  # Now handles both Kafka and Kinesis
+  def get_batch_ingester(self):
+    """Get one batch of images from Kafka or Kinesis
 
     :yield: tuple (rows_batch, update_id)
     """
-    # Read from a kafka topic to allow safer parallelization on different machines
-    # DONE: use in_indexer
-    img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
-                self.img_column]
+    #img_cols = [self.in_indexer.get_col_imgbuff(), self.in_indexer.get_col_imgurlbak(),
+    #            self.img_column]
+    img_cols = [self.img_column, self.in_indexer.imginfocf]
+    mn = "get_batch_ingester"
     try:
       # Needs to read topic to get update_id and list of sha1s
-      if self.ingester.consumer:
-        for msg in self.ingester.consumer:
-          msg_dict = json.loads(msg.value)
+      # This consumer could be kinesis or Kafka
+      # TODO: test `self.ingester.consumer` will not work for Kinesis ingester...
+      if self.ingester and self.ingester.consumer:
+        for msg_dict in self.ingester.get_msg_json():
+          # Check msg_dict is really a dict?
+          if not isinstance(msg_dict, dict):
+            msg_dict = json.loads(msg_dict)
           update_id = msg_dict.keys()[0]
           # NB: Try to get update info and check it was really not processed yet.
           if self.is_update_unprocessed(update_id):
-            str_list_sha1s = msg_dict[update_id]
-            list_sha1s = str_list_sha1s.split(',')
-            msg = "[{}.get_batch_kafka: log] Update {} has {} images."
-            print(msg.format(self.pp, update_id, len(list_sha1s)))
-            if self.verbose > 3:
-              msg = "[{}.get_batch_kafka: log] Looking for columns: {}"
-              print(msg.format(self.pp, img_cols))
-            # DONE: use in_indexer
-            #rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
-            rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
-                                                                    rbs=BATCH_SIZE_IMGBUFFER,
-                                                                    columns=img_cols)
-            #print "rows_batch", rows_batch
-            if rows_batch:
-              if self.verbose > 4:
-                msg = "[{}.get_batch_kafka: log] Yielding for update: {}"
-                print(msg.format(self.pp, update_id))
-              yield rows_batch, update_id
-              self.ingester.consumer.commit()
-              if self.verbose > 4:
-                msg = "[{}.get_batch_kafka: log] After yielding for update: {}"
-                print(msg.format(self.pp, update_id))
-              self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
-            # Should we try to commit offset only at this point?
+            # double check update was not marked as started recently i.e. by another process
+            if self.is_update_notstarted(update_id, max_delay=TIME_ELAPSED_FAILED):
+              str_list_sha1s = msg_dict[update_id]
+              list_sha1s = str_list_sha1s.split(',')
+              msg = "[{}.{}: log] Update {} has {} images."
+              print(msg.format(self.pp, mn, update_id, len(list_sha1s)))
+              if self.verbose > 3:
+                msg = "[{}.{}: log] Looking for columns: {}"
+                print(msg.format(self.pp, mn, img_cols))
+              # DONE: use in_indexer
+              #rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s, columns=img_cols)
+              rows_batch = self.in_indexer.get_columns_from_sha1_rows(list_sha1s,
+                                                                      rbs=BATCH_SIZE_IMGBUFFER,
+                                                                      columns=img_cols)
+              #print "rows_batch", rows_batch
+              if rows_batch:
+                if self.verbose > 4:
+                  msg = "[{}.{}: log] Yielding for update: {}"
+                  print(msg.format(self.pp, mn, update_id))
+                yield rows_batch, update_id
+                # TODO: this will not work for Kinesis ingester...
+                self.ingester.consumer.commit()
+                if self.verbose > 4:
+                  msg = "[{}.{}: log] After yielding for update: {}"
+                  print(msg.format(self.pp, mn, update_id))
+                self.last_update_date_id = '_'.join(update_id.split('_')[-2:])
+              # Should we try to commit offset only at this point?
+              else:
+                msg = "[{}.{}: log] Did not get any image buffers for the update: {}"
+                print(msg.format(self.pp, mn, update_id))
             else:
-              msg = "[{}.get_batch_kafka: log] Did not get any image buffers for the update: {}"
-              print(msg.format(self.pp, update_id))
+              msg = "[{}.{}: log] Skipping recently started update: {}"
+              print(msg.format(self.pp, mn, update_id))
+              # This is a bad sign, likely meaning two processes are scanning at the same point
+              # Try to add some random sleep time?
+              import numpy as np
+              time.sleep(int(np.random.rand() * 10))
           else:
-            msg = "[{}.get_batch_kafka: log] Skipping already processed update: {}"
-            print(msg.format(self.pp, update_id))
+            msg = "[{}.{}: log] Skipping already processed update: {}"
+            print(msg.format(self.pp, mn, update_id))
         else:
-          print("[{}.get_batch_kafka: log] No update found.".format(self.pp))
+          print("[{}.{}: log] No update found.".format(self.pp, mn))
           # Fall back to checking HBase for unstarted/unfinished updates
           for rows_batch, update_id in self.get_batch_hbase():
             yield rows_batch, update_id
       else:
-        print("[{}.get_batch_kafka: log] No consumer found.".format(self.pp))
+        print("[{}.{}: log] No consumer found.".format(self.pp, mn))
         # Fall back to checking HBase for unstarted/unfinished updates
         for rows_batch, update_id in self.get_batch_hbase():
           yield rows_batch, update_id
     except Exception as inst:
       # If we reach this point it is really a succession of failures
-      full_trace_error("[{}.get_batch_kafka: error] {}".format(self.pp, inst))
+      full_trace_error("[{}.{}: error] {}".format(self.pp, mn, inst))
       # Raise Exception to restart process or docker
       raise inst
-
-
 
   def get_batch(self):
     """Get one batch of images
@@ -474,7 +514,7 @@ class ExtractionProcessor(ConfReader):
       for rows_batch, update_id in self.get_batch_hbase():
         yield rows_batch, update_id
     else:
-      for rows_batch, update_id in self.get_batch_kafka():
+      for rows_batch, update_id in self.get_batch_ingester():
         yield rows_batch, update_id
 
   def process_batch(self):
@@ -500,7 +540,6 @@ class ExtractionProcessor(ConfReader):
         if nb_extr_to_create:
           start_create_extractor = time.time()
           while len(self.extractors) < min(self.nb_threads, img_list_size):
-            # DONE: use 'out_indexer'
             self.extractors.append(GenericExtractor(self.detector_type, self.featurizer_type,
                                                     self.input_type, self.out_indexer.extrcf,
                                                     self.featurizer_prefix, self.global_conf))
@@ -535,16 +574,28 @@ class ExtractionProcessor(ConfReader):
         # DONE: use in_indexer in all this scope
         # How could we transfer URL from in table to out table if they are different?...
         for img in rows_batch:
-          # should decode base64
-          #if img_buffer_column in img[1]:
+          dl_image = False
+          # Try to get from HBase directly
           if self.in_indexer.get_col_imgbuff() in img[1]:
-            # That's messy...
-            # b64buffer = buffer_to_B64(cStringIO.StringIO(img[1][self.in_indexer.get_col_imgbuff()]))
-            # use img[1].pop(self.in_indexer.get_col_imgbuff())
             b64buffer = buffer_to_B64(cStringIO.StringIO(img[1].pop(self.in_indexer.get_col_imgbuff())))
+            # TODO: Should we check b64buffer size and discard if too big?
             tup = (img[0], b64buffer, False)
             list_in.append(tup)
+          # Try to load from bucket directly
+          elif self.image_storer:
+            if self.verbose > 5:
+              msg = "[{}: log] Will try to get image {} from bucket"
+              print(msg.format(self.pp, img[0]))
+            buffer = self.image_storer.load(img[0])
+            if buffer is not None:
+              tup = (img[0], buffer_to_B64(buffer), False)
+              list_in.append(tup)
+            else:
+              dl_image = True
           else:
+            dl_image = True
+
+          if dl_image:
             # need to re-download, accumulate a list of URLs to download
             if self.verbose > 5:
               msg = "[{}: log] Will try to download image {} without buffer"
@@ -597,6 +648,7 @@ class ExtractionProcessor(ConfReader):
               nb_dl_failed += 1
             else:
               if buffer:
+                # TODO: Should we check buffer size and discard if too big?
                 list_in.append((sha1, buffer, push_back))
               else:
                 # Is that even possible?
@@ -778,17 +830,16 @@ class ExtractionProcessor(ConfReader):
           nb_threads_running = len(threads)
           thread_creation_failed = [0] * self.nb_threads
           deleted_extr = [0] * nb_threads_running
+          # Mark as completed anyway, as it is unlikely we will ever be able to get those images?
 
         # Mark batch as processed
         now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
-        # DONE: use out_indexer
         update_processed_dict = {update_id: {self.out_indexer.get_col_upproc(): now_str}}
         self.out_indexer.push_dict_rows(dict_rows=update_processed_dict,
                                         table_name=self.out_indexer.table_updateinfos_name)
 
         # Mark as completed if all rows had an extraction
         if img_list_size == len(dict_imgs.keys()):
-          # DONE: use out_indexer
           update_completed_dict = {update_id: {self.out_indexer.get_col_upcomp(): str(1)}}
           self.out_indexer.push_dict_rows(dict_rows=update_completed_dict,
                                           table_name=self.out_indexer.table_updateinfos_name)
@@ -818,6 +869,14 @@ class ExtractionProcessor(ConfReader):
             gc.collect()
           else:
             raise RuntimeError("Processed failed with a single thread...")
+        else:
+          # Try to recover from a bad period when everything went well when processing a batch
+          req_threads = int(self.get_required_param("nb_threads"))
+          if self.nb_threads < req_threads:
+            if self.verbose > 1:
+              msg = "[{}: log] We have only {} out of {} requested threads. Adding one more..."
+              print(msg.format(self.pp, self.nb_threads, req_threads))
+            self.nb_threads += 1
 
     except Exception as inst:
       #exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -839,10 +898,14 @@ class ExtractionProcessor(ConfReader):
       msg = "[ExtractionProcessor: log] Nothing to process at: {}"
       print(msg.format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))
       sys.stdout.flush()
-      time.sleep(10*min(self.nb_empt, 60))
+      time.sleep(10*min(self.nb_empt, MAX_EMPT))
       self.nb_empt += 1
-
-
+      # Potentially reset `self.last_update_date_id` after many nb_empt
+      if self.nb_empt >= MAX_EMPT:
+        msg = "[ExtractionProcessor: log] Resetting `last_update_date_id` to {} after {} empty scans"
+        print(msg.format(INIT_UPDATE_ID, self.nb_empt))
+        self.nb_empt = 0
+        self.last_update_date_id = INIT_UPDATE_ID
       # try:
       #   self.process_batch()
       #   print("[ExtractionProcessor: log] Nothing to process at: {}".format(datetime.now().strftime('%Y-%m-%d:%H.%M.%S')))

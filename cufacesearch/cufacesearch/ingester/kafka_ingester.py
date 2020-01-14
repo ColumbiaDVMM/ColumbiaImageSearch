@@ -15,15 +15,14 @@ from ..common.conf_reader import ConfReader
 # Should we consider using Kafka Streams ?
 base_path_keys = "../../data/keys/hg-kafka-"
 
+# TODO: Should we have a GenericIngester class that exposes the `get_msg_json` message method?
 
-# TODO: Split into ingester/producer
-
-class GenericKafkaProcessor(ConfReader):
-  """GenericKafkaProcessor
+class KafkaIngester(ConfReader):
+  """KafkaIngester
   """
 
   def __init__(self, global_conf_filename, prefix="", pid=None):
-    """GenericKafkaProcessor constructor
+    """KafkaIngester constructor
 
     :param global_conf_filename: configuration file or dictionary
     :type global_conf_filename: str, dict
@@ -37,7 +36,7 @@ class GenericKafkaProcessor(ConfReader):
     self.pid = pid
     self.verbose = 1
 
-    super(GenericKafkaProcessor, self).__init__(global_conf_filename, prefix)
+    super(KafkaIngester, self).__init__(global_conf_filename, prefix)
 
     # Set print prefix
     self.set_pp(pp=self.get_param("pp"))
@@ -47,7 +46,6 @@ class GenericKafkaProcessor(ConfReader):
 
     # Initialize attributes
     self.consumer = None
-    self.producer = None
 
     # Initialize stats attributes
     self.process_count = 0
@@ -61,7 +59,6 @@ class GenericKafkaProcessor(ConfReader):
 
     # Initialize everything
     self.init_consumer()
-    self.init_producer()
 
   def get_param_type(self, param_key):
     """Get type of parameter ``param_key``
@@ -189,13 +186,13 @@ class GenericKafkaProcessor(ConfReader):
   def set_pp(self, pp=None):
     """Set pretty print name
 
-    :param pp: pretty print name, default will be `GenericKafkaProcessor`
+    :param pp: pretty print name, default will be `KafkaIngester`
     :type pp: str
     """
     if pp is not None:
       self.pp = pp
     else:
-      self.pp = "GenericKafkaProcessor"
+      self.pp = "KafkaIngester"
 
   def init_consumer(self):
     """Initialize ``self.consumer``
@@ -203,24 +200,25 @@ class GenericKafkaProcessor(ConfReader):
     # Get topic
     #topic = self.get_required_param('consumer_topics')
     print("[{}: log] Initializing consumer...".format(self.pp))
-    topic = self.get_param('consumer_topics')
-    if topic is None:
-      msg = "[{}: warning] Could not initialize consumer as no 'consumer_topics' was provided"
-      print(msg.format(self.pp))
-      return
+    topic_name = self.get_required_param('topic_name')
+    if topic_name is None:
+      msg = "[{}: ERROR] Could not initialize consumer as no 'topic_name' was provided"
+      raise ValueError(msg.format(self.pp))
 
-    # NB: topic could be a list
-    if type(topic) == list:
-      topic = [str(t) for t in topic]
+    # NB: topic could be a list. Never really tested
+    if type(topic_name) == list:
+      topic_name = [str(t) for t in topic_name]
     else:
-      topic = str(topic)
+      topic_name = str(topic_name)
 
     ## Optional parameters
     dict_args = dict()
     # see all options at: http://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html
     # could also have parameters for key_deserializer, value_deserializer
-    dict_args = self.get_servers(dict_args, 'consumer_servers')
-    dict_args = self.get_security(dict_args, 'consumer_security')
+    #dict_args = self.get_servers(dict_args, 'consumer_servers')
+    #dict_args = self.get_security(dict_args, 'consumer_security')
+    dict_args = self.get_servers(dict_args, 'servers')
+    dict_args = self.get_security(dict_args, 'security')
     # group
     group = self.get_param('consumer_group')
     if group:
@@ -238,26 +236,11 @@ class GenericKafkaProcessor(ConfReader):
 
     # Instantiate consumer
     if self.verbose > 0:
-      print("[{}: log] Starting consumer for topic '{}' with parameters {}".format(self.pp, topic, dict_args))
+      msg = "[{}: log] Starting consumer for topic '{}' with parameters {}"
+      print(msg.format(self.pp, topic_name, dict_args))
       sys.stdout.flush()
 
-    self.consumer = KafkaConsumer(topic, **dict_args)
-
-
-  def init_producer(self):
-    """Initialize ``self.producer``
-    """
-    print("[{}: log] Initializing producer...".format(self.pp))
-    # Gather optional parameters
-    dict_args = dict()
-    dict_args = self.get_servers(dict_args, 'producer_servers')
-    dict_args = self.get_security(dict_args, 'producer_security')
-    # Instantiate producer
-    try:
-      self.producer = KafkaProducer(**dict_args)
-    except Exception as inst:
-      # Would be OK for ingester that do not output to kafka...
-      print("[{}: warning] Could not initialize producer with arguments {}. Error was: {}".format(self.pp, dict_args, inst))
+    self.consumer = KafkaConsumer(topic_name, **dict_args)
 
   def get_msg_json(self):
     """Generator of JSON messages from the consumer.

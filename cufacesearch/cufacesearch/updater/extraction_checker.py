@@ -9,10 +9,17 @@ from datetime import datetime
 from argparse import ArgumentParser
 from cufacesearch.common.conf_reader import ConfReader
 from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal
-from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
+#from cufacesearch.ingester.generic_kafka_processor import GenericKafkaProcessor
+from cufacesearch.ingester.kafka_ingester import KafkaIngester
+from cufacesearch.pusher.kafka_pusher import KafkaPusher
+from cufacesearch.ingester.kinesis_ingester import KinesisIngester
+from cufacesearch.pusher.kinesis_pusher import KinesisPusher
 
 DEFAULT_EXTR_CHECK_PREFIX = "EXTR_"
-
+# Should DEFAULT_UPDATE_INGESTION_TYPE be gather from some other place?
+# Should we add a cufacesearch.common.defautls?
+DEFAULT_UPDATE_INGESTION_TYPE = "hbase"
+DEFAULT_MIN_LENGTH_CHECK = 100
 
 # Simulates the way updates were generated from the spark workflows but reading from a kafka topic
 # Should be run as a single process to ensure data integrity,
@@ -49,6 +56,7 @@ class ExtractionChecker(ConfReader):
 
     # Max delay
     self.max_delay = int(self.get_param("max_delay", default=3600))
+    self.min_len_check = int(self.get_param("min_len_check", default=DEFAULT_MIN_LENGTH_CHECK))
 
     self.list_extr_prefix = [self.featurizer_type, "feat", self.detector_type, self.input_type]
     self.extr_prefix = "_".join(self.list_extr_prefix)
@@ -73,10 +81,18 @@ class ExtractionChecker(ConfReader):
     print(self.get_required_param("indexer_prefix"), self.indexer.get_dictcf_sha1_table())
     self.set_check_columns()
     print(self.check_columns)
-    # Initialize ingester
+
+    # Initialize ingester, that could now be Kafka or Kinesis. Should we have a default?
+    ingester_type = self.get_required_param("image_ingestion_type")
     try:
-      self.ingester = GenericKafkaProcessor(self.global_conf,
-                                            prefix=self.get_required_param("check_ingester_prefix"))
+      if ingester_type == "kafka":
+        self.ingester = KafkaIngester(self.global_conf,
+                                      prefix=self.get_required_param("check_ingester_prefix"))
+      elif ingester_type == "kinesis":
+        self.ingester = KinesisIngester(self.global_conf,
+                                        prefix=self.get_required_param("check_ingester_prefix"))
+      else:
+        raise ValueError("Unknown 'ingester_type': {}".format(ingester_type))
     except Exception as inst:
       # print "Could not initialize checker, sleeping for {}s.".format(self.max_delay)
       # time.sleep(self.max_delay)
@@ -84,25 +100,36 @@ class ExtractionChecker(ConfReader):
       #print("Could not initialize 'updates_out_topic' ({}). Will write only to HBase.".format(inst))
       print("[{}: ERROR] Could not start ingester.".format(self.pp, inst))
       raise inst
-    # This will not be set for HBase processing, but checker would keep dying here...
-    self.updates_out_topic = None
-    try:
-      self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
-    except Exception as inst:
-      # print "Could not initialize checker, sleeping for {}s.".format(self.max_delay)
-      # time.sleep(self.max_delay)
-      # raise(inst)
-      #print("Could not initialize 'updates_out_topic' ({}). Will write only to HBase.".format(inst))
-      print("{}. Will write only to HBase.".format(inst))
 
-    self.ingester.pp = "ec"
-    if self.pid:
-      self.ingester.pp += str(self.pid)
+    # Initialize producer
+    # TODO: also check for 'update_ingestion_type' as producer_type?
+    producer_type = self.get_param("update_ingestion_type", DEFAULT_UPDATE_INGESTION_TYPE)
+    # TODO: create a producer if 'update_ingestion_type' is Kinesis or Kafka
+    # if producer_type != "hbase":
+    #   self.updates_out_topic = self.ingester.get_required_param("producer_updates_out_topic")
+    if producer_type == "kafka":
+      self.pusher = KafkaPusher(self.global_conf,
+                                prefix=self.get_required_param("check_ingester_prefix"))
+    elif producer_type == "kinesis":
+      self.pusher = KinesisPusher(self.global_conf,
+                                  prefix=self.get_required_param("check_ingester_prefix"))
+    elif producer_type == "hbase":
+      self.pusher = None
+      print("[{}: log] Will write updates only to HBase.".format(self.pp))
+    else:
+      raise ValueError("Unknown 'producer_type': {}".format(producer_type))
+    #self.ingester.pp = self.get_param("pp", "ImageIngester")
+
+    # Only if daemon mode, as we may have multiple ingesters
+    # But for Kinesis the `shard_infos_filename` may not be re-used...
+    #if self.pid:
+    #  self.ingester.pp += str(self.pid)
 
   def set_check_columns(self):
     """Set columns to be checked in indexer
     """
     # changed to: get column family from indexer
+    # TODO: get the suffixes as global variables maybe from common.defaults
     extr_prefix_base_column_name = self.indexer.extrcf + ":" + self.extr_prefix
     extr_check_column = extr_prefix_base_column_name + "_processed"
     # Need to be build from extraction type and extraction input + "_batchid"
@@ -122,12 +149,10 @@ class ExtractionChecker(ConfReader):
   def store_img_infos(self, msg):
     """Store information about the images of ``msg`` in ``self.dict_sha1_infos``
 
-    :param msg: Kafka record
-    :type msg: collections.namedtuple
+    :param msg: message
+    :type msg: dict
     """
-    # msg is technically a ConsumerRecord that is a collections.namedtuple, see:
-    # https://github.com/dpkp/kafka-python/blob/master/kafka/consumer/fetcher.py#L30
-    strk = str(msg['sha1'])
+    strk = str(msg['sha1']).upper()
     self.dict_sha1_infos[strk] = dict()
     for key in msg:
       # dumps json of 'img_info'
@@ -237,7 +262,11 @@ class ExtractionChecker(ConfReader):
     :type daemon: bool
     :raises Exception: if check fails
     """
-    i = 0
+    # import inspect
+    # if not inspect.isgeneratorfunction(self.ingester.get_msg_json()):
+    #   msg = "[{}: Warning] Ingester {} function `get_msg_json` is not a generator"
+    #   print(msg.format(self.pp, type(self.ingester)))
+
     try:
       list_sha1s_to_process = []
       # TODO: create update_id here
@@ -247,63 +276,82 @@ class ExtractionChecker(ConfReader):
 
         try:
           # Accumulate images infos
-          for msg_json in self.ingester.consumer:
-            msg = json.loads(msg_json.value)
-            # i += 1
-            # print((i, len(list_check_sha1s), msg))
+          #while len(list_check_sha1s) < self.indexer.batch_update_size:
+          #while len(list_check_sha1s) < self.min_len_check:
 
-            # msg could now contain keys 'sha1' or 'list_sha1s'
-            # should we check that we can't have both or other keys?...
-            if 'sha1' in msg:
-              list_check_sha1s.append(str(msg['sha1']))
-              # Store other fields to be able to push them too
-              self.store_img_infos(msg)
-            elif 'list_sha1s' in msg:
-              for sha1 in msg['list_sha1s']:
-                list_check_sha1s.append(str(sha1))
-                # We won't have any additional infos no?
-                # But we should still build a dict for each sample for consistency...
-                tmp_dict = dict()
-                tmp_dict['sha1'] = str(sha1)
-                # will basically push an empty dict to self.dict_sha1_infos, so self.get_dict_push
-                # works properly later on...
-                self.store_img_infos(tmp_dict)
-            else:
-              print('Unknown keys in msg: {}'.format(msg.keys()))
-
-            if len(list_check_sha1s) >= self.indexer.batch_update_size:
-              break
+          for msg in self.ingester.get_msg_json():
+            try:
+              # Fix if input was JSON dumped twice?
+              if not isinstance(msg, dict):
+                msg = json.loads(msg)
+              # msg could now contain keys 'sha1' or 'list_sha1s'
+              if 'sha1' in msg:
+                list_check_sha1s.append(str(msg['sha1']).upper())
+                # Store other fields to be able to push them too
+                self.store_img_infos(msg)
+              elif 'list_sha1s' in msg:
+                for sha1 in msg['list_sha1s']:
+                  list_check_sha1s.append(str(sha1).upper())
+                  # We won't have any additional infos no?
+                  # But we should still build a dict for each sample for consistency...
+                  tmp_dict = dict()
+                  tmp_dict['sha1'] = str(sha1).upper()
+                  # will basically push a dict with just the sha1 to self.dict_sha1_infos, so self.get_dict_push
+                  # works properly later on...
+                  self.store_img_infos(tmp_dict)
+              else:
+                raise ValueError('Unknown keys in msg: {}'.format(msg.keys()))
+              # This is dangerous, as it assumes the self.ingester.get_msg_json() generator
+              # would restart from the next point... Is this the case for Kafka?
+              prev_len = len(list_check_sha1s)
+              list_check_sha1s = list(set(list_check_sha1s))
+              if len(list_check_sha1s) < prev_len:
+                  msg = "[{}: log] Removed {} duplicate from `list_check_sha1s`"
+                  print(msg.format(self.pp, prev_len - len(list_check_sha1s)))
+              if len(list_check_sha1s) >= self.indexer.batch_update_size:
+                break
+            except Exception as inst:
+              pr_msg = "[{}: ERROR] Could not process message: {}. {}"
+              print(pr_msg.format(self.pp, msg, inst))
         except Exception as inst:
-          # trying to use 'consumer_timeout_ms' to raise timeout and get last samples
-          msg = "[{}: warning] At {}, caught {} {} in consumer loop"
+          pr_msg = "[{}: at {} ERROR] Caught {} {} in consumer loop"
           now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
-          print(msg.format(self.pp, now_str, type(inst), inst))
+          print(pr_msg.format(self.pp, now_str, type(inst), inst))
+          if msg is not None:
+            print(msg)
           sys.stdout.flush()
 
-        if not list_check_sha1s:
-          # TODO: should we fallback to scanning Hbase table here?
+        # To be able to push one (non empty) update every max_delay
+        if not list_check_sha1s and (time.time() - self.last_push) < self.max_delay:
+          time.sleep(1)
           continue
 
-        # Check which images have not been processed (or pushed in an update) yet
-        unprocessed_rows = self.get_unprocessed_rows(list_check_sha1s)
-        self.nb_imgs_check += len(list_check_sha1s)
-        push_delay = (time.time() - self.last_push) > self.max_delay / 60
-        if push_delay and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
-          msg = "[{}: log] Found {}/{} unprocessed images"
-          print(msg.format(self.pp, self.nb_imgs_unproc, self.nb_imgs_check))
-          self.nb_imgs_unproc_lastprint = self.nb_imgs_unproc
+        if list_check_sha1s:
+          # Check which images have not been processed (or pushed in an update) yet
+          # This seems slow
+          start_check = time.time()
+          unprocessed_rows = self.get_unprocessed_rows(list_check_sha1s)
+          msg = "[{}: log] Found {}/{} unprocessed images in {:.2f}s"
+          print(msg.format(self.pp, len(unprocessed_rows), len(list_check_sha1s), time.time() - start_check))
+          #unprocessed_rows = self.get_unprocessed_rows(list_check_sha1s)
+          self.nb_imgs_check += len(list_check_sha1s)
+          push_delay = (time.time() - self.last_push) > self.max_delay / 60
+          if push_delay and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
+            msg = "[{}: log] Found {}/{} unprocessed images"
+            print(msg.format(self.pp, self.nb_imgs_unproc, self.nb_imgs_check))
+            self.nb_imgs_unproc_lastprint = self.nb_imgs_unproc
 
-        # TODO: we should mark those images as being 'owned' by the update we are constructing
-        # (only important if we are running multiple threads i.e. daemon is True)
-        # otherwise another update running at the same time could also claim it (in another ad)
-        # could be handle when adding data to the searcher but duplicates in extraction process...
+          # TODO: we should mark those images as being 'owned' by the update we are constructing
+          # (only important if we are running multiple threads i.e. daemon is True)
+          # otherwise another update running at the same time could also claim it (in another ad)
+          # could be handle when adding data to the searcher but duplicates in extraction process...
 
-        # Push sha1s to be processed
-        for sha1 in unprocessed_rows:
-          list_sha1s_to_process.append(sha1)
+          # Push sha1s to be processed
+          for sha1 in unprocessed_rows:
+            list_sha1s_to_process.append(sha1)
 
-        # Remove potential duplicates
-        list_sha1s_to_process = list(set(list_sha1s_to_process))
+          # Remove potential duplicates
+          list_sha1s_to_process = list(set(list_sha1s_to_process))
 
         if list_sha1s_to_process:
           # Push them to HBase by batch of 'batch_update_size'
@@ -347,12 +395,14 @@ class ExtractionChecker(ConfReader):
               self.indexer.push_dict_rows(dict_updates_db, self.indexer.table_updateinfos_name,
                                           families=fam)
 
-              # Build HBase updates dict
-              if self.updates_out_topic is not None:
+              # Build pusher updates dict
+              if self.pusher is not None:
                 dict_updates_kafka = dict()
                 dict_updates_kafka[update_id] = ','.join(dict_push.keys())
                 # Push it
-                self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates_kafka))
+                #self.ingester.producer.send(self.updates_out_topic, json.dumps(dict_updates_kafka))
+                #self.pusher.send(self.updates_out_topic, dict_updates_kafka)
+                self.pusher.send(dict_updates_kafka)
 
               # Gather any remaining sha1s and clean up infos
               if len(list_sha1s_to_process) > self.indexer.batch_update_size:
@@ -370,6 +420,12 @@ class ExtractionChecker(ConfReader):
             # TODO: we should create a new update_id here,
             # and let it claim the potential remaining images in 'list_sha1s_to_process'
             # sanity check that len(list_sha1s_to_process) == len(self.dict_sha1_infos) ?
+
+          else:
+            if self.verbose > 4:
+              msg = "[{}: at {}] Gathered {} images so far..."
+              now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
+              print(msg.format(self.pp, now_str, len(list_sha1s_to_process)))
 
     except Exception as inst:
       exc_type, exc_obj, exc_tb = sys.exc_info()

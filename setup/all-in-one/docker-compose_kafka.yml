@@ -1,31 +1,7 @@
-
-
 version: "3"
 
 services:
 
-# Backend services dockers
-  kinesis:
-    build: ./kinesalite
-    hostname: kinesis
-    container_name: kinesis
-    ports:
-      - "4567:4567"
-    networks:
-      cu_imgsearch_net:
-# Add a volume for persistence?
-# What is the path of things that are needed for persistence?
-#    environment:
-#      VIRTUAL_HOST: kinesis
-#      VIRTUAL_PORT: 4567
-  dynamodb:
-    image: amazon/dynamodb-local
-    hostname: dynamodb
-    container_name: dynamodb
-    ports:
-      - "4568:8000"
-    networks:
-      cu_imgsearch_net:
   zookeeper:
     image: wurstmeister/zookeeper
     hostname: zookeeper
@@ -67,38 +43,6 @@ services:
       - cuimgsearch-kafka-volume:/kafka/kafka-logs-kafka
     networks:
       cu_imgsearch_net:
-  kafka_manager:
-    image: sheepkiller/kafka-manager
-    hostname: kafka_manager
-    container_name: kafka_manager
-    environment:
-      ZK_HOSTS: "zookeeper:2181"
-      KM_CONFIGFILE: "/opt/application.conf"
-      #JMX_PORT: "true"
-    ports:
-      - "9997:9000"
-    # Access kafka manager at: http://0.0.0.0:9997/kafka_manager/
-    # but need to manually add cluster! https://github.com/yahoo/kafka-manager/issues/244
-    # Click on "Cluster" -> "Add Cluster" add "zookeeper:2181"
-    # Have "Enable JMX Polling" and "Poll consumer information" checked
-    #command: "./start-kafka-manager.sh"
-    command: tail -f /dev/null
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "500k"
-        max-file: "7"
-    volumes:
-      - ../../conf/kafka_manager/km.conf:/opt/application.conf
-      - cuimgsearch-kafka-volume:/kafka/kafka-logs-kafka # Is this OK? Kafka-manager is read-only?
-    depends_on:
-      - zookeeper
-      - kafka
-    links:
-      - zookeeper
-      - kafka
-    networks:
-      cu_imgsearch_net:
   hbase:
     image: kevinsvds/hbase
     hostname: hbase
@@ -130,42 +74,11 @@ services:
       - cuimgsearch-hbase-volume:/var/lib/hadoop-hdfs
     networks:
       cu_imgsearch_net:
-  hue:
-    image: gethue/hue:latest
-    hostname: hue
-    container_name: hue
-    dns: 8.8.8.8
-    ports:
-     - "9999:8888"
-    #command: tail -f /dev/null
-    command: "./build/env/bin/hue runserver_plus 0.0.0.0:8888"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "500k"
-        max-file: "7"
-    volumes:
-      - ../../conf/hue/hue.ini:/hue/desktop/conf/hue.ini
-#      - ../../../apps/hbase/src:/hue/apps/hbase/src
-# Sometimes got: Could not connect to localhost:10000 (code THRIFTTRANSPORT): TTransportException('Could not connect to localhost:10000',)
-# HTTPConnectionPool(host='localhost', port=8983): Max retries exceeded with url: /solr/admin/info/system?user.name=hue&doAs=memex&wt=json (Caused by NewConnectionError('<requests.packages.urllib3.connection.HTTPConnection object at 0x7fbefe000d10>: Failed to establish a new connection: [Errno 99] Cannot assign requested address',))
-    depends_on:
-      - zookeeper
-      - hbase
-    links:
-      - zookeeper
-      - hbase
-    networks:
-      cu_imgsearch_net:
-
-
-# Our dockers
   img_pusher:
     image: svebork/columbia_image_search:1.0
     hostname: ${input_conf_name}
     stdin_open: true
     tty: true
-    restart: on-failure
     environment:
       # General environment variables
       - input_type
@@ -175,27 +88,17 @@ services:
       - source_zip
       - "nb_workers=${input_nb_workers}"
       - "conf_name=${input_conf_name}"
-      - "image_pushing_type=${image_ingestion_type}"
-      # NB: Kafka and Kinesis are for output only
       # Kafka related environment variables
+      - input_topic
+      - input_consumer_group
       - images_topic
-      - images_consumer_group
       - kafka_servers
       - kafka_security
-      # Kinesis related environment variables
-      - images_stream
-      - region_name
-      - create_stream
-      - aws_profile
-      - verify_certificates
-      - endpoint_url
-      #- producer_prefix
     cap_add:
       - IPC_LOCK
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
-      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_ingester.py -o ${indocker_repo_path}/conf/generated/ && ${indocker_repo_path}/scripts/run_images_pusher.sh -c ${input_conf_name} -r ${indocker_repo_path}"]
     logging:
       driver: "json-file"
@@ -203,9 +106,9 @@ services:
         max-size: "500k"
         max-file: "7"
     links:
-      - kinesis
+      - kafka
     depends_on:
-      - kinesis
+      - kafka
     networks:
       cu_imgsearch_net:
   img_processor:
@@ -213,7 +116,6 @@ services:
     hostname: ${extr_conf_name}
     stdin_open: true
     tty: true
-    restart: on-failure
     cap_add:
       - IPC_LOCK
     environment:
@@ -224,24 +126,13 @@ services:
       - extr_type
       - extr_nb_threads
       - extr_check_max_delay
-      - update_ingestion_type
-      - image_ingestion_type
       # Kafka related environment variables
       - images_topic
-      - updates_topic
-      - images_consumer_group
-      - updates_consumer_group
       - kafka_servers
       - kafka_security
-      # Kinesis related environment variables
-      - images_stream
-      - updates_stream
-      - region_name
-      - create_stream
-      - aws_profile
-      - lim_get_rec
-      - verify_certificates
-      - endpoint_url
+      - extr_check_consumer_group
+      - extr_proc_consumer_group
+      - updates_topic
       # Hbase related environment variables
       - hbase_host
       - table_sha1infos
@@ -256,7 +147,7 @@ services:
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
-      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
+    # TODO: Should we pass all related env var and call conf generation in the docker?
     #command: "mkdir ${indocker_repo_path}/conf/generated/ && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_extractor.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_processing.sh -c ${extr_conf_name} -r ${indocker_repo_path}"]
     logging:
@@ -265,10 +156,10 @@ services:
         max-size: "500k"
         max-file: "7"
     links:
-      - kinesis
+      - kafka
       - hbase
     depends_on:
-      - kinesis
+      - kafka
       - hbase
     networks:
       cu_imgsearch_net:
@@ -277,7 +168,6 @@ services:
     hostname: ${search_conf_name}
     stdin_open: true
     tty: true
-    restart: on-failure
     cap_add:
       - IPC_LOCK
     environment:
@@ -315,7 +205,6 @@ services:
     volumes:
       - $repo_path:$indocker_repo_path
       - cuimgsearch-volume:/data
-      - $repo_path/conf/aws_credentials/:/home/ubuntu/.aws/
     ports:
       - $port_host:5000
     command: ["bash", "-c", "mkdir ${indocker_repo_path}/conf/generated/ || true && python ${indocker_repo_path}/setup/ConfGenerator/create_conf_searcher.py -o ${indocker_repo_path}/conf/generated/ && bash ${indocker_repo_path}/scripts/run_search.sh -c ${search_conf_name} -r ${indocker_repo_path} -e ${endpoint}"]
@@ -344,5 +233,6 @@ networks:
 
 volumes:
   cuimgsearch-volume:
+  # These volumes should be shared for different extractions...
   cuimgsearch-kafka-volume:
   cuimgsearch-hbase-volume:

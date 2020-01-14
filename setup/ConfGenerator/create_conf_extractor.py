@@ -1,6 +1,18 @@
 import os
 import json
+import time
 from argparse import ArgumentParser
+
+# TODO: import these from cufacesearch.common.defaults?
+DEFAULT_MAX_DELAY=3600
+DEFAULT_NB_THREADS=1
+DEFAULT_POOL_THREADS=1
+# KINESIS
+DEFAULT_KINESIS_VERIFY_CERTIFICATES = 1
+DEFAULT_KINESIS_LIMIT_GET_REC = 100
+DEFAULT_KINESIS_SLEEP_TIME = 60
+DEFAULT_KINESIS_SHARD_ITERATOR_TYPE = "TRIM_HORIZON"
+DEFAULT_KINESIS_CREATE_STREAM = 0
 
 if __name__ == "__main__":
   # Get config
@@ -32,14 +44,18 @@ if __name__ == "__main__":
   # Initialization
   conf = dict()
   conf_name = os.environ['conf_name']
-  extr_prefix = "EXTR_"
-  check_ingester_prefix = "KIcheck_"
-  proc_ingester_prefix = "KIproc_"
-  hbase_prefix = "HBI_"
+  # Prefix could be dynamic too
+  extr_prefix = os.getenv("extr_prefix", "EXTR_")
+  check_ingester_prefix = os.getenv("check_ingester_prefix", "CHECK_ING_")
+  check_pusher_prefix = os.getenv("check_pusher_prefix", "CHECK_PUSH_")
+  proc_ingester_prefix = os.getenv("proc_ingester_prefix", "PROC_ING_")
+  hbase_prefix = os.getenv("hbase_prefix", "HBI_")
 
   conf[extr_prefix + 'check_ingester_prefix'] = check_ingester_prefix
+  conf[extr_prefix + 'check_pusher_prefix'] = check_pusher_prefix
   conf[extr_prefix + 'proc_ingester_prefix'] = proc_ingester_prefix
   conf[extr_prefix + 'indexer_prefix'] = hbase_prefix
+  # Currently no other indexer are supported. Any key-value store could be used in theory though
   conf[extr_prefix + 'indexer_type'] = "hbase_indexer_minimal"
 
   # Extraction settings
@@ -80,12 +96,32 @@ if __name__ == "__main__":
   else:
     raise ValueError("Unknown extraction type: {}".format(extr_type))
 
+  conf[extr_prefix + 'check_missing'] = bool(os.getenv('check_missing', False))
+
+  # Image storer to read image binary content from S3 instead of HBase
+  conf[extr_prefix + 'use_image_storer'] = bool(os.getenv('use_image_storer', False))
+  if os.getenv('use_image_storer', False):
+      # `image_storer_prefix`, should we have a default value?
+      image_storer_prefix = str(os.getenv('image_storer_prefix', 'IMG_STORER_'))
+      conf[extr_prefix + 'image_storer_prefix'] = image_storer_prefix
+      # Storer conf, should we have default parameters?
+      conf[image_storer_prefix + 'aws_profile'] = str(os.getenv('image_storer_aws_profile',
+                                                                'tfhtimagesprod'))
+      conf[image_storer_prefix + 'aws_region'] = str(os.getenv('image_storer_aws_region',
+                                                                'us-gov-west-1'))
+      conf[image_storer_prefix + 'aws_prefix'] = str(os.getenv('image_storer_aws_prefix',
+                                                                'media'))
+      conf[image_storer_prefix + 'bucket_name'] = str(os.getenv('image_storer_bucket_name',
+                                                                'tellfinder-ht-images-prod'))
+      conf[image_storer_prefix + 'verbose'] = int(os.getenv('image_storer_verbose', 5))
+      conf[image_storer_prefix + 'pickling'] = False
+
   # HBase settings
   conf[hbase_prefix + 'host'] = os.environ['hbase_host'].strip()
   conf[hbase_prefix + 'table_sha1infos'] = os.environ['table_sha1infos'].strip()
   conf[hbase_prefix + 'table_updateinfos'] = os.environ['table_updateinfos'].strip()
   conf[hbase_prefix + 'batch_update_size'] = int(os.environ['batch_update_size'])
-  conf[hbase_prefix + 'pool_thread'] = int(os.getenv('pool_thread', 1))
+  conf[hbase_prefix + 'pool_thread'] = int(os.getenv('pool_thread', DEFAULT_POOL_THREADS))
 
   # Deal with newly exposed but optional parameters
   if os.getenv('skip_failed', False):
@@ -113,7 +149,7 @@ if __name__ == "__main__":
     conf[in_hbase_prefix + 'table_sha1infos'] = os.environ[env_in_prefix+'table_sha1infos'].strip()
     # Should we allow different HBase hosts?
     conf[in_hbase_prefix + 'host'] = os.environ['hbase_host'].strip()
-    conf[in_hbase_prefix + 'pool_thread'] = int(os.getenv('table_in_pool_thread', 1))
+    conf[in_hbase_prefix + 'pool_thread'] = int(os.getenv('table_in_pool_thread', DEFAULT_POOL_THREADS))
 
     # Deal with newly exposed but optional parameters
     if os.getenv('skip_failed', False):
@@ -134,23 +170,51 @@ if __name__ == "__main__":
     if os.getenv(env_key, False):
       conf[in_hbase_prefix + 'image_url_column_name'] = os.environ[env_key]
 
-  # Local input settings
-  if os.environ['input_type'] == "local":
+  # Input settings
+  # TODO: a bit confusing. Try to make this cleaner
+  # Define
+  # - input_type: local or what? url? Basically to set file_input to True if local
+  # Confusing with image/face above...
+  if os.getenv('input_type') == "local":
     conf[extr_prefix + 'file_input'] = True
 
-  use_kafka = True
-  if os.environ['input_type'] == "hbase":
-    use_kafka = False
-    conf[extr_prefix + "ingestion_input"] = "hbase"
+  # Image ingestion settings
+  use_kafka = False
+  # - image_ingestion_type: kinesis/kafka
+  if os.environ['image_ingestion_type'] == "kafka":
+    conf[extr_prefix + "image_ingestion_type"] = "kafka"
+    use_kafka = True
+  elif os.environ['image_ingestion_type'] == "kinesis":
+    conf[extr_prefix + "image_ingestion_type"] = "kinesis"
+  else:
+    msg = "Unsupported 'image_ingestion_type: {}"
+    raise ValueError(msg.format(os.environ['image_ingestion_type']))
+
+  # Update pipeline (update_ingestion_type: kinesis/kafka/hbase)
+  if os.environ['update_ingestion_type'] == "hbase":
+    conf[extr_prefix + "update_ingestion_type"] = "hbase"
+  elif os.environ['update_ingestion_type'] == "kafka":
+    conf[extr_prefix + "update_ingestion_type"] = "kafka"
+    use_kafka = True
+  elif os.environ['update_ingestion_type'] == "kinesis":
+    conf[extr_prefix + "update_ingestion_type"] = "kinesis"
+
+  # Deprecated
+  # #conf[extr_prefix + 'ingester_type'] = os.environ['producer_type']
+  # #conf[check_ingester_prefix + 'ingester_type'] = os.environ['producer_type']
+  # if os.environ['producer_type'] == "kafka":
+  #   use_kafka = True
+  # elif os.environ['producer_type'] != "kinesis":
+  #   raise ValueError("Producer in neither Kafka nor Kinesis")
 
   # Generic ingestion settings
   verbose = os.getenv('verbose', 0)
-  conf[extr_prefix + "verbose"] = int(verbose)
   conf[hbase_prefix + "verbose"] = int(verbose)
-  conf[extr_prefix + "nb_threads"] = int(os.getenv('extr_nb_threads', 1))
+  conf[extr_prefix + "verbose"] = int(verbose)
+  conf[extr_prefix + "nb_threads"] = int(os.getenv('extr_nb_threads', DEFAULT_NB_THREADS))
+  conf[extr_prefix + "max_delay"] = int(os.getenv('extr_check_max_delay', DEFAULT_MAX_DELAY))
 
   if use_kafka:
-    conf[extr_prefix + "max_delay"] = int(os.getenv('extr_check_max_delay', 3600))
 
     kafka_servers = json.loads(os.getenv('kafka_servers', '["kafka0.team-hg-memex.com:9093",\
                                                            "kafka1.team-hg-memex.com:9093",\
@@ -166,37 +230,103 @@ if __name__ == "__main__":
     env_kafka_security = os.getenv('kafka_security')
     if env_kafka_security:
       kafka_security = json.loads(env_kafka_security)
-      conf[check_ingester_prefix + 'consumer_security'] = kafka_security
-      conf[check_ingester_prefix + 'producer_security'] = kafka_security
-      conf[proc_ingester_prefix + 'consumer_security'] = kafka_security
+      #conf[check_ingester_prefix + 'consumer_security'] = kafka_security
+      #conf[check_ingester_prefix + 'producer_security'] = kafka_security
+      # conf[proc_ingester_prefix + 'consumer_security'] = kafka_security
+      if conf[extr_prefix + "image_ingestion_type"] == "kafka":
+        conf[check_ingester_prefix + 'security'] = kafka_security
+      if conf[extr_prefix + "update_ingestion_type"] == "kafka":
+        conf[check_pusher_prefix + 'security'] = kafka_security
+        conf[proc_ingester_prefix + 'security'] = kafka_security
 
-    consumer_options = json.loads(os.getenv('kafka_consumer_options', "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 10, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
+
+    #consumer_options = json.loads(os.getenv('kafka_consumer_options', "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 10, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
+    consumer_options = json.loads(os.getenv('kafka_consumer_options',
+                                            "{\"auto_offset_reset\": \"earliest\", \"max_poll_records\": 200, \"session_timeout_ms\": 300000, \"request_timeout_ms\": 600000, \"consumer_timeout_ms\": 600000}"))
 
     # Checker consumer
-    conf[check_ingester_prefix + 'consumer_servers'] = kafka_servers
-    conf[check_ingester_prefix + 'consumer_topics'] = os.environ['images_topic']
-    conf[check_ingester_prefix + 'consumer_group'] = os.environ['extr_check_consumer_group']
-    conf[check_ingester_prefix + 'consumer_options'] = consumer_options
+    if conf[extr_prefix + "image_ingestion_type"] == "kafka":
+      #conf[check_ingester_prefix + 'consumer_servers'] = kafka_servers
+      conf[check_ingester_prefix + 'servers'] = kafka_servers
+      conf[check_ingester_prefix + 'pp'] = "KafkaImageIngester"
+      conf[check_ingester_prefix + 'topic_name'] = os.environ['images_topic']
+      conf[check_ingester_prefix + 'consumer_options'] = consumer_options
+      conf[check_ingester_prefix + 'consumer_group'] = os.environ['images_consumer_group']
+      # This is now optional
+      #if os.getenv('updates_topic', False):
+      #conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
 
-    conf[check_ingester_prefix + 'producer_servers'] = kafka_servers
-    # This is now optional
-    if os.getenv('updates_topic', False):
-      conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
+    if conf[extr_prefix + "update_ingestion_type"] == "kafka":
+      # Checker producers
+      #conf[check_ingester_prefix + 'producer_updates_out_topic'] = os.environ['updates_topic']
+      conf[check_pusher_prefix + 'topic_name'] = os.environ['updates_topic']
+      conf[check_pusher_prefix + 'servers'] = kafka_servers
+      conf[check_pusher_prefix + 'pp'] = "KafkaUpdatePusher"
+      # TODO: also have a create_topic option?
 
-    # Processor consumer
-    conf[proc_ingester_prefix + 'consumer_servers'] = kafka_servers
-    if os.getenv('updates_topic', False):
-      conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
-    if os.getenv('extr_proc_consumer_group', False):
-      conf[proc_ingester_prefix + 'consumer_group'] = os.environ['extr_proc_consumer_group']
-    conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
+      # Processor consumer
+      conf[proc_ingester_prefix + 'servers'] = kafka_servers
+      conf[proc_ingester_prefix + 'pp'] = "KafkaUpdateIngester"
+      #conf[proc_ingester_prefix + 'consumer_topics'] = os.environ['updates_topic']
+      conf[proc_ingester_prefix + 'topic_name'] = os.environ['updates_topic']
+      conf[proc_ingester_prefix + 'consumer_options'] = consumer_options
+      conf[proc_ingester_prefix + 'consumer_group'] = os.environ['updates_consumer_group']
+
+
+  # Kinesis
+  verify_certificates = bool(int(os.getenv('verify_certificates',
+                                           DEFAULT_KINESIS_VERIFY_CERTIFICATES)))
+  sleep_time = int(os.getenv('sleep_time', DEFAULT_KINESIS_SLEEP_TIME))
+  lim_get_rec = int(os.getenv('lim_get_rec', DEFAULT_KINESIS_LIMIT_GET_REC))
+  create_stream = bool(int(os.getenv('create_stream', DEFAULT_KINESIS_CREATE_STREAM)))
+  shard_iterator_type = os.getenv('shard_iterator_type', DEFAULT_KINESIS_SHARD_ITERATOR_TYPE)
+
+  if conf[extr_prefix + "image_ingestion_type"] == "kinesis":
+    conf[check_ingester_prefix + 'pp'] = "KinesisImageIngester"
+    conf[check_ingester_prefix + 'region_name'] = os.environ['region_name']
+    conf[check_ingester_prefix + 'stream_name'] = os.environ['images_stream']
+    conf[check_ingester_prefix + 'aws_profile'] = os.getenv('aws_profile')
+    conf[check_ingester_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
+    conf[check_ingester_prefix + 'sleep_time'] = sleep_time
+    conf[check_ingester_prefix + 'lim_get_rec'] = lim_get_rec
+    conf[check_ingester_prefix + 'verify_certificates'] = verify_certificates
+    conf[check_ingester_prefix + 'shard_iterator_type'] = shard_iterator_type
+    conf[check_ingester_prefix + 'shard_infos_filename'] = os.getenv('image_shard_infos_filename')
+    # NB: does not make sense to create input stream
+
+  if conf[extr_prefix + "update_ingestion_type"] == "kinesis":
+    conf[check_pusher_prefix + 'pp'] = "KinesisUpdatePusher"
+    conf[check_pusher_prefix + 'region_name'] = os.environ['region_name']
+    conf[check_pusher_prefix + 'stream_name'] = os.environ['updates_stream']
+    conf[check_pusher_prefix + 'aws_profile'] = os.getenv('aws_profile')
+    conf[check_pusher_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
+    conf[check_pusher_prefix + 'sleep_time'] = sleep_time
+    conf[check_pusher_prefix + 'lim_get_rec'] = lim_get_rec
+    conf[check_pusher_prefix + 'create_stream'] = create_stream
+    conf[check_pusher_prefix + 'verify_certificates'] = verify_certificates
+
+    conf[proc_ingester_prefix + 'pp'] = "KinesisUpdateIngester"
+    conf[proc_ingester_prefix + 'region_name'] = os.environ['region_name']
+    conf[proc_ingester_prefix + 'stream_name'] = os.environ['updates_stream']
+    conf[proc_ingester_prefix + 'aws_profile'] = os.getenv('aws_profile')
+    conf[proc_ingester_prefix + 'endpoint_url'] = os.getenv('endpoint_url')
+    conf[proc_ingester_prefix + 'create_stream'] = create_stream
+    conf[proc_ingester_prefix + 'verify_certificates'] = verify_certificates
+    conf[check_ingester_prefix + 'shard_iterator_type'] = shard_iterator_type
+    conf[check_ingester_prefix + 'shard_infos_filename'] = os.getenv('update_shard_infos_filename')
+  # elif conf[extr_prefix + "update_ingestion_type"] == "hbase":
+  #   # No additional parameters to pass?
+  #   pass
 
   conf[check_ingester_prefix + 'verbose'] = verbose
-  conf[check_ingester_prefix + 'pp'] = "KafkaUpdateChecker"
-  # Checker producer
-
+  conf[check_pusher_prefix + 'verbose'] = verbose
   conf[proc_ingester_prefix + 'verbose'] = verbose
-  conf[proc_ingester_prefix + 'pp'] = "KafkaUpdateIngester"
+
+  if verbose > 1:
+    print("os.getenv('input_type'): {}".format(os.getenv('input_type')))
+    print("os.environ['image_ingestion_type']: {}".format(os.environ['image_ingestion_type']))
+    print("os.environ['update_ingestion_type']: {}".format(os.environ['update_ingestion_type']))
+    print("use_kafka: {}".format(use_kafka))
 
   if not os.path.exists(options.output_dir):
     os.mkdir(options.output_dir)
@@ -204,3 +334,4 @@ if __name__ == "__main__":
   outpath = os.path.join(options.output_dir,'conf_extraction_'+conf_name+'.json')
   json.dump(conf, open(outpath,'wt'), sort_keys=True, indent=4)
   print("Saved conf at {}: {}".format(outpath, json.dumps(conf)))
+  time.sleep(5)

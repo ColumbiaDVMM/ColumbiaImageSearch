@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sleep_time=30
+sleep_time=10
 max_nb_crash=3
 
 while getopts :-: option
@@ -46,8 +46,10 @@ do
         ${command} ${args};
         echo "["$(date)"] Process crashed. Crash #"$nb_crash;
     fi
+    echo "["$(date)"] Sleeping for "${sleep_time}" seconds."
     sleep ${sleep_time};
 done
 
 # New: if we reach that point, processes have failed multiple times
+echo "Command "${command}" has failed multiple times."
 exit 1
