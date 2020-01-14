@@ -51,5 +51,5 @@ args=" -c ./conf/generated/conf_extraction_"${conf_name}".json"
 #bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}" --log="${log}"
 bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}"
 
-echo "Extraction processor failed. Restarting docker container..."
+echo "Extraction processor failed. Restarting docker  container..."
 exit 1

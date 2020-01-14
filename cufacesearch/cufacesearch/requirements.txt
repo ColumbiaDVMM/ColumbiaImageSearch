@@ -3,6 +3,7 @@ scikit-image>=0.13
 dlib
 boto3
 happybase
+thriftpy
 flask
 flask_restful
 matplotlib
@@ -10,3 +11,4 @@ requests
 gevent
 kafka-python
 elasticsearch
+sphinx==1.6.6
