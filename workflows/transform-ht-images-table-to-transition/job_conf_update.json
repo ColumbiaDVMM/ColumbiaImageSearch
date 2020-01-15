@@ -1,7 +1,0 @@
-{
-    "hbase_host": "zk01.xdata.data-tactics-corp.com:2181",
-    "tab_name_in": "htcdr31_images_update_infos",
-    "tab_name_out": "ht_images_updates_merged",
-    "tab_out_families": {"info": {}},
-    "filtering": ["index_update_dlib", "index_update_sbpycaffe"]
-}

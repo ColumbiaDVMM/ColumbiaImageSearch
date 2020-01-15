@@ -1,7 +1,0 @@
-{
-    "hbase_host": "zk01.xdata.data-tactics-corp.com:2181",
-    "tab_name_check": "escorts_images_sha1_infos_from_ts_newformat",
-    "extr_type": "sbpycaffe_feat_full_image",
-    "extr_column": "ext",
-    "out_path": "/user/skaraman/check_escorts_images_sha1_infos_from_ts_newformat_sbpycaffe_feat_full_image"
-}
