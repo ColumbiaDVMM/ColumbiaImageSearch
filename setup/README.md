@@ -1,8 +1,10 @@
 # Setup
 
-This folder contains the docker-compose files and some setup scripts to ease the setup process of the system.
-Install docker-compose on your system following the guidelines at: https://docs.docker.com/compose/install/
-Under Ubuntu 14.04, the script [setup_machine.sh](setup_machine.sh) can install all requirements
+This folder contains the docker-compose files and some setup scripts to ease
+ the setup process of the system.
+Install `docker-compose` on your system following the guidelines 
+at: https://docs.docker.com/compose/install/.
+Under Ubuntu 14.04, the script [setup_machine.sh](setup_machine.sh) can install all requirements.
 
 
 ## All-in-one setup
@@ -15,7 +17,7 @@ Check the [README.md](./all-in-one/README.md) in that folder for more details.
 ## Components setup
 
 In a production environment, each component (ingestion, processing, search) would be better run on separate machines
-and relying on real cluster instances of Kafka and HBase.
+and relying on real cluster instances of Kafka/Kinesis and HBase.
 The folders in [components](./components) provide docker-compose files and sample environments files
 for that purpose.
 You might need to adjust some parameters (number of workers, number of threads etc.) to the hardware you use,

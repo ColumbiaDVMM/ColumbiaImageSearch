@@ -102,6 +102,11 @@ If you use the DeepSentibank feature extraction, please cite the following paper
 }
 ```
 
+## Acknowledgments
+
+This research was supported in part by the Defense Advanced Research Projects Agency (DARPA) and the Air Force Research Laboratory (AFRL) under contract number FA8750-14-C-0240. The views and conclusions contained herein are those of the authors and should not be interpreted as necessarily representing the official policies or endorsements, either expressed or implied, of DARPA or the U.S. Government.
+
+
 ## Contact
 
 Please feel free to contact [me](mailto:svebor.karaman@columbia.edu) with any questions you may have.
