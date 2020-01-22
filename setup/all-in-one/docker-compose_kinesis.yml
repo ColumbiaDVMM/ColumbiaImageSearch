@@ -76,11 +76,13 @@ services:
     environment:
       # General environment variables
       - input_type
+      - "image_pushing_type=${image_ingestion_type}"
       - input_path
       - input_nb_threads
       - verbose
       - source_zip
-      - "nb_workers=${input_nb_workers}"
+      - input_nb_workers
+      #- "nb_workers=${input_nb_workers}"
       - "conf_name=${input_conf_name}"
 #      # Kafka related environment variables
 #      - input_topic
@@ -96,6 +98,7 @@ services:
       - endpoint_url
       - producer_type
       - producer_prefix
+      #- "PYTHONWARNINGS='ignore:Unverified HTTPS request'" # Does not seem to work
     cap_add:
       - IPC_LOCK
     # nothing really needs to be persistent here. no other volumes needed
@@ -124,9 +127,12 @@ services:
     environment:
       # General environment variables
       - input_type
+      - image_ingestion_type
+      - update_ingestion_type
       - producer_type
       - region_name
       - images_stream
+      - "image_shard_infos_filename=${indocker_repo_path}/kinesis_${images_stream}_${extr_conf_name}.json"
       - aws_profile
       - verify_certificates
       - endpoint_url
@@ -153,6 +159,7 @@ services:
       - image_buffer_column_family
       - image_buffer_column_name
       - update_info_column_family
+      - "PYTHONWARNINGS='ignore:Unverified HTTPS request'"
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path
@@ -194,7 +201,7 @@ services:
       - table_updateinfos
       - batch_update_size
       - column_list_sha1s
-      - extr_family_column
+      - extr_column_family
       - image_info_column_family
       - image_buffer_column_family
       - image_buffer_column_name

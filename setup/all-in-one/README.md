@@ -46,6 +46,16 @@ The monitoring docker compose files will additionally start a docker container f
  it should be accessible at [http://localhost:9997/kafka_manager/](http://localhost:9997/kafka_manager/). 
  However, by default no Kafka clusters will be available. You need to add your cluster based on the settings of the environment file you use.
 
+## Startup issues
+
+If the API port is already used you would get an error like:
+> Error starting userland proxy: listen tcp 0.0.0.0:80: bind: address already in use
+
+You can run the following command to check which process are causing the issue: 
+```sudo lsof -i:80 -P -n | grep LISTEN```. You can either kill the running process, e.g. apache, or change the `port_host` parameter 
+in the environment file. 
+
+
 ## Check status
 
 You can check all docker logs to monitor the processing status. 
