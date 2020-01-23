@@ -24,12 +24,13 @@ if __name__ == "__main__":
   # - conf_name (required)
   # - extr_type (required)
   # - input_type (required)
+  # - image_ingestion_type (required)
   # - extr_nb_threads (optional, default: 1)
   # Kafka related environment variables
   # - images_topic (required)
-  # - extr_check_consumer_group (required)
-  # - extr_proc_consumer_group (required)
-  # - updates_topic
+  # - updates_topic (required if update_ingestion_type is kafka)
+  # - extr_check_consumer_group (deprecated)
+  # - extr_proc_consumer_group (deprecated)
   # - kafka_servers (optional, default: memex HG kakfa brokers)
   # - kafka_security (optional)
   # Hbase related environment variables

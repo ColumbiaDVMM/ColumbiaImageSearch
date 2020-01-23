@@ -141,6 +141,7 @@ services:
     environment:
       # General environment variables
       - input_type
+      - "image_pushing_type=${image_ingestion_type}"
       - verbose
       - input_path
       - source_zip
@@ -180,6 +181,8 @@ services:
     environment:
       # General environment variables
       - input_type
+      - image_ingestion_type
+      - update_ingestion_type
       - verbose
       - "conf_name=${extr_conf_name}"
       - "extr_type=${extr_type}"
@@ -187,18 +190,19 @@ services:
       - "extr_check_max_delay=${extr_check_max_delay}"
       # Kafka related environment variables
       - images_topic
+      - updates_topic
       - kafka_servers
       - kafka_security
-      - "extr_check_consumer_group=${extr_check_consumer_group}"
-      - "extr_proc_consumer_group=${extr_proc_consumer_group}"
-      - "updates_topic=${updates_topic}"
+      - images_consumer_group
+      #- "extr_check_consumer_group=${extr_check_consumer_group}"
+      #- "extr_proc_consumer_group=${extr_proc_consumer_group}"
       # Hbase related environment variables
       - hbase_host
       - table_sha1infos
       - table_updateinfos
       - batch_update_size
       - column_list_sha1s
-      - extr_family_column
+      - extr_column_family
       - image_info_column_family
       - image_buffer_column_family
       - image_buffer_column_name

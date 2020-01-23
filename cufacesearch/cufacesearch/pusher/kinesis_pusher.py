@@ -1,11 +1,15 @@
 from __future__ import print_function
-
+import sys
 import time
 import json
 import boto3
+from datetime import datetime
+#from cufacesearch.common.conf_reader import ConfReader
+from ..common.conf_reader import ConfReader
+
 # Cannot be imported?
 #from botocore.errorfactory import ExpiredIteratorException
-from cufacesearch.common.conf_reader import ConfReader
+
 
 def get_random_sha1():
   from hashlib import sha1
@@ -13,6 +17,7 @@ def get_random_sha1():
   return sha1(str(random.getrandbits(256)).encode('utf-8')).hexdigest().upper()
 
 # TODO: Should we have a GenericPusher class that exposes the `send` message method?
+
 
 class KinesisPusher(ConfReader):
   """KinesisPusher
@@ -44,6 +49,12 @@ class KinesisPusher(ConfReader):
     self.shard_iters = dict()
     self.shard_infos = dict()
     self.stream_name = self.get_required_param('stream_name')
+
+    # Initialize stats attributes
+    self.push_count = 0
+    self.last_display = 0
+    self.display_count = 1000
+    self.start_time = time.time()
 
     # Initialize everything
     self.init_pusher()
@@ -100,22 +111,37 @@ class KinesisPusher(ConfReader):
             nb_shards = self.get_param('nb_shards', 2)
             self.client.create_stream(StreamName=self.stream_name, ShardCount=nb_shards)
           except:
-            msg = "[{}: warning] Trial #{}: could not create kinesis stream : {}. {}"
+            msg = "[{}: Warning] Trial #{}: could not create kinesis stream : {}. {}"
             print(msg.format(self.pp, tries, self.stream_name, inst))
-        msg = "[{}: warning] Trial #{}: could not describe kinesis stream : {}. {}"
+        msg = "[{}: Warning] Trial #{}: could not describe kinesis stream : {}. {}"
         print(msg.format(self.pp, tries, self.stream_name, inst))
         time.sleep(1)
     else:
       msg = "[{}: ERROR] Stream {} not active after {} trials. Aborting..."
       raise RuntimeError(msg.format(self.pp, self.stream_name, nb_trials))
 
-
   def send(self, msg):
       """Push `msg` to `self.stream_name`
+
+      :param msg: message to be pushed
+      :type msg: str, dict
       """
-      # Check if msg was already json_dumped
+      # Check if msg was already JSON dumped
       if isinstance(msg, dict):
         msg = json.dump(msg).encode('utf-8')
-      # TODO: what is a good partition key?
+      # Use a random sha1 as partition key
       single_rec = [{'Data': msg, 'PartitionKey': get_random_sha1()}]
       self.client.put_records(Records=single_rec, StreamName=self.stream_name)
+      self.push_count += 1
+      if self.verbose > 1:
+        self.print_stats()
+
+  def print_stats(self):
+    """Print statistics of producer
+    """
+    if self.push_count - self.last_display > self.display_count:
+      display_time = datetime.today().strftime('%Y/%m/%d-%H:%M.%S')
+      print_msg = "[{} at {}] Push count: {}"
+      print(print_msg.format(self.pp, display_time, self.push_count))
+      sys.stdout.flush()
+      self.last_display = self.push_count

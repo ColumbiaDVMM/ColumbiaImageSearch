@@ -1,6 +1,4 @@
 from __future__ import print_function
-
-import sys
 import json
 import time
 from argparse import ArgumentParser
@@ -16,6 +14,7 @@ from cufacesearch.pusher.kinesis_pusher import KinesisPusher
 default_prefix = ""
 skip_formats = ['SVG', 'RIFF']
 valid_formats = ['JPEG', 'JPG', 'GIF', 'PNG']
+
 
 class LocalImagePusher(ConfReader):
   # To push list of images to be processed from the folder 'input_path' containing the images
@@ -208,6 +207,7 @@ if __name__ == "__main__":
       download_file(lip.source_zip, local_zip)
       untar_file(local_zip, lip.input_path)
 
+  # Looping to automatically add images added to the folder in non-zip mode
   while True:
     lip.process()
     time.sleep(60)

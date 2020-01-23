@@ -44,6 +44,7 @@ if __name__ == "__main__":
   conf_name = os.environ['conf_name']
   input_type = os.environ['input_type']
   image_pushing_type = os.environ['image_pushing_type']
+  #image_pushing_type = os.getenv('image_pushing_type',None)
   image_ingester_prefix = os.getenv("image_ingester_prefix", "IMG_ING_")
   image_pusher_prefix = os.getenv("image_pusher_prefix", "IMG_PUSH_")
   #producer_prefix = os.environ['producer_prefix']
@@ -80,11 +81,12 @@ if __name__ == "__main__":
       conf[image_ingester_prefix + 'aws_profile'] = os.environ['aws_profile']
   else:
     raise ValueError("Unknown input type: {}".format(os.environ['input_type']))
-  # Is this actually used? Fro what?
-  conf[image_ingester_prefix + 'nb_threads'] = int(os.getenv('input_nb_threads', 4))
+  # This actually not used. Could be used for multi-threaded ingestion...
+  #conf[image_ingester_prefix + 'nb_threads'] = int(os.getenv('input_nb_threads', 4))
 
   if input_type == "kafka" or image_pushing_type == "kafka":
     env_kafka_security = os.getenv('kafka_security')
+    kafka_security = ""
     if env_kafka_security:
       kafka_security = json.loads(env_kafka_security)
 

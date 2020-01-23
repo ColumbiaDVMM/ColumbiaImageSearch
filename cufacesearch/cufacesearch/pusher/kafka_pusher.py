@@ -124,15 +124,18 @@ class KafkaPusher(ConfReader):
     self.topic_name = self.get_required_param("topic_name")
 
   def send(self, msg):
-      """Push `msg` to `self.topic_name`
-      """
-      # Check msg has been JSON dumped
-      if isinstance(msg, dict):
-        msg = json.dump(msg).encode('utf-8')
-      self.producer.send(self.topic_name, msg)
-      if self.verbose > 1:
-        self.push_count += 1
-        self.print_stats()
+    """Push `msg` to `self.topic_name`
+
+    :param msg: message to be pushed
+    :type msg: str, dict
+    """
+    # Check msg has been JSON dumped
+    if isinstance(msg, dict):
+      msg = json.dump(msg).encode('utf-8')
+    self.producer.send(self.topic_name, msg)
+    if self.verbose > 1:
+      self.push_count += 1
+      self.print_stats()
 
   def print_stats(self):
     """Print statistics of producer

@@ -103,8 +103,8 @@ services:
     environment:
       # General environment variables
       - input_type
+      - "image_pushing_type=${image_ingestion_type}"
       - input_path
-      - input_nb_threads
       - verbose
       - source_zip
       - "nb_workers=${input_nb_workers}"
