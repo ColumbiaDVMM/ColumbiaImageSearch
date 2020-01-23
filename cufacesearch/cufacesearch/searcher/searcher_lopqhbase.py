@@ -47,8 +47,7 @@ class SearcherLOPQHBase(GenericSearcher):
     self.skipfailed = False
     # making LOPQSearcherLMDB the default LOPQSearcher
     self.lopq_searcher = "LOPQSearcherLMDB"
-    super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix)
-    self.set_pp(pp="SearcherLOPQHBase")
+    super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix=prefix, pp="SearcherLOPQHBase")
 
     # To load pickled codes files from s3 bucket
     print("[{}.load_codes: log] Starting to load codes".format(self.pp))

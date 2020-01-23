@@ -82,15 +82,15 @@ services:
     environment:
       # General environment variables
       - input_type
-      - input_path
-      - input_nb_threads
+      - "image_pushing_type=${image_ingestion_type}"
       - verbose
+      - input_path
       - source_zip
-      - "nb_workers=${input_nb_workers}"
       - "conf_name=${input_conf_name}"
       # Kafka related environment variables
       - input_topic
       - input_consumer_group
+      - input_obj_stored_prefix
       - images_topic
       - kafka_servers
       - kafka_security
@@ -121,6 +121,8 @@ services:
     environment:
       # General environment variables
       - input_type
+      - image_ingestion_type
+      - update_ingestion_type
       - verbose
       - "conf_name=${extr_conf_name}"
       - extr_type
@@ -128,11 +130,10 @@ services:
       - extr_check_max_delay
       # Kafka related environment variables
       - images_topic
+      - updates_topic
       - kafka_servers
       - kafka_security
-      - extr_check_consumer_group
-      - extr_proc_consumer_group
-      - updates_topic
+      - images_consumer_group
       # Hbase related environment variables
       - hbase_host
       - table_sha1infos
@@ -175,7 +176,6 @@ services:
       - input_type
       - verbose
       - "conf_name=${search_conf_name}"
-      #- "extr_type=${extr_type}"
       - extr_type
       - storer
       # Hbase related environment variables
@@ -184,23 +184,23 @@ services:
       - table_updateinfos
       - batch_update_size
       - column_list_sha1s
-      - extr_family_column
+      - extr_column_family
       - image_info_column_family
       - image_buffer_column_family
       - image_buffer_column_name
       - update_info_column_family
       # Search related environment variables
-      - "model_type=${model_type}"
-      - "nb_train=${nb_train}"
-      - "nb_min_train=${nb_min_train}"
-      - "lopq_V=${lopq_V}"
-      - "lopq_M=${lopq_M}"
-      - "lopq_subq=${lopq_subq}"
-      - "reranking=${reranking}"
+      - model_type
+      - nb_train
+      - nb_min_train
+      - lopq_V
+      - lopq_M
+      - lopq_subq
+      - reranking
       # If model_type is lopq_pca:
-      - "nb_train_pca=${nb_train_pca}"
-      - "nb_min_train_pca=${nb_min_train_pca}"
-      - "lopq_pcadims=${lopq_pcadims}"
+      - nb_train_pca
+      - nb_min_train_pca
+      - lopq_pcadims
     # need to add a volume that store the search index data
     volumes:
       - $repo_path:$indocker_repo_path

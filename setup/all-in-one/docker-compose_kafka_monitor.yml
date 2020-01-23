@@ -153,7 +153,6 @@ services:
       - images_topic
       - kafka_servers
       - kafka_security
-      # Kinesis related environment variables
     cap_add:
       - IPC_LOCK
     # nothing really needs to be persistent here. no other volumes needed
@@ -185,17 +184,15 @@ services:
       - update_ingestion_type
       - verbose
       - "conf_name=${extr_conf_name}"
-      - "extr_type=${extr_type}"
-      - "extr_nb_threads=${extr_nb_threads}"
-      - "extr_check_max_delay=${extr_check_max_delay}"
+      - extr_type
+      - extr_nb_threads
+      - extr_check_max_delay
       # Kafka related environment variables
       - images_topic
       - updates_topic
       - kafka_servers
       - kafka_security
       - images_consumer_group
-      #- "extr_check_consumer_group=${extr_check_consumer_group}"
-      #- "extr_proc_consumer_group=${extr_proc_consumer_group}"
       # Hbase related environment variables
       - hbase_host
       - table_sha1infos
@@ -238,8 +235,8 @@ services:
       - input_type
       - verbose
       - "conf_name=${search_conf_name}"
-      - "extr_type=${extr_type}"
-      - "storer=${storer}"
+      - extr_type
+      - storer
       # Hbase related environment variables
       - hbase_host
       - table_sha1infos
@@ -252,17 +249,17 @@ services:
       - image_buffer_column_name
       - update_info_column_family
       # Search related environment variables
-      - "model_type=${model_type}"
-      - "nb_train=${nb_train}"
-      - "nb_min_train=${nb_min_train}"
-      - "lopq_V=${lopq_V}"
-      - "lopq_M=${lopq_M}"
-      - "lopq_subq=${lopq_subq}"
-      - "reranking=${reranking}"
+      - model_type
+      - nb_train
+      - nb_min_train
+      - lopq_V
+      - lopq_M
+      - lopq_subq
+      - reranking
       # If model_type is lopq_pca:
-      - "nb_train_pca=${nb_train_pca}"
-      - "nb_min_train_pca=${nb_min_train_pca}"
-      - "lopq_pcadims=${lopq_pcadims}"
+      - nb_train_pca
+      - nb_min_train_pca
+      - lopq_pcadims
     # need to add a volume that store the search index data
     volumes:
       - $repo_path:$indocker_repo_path
@@ -283,6 +280,7 @@ services:
       cu_imgsearch_net:
 
 networks:
+## Something like that should be used when adding image search to an already existing docker-compose
 #  external:
 #    name: cu_imgsearch_net
   cu_imgsearch_net:

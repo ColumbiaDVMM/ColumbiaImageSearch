@@ -10,7 +10,7 @@ class GenericSearcher(ConfReader):
   """GenericSearcher class
   """
 
-  def __init__(self, global_conf_in, prefix=default_prefix):
+  def __init__(self, global_conf_in, prefix=default_prefix, pp="GenericSearcher"):
     """GenericSearcher constructor
 
     :param global_conf_in: configuration file or dictionary
@@ -53,7 +53,7 @@ class GenericSearcher(ConfReader):
 
     self.indexed_updates = set()
     super(GenericSearcher, self).__init__(global_conf_in, prefix)
-    self.set_pp(pp="GenericSearcher")
+    self.set_pp(pp=pp)
 
     get_pretrained_model = self.get_param('get_pretrained_model')
     if get_pretrained_model:

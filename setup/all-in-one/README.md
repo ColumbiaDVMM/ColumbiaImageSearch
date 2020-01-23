@@ -65,3 +65,12 @@ e.g. [http://localhost/cufacesearch/status](http://localhost/cufacesearch/status
 Details about the API are provided in the [README.md](../../www/README.md) file of the `www` folder. 
 You can also open your browser at [http://localhost/[endpoint]/view_similar_byURL?data=[an_image_URL]](http://localhost/[endpoint]/view_similar_byURL?data=[an_image_URL]) to visualize some results.
 
+## Cleaning up
+
+Once you are done running things, you can clean up the docker 
+containers and volumes with the following commands: 
+
+```
+docker -f docker-compose_(kafka/kinesis)[_monitor].yml down
+docker volume prune
+```
