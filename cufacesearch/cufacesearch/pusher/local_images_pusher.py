@@ -1,6 +1,8 @@
 from __future__ import print_function
 import json
 import time
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from argparse import ArgumentParser
 from cufacesearch.common.conf_reader import ConfReader
 # TODO: separate consumer/producer

@@ -3,6 +3,8 @@ import sys
 import time
 import json
 import boto3
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from datetime import datetime
 #from cufacesearch.common.conf_reader import ConfReader
 from ..common.conf_reader import ConfReader

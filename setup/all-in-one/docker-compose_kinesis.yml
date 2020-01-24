@@ -78,18 +78,10 @@ services:
       - input_type
       - "image_pushing_type=${image_ingestion_type}"
       - input_path
-      - input_nb_threads
       - verbose
       - source_zip
-      - input_nb_workers
-      #- "nb_workers=${input_nb_workers}"
       - "conf_name=${input_conf_name}"
-#      # Kafka related environment variables
-#      - input_topic
-#      - input_consumer_group
-#      - images_topic
-#      - kafka_servers
-#      - kafka_security
+      # Kinesis related environment variables
       - images_stream
       - region_name
       - create_stream
@@ -98,7 +90,7 @@ services:
       - endpoint_url
       - producer_type
       - producer_prefix
-      #- "PYTHONWARNINGS='ignore:Unverified HTTPS request'" # Does not seem to work
+      - "PYTHONWARNINGS='ignore:Unverified HTTPS request'" # Does not seem to work
     cap_add:
       - IPC_LOCK
     # nothing really needs to be persistent here. no other volumes needed
@@ -130,24 +122,18 @@ services:
       - image_ingestion_type
       - update_ingestion_type
       - producer_type
+      - verbose
+      - "conf_name=${extr_conf_name}"
+      - extr_type
+      - extr_nb_threads
+      - extr_check_max_delay
+      # Kinesis related environment variables
       - region_name
       - images_stream
       - "image_shard_infos_filename=${indocker_repo_path}/kinesis_${images_stream}_${extr_conf_name}.json"
       - aws_profile
       - verify_certificates
       - endpoint_url
-      - verbose
-      - "conf_name=${extr_conf_name}"
-      - extr_type
-      - extr_nb_threads
-      - extr_check_max_delay
-#      # Kafka related environment variables
-#      - images_topic
-#      - kafka_servers
-#      - kafka_security
-#      - extr_check_consumer_group
-#      - extr_proc_consumer_group
-#      - updates_topic
       # Hbase related environment variables
       - hbase_host
       - table_sha1infos
@@ -159,7 +145,7 @@ services:
       - image_buffer_column_family
       - image_buffer_column_name
       - update_info_column_family
-      - "PYTHONWARNINGS='ignore:Unverified HTTPS request'"
+      - "PYTHONWARNINGS='ignore:Unverified HTTPS request'" # Does not seem to work
     # nothing really needs to be persistent here. no other volumes needed
     volumes:
       - $repo_path:$indocker_repo_path

@@ -7,7 +7,7 @@ thriftpy
 flask
 flask_restful
 matplotlib
-requests
+requests>=2.16
 gevent
 kafka-python
 elasticsearch
