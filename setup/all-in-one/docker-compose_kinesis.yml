@@ -133,6 +133,7 @@ services:
       - "image_shard_infos_filename=${indocker_repo_path}/kinesis_${images_stream}_${extr_conf_name}.json"
       - aws_profile
       - verify_certificates
+      - use_ssl
       - endpoint_url
       # Hbase related environment variables
       - hbase_host

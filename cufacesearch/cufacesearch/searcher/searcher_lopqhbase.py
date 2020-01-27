@@ -215,8 +215,8 @@ class SearcherLOPQHBase(GenericSearcher):
         raise ValueError("Unknown 'lopq_searcher' type: {}".format(self.lopq_searcher))
     # NB: an empty lopq_model would make sense only if we just want to detect...
 
-  def get_feats_from_lmbd(self, feats_db, nb_features, dtype):
-    """Get features from LMBD database
+  def get_feats_from_lmdb(self, feats_db, nb_features, dtype):
+    """Get features from LMDB database
 
     :param feats_db: features database
     :type feats_db: str
@@ -237,7 +237,7 @@ class SearcherLOPQHBase(GenericSearcher):
             first_item = cursor.item()
             first_feat = np.frombuffer(first_item[1], dtype=dtype)
             feats = np.zeros((nb_feats_to_read, first_feat.shape[0]))
-            print("[get_feats_from_lmbd] Filling up features matrix: {}".format(feats.shape))
+            print("[get_feats_from_lmdb] Filling up features matrix: {}".format(feats.shape))
             sys.stdout.flush()
             for i, item in enumerate(cursor.iternext()):
               if i >= nb_feats_to_read:
@@ -245,7 +245,7 @@ class SearcherLOPQHBase(GenericSearcher):
               feats[i, :] = np.frombuffer(item[1], dtype=dtype)
     return feats
 
-  def save_feats_to_lmbd(self, feats_db, samples_ids, np_features, max_feats=0):
+  def save_feats_to_lmdb(self, feats_db, samples_ids, np_features, max_feats=0):
     """Save features to LMDB database
 
     :param feats_db: features database name
@@ -338,7 +338,7 @@ class SearcherLOPQHBase(GenericSearcher):
                     sys.stdout.flush()
                     # just appending like this does not account for duplicates...
                     # train_features.extend(np_features)
-                    nb_saved_feats = self.save_feats_to_lmbd(feats_db, sids, np_features)
+                    nb_saved_feats = self.save_feats_to_lmdb(feats_db, sids, np_features)
                     seen_updates.add(update_id)
                   else:
                     if self.verbose > 3:
@@ -385,7 +385,7 @@ class SearcherLOPQHBase(GenericSearcher):
               sys.stdout.flush()
               break
 
-    return self.get_feats_from_lmbd(feats_db, nb_features_to_read, dtype)
+    return self.get_feats_from_lmdb(feats_db, nb_features_to_read, dtype)
 
   def train_index(self):
     """Train search index

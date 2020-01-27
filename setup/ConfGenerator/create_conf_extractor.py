@@ -9,6 +9,7 @@ DEFAULT_NB_THREADS=1
 DEFAULT_POOL_THREADS=1
 # KINESIS
 DEFAULT_KINESIS_VERIFY_CERTIFICATES = 1
+DEFAULT_KINESIS_USE_SSL = 1
 DEFAULT_KINESIS_LIMIT_GET_REC = 100
 DEFAULT_KINESIS_SLEEP_TIME = 60
 DEFAULT_KINESIS_SHARD_ITERATOR_TYPE = "TRIM_HORIZON"
@@ -277,6 +278,7 @@ if __name__ == "__main__":
   # Kinesis
   verify_certificates = bool(int(os.getenv('verify_certificates',
                                            DEFAULT_KINESIS_VERIFY_CERTIFICATES)))
+  use_ssl = bool(int(os.getenv('use_ssl', DEFAULT_KINESIS_USE_SSL)))
   sleep_time = int(os.getenv('sleep_time', DEFAULT_KINESIS_SLEEP_TIME))
   lim_get_rec = int(os.getenv('lim_get_rec', DEFAULT_KINESIS_LIMIT_GET_REC))
   create_stream = bool(int(os.getenv('create_stream', DEFAULT_KINESIS_CREATE_STREAM)))
@@ -291,6 +293,7 @@ if __name__ == "__main__":
     conf[check_ingester_prefix + 'sleep_time'] = sleep_time
     conf[check_ingester_prefix + 'lim_get_rec'] = lim_get_rec
     conf[check_ingester_prefix + 'verify_certificates'] = verify_certificates
+    conf[check_ingester_prefix + 'use_ssl'] = use_ssl
     conf[check_ingester_prefix + 'shard_iterator_type'] = shard_iterator_type
     conf[check_ingester_prefix + 'shard_infos_filename'] = os.getenv('image_shard_infos_filename')
     # NB: does not make sense to create input stream

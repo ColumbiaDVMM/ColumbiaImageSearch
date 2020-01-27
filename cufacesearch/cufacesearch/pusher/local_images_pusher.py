@@ -135,7 +135,7 @@ class LocalImagePusher(ConfReader):
   def print_push_stats(self):
     # How come self.process_time is negative?
     avg_process_time = self.process_time / max(1, self.process_count + self.process_failed)
-    msg = "[{}: log] push count: {}, failed: {}, avg. time: {}"
+    msg = "[{}: log] Push count: {}, failed: {}, avg. time: {}"
     print(msg.format(self.pp, self.process_count, self.process_failed, avg_process_time))
 
   def process(self):
@@ -162,8 +162,14 @@ class LocalImagePusher(ConfReader):
         print(msg.format(self.pp, img_path))
       try:
         img_buffer = get_buffer_from_filepath(img_path)
+        if self.verbose > 6:
+          msg = "[{}.process: log] Got image buffer from: {}"
+          print(msg.format(self.pp, img_path))
         if img_buffer:
           sha1, img_type, width, height = get_SHA1_img_info_from_buffer(img_buffer)
+          if self.verbose > 5:
+            msg = "[{}.process: log] Got image info from: {}"
+            print(msg.format(self.pp, img_path))
           dict_imgs[img_path] = {'img_buffer': img_buffer, 'sha1': sha1,
                                  'img_info': {'format': img_type, 'width': width, 'height': height}}
           self.toc_process_ok(start_process, end_time=time.time())

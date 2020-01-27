@@ -70,7 +70,7 @@ class DaemonBatchExtractor(multiprocessing.Process):
         batch = self.q_in.get(timeout=self.qin_timeout)
       except Exception:
         # This may appear in the log when the following update is being processed.
-        if self.verbose > 5:
+        if self.verbose > 6:
           print "[{}] Did not get a batch. Leaving".format(self.pp)
           sys.stdout.flush()
         empty = True

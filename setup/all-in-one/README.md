@@ -74,3 +74,6 @@ containers and volumes with the following commands:
 docker -f docker-compose_(kafka/kinesis)[_monitor].yml down
 docker volume prune
 ```
+
+If you were using kinesis, you should also remove the `kinesis_*.json` files at the root
+of the repository. 

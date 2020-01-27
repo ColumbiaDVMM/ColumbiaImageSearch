@@ -50,3 +50,5 @@ args=" -c ./conf/generated/conf_search_"${conf_name}".json -e "${endpoint}
 #bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}" --log="${log}"
 bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}"
 
+echo "Search process failed. Restarting docker container..."
+exit 1

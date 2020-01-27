@@ -6,6 +6,7 @@ services:
     build: ./kinesalite
     hostname: kinesis
     container_name: kinesis
+    restart: unless-stopped
     ports:
       - "4567:4567"
     networks:
@@ -18,6 +19,7 @@ services:
     image: amazon/dynamodb-local
     hostname: dynamodb
     container_name: dynamodb
+    restart: unless-stopped
     ports:
       - "4568:8000"
     networks:
@@ -26,6 +28,7 @@ services:
     image: wurstmeister/zookeeper
     hostname: zookeeper
     container_name: zookeeper
+    restart: unless-stopped
     environment:
       KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
     logging:
@@ -41,6 +44,7 @@ services:
     image: kevinsvds/hbase
     hostname: hbase
     container_name: hbase
+    restart: unless-stopped
     ports:
       - "9090:9090"
       - "9095:9095"
@@ -100,6 +104,7 @@ services:
     hostname: ${input_conf_name}
     stdin_open: true
     tty: true
+    restart: unless-stopped
     environment:
       # General environment variables
       - input_type
@@ -114,6 +119,7 @@ services:
       - create_stream
       - aws_profile
       - verify_certificates
+      - use_ssl
       - endpoint_url
       - producer_type
       - producer_prefix
@@ -129,7 +135,7 @@ services:
       driver: "json-file"
       options:
         max-size: "500k"
-        max-file: "7"
+        max-file: "20"
     links:
       - kinesis
     depends_on:
@@ -143,6 +149,7 @@ services:
     tty: true
     cap_add:
       - IPC_LOCK
+    restart: on-failure
     environment:
       # General environment variables
       - input_type
@@ -183,13 +190,15 @@ services:
       driver: "json-file"
       options:
         max-size: "500k"
-        max-file: "7"
+        max-file: "20"
     links:
       - kinesis
       - hbase
     depends_on:
       - kinesis
       - hbase
+      - zookeeper
+      - dynamodb
     networks:
       cu_imgsearch_net:
   img_search:
@@ -199,6 +208,7 @@ services:
     tty: true
     cap_add:
       - IPC_LOCK
+    restart: unless-stopped
     environment:
       # General environment variables
       - input_type
@@ -242,11 +252,12 @@ services:
       driver: "json-file"
       options:
         max-size: "500k"
-        max-file: "7"
+        max-file: "20"
     links:
       - hbase
     depends_on:
       - hbase
+      - zookeeper
     networks:
       cu_imgsearch_net:
 

@@ -81,6 +81,7 @@ class KinesisPusher(ConfReader):
     aws_profile = self.get_param('aws_profile', None)
     # This is mostly to be able to test locally
     endpoint_url = self.get_param('endpoint_url', None)
+    # This trigger some error
     verify = self.get_param('verify_certificates', True)
     use_ssl = self.get_param('use_ssl', True)
 

@@ -20,6 +20,8 @@ DEFAULT_EXTR_CHECK_PREFIX = "EXTR_"
 # Should we add a cufacesearch.common.defautls?
 DEFAULT_UPDATE_INGESTION_TYPE = "hbase"
 DEFAULT_MIN_LENGTH_CHECK = 100
+#DEFAULT_MAX_DELAY = 3600
+DEFAULT_MAX_DELAY = 600
 
 # Simulates the way updates were generated from the spark workflows but reading from a kafka topic
 # Should be run as a single process to ensure data integrity,
@@ -55,7 +57,7 @@ class ExtractionChecker(ConfReader):
     self.input_type = self.get_required_param("input_type")
 
     # Max delay
-    self.max_delay = int(self.get_param("max_delay", default=3600))
+    self.max_delay = int(self.get_param("max_delay", default=DEFAULT_MAX_DELAY))
     self.min_len_check = int(self.get_param("min_len_check", default=DEFAULT_MIN_LENGTH_CHECK))
 
     self.list_extr_prefix = [self.featurizer_type, "feat", self.detector_type, self.input_type]
@@ -269,10 +271,14 @@ class ExtractionChecker(ConfReader):
 
     try:
       list_sha1s_to_process = []
+      list_check_sha1s = []
       # TODO: create update_id here
 
+      if self.verbose > 1:
+        msg = "[{}: log] Start run main loop"
+        msg.format(self.pp)
+
       while True:
-        list_check_sha1s = []
 
         try:
           # Accumulate images infos
@@ -321,10 +327,27 @@ class ExtractionChecker(ConfReader):
             print(msg)
           sys.stdout.flush()
 
+        if self.verbose > 3:
+          msg = "[{}: log] Gathered {} images to check so far"
+          msg = msg.format(self.pp, len(list_check_sha1s))
+          msg2 = ""
+          if len(list_check_sha1s) > 0:
+            msg2 = " (first: {}, last: {})"
+            msg2 = msg2.format(list_check_sha1s[0], list_check_sha1s[-1])
+          print(msg+msg2)
+
         # To be able to push one (non empty) update every max_delay
-        if not list_check_sha1s and (time.time() - self.last_push) < self.max_delay:
+        #if not list_check_sha1s and (time.time() - self.last_push) < self.max_delay:
+        if len(list_check_sha1s) < self.indexer.batch_update_size and (time.time() - self.last_push) < self.max_delay:
           time.sleep(1)
           continue
+
+        self.nb_imgs_check += len(list_check_sha1s)
+        push_delay = (time.time() - self.last_push) > max(int(self.max_delay / 60), 10)
+        if push_delay and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
+          msg = "[{}: log] Pushed {} unprocessed images so far"
+          print(msg.format(self.pp, self.nb_imgs_unproc, self.nb_imgs_check))
+          self.nb_imgs_unproc_lastprint = self.nb_imgs_unproc
 
         if list_check_sha1s:
           # Check which images have not been processed (or pushed in an update) yet
@@ -333,13 +356,15 @@ class ExtractionChecker(ConfReader):
           unprocessed_rows = self.get_unprocessed_rows(list_check_sha1s)
           msg = "[{}: log] Found {}/{} unprocessed images in {:.2f}s"
           print(msg.format(self.pp, len(unprocessed_rows), len(list_check_sha1s), time.time() - start_check))
+          if len(unprocessed_rows) != len(list_check_sha1s) and self.verbose > 5:
+            already_processed = list(set(list_check_sha1s) - set(unprocessed_rows))
+            msg = "[{}: log] Images ".format(self.pp)
+            for ap in already_processed:
+              msg += "{} ".format(ap)
+            msg += "were already processed."
+            print(msg)
+
           #unprocessed_rows = self.get_unprocessed_rows(list_check_sha1s)
-          self.nb_imgs_check += len(list_check_sha1s)
-          push_delay = (time.time() - self.last_push) > self.max_delay / 60
-          if push_delay and self.nb_imgs_unproc_lastprint != self.nb_imgs_unproc:
-            msg = "[{}: log] Found {}/{} unprocessed images"
-            print(msg.format(self.pp, self.nb_imgs_unproc, self.nb_imgs_check))
-            self.nb_imgs_unproc_lastprint = self.nb_imgs_unproc
 
           # TODO: we should mark those images as being 'owned' by the update we are constructing
           # (only important if we are running multiple threads i.e. daemon is True)
@@ -352,6 +377,7 @@ class ExtractionChecker(ConfReader):
 
           # Remove potential duplicates
           list_sha1s_to_process = list(set(list_sha1s_to_process))
+          list_check_sha1s = []
 
         if list_sha1s_to_process:
           # Push them to HBase by batch of 'batch_update_size'
@@ -375,7 +401,7 @@ class ExtractionChecker(ConfReader):
 
               # Push images
               fam = self.indexer.get_dictcf_sha1_table()
-              if self.verbose > 4:
+              if self.verbose > 5:
                 msg = "[{}] Pushing images for update {} with fam {}"
                 print(msg.format(self.pp, update_id, fam))
               sha1s_table = self.indexer.table_sha1infos_name
@@ -389,7 +415,7 @@ class ExtractionChecker(ConfReader):
                                             self.indexer.get_col_upcreate(): now_str}
               # Push it
               fam = self.indexer.get_dictcf_update_table()
-              if self.verbose > 4:
+              if self.verbose > 5:
                 msg = "[{}] Pushing update {} info with fam {}"
                 print(msg.format(self.pp, update_id, fam))
               self.indexer.push_dict_rows(dict_updates_db, self.indexer.table_updateinfos_name,
@@ -422,7 +448,7 @@ class ExtractionChecker(ConfReader):
             # sanity check that len(list_sha1s_to_process) == len(self.dict_sha1_infos) ?
 
           else:
-            if self.verbose > 4:
+            if self.verbose > 3:
               msg = "[{}: at {}] Gathered {} images so far..."
               now_str = datetime.now().strftime('%Y-%m-%d:%H.%M.%S')
               print(msg.format(self.pp, now_str, len(list_sha1s_to_process)))

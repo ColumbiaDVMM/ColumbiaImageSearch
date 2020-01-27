@@ -31,6 +31,7 @@ class KinesisIngester(ConfReader):
     # When running as deamon, save process id
     self.pid = pid
     self.verbose = 1
+    self.sleep_count = 0
 
     super(KinesisIngester, self).__init__(global_conf, prefix)
 
@@ -196,7 +197,6 @@ class KinesisIngester(ConfReader):
       sleep_time = self.get_required_param('sleep_time')
       sifn = self.get_shard_infos_filename()
       nb_shards = len(self.shard_iters)
-      sleep_count = 0
 
       # Invalidate any previous shard iterator first...
       for sh_num in range(nb_shards):
@@ -250,7 +250,7 @@ class KinesisIngester(ConfReader):
                 self.shard_iters[sh_id] = None
               else:
                 # Update iterator. Is this working?
-                if self.verbose > 4:
+                if self.verbose > 5:
                   msg = "[{}: log] Found valid next shard iterator {} for shard {}"
                   print(msg.format(self.pp, sh_it, sh_id))
                 self.shard_iters[sh_id] = sh_it
@@ -266,7 +266,7 @@ class KinesisIngester(ConfReader):
               self.shard_iters[sh_id] = None
 
             records = rec_response['Records']
-
+            read_records = 0
             if len(records) > 0:
               if self.verbose > 3:
                 # msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
@@ -277,7 +277,6 @@ class KinesisIngester(ConfReader):
                   lag_ms = rec_response['MillisBehindLatest']
                   msg = "[{}: log] Lagging by {:.3f}s"
                   print(msg.format(self.pp, lag_ms/1000.0))
-              sleep_count = 0
               for rec in records:
                 sqn = str(rec['SequenceNumber'].decode("utf-8"))
                 # This could throw a JSONDecodeError (subclass of ValueError): No JSON object could be decoded
@@ -293,7 +292,7 @@ class KinesisIngester(ConfReader):
                       msg = "[{}: WARNING] Could not parse record at SequenceNumber {}. Record has no 'Data' field"
                       print(msg.format(self.pp, sqn))
                   continue
-                if self.verbose > 5:
+                if self.verbose > 6:
                   #msg = "[{}: log] Found message at SequenceNumber {} in shard {}: {}"
                   #print(msg.format(self.pp, sqn, sh_id, rec_json))
                   rec_ts = rec['ApproximateArrivalTimestamp']
@@ -304,24 +303,34 @@ class KinesisIngester(ConfReader):
                 # Maybe number of records read for sanity check
                 # Start read time too?
                 if sh_id in self.shard_infos:
-                  self.shard_infos[sh_id]['sqn'] = sqn
-                  self.shard_infos[sh_id]['nb_read'] += 1
+                  if sqn != self.shard_infos[sh_id]['sqn']:
+                    self.shard_infos[sh_id]['sqn'] = sqn
+                    self.shard_infos[sh_id]['nb_read'] += 1
+                    read_records += 1
+                  else:
+                    # Skip already read record
+                    if self.verbose > 5:
+                      msg = "[{}: log] Skipping one already processed record"
+                      print(msg.format(self.pp))
+                    continue
                 else:
                   self.shard_infos[sh_id] = dict()
                   self.shard_infos[sh_id]['sqn'] = sqn
                   self.shard_infos[sh_id]['start_read'] = datetime.now().isoformat()
                   self.shard_infos[sh_id]['nb_read'] = 1
+                  read_records += 1
 
+                self.sleep_count = 0
                 yield rec_json
 
-              if self.verbose > 5:
+              if self.verbose > 5 and read_records > 0:
                 msg = "[{}: log] Finished looping on {} records"
-                print(msg.format(self.pp,len(records)))
+                print(msg.format(self.pp, read_records))
 
             #if self.shard_iters[sh_id] is None:
             else:
               empty += 1
-              if self.verbose > 3:
+              if self.verbose > 4:
                 msg = "[{}: log] Shard {} seems empty"
                 print(msg.format(self.pp, sh_id))
 
@@ -331,7 +340,7 @@ class KinesisIngester(ConfReader):
             # self.shard_iters[sh_id] = None
 
           # Dump current self.shard_infos
-          if self.verbose > 1:
+          if self.verbose > 4:
             msg = "[{}: log] shard_infos: {}"
             print(msg.format(self.pp, self.shard_infos))
           with open(sifn, 'w') as sif:
@@ -339,11 +348,12 @@ class KinesisIngester(ConfReader):
 
           # Sleep?
           if empty == len(self.shard_iters):
-            if self.verbose > 1:
+            if self.verbose > 2:
               msg = "[{}: log] All shards seem empty or fully processed."
               print(msg.format(self.pp))
-            time.sleep(min(5*sleep_count + 1, sleep_time))
-            sleep_count += 1
+            time.sleep(min(5*self.sleep_count + 1, sleep_time))
+            self.sleep_count += 1
+            break
           else:
             time.sleep(1)
       except Exception as inst:

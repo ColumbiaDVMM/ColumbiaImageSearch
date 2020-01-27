@@ -118,6 +118,7 @@ if __name__ == "__main__":
     conf[image_pusher_prefix + 'aws_profile'] = os.getenv('aws_profile')
     conf[image_pusher_prefix + 'create_stream'] = bool(int(os.getenv('create_stream', 0)))
     conf[image_pusher_prefix + 'verify_certificates'] = bool(int(os.getenv('verify_certificates', 1)))
+    conf[image_pusher_prefix + 'use_ssl'] = bool(int(os.getenv('use_ssl', 1)))
 
   # - images_stream
   # - aws_profile

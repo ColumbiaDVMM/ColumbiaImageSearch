@@ -58,3 +58,6 @@ fi
 #log="./logs/log_image_ingestion_"${conf_name}
 #bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}" --log="${log}"
 bash ./scripts/keep_alive_process.sh --cmd="${cmd}" --args="${args}"
+
+echo "Push process failed. Restarting docker container..."
+exit 1
