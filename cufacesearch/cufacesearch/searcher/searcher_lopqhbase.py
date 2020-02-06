@@ -48,8 +48,8 @@ class SearcherLOPQHBase(GenericSearcher):
     # making LOPQSearcherLMDB the default LOPQSearcher
     self.lopq_searcher = "LOPQSearcherLMDB"
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix=prefix, pp="SearcherLOPQHBase")
-    # TODO: fallback bucket_name could be loaded dynamically from conf file...
-    #base_model_path = "https://s3-us-west-2.amazonaws.com/dig-cu-imagesearchindex/"
+    # fallback bucket_name could be loaded dynamically from conf file...
+    #e.g.: base_model_path = "https://s3-us-west-2.amazonaws.com/myimagesearchindex/"
     self.base_model_path = self.get_param("base_model_path", None)
 
     # To load pickled codes files from s3 bucket
