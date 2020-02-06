@@ -136,6 +136,7 @@ class SearcherLOPQHBase(GenericSearcher):
           try:
             # This can fail with a "retrieval incomplete: got only" ...
             # Or can stall... why?
+            # Could we change that to download using an s3_storer?
             download_file(os.path.join(self.base_model_path, self.build_model_str()),
                           self.build_model_str())
             lopq_model = pickle.load(open(self.build_model_str(), 'rb'))
@@ -157,7 +158,7 @@ class SearcherLOPQHBase(GenericSearcher):
               full_trace_error(log_msg.format(self.pp, self.build_model_str(), inst))
               sys.stdout.flush()
         else:
-          log_msg = "[{}: Warning] Could not retrieve pre-trained model as `` was not set."
+          log_msg = "[{}: Warning] Could not retrieve pre-trained model as `base_model_path` was not set."
           print(log_msg.format(self.pp, self.build_model_str()))
       else:
         log_msg = "[{}: log] Skipped retrieving pre-trained model from s3 as requested."
