@@ -1,12 +1,11 @@
+# This should be run in the docker
 from __future__ import print_function
 from cufacesearch.indexer.hbase_indexer_minimal import HBaseIndexerMinimal
-from cufacesearch.detector.utils import show_bbox_from_URL
-import numpy as np
-import base64
 import sys
 
 start_row = '0' * 40
 
+# Change that
 hbim = HBaseIndexerMinimal('../conf/generated/conf_extraction_lfw_local_dlib.json')
 #hbim.get_updates_from_date()
 nb_face = 0
