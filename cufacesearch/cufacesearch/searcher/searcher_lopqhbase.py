@@ -48,6 +48,9 @@ class SearcherLOPQHBase(GenericSearcher):
     # making LOPQSearcherLMDB the default LOPQSearcher
     self.lopq_searcher = "LOPQSearcherLMDB"
     super(SearcherLOPQHBase, self).__init__(global_conf_in, prefix=prefix, pp="SearcherLOPQHBase")
+    # TODO: fallback bucket_name could be loaded dynamically from conf file...
+    #base_model_path = "https://s3-us-west-2.amazonaws.com/dig-cu-imagesearchindex/"
+    self.base_model_path = sef.get_
 
     # To load pickled codes files from s3 bucket
     print("[{}.load_codes: log] Starting to load codes".format(self.pp))
@@ -129,30 +132,33 @@ class SearcherLOPQHBase(GenericSearcher):
         print(log_msg.format(self.pp, self.build_model_str()))
         from ..common.dl import download_file
         import pickle
-        try:
-          # TODO: fallback bucket_name could be loaded dynamically from conf file...
-          base_model_path = "https://s3-us-west-2.amazonaws.com/dig-cu-imagesearchindex/"
-          # This can fail with a "retrieval incomplete: got only" ...
-          # Or can stall... why?
-          download_file(base_model_path + self.build_model_str(), self.build_model_str())
-          lopq_model = pickle.load(open(self.build_model_str(), 'rb'))
-          # Avoid overwritting the model in s3 with s3storer using dig-cu-imagesearchindex bucket
-          is_s3_storer = isinstance(self.storer, S3Storer)
-          if is_s3_storer and self.storer.bucket_name == "dig-cu-imagesearchindex":
-            log_msg = "[{}: log] Skipping saving model {} back to s3"
+        if self.base_model_path:
+          try:
+            # This can fail with a "retrieval incomplete: got only" ...
+            # Or can stall... why?
+            download_file(os.path.join(self.base_model_path, self.build_model_str()),
+                          self.build_model_str())
+            lopq_model = pickle.load(open(self.build_model_str(), 'rb'))
+            # Avoid overwritting the model in s3 with s3storer using dig-cu-imagesearchindex bucket
+            is_s3_storer = isinstance(self.storer, S3Storer)
+            if is_s3_storer and self.storer.bucket_name == "dig-cu-imagesearchindex":
+              log_msg = "[{}: log] Skipping saving model {} back to s3"
+              print(log_msg.format(self.pp, self.build_model_str()))
+            else:
+              log_msg = "[{}: log] Saving model {} to storer"
+              print(log_msg.format(self.pp, self.build_model_str()))
+              self.storer.save(self.build_model_str(), lopq_model)
+            log_msg = "[{}: log] Loaded pretrained model {} from s3"
             print(log_msg.format(self.pp, self.build_model_str()))
-          else:
-            log_msg = "[{}: log] Saving model {} to storer"
-            print(log_msg.format(self.pp, self.build_model_str()))
-            self.storer.save(self.build_model_str(), lopq_model)
-          log_msg = "[{}: log] Loaded pretrained model {} from s3"
+            self.loaded_pretrain_model = True
+          except Exception as inst:
+              log_msg = "[{}: log] Could not loaded pretrained model {} from s3: {}"
+              #print(log_msg.format(self.pp, self.build_model_str(), inst))
+              full_trace_error(log_msg.format(self.pp, self.build_model_str(), inst))
+              sys.stdout.flush()
+        else:
+          log_msg = "[{}: Warning] Could not retrieve pre-trained model as `` was not set."
           print(log_msg.format(self.pp, self.build_model_str()))
-          self.loaded_pretrain_model = True
-        except Exception as inst:
-          log_msg = "[{}: log] Could not loaded pretrained model {} from s3: {}"
-          #print(log_msg.format(self.pp, self.build_model_str(), inst))
-          full_trace_error(log_msg.format(self.pp, self.build_model_str(), inst))
-          sys.stdout.flush()
       else:
         log_msg = "[{}: log] Skipped retrieving pre-trained model from s3 as requested."
         print(log_msg.format(self.pp, self.build_model_str()))
