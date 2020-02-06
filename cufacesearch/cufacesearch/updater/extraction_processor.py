@@ -53,7 +53,7 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
   Multi-threaded download images from the web or load from disk.
   """
 
-  def __init__(self, q_in, q_out, url_input=True):
+  def __init__(self, q_in, q_out, url_input=True, fbptrn=None):
     """ThreadedDownloaderBufferOnly constructor
 
     :param q_in: input queue
@@ -69,7 +69,7 @@ class ThreadedDownloaderBufferOnly(threading.Thread):
     self.url_input = url_input
     # If you have another way of getting the images based on SHA1
     # TODO: This could be a parameter... Should be passed down from ExtractionProcessor
-    self.fallback_pattern = None
+    self.fallback_pattern = fbptrn
     # self.fallback_pattern = "https://www.fallback.com/image/{}.jpeg"
 
   def run(self):
@@ -142,6 +142,7 @@ class ExtractionProcessor(ConfReader):
     self.ingestion_input = self.get_param("update_ingestion_type", default="hbase")
     self.push_back = bool(self.get_param("push_back", default=False))
     self.check_missing = bool(self.get_param("check_missing", default=False))
+    self.fallback_pattern = bool(self.get_param("fallback_pattern", default=None))
     file_input = self.get_param("file_input")
     print("[{}.ExtractionProcessor: log] file_input: {}".format(self.pp, file_input))
     if file_input:
@@ -621,7 +622,8 @@ class ExtractionProcessor(ConfReader):
           for i in range(min(self.nb_threads, nb_imgs_dl)):
             # should read (url, obj_pos) from self.q_in
             # and push (url, obj_pos, buffer, img_info, start_process, end_process) to self.q_out
-            thread = ThreadedDownloaderBufferOnly(q_in_dl, q_out_dl, url_input=self.url_input)
+            thread = ThreadedDownloaderBufferOnly(q_in_dl, q_out_dl, url_input=self.url_input,
+                                                  fbptrn=self.fallback_pattern)
             thread.start()
             threads_dl.append(thread)
 
